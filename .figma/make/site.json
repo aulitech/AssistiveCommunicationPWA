@@ -1,0 +1,10 @@
+{
+  "description": "Enables assistive communication through pointer dwell selection with a minimal interface featuring text input, undo/clear, speech, and phrase table.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
