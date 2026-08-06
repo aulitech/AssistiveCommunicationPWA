@@ -1046,22 +1046,25 @@ body {
   flex-direction: column;
 }
 
-.voice-scroller {
+/* Shared scrollable pane with dwell-driven arrows (voice list, help guide). */
+.scroll-pane {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   flex: 1;
+  min-height: 0;
 }
 
-.voice-list-inner {
+.scroll-pane-inner {
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
   scrollbar-width: none;
 }
 
-.voice-list-inner::-webkit-scrollbar { display: none; }
+.scroll-pane-inner::-webkit-scrollbar { display: none; }
 
-.voice-scroll-btn {
+.pane-scroll-btn {
   position: relative;
   display: flex;
   align-items: center;
@@ -1074,9 +1077,9 @@ body {
   background: var(--surface);
 }
 
-.voice-scroll-btn:last-child { border-bottom: none; border-top: 1px solid var(--border); }
-.voice-scroll-btn.dwelling { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); }
-.voice-scroll-btn .dwell-bar { background: var(--accent); }
+.pane-scroll-btn:last-child { border-bottom: none; border-top: 1px solid var(--border); }
+.pane-scroll-btn.dwelling { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); }
+.pane-scroll-btn .dwell-bar { background: var(--accent); }
 
 .voice-option {
   position: relative;
@@ -1530,4 +1533,75 @@ body {
 .contact-add-btn .dwell-bar { background: var(--accent); }
 .contact-add-btn.dwelling .dwell-bar {
   animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
+}
+
+/* ── Help guide ── */
+/* Long-form reading inside a panel that is otherwise all controls, so it gets
+   generous line spacing and its own scroll arrows — a dwell user cannot reach
+   a scrollbar or a wheel. */
+.help-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* Leaves room for the Back button below without the panel growing off-screen. */
+  max-height: 52vh;
+}
+
+.help-scroller {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.help-body {
+  padding: 14px 16px;
+}
+
+.help-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.help-section {
+  margin-top: 16px;
+}
+
+.help-section:first-of-type {
+  margin-top: 10px;
+}
+
+.help-section-title {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.help-text {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.help-list {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.help-list li {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+/* Reading long text needs selection; the app disables it globally. */
+.help-body, .help-body * {
+  user-select: text;
+  -webkit-user-select: text;
 }

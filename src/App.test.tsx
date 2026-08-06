@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, act } from '@testing-library/react'
 import App from './App'
 import { BLANK } from './phrases'
+import { HELP_SECTIONS } from './help'
 import { spoken, lastUtterance } from './test/setup'
 
 // The grid renders every phrase, so query the DOM directly — building an
@@ -370,6 +371,58 @@ describe('my details', () => {
     settle()
 
     expect(JSON.parse(localStorage.getItem('dwellspeak_profile')!).name.nickname).toBe('Ada')
+  })
+})
+
+describe('help', () => {
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
+
+  it('is offered in the menu', () => {
+    renderApp()
+    openMenu()
+    expect(nav('Help')).toBeDefined()
+    expect(nav('Help')?.textContent).toMatch(/how to use/i)
+  })
+
+  it('opens the guide', () => {
+    renderApp()
+    openMenu()
+    click(nav('Help'))
+
+    expect($('.help-panel')).not.toBeNull()
+    expect($('.help-title')?.textContent).toMatch(/dwellspeak/i)
+    expect($$('.help-section').length).toBe(HELP_SECTIONS.length)
+  })
+
+  it('renders every section heading and its body', () => {
+    renderApp()
+    openMenu()
+    click(nav('Help'))
+
+    const headings = $$('.help-section-title').map(h => h.textContent)
+    expect(headings).toEqual(HELP_SECTIONS.map(s => s.title))
+    expect($$('.help-text').length + $$('.help-list li').length).toBeGreaterThan(20)
+  })
+
+  it('goes back to the menu', () => {
+    renderApp()
+    openMenu()
+    click(nav('Help'))
+    click(nav('Back'))
+
+    expect($('.help-panel')).toBeNull()
+    expect(nav('Help')).toBeDefined()
+  })
+
+  it('reopens on the menu rather than back inside the guide', () => {
+    renderApp()
+    openMenu()
+    click(nav('Help'))
+    openMenu() // close
+    openMenu() // reopen
+
+    expect($('.help-panel')).toBeNull()
   })
 })
 
