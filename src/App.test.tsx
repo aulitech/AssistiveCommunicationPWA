@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, act } from '@testing-library/react'
 import App from './App'
+import { BLANK } from './phrases'
 import { spoken, lastUtterance } from './test/setup'
 
 // The grid renders every phrase, so query the DOM directly — building an
@@ -273,6 +274,102 @@ describe('composing', () => {
     click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Copy to clipboard')!)
     act(() => void vi.advanceTimersByTime(50))
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(message())
+  })
+})
+
+describe('my details', () => {
+  const openProfile = () => {
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'My details'))
+  }
+  const cellTexts = () => cells().map(c => c.textContent)
+
+  it('opens from the menu', () => {
+    renderApp()
+    openProfile()
+    expect($('.profile-input')).not.toBeNull()
+    expect($('.profile-empty')?.textContent).toMatch(/nobody/i)
+  })
+
+  it('fills in a name phrase that was previously a blank', () => {
+    renderApp()
+    expect(cellTexts()).toContain(`This is ${BLANK}`)
+
+    openProfile()
+    fireEvent.change($('input[aria-label="Nickname"]')!, { target: { value: 'Ada' } })
+    settle()
+
+    expect(cellTexts()).toContain('This is Ada')
+    expect(cellTexts()).not.toContain(`This is ${BLANK}`)
+  })
+
+  it('adds a contact and offers it on the matching phrase', () => {
+    renderApp()
+    openProfile()
+
+    fireEvent.change($('input[aria-label="Add a contact"]')!, { target: { value: 'Mum' } })
+    settle()
+    click($('.contact-add-btn'))
+
+    expect($$('.contact-name').map(c => c.textContent)).toEqual(['Mum'])
+    // A lone contact needs no picker — it goes straight into the phrase.
+    expect(cellTexts().some(t => t?.includes('call Mum'))).toBe(true)
+  })
+
+  it('asks which contact once there is more than one', () => {
+    renderApp()
+    openProfile()
+    for (const name of ['Mum', 'Dad']) {
+      fireEvent.change($('input[aria-label="Add a contact"]')!, { target: { value: name } })
+      settle()
+      click($('.contact-add-btn'))
+    }
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Back'))
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+
+    const callCell = cells().find(c => /going to call/.test(c.textContent ?? ''))!
+    click(callCell)
+
+    expect($('.slot-picker')).not.toBeNull()
+    expect($$('.slot-option').map(o => o.textContent)).toEqual(['Mum', 'Dad'])
+    click($$('.slot-option')[1])
+    expect(message()).toContain('Dad')
+  })
+
+  it('removes a contact', () => {
+    renderApp()
+    openProfile()
+    fireEvent.change($('input[aria-label="Add a contact"]')!, { target: { value: 'Mum' } })
+    settle()
+    click($('.contact-add-btn'))
+    expect($$('.contact-name')).toHaveLength(1)
+
+    click($('.contact-remove'))
+    expect($$('.contact-name')).toHaveLength(0)
+  })
+
+  it('refuses blank and duplicate contacts', () => {
+    renderApp()
+    openProfile()
+
+    click($('.contact-add-btn'))
+    expect($$('.contact-name')).toHaveLength(0)
+
+    for (let i = 0; i < 2; i++) {
+      fireEvent.change($('input[aria-label="Add a contact"]')!, { target: { value: 'Mum' } })
+      settle()
+      click($('.contact-add-btn'))
+    }
+    expect($$('.contact-name')).toHaveLength(1)
+  })
+
+  it('persists across a reload', () => {
+    renderApp()
+    openProfile()
+    fireEvent.change($('input[aria-label="Nickname"]')!, { target: { value: 'Ada' } })
+    settle()
+
+    expect(JSON.parse(localStorage.getItem('dwellspeak_profile')!).name.nickname).toBe('Ada')
   })
 })
 

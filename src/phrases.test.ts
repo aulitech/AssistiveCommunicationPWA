@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest'
-import { BLANK, PHRASES, choosableSlots, compose, hasChoices, makePhrase, parseSegments, plainPhrase } from './phrases'
+import {
+  BLANK,
+  EMPTY_PROFILE,
+  PHRASES,
+  buildPhrases,
+  choosableSlots,
+  compose,
+  hasChoices,
+  makePhrase,
+  parseSegments,
+  plainPhrase,
+  profileAliases,
+  type Profile,
+} from './phrases'
 
 const slots = (raw: string) => parseSegments(raw).filter(s => s.kind === 'slot')
 const optionsOf = (raw: string) => slots(raw).map(s => (s.kind === 'slot' ? s.options : []))
@@ -136,6 +149,91 @@ describe('the shipped phrase table', () => {
         .map(s => (s.kind === 'slot' && s.options.length ? s.options[0] : null))
       expect(compose(phrase.segments, picks)).not.toMatch(/[{}]/)
     }
+  })
+})
+
+describe('user profile aliases', () => {
+  const profile = (patch: Partial<Profile>): Profile => ({ ...EMPTY_PROFILE, ...patch })
+  const withProfile = (raw: string, p: Profile) => compose(parseSegments(raw, profileAliases(p)))
+
+  it('leaves phrases as blanks when nothing is filled in', () => {
+    expect(withProfile('This is {name.nickname}', EMPTY_PROFILE)).toBe(`This is ${BLANK}`)
+    expect(withProfile('I am going to call {contact}', EMPTY_PROFILE)).toBe(`I am going to call ${BLANK}`)
+  })
+
+  it('drops a single value straight in, with no picker step', () => {
+    const p = profile({ name: { given: '', surname: '', nickname: 'Sam' } })
+    const segments = parseSegments('This is {name.nickname}', profileAliases(p))
+
+    expect(compose(segments)).toBe('This is Sam')
+    expect(hasChoices(segments)).toBe(false)
+    expect(choosableSlots(segments)).toHaveLength(0)
+  })
+
+  it('offers a picker once there is more than one contact', () => {
+    const p = profile({ contacts: ['Mum', 'Dad'] })
+    const segments = parseSegments('I am going to call {contact}', profileAliases(p))
+
+    expect(hasChoices(segments)).toBe(true)
+    expect(choosableSlots(segments)[0].options).toEqual(['Mum', 'Dad'])
+    expect(compose(segments, ['Dad'])).toBe('I am going to call Dad')
+  })
+
+  it('fills a lone contact without asking', () => {
+    const p = profile({ contacts: ['Mum'] })
+    expect(withProfile('I am going to call {contact}', p)).toBe('I am going to call Mum')
+  })
+
+  it('ignores blank and whitespace-only entries', () => {
+    const p = profile({ contacts: ['  ', ''], name: { given: '  ', surname: '', nickname: '' } })
+    expect(withProfile('This is {name.nickname}', p)).toBe(`This is ${BLANK}`)
+    expect(withProfile('I am going to call {contact}', p)).toBe(`I am going to call ${BLANK}`)
+  })
+
+  it('builds a bare {name} from the fullest form given', () => {
+    const full = profileAliases(profile({ name: { given: 'Ada', surname: 'Lovelace', nickname: 'Ada' } }))
+    expect(full.get('name')).toEqual(['Ada Lovelace'])
+
+    const onlyNick = profileAliases(profile({ name: { given: '', surname: '', nickname: 'Ada' } }))
+    expect(onlyNick.get('name')).toEqual(['Ada'])
+  })
+
+  it('does not disturb aliases the table already provides', () => {
+    const p = profile({ contacts: ['Mum'] })
+    const [pronouns] = parseSegments('Do you like {pronouns}?', profileAliases(p))
+      .filter(s => s.kind === 'slot')
+      .map(s => (s.kind === 'slot' ? s.options : []))
+    expect(pronouns).toContain('they')
+  })
+})
+
+describe('buildPhrases', () => {
+  it('matches the default export when given no profile', () => {
+    expect(buildPhrases().length).toBe(PHRASES.length)
+  })
+
+  it('keeps phrase ids stable when the profile changes', () => {
+    // Ids hash the source text, so saved edits survive a profile edit.
+    const before = buildPhrases(EMPTY_PROFILE)
+    const after = buildPhrases({ ...EMPTY_PROFILE, contacts: ['Mum', 'Dad'] })
+    expect(after.map(p => p.id)).toEqual(before.map(p => p.id))
+  })
+
+  it('resolves the profile-backed phrases that used to be dead', () => {
+    const filled = buildPhrases({
+      name: { given: 'Ada', surname: '', nickname: 'Ada' },
+      contacts: ['Mum', 'Dad'],
+    })
+    const texts = filled.map(p => p.text)
+
+    expect(texts).toContain('This is Ada')
+    expect(texts.some(t => /going to call/.test(t) && !t.includes(BLANK))).toBe(true)
+  })
+
+  it('still leaves genuinely anonymous blanks alone', () => {
+    // "Did you see {}" names no alias, so there is nothing to fill it with.
+    const filled = buildPhrases({ name: { given: 'Ada', surname: '', nickname: 'Ada' }, contacts: ['Mum'] })
+    expect(filled.some(p => p.text.includes(BLANK))).toBe(true)
   })
 })
 
