@@ -461,3 +461,23 @@ describe('accessibility', () => {
     expect(toggles().every(t => t.hasAttribute('aria-pressed'))).toBe(true)
   })
 })
+
+describe('sign-in providers', () => {
+  // Tests run with no VITE_… variables set, so no provider is configured.
+  it('offers only guest when nothing is configured', () => {
+    container = render(<App />).container
+    const labels = $$('.auth-btn').map(b => b.getAttribute('aria-label'))
+    expect(labels).toEqual(['Continue as guest'])
+  })
+
+  it('hides the divider when there is nothing to divide', () => {
+    container = render(<App />).container
+    expect($('.signin-divider')).toBeNull()
+  })
+
+  it('still lets a guest in', () => {
+    container = render(<App />).container
+    click($$('.auth-btn').find(b => b.getAttribute('aria-label') === 'Continue as guest'))
+    expect($('.app')).not.toBeNull()
+  })
+})
