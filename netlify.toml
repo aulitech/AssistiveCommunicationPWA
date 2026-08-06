@@ -1,0 +1,47 @@
+# Netlify build and serving config.
+#
+# This file takes precedence over the equivalent settings in the Netlify UI, so
+# it is the single reviewable place the deploy is described.
+
+[build]
+  # Gate the deploy on the test suite. `vite build` succeeds on plenty of broken
+  # states — every defect fixed in this repo's history compiled cleanly — so a
+  # green build alone is not evidence the app works.
+  command = "pnpm check && pnpm build"
+  publish = "dist"
+
+[build.environment]
+  # Mirrors .mise.toml, which Netlify does not read.
+  NODE_VERSION = "22"
+  PNPM_VERSION = "10.34.3"
+
+# Single-page app: there is no router, but a deep link should still land on the
+# app rather than a 404. Netlify serves real files first, so this only catches
+# paths that do not exist on disk.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# The service worker decides when clients get new code. If it is served from
+# cache, an installed PWA can pin itself to an old build indefinitely.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Vite fingerprints everything under /assets, so these are safe to keep forever.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
