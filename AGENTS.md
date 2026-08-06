@@ -15,7 +15,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 
 - `src/main.tsx` - React entrypoint; imports `src/index.css`, mounts `src/App.tsx` into the `#root` element, and registers the service worker in production builds
 - `src/App.tsx` - Primary application component and the usual starting point for UI work
-- `src/phrases.ts` - Parses `src/imports/phrasetable.json` into phrases, including the fill-in-the-blank slots and their `aliases` lookups
+- `src/phrases.ts` - Parses `src/imports/phrasetable.json` into phrases, including the fill-in-the-blank slots, their `aliases` lookups, and the user profile that fills `{contact}` and `{name}`
 - `src/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
 - `src/speech.ts` - Speech synthesis; the single place utterances are created
 - `src/auth.ts` - Google, Apple, and Facebook OAuth sign-in
@@ -60,6 +60,18 @@ When fixing a bug, add the test that fails without the fix, then confirm it actu
 This project uses **Tailwind CSS v4** through the `@tailwindcss/vite` plugin configured in `vite.config.ts`. `src/index.css` imports Tailwind with `@import 'tailwindcss';`. Use Tailwind utility classes directly in JSX and put global CSS or Tailwind v4 theme customization in `src/index.css`. This scaffold does not need a Tailwind config file or PostCSS config.
 
 `src/main.tsx` imports `src/index.css`, so global font wiring belongs in `src/index.css`. Keep CSS `@import` statements first, then add any `@font-face` rules and font-family defaults there.
+
+## Phrases and slots
+
+Phrases in `phrasetable.json` can carry fill-in-the-blank slots — `Please turn {control} the lights`. A slot's options come from one of three places, resolved in `resolveSlot`:
+
+1. An inline quoted list in the placeholder itself (`{['music', 'tv']}`), which always wins.
+2. The user's profile, for `{contact}` and `{name...}`. The table ships these empty; the profile is edited under **Menu → My details** and stored separately from the phrase store.
+3. The table's own `aliases` block, for `{pronouns}`, `{direction}`, `{bodyparts}` and friends.
+
+How many options a slot ends up with decides the interaction, so mind the boundaries: **none** renders as `___` and the cursor lands on it for typing, **exactly one** is substituted straight into the text with no picker, and **two or more** opens the slot picker. `hasChoices` and `choosableSlots` both key off `options.length > 1` for that reason.
+
+Slot options are baked in at parse time, so `buildPhrases(profile)` re-parses the table when the profile changes. Phrase ids hash the *source* text rather than the rendered text, so saved edits survive a profile change.
 
 ## Code quality
 

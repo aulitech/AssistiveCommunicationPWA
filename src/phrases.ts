@@ -69,10 +69,60 @@ function buildAliasIndex(raw: unknown): AliasIndex {
 
 const ALIASES = buildAliasIndex((phraseTable as { aliases?: unknown }).aliases)
 
+// ── User profile ──────────────────────────────────────────────────────────────
+// The table ships `contacts` and `name` empty and there is nowhere in the data
+// to put a particular person's details, so phrases like "I'm going to call
+// {contact}" resolve to nothing. The profile supplies those values per user and
+// overlays the table's entries.
+
+export interface Profile {
+  name: { given: string; surname: string; nickname: string }
+  contacts: string[]
+}
+
+export const EMPTY_PROFILE: Profile = {
+  name: { given: '', surname: '', nickname: '' },
+  contacts: [],
+}
+
+/** Alias entries derived from the user's own details. */
+export function profileAliases(profile: Profile): AliasIndex {
+  const index: AliasIndex = new Map()
+  const clean = (s: string) => s.trim()
+
+  const contacts = profile.contacts.map(clean).filter(Boolean)
+  if (contacts.length) index.set('contacts', contacts)
+
+  const { given, surname, nickname } = profile.name
+  const entries: [string, string][] = [
+    ['name.given', given],
+    ['name.surname', surname],
+    ['name.nickname', nickname],
+  ]
+  const parts: string[] = []
+  for (const [key, value] of entries) {
+    const v = clean(value)
+    if (!v) continue
+    index.set(key, [v])
+    parts.push(v)
+  }
+  // A bare {name} reads as the fullest form the user has given us.
+  const full = clean([given, surname].map(clean).filter(Boolean).join(' ')) || clean(nickname)
+  if (full) index.set('name', [full])
+  else if (parts.length) index.set('name', [parts[0]])
+
+  return index
+}
+
 // Phrases say {direction} / {contact} where the alias list is plural.
-function lookupAlias(name: string): string[] | null {
+function lookupAlias(name: string, overlay?: AliasIndex): string[] | null {
   const key = name.toLowerCase()
-  return ALIASES.get(key) ?? ALIASES.get(`${key}s`) ?? ALIASES.get(key.replace(/s$/, '')) ?? null
+  const from = (m: AliasIndex | undefined) =>
+    m ? (m.get(key) ?? m.get(`${key}s`) ?? m.get(key.replace(/s$/, '')) ?? null) : null
+  // The user's own details win over the table's empty placeholders.
+  const user = from(overlay)
+  if (user?.length) return user
+  return from(ALIASES)
 }
 
 const ALIAS_LABELS: Record<string, string> = {
@@ -106,7 +156,7 @@ function listLabel(options: string[]): string {
 
 const PLACEHOLDER = /\{[^{}()]*[})]/g
 
-function resolveSlot(body: string): { label: string; options: string[] } {
+function resolveSlot(body: string, overlay?: AliasIndex): { label: string; options: string[] } {
   const quoted = body.match(/'([^']*)'/g)
   if (quoted) {
     const options = quoted.map(q => q.slice(1, -1).trim()).filter(Boolean)
@@ -115,9 +165,11 @@ function resolveSlot(body: string): { label: string; options: string[] } {
 
   const name = body.trim().replace(/[[\]]/g, '')
   if (name) {
-    const options = lookupAlias(name)
-    // A known alias that happens to be empty (contacts, name) still reads better
-    // as its label than as a bare blank.
+    const options = lookupAlias(name, overlay)
+    // A single value needs no picker, so show it in place of the label.
+    if (options?.length === 1) return { label: options[0], options }
+    // A known alias that happens to be empty (contacts, name with no profile)
+    // still reads better as a blank than as a label with nothing behind it.
     if (options) return { label: options.length ? aliasLabel(name) : BLANK, options }
   }
 
@@ -129,7 +181,7 @@ function tidy(text: string): string {
   return text.replace(/\.{2,}/g, '').replace(/\s+/g, ' ')
 }
 
-export function parseSegments(raw: string): Segment[] {
+export function parseSegments(raw: string, overlay?: AliasIndex): Segment[] {
   const segments: Segment[] = []
   let cursor = 0
 
@@ -138,13 +190,21 @@ export function parseSegments(raw: string): Segment[] {
     if (match.index > cursor) {
       segments.push({ kind: 'text', text: tidy(raw.slice(cursor, match.index)) })
     }
-    const { label, options } = resolveSlot(match[0].slice(1, -1))
+    const { label, options } = resolveSlot(match[0].slice(1, -1), overlay)
     segments.push({ kind: 'slot', label, options })
     cursor = match.index + match[0].length
   }
   if (cursor < raw.length) segments.push({ kind: 'text', text: tidy(raw.slice(cursor)) })
 
   return segments.length ? segments : [{ kind: 'text', text: tidy(raw) }]
+}
+
+export type Slot = Extract<Segment, { kind: 'slot' }>
+
+/** What a slot reads as when the user has not picked for it. */
+function slotDefault(segment: Slot): string {
+  if (segment.options.length === 1) return segment.options[0]
+  return segment.options.length ? segment.label : BLANK
 }
 
 /** Render segments, substituting `choices` for slots (index-aligned to slots). */
@@ -154,19 +214,22 @@ export function compose(segments: Segment[], choices?: (string | null)[]): strin
     .map(s => {
       if (s.kind === 'text') return s.text
       slot++
-      return choices?.[slot] ?? (s.options.length ? s.label : BLANK)
+      return choices?.[slot] ?? slotDefault(s)
     })
     .join('')
   return out.replace(/\s+/g, ' ').replace(/\s+([,.?!])/g, '$1').replace(/[.\s]+$/, '').trim()
 }
 
-/** Slots the user must pick a value for; blanks are left for them to type. */
-export function choosableSlots(segments: Segment[]): Segment[] {
-  return segments.filter((s): s is Extract<Segment, { kind: 'slot' }> => s.kind === 'slot' && s.options.length > 0)
+/**
+ * Slots the user must pick a value for. A slot with exactly one value needs no
+ * picker — it is already the answer — and a slot with none is a typed blank.
+ */
+export function choosableSlots(segments: Segment[]): Slot[] {
+  return segments.filter((s): s is Slot => s.kind === 'slot' && s.options.length > 1)
 }
 
 export function hasChoices(segments: Segment[]): boolean {
-  return segments.some(s => s.kind === 'slot' && s.options.length > 0)
+  return segments.some(s => s.kind === 'slot' && s.options.length > 1)
 }
 
 // ── Stable ids ────────────────────────────────────────────────────────────────
@@ -182,8 +245,15 @@ function hash(input: string): string {
   return h.toString(36)
 }
 
-export function makePhrase(raw: string, category: string, seen?: Map<string, number>): Phrase {
-  const segments = parseSegments(raw)
+export function makePhrase(
+  raw: string,
+  category: string,
+  seen?: Map<string, number>,
+  overlay?: AliasIndex,
+): Phrase {
+  const segments = parseSegments(raw, overlay)
+  // Hash the source text, not the rendered text, so a phrase keeps its id when
+  // the user's profile changes what its slots resolve to.
   const key = `${category}|${raw}`
   let id = hash(key)
   if (seen) {
@@ -200,11 +270,23 @@ export function plainPhrase(id: string, text: string, category: string): Phrase 
   return { id, text, segments: [{ kind: 'text', text }], category }
 }
 
-export const PHRASES: Phrase[] = (() => {
-  const rows = (phraseTable.phrases as { txt: string; category: string }[]) ?? []
+const PHRASE_ROWS = ((phraseTable.phrases as { txt: string; category: string }[]) ?? []).filter(p =>
+  p.txt?.trim(),
+)
+
+/**
+ * The phrase table resolved against a user profile. Only a handful of phrases
+ * reference profile-backed aliases, but slot options are baked in at parse time,
+ * so the table is rebuilt when the profile changes — a few milliseconds, and
+ * only on an edit to the user's own details.
+ */
+export function buildPhrases(profile: Profile = EMPTY_PROFILE): Phrase[] {
+  const overlay = profileAliases(profile)
   const seen = new Map<string, number>()
-  return rows
-    .filter(p => p.txt?.trim())
-    .map(p => makePhrase(p.txt.trim(), p.category, seen))
-    .filter(p => p.text.trim() !== '')
-})()
+  return PHRASE_ROWS.map(p => makePhrase(p.txt.trim(), p.category, seen, overlay)).filter(
+    p => p.text.trim() !== '',
+  )
+}
+
+/** The table with no profile applied. */
+export const PHRASES: Phrase[] = buildPhrases()

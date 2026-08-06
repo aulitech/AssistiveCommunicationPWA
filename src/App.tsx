@@ -3,13 +3,15 @@ import { signInWithGoogle, signInWithApple, signInWithFacebook } from './auth'
 import { useDwellControl, cancelAllDwells } from './dwell'
 import { speak, subscribeVoices } from './speech'
 import {
-  PHRASES,
+  EMPTY_PROFILE,
+  buildPhrases,
   BLANK,
   compose,
   hasChoices,
   parseSegments,
   plainPhrase,
   type Phrase,
+  type Profile,
 } from './phrases'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -117,6 +119,33 @@ function loadPhraseStore(): PhraseStore {
 
 function savePhraseStore(s: PhraseStore) {
   localStorage.setItem(PHRASE_STORE_KEY, JSON.stringify(s))
+}
+
+// ── Profile ──────────────────────────────────────────────────────────────────
+// Fills the `contacts` and `name` aliases the phrase table ships empty, so
+// phrases like "I'm going to call {contact}" have something to offer.
+
+const PROFILE_KEY = 'dwellspeak_profile'
+
+function loadProfile(): Profile {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? '{}')
+    const str = (v: unknown) => (typeof v === 'string' ? v : '')
+    return {
+      name: {
+        given: str(raw?.name?.given),
+        surname: str(raw?.name?.surname),
+        nickname: str(raw?.name?.nickname),
+      },
+      contacts: Array.isArray(raw?.contacts) ? raw.contacts.filter((c: unknown) => typeof c === 'string') : [],
+    }
+  } catch {
+    return EMPTY_PROFILE
+  }
+}
+
+function saveProfile(p: Profile) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(p))
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -907,25 +936,145 @@ function SettingsPanel() {
   )
 }
 
-function TopPanel({ open, user, onClose, onSignOut }: {
+// ── ProfilePanel ──────────────────────────────────────────────────────────────
+// Supplies the values behind {contact} and {name.nickname}. Typed rather than
+// dwelled: it is one-off setup, usually done by whoever sets the device up.
+
+function ContactRow({ name, onRemove }: { name: string; onRemove: () => void }) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onRemove)
+  return (
+    <div className="contact-row">
+      <span className="contact-name">{name}</span>
+      <div
+        className={cx('contact-remove', active && 'dwelling')}
+        style={dwellVar(settings.actionDwellMs)}
+        role="button"
+        aria-label={`Remove ${name}`}
+        {...props}
+      >
+        <div className="dwell-bar" key={active ? 'a' : 'i'} />
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="14" height="14" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </div>
+    </div>
+  )
+}
+
+function ProfilePanel({ profile, onChange }: { profile: Profile; onChange: (p: Profile) => void }) {
+  const { settings } = useSettings()
+  const [draft, setDraft] = useState('')
+
+  const setName = (field: keyof Profile['name'], value: string) =>
+    onChange({ ...profile, name: { ...profile.name, [field]: value } })
+
+  const addContact = useCallback(() => {
+    const name = draft.trim()
+    if (!name || profile.contacts.includes(name)) return
+    onChange({ ...profile, contacts: [...profile.contacts, name] })
+    setDraft('')
+  }, [draft, profile, onChange])
+
+  const { active: addActive, props: addProps } = useDwellControl(settings.actionDwellMs, addContact, {
+    disabled: draft.trim() === '',
+  })
+
+  return (
+    <div className="settings-panel">
+      <p className="profile-hint">
+        Used by phrases that name someone — “This is …”, “I'm going to call …”.
+      </p>
+
+      <SettingRow label="Nickname">
+        <input
+          className="profile-input"
+          value={profile.name.nickname}
+          onChange={e => setName('nickname', e.target.value)}
+          placeholder="What people call you"
+          aria-label="Nickname"
+        />
+      </SettingRow>
+      <SettingRow label="First name">
+        <input
+          className="profile-input"
+          value={profile.name.given}
+          onChange={e => setName('given', e.target.value)}
+          aria-label="First name"
+        />
+      </SettingRow>
+      <SettingRow label="Last name">
+        <input
+          className="profile-input"
+          value={profile.name.surname}
+          onChange={e => setName('surname', e.target.value)}
+          aria-label="Last name"
+        />
+      </SettingRow>
+
+      <div className="contact-list" role="group" aria-label="Contacts">
+        <span className="setting-label">Contacts</span>
+        {profile.contacts.length === 0 && <p className="profile-empty">Nobody added yet.</p>}
+        {profile.contacts.map(name => (
+          <ContactRow
+            key={name}
+            name={name}
+            onRemove={() => onChange({ ...profile, contacts: profile.contacts.filter(c => c !== name) })}
+          />
+        ))}
+        <div className="contact-add">
+          <input
+            className="profile-input"
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                addContact()
+              }
+            }}
+            placeholder="Add a name…"
+            aria-label="Add a contact"
+          />
+          <div
+            className={cx('contact-add-btn', addActive && 'dwelling', !draft.trim() && 'is-disabled')}
+            style={dwellVar(settings.actionDwellMs)}
+            role="button"
+            aria-label="Add contact"
+            {...addProps}
+          >
+            <div className="dwell-bar" key={addActive ? 'a' : 'i'} />
+            <PlusIcon />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+type PanelView = 'menu' | 'settings' | 'profile'
+
+function TopPanel({ open, user, onClose, onSignOut, profile, onProfileChange }: {
   open: boolean
   user: User
   onClose: () => void
   onSignOut: () => void
+  profile: Profile
+  onProfileChange: (p: Profile) => void
 }) {
   const handleSignOut = useCallback(() => {
     onClose()
     onSignOut()
   }, [onClose, onSignOut])
-  const [showSettings, setShowSettings] = useState(false)
+  const [view, setView] = useState<PanelView>('menu')
 
-  // Reset the settings view whenever the panel opens or closes, so it never
-  // reopens mid-way into a sub-screen. Adjusting during render rather than in an
-  // effect avoids a second render pass with the stale view still on screen.
+  // Reset to the menu whenever the panel opens or closes, so it never reopens
+  // mid-way into a sub-screen. Adjusting during render rather than in an effect
+  // avoids a second render pass with the stale view still on screen.
   const [wasOpen, setWasOpen] = useState(open)
   if (wasOpen !== open) {
     setWasOpen(open)
-    setShowSettings(false)
+    setView('menu')
   }
 
   useEffect(() => {
@@ -976,14 +1125,18 @@ function TopPanel({ open, user, onClose, onSignOut }: {
           </div>
         </div>
 
-        {showSettings ? (
+        {view !== 'menu' ? (
           <>
-            <SettingsPanel />
+            {view === 'settings' ? (
+              <SettingsPanel />
+            ) : (
+              <ProfilePanel profile={profile} onChange={onProfileChange} />
+            )}
             <nav className="panel-nav">
               <NavItem
                 icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>}
                 label="Back"
-                onSelect={() => setShowSettings(false)}
+                onSelect={() => setView('menu')}
               />
             </nav>
           </>
@@ -993,7 +1146,17 @@ function TopPanel({ open, user, onClose, onSignOut }: {
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>}
               label="Settings"
               sublabel="Dwell time, voice, volume, speed"
-              onSelect={() => setShowSettings(true)}
+              onSelect={() => setView('settings')}
+            />
+            <NavItem
+              icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
+              label="My details"
+              sublabel={
+                profile.contacts.length
+                  ? `${profile.contacts.length} contact${profile.contacts.length === 1 ? '' : 's'}`
+                  : 'Your name and contacts'
+              }
+              onSelect={() => setView('profile')}
             />
             <NavItem
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>}
@@ -1383,6 +1546,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [cursorPos, setCursorPos] = useState(0)
   const [editMode, setEditMode] = useState(false)
   const [store, setStore] = useState<PhraseStore>(loadPhraseStore)
+  const [profile, setProfile] = useState<Profile>(loadProfile)
   const [editing, setEditing] = useState<{ phrase: Phrase | null; isEmergency: boolean } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -1410,15 +1574,24 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     return { id, text: compose(segments), segments, category }
   }, [])
 
+  const handleProfileChange = useCallback((next: Profile) => {
+    saveProfile(next)
+    setProfile(next)
+  }, [])
+
+  // Slot options are resolved at parse time, so the table is rebuilt when the
+  // user's own details change — a few milliseconds, and only on a profile edit.
+  const tablePhrases = useMemo(() => buildPhrases(profile), [profile])
+
   const mainPhrases = useMemo(() => {
-    const base = PHRASES
+    const base = tablePhrases
       .filter(p => !store.hidden.includes(p.id))
       .map(p => (store.overrides[p.id] ? buildPhrase(p.id, store.overrides[p.id], p.category) : p))
     const custom = store.custom
       .filter(c => c.category !== 'Emergency' && !store.hidden.includes(c.id))
       .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, c.category))
     return [...base, ...custom]
-  }, [store, buildPhrase])
+  }, [store, buildPhrase, tablePhrases])
 
   const emergencyPhrases = useMemo(() => {
     const base = EMERGENCY_PHRASES
@@ -1688,7 +1861,14 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
         <EmergencyBar phrases={emergencyPhrases} />
 
         {/* ── Top panel ── */}
-        <TopPanel open={menuOpen} user={user} onClose={closeMenu} onSignOut={onSignOut} />
+        <TopPanel
+          open={menuOpen}
+          user={user}
+          onClose={closeMenu}
+          onSignOut={onSignOut}
+          profile={profile}
+          onProfileChange={handleProfileChange}
+        />
 
         <DwellCursor />
 
