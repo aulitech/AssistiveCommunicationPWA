@@ -1,0 +1,26 @@
+{
+  "name": "DwellSpeak — Assistive Communication",
+  "short_name": "DwellSpeak",
+  "description": "Assistive communication driven entirely by gaze and dwell. Hover and hold to build a message and speak it aloud.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f0f0f",
+  "theme_color": "#0f0f0f",
+  "categories": ["medical", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

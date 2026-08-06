@@ -11,3 +11,7 @@ logs/
 *.log
 .claude-replay.*
 .tmp-*
+
+# pnpm is the pinned package manager (.mise.toml); keep npm/yarn lockfiles out.
+package-lock.json
+yarn.lock
