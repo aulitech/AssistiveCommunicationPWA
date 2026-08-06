@@ -13,5 +13,13 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     restoreMocks: true,
+    // Vite loads .env.local during tests too, so without this the suite would
+    // depend on whether the developer happens to have configured OAuth — green
+    // on CI, red on their machine. Tests that care stub these themselves.
+    env: {
+      VITE_GOOGLE_CLIENT_ID: '',
+      VITE_APPLE_CLIENT_ID: '',
+      VITE_FACEBOOK_APP_ID: '',
+    },
   },
 })
