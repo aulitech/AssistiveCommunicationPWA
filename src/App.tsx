@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo, memo, createContext, useContext } from 'react'
 import { signInWithGoogle, signInWithApple, signInWithFacebook } from './auth'
+import { HELP_SECTIONS } from './help'
 import { useDwellControl, cancelAllDwells } from './dwell'
 import { speak, subscribeVoices } from './speech'
 import {
@@ -770,14 +771,18 @@ function VoiceDropdownItem({ label, selected, onSelect }: { label: string; selec
   )
 }
 
-function ScrollNudge({ direction, onScroll }: { direction: 'up' | 'down'; onScroll: (dy: number) => void }) {
+function ScrollNudge({ direction, onScroll, step = 80 }: {
+  direction: 'up' | 'down'
+  onScroll: (dy: number) => void
+  step?: number
+}) {
   const { settings } = useSettings()
-  const dy = direction === 'up' ? -80 : 80
+  const dy = direction === 'up' ? -step : step
   const handle = useCallback(() => onScroll(dy), [onScroll, dy])
   const { active, props } = useDwellControl(settings.actionDwellMs, handle, { repeatMs: 180 })
   return (
     <div
-      className={cx('voice-scroll-btn', active && 'dwelling')}
+      className={cx('pane-scroll-btn', active && 'dwelling')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
       aria-label={direction === 'up' ? 'Scroll up' : 'Scroll down'}
@@ -791,7 +796,16 @@ function ScrollNudge({ direction, onScroll }: { direction: 'up' | 'down'; onScro
   )
 }
 
-function VoiceListScroller({ children }: { children: React.ReactNode }) {
+/**
+ * A scrollable area with dwell-driven arrows, shown only when there is
+ * somewhere to scroll. A dwell user cannot reach a scrollbar or a wheel.
+ */
+function ScrollPane({ className = '', paneClassName = '', step = 80, children }: {
+  className?: string
+  paneClassName?: string
+  step?: number
+  children: React.ReactNode
+}) {
   const listRef = useRef<HTMLDivElement>(null)
   const [canUp, setCanUp] = useState(false)
   const [canDown, setCanDown] = useState(false)
@@ -819,12 +833,12 @@ function VoiceListScroller({ children }: { children: React.ReactNode }) {
   const scrollBy = useCallback((dy: number) => listRef.current?.scrollBy({ top: dy, behavior: 'smooth' }), [])
 
   return (
-    <div className="voice-scroller">
-      {canUp && <ScrollNudge direction="up" onScroll={scrollBy} />}
-      <div ref={listRef} className="voice-list-inner">
+    <div className={cx('scroll-pane', className)}>
+      {canUp && <ScrollNudge direction="up" step={step} onScroll={scrollBy} />}
+      <div ref={listRef} className={cx('scroll-pane-inner', paneClassName)}>
         {children}
       </div>
-      {canDown && <ScrollNudge direction="down" onScroll={scrollBy} />}
+      {canDown && <ScrollNudge direction="down" step={step} onScroll={scrollBy} />}
     </div>
   )
 }
@@ -863,7 +877,7 @@ function VoiceRow({ voices }: { voices: SpeechSynthesisVoice[] }) {
         </div>
         {open && (
           <div className="voice-list" role="listbox" onPointerLeave={() => setOpen(false)}>
-            <VoiceListScroller>
+            <ScrollPane className="voice-scroller" paneClassName="voice-list-inner">
               {items.map((v, i) => (
                 <VoiceDropdownItem
                   key={`${v.voiceURI}-${i}`}
@@ -875,7 +889,7 @@ function VoiceRow({ voices }: { voices: SpeechSynthesisVoice[] }) {
                   }}
                 />
               ))}
-            </VoiceListScroller>
+            </ScrollPane>
           </div>
         )}
       </div>
@@ -1052,7 +1066,35 @@ function ProfilePanel({ profile, onChange }: { profile: Profile; onChange: (p: P
   )
 }
 
-type PanelView = 'menu' | 'settings' | 'profile'
+// ── HelpPanel ─────────────────────────────────────────────────────────────────
+
+function HelpPanel() {
+  return (
+    <div className="help-panel">
+      <ScrollPane className="help-scroller" paneClassName="help-body" step={120}>
+        <h2 className="help-title">Using DwellSpeak</h2>
+        {HELP_SECTIONS.map(section => (
+          <section key={section.title} className="help-section">
+            <h3 className="help-section-title">{section.title}</h3>
+            {section.blocks.map((block, i) =>
+              block.kind === 'text' ? (
+                <p key={i} className="help-text">{block.text}</p>
+              ) : (
+                <ul key={i} className="help-list">
+                  {block.items.map(item => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              ),
+            )}
+          </section>
+        ))}
+      </ScrollPane>
+    </div>
+  )
+}
+
+type PanelView = 'menu' | 'settings' | 'profile' | 'help'
 
 function TopPanel({ open, user, onClose, onSignOut, profile, onProfileChange }: {
   open: boolean
@@ -1127,11 +1169,9 @@ function TopPanel({ open, user, onClose, onSignOut, profile, onProfileChange }: 
 
         {view !== 'menu' ? (
           <>
-            {view === 'settings' ? (
-              <SettingsPanel />
-            ) : (
-              <ProfilePanel profile={profile} onChange={onProfileChange} />
-            )}
+            {view === 'settings' && <SettingsPanel />}
+            {view === 'profile' && <ProfilePanel profile={profile} onChange={onProfileChange} />}
+            {view === 'help' && <HelpPanel />}
             <nav className="panel-nav">
               <NavItem
                 icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>}
@@ -1157,6 +1197,12 @@ function TopPanel({ open, user, onClose, onSignOut, profile, onProfileChange }: 
                   : 'Your name and contacts'
               }
               onSelect={() => setView('profile')}
+            />
+            <NavItem
+              icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
+              label="Help"
+              sublabel="How to use DwellSpeak"
+              onSelect={() => setView('help')}
             />
             <NavItem
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>}
