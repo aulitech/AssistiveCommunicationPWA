@@ -1105,7 +1105,14 @@ body {
   outline: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
-.edit-toggle-btn.active {
+/* ── Mode toggles (auto-speak, edit) ── */
+/* These sit above the scroll controls and stay put, so they must not flex to
+   fill the rail the way the scroll buttons do. */
+.toggle-btn {
+  flex: 0 0 44px;
+}
+
+.toggle-btn.active {
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 15%, var(--surface));
   border-bottom: 1px solid var(--border);
