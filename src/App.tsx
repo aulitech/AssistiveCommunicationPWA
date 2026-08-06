@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo, memo, createContext, useContext } from 'react'
-import { signInWithGoogle, signInWithApple, signInWithFacebook } from './auth'
+import { SIGN_IN, SignInCancelled, configuredProviders, type Provider } from './auth'
 import { HELP_SECTIONS } from './help'
 import { useDwellControl, cancelAllDwells } from './dwell'
 import { speak, subscribeVoices } from './speech'
@@ -541,8 +541,15 @@ const FEATURES = [
   { icon: '🔒', title: 'Stays on your device', body: 'Your phrases and settings are stored locally, never uploaded.' },
 ]
 
+const PROVIDER_LABELS: Record<Provider, string> = {
+  google: 'Google',
+  apple: 'Apple',
+  facebook: 'Facebook',
+}
+
 function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
   const { settings, update } = useSettings()
+  const providers = useMemo(() => configuredProviders(), [])
   const [loading, setLoading] = useState<User['provider'] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -555,10 +562,7 @@ function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
       setError(null)
       setLoading(provider)
       try {
-        let oauthUser
-        if (provider === 'google') oauthUser = await signInWithGoogle()
-        else if (provider === 'apple') oauthUser = await signInWithApple()
-        else oauthUser = await signInWithFacebook()
+        const oauthUser = await SIGN_IN[provider]()
         onSignIn({
           name: oauthUser.name,
           email: oauthUser.email,
@@ -566,7 +570,10 @@ function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
           avatar: oauthUser.avatar,
         })
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Sign-in failed')
+        // Closing the popup is a decision, not a failure — say nothing.
+        if (!(err instanceof SignInCancelled)) {
+          setError(err instanceof Error ? err.message : 'Sign-in failed')
+        }
         setLoading(null)
       }
     },
@@ -623,19 +630,27 @@ function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
               />
             </div>
 
-            <DwellButton className="auth-btn" label="Continue with Google" onSelect={() => handleOAuth('google')} durationMs={dwellMs}>
-              <div className="auth-btn-inner"><GoogleIcon /><span>Continue with Google</span><div className="auth-dwell-bar" /></div>
-            </DwellButton>
+            {/* Only providers with credentials are offered. Showing a button
+                that can only fail is worse than not showing it at all. */}
+            {providers.map(p => (
+              <DwellButton
+                key={p}
+                className="auth-btn"
+                label={`Continue with ${PROVIDER_LABELS[p]}`}
+                onSelect={() => handleOAuth(p)}
+                durationMs={dwellMs}
+              >
+                <div className="auth-btn-inner">
+                  {p === 'google' && <GoogleIcon />}
+                  {p === 'apple' && <AppleIcon />}
+                  {p === 'facebook' && <FacebookIcon />}
+                  <span>Continue with {PROVIDER_LABELS[p]}</span>
+                  <div className="auth-dwell-bar" />
+                </div>
+              </DwellButton>
+            ))}
 
-            <DwellButton className="auth-btn" label="Continue with Apple" onSelect={() => handleOAuth('apple')} durationMs={dwellMs}>
-              <div className="auth-btn-inner"><AppleIcon /><span>Continue with Apple</span><div className="auth-dwell-bar" /></div>
-            </DwellButton>
-
-            <DwellButton className="auth-btn" label="Continue with Facebook" onSelect={() => handleOAuth('facebook')} durationMs={dwellMs}>
-              <div className="auth-btn-inner"><FacebookIcon /><span>Continue with Facebook</span><div className="auth-dwell-bar" /></div>
-            </DwellButton>
-
-            <div className="signin-divider"><span>or</span></div>
+            {providers.length > 0 && <div className="signin-divider"><span>or</span></div>}
 
             <DwellButton className="auth-btn" label="Continue as guest" onSelect={() => handleOAuth('guest')} durationMs={dwellMs}>
               <div className="auth-btn-inner"><span className="auth-guest-icon" aria-hidden="true">👤</span><span>Continue as guest</span><div className="auth-dwell-bar" /></div>
