@@ -16,8 +16,12 @@ export interface OAuthUser {
 
 function decodeJwt(token: string): Record<string, string> {
   try {
-    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-    return JSON.parse(atob(payload))
+    let payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    payload += '='.repeat((4 - (payload.length % 4)) % 4)
+    // atob yields bytes, not characters — decode as UTF-8 so non-ASCII names
+    // ("José", "О́льга") survive instead of arriving as mojibake.
+    const bytes = Uint8Array.from(atob(payload), c => c.charCodeAt(0))
+    return JSON.parse(new TextDecoder().decode(bytes))
   } catch {
     throw new Error('Invalid JWT')
   }

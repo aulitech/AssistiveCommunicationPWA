@@ -1,59 +1,33 @@
-import { useState, useRef, useCallback, useEffect, useMemo, createContext, useContext } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo, memo, createContext, useContext } from 'react'
 import { signInWithGoogle, signInWithApple, signInWithFacebook } from './auth'
-import phraseTable from './imports/phrasetable.json'
+import { useDwellControl, cancelAllDwells } from './dwell'
+import { speak, subscribeVoices } from './speech'
+import {
+  PHRASES,
+  BLANK,
+  compose,
+  hasChoices,
+  parseSegments,
+  plainPhrase,
+  type Phrase,
+} from './phrases'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type Screen = 'signin' | 'app'
-type Category = string
-
-interface Phrase {
-  id: string
-  text: string
-  category: Category
-}
 
 interface User {
   name: string
   email: string
   provider: 'google' | 'apple' | 'facebook' | 'guest'
   avatar?: string
-  accessToken?: string
 }
 
-// ── Phrase bank (from phrasetable.json) ───────────────────────────────────────
+// ── Small helpers ─────────────────────────────────────────────────────────────
 
-const PHRASES: Phrase[] = (phraseTable.phrases as { txt: string; id: number; category: string }[])
-  .filter(p => p.txt?.trim())
-  .map((p, i) => ({ id: String(i), text: p.txt.trim().replace(/\[[^\]]*\]/g, '').replace(/\.{2,}/g, '').replace(/[.\s]+$/, '').trim(), category: p.category }))
+const cx = (...parts: (string | false | undefined | null)[]) => parts.filter(Boolean).join(' ')
 
-// ── Phrase store (user edits persisted to localStorage) ───────────────────────
-
-const PHRASE_STORE_KEY = 'dwellspeak_phrase_store'
-
-interface PhraseStore {
-  custom:    Phrase[]                 // user-added phrases
-  overrides: Record<string, string>   // id → new text
-  hidden:    string[]                 // ids removed by user
-}
-
-const emptyStore = (): PhraseStore => ({ custom: [], overrides: {}, hidden: [] })
-
-function loadPhraseStore(): PhraseStore {
-  try {
-    const raw = JSON.parse(localStorage.getItem(PHRASE_STORE_KEY) ?? '{}')
-    const base = emptyStore()
-    return {
-      custom:    Array.isArray(raw.custom)    ? raw.custom    : base.custom,
-      overrides: raw.overrides && typeof raw.overrides === 'object' ? raw.overrides : base.overrides,
-      hidden:    Array.isArray(raw.hidden)    ? raw.hidden    : base.hidden,
-    }
-  } catch { return emptyStore() }
-}
-
-function savePhraseStore(s: PhraseStore) {
-  localStorage.setItem(PHRASE_STORE_KEY, JSON.stringify(s))
-}
+const dwellVar = (ms: number) => ({ '--dwell-duration': `${ms}ms` }) as React.CSSProperties
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
@@ -62,9 +36,9 @@ const SETTINGS_KEY = 'dwellspeak_settings'
 interface Settings {
   phraseDwellMs: number
   actionDwellMs: number
-  voiceURI: string   // empty = default
-  volume: number     // 0–1
-  rate: number       // 0.5–2
+  voiceURI: string // empty = default
+  volume: number // 0–1
+  rate: number // 0.5–2
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -76,8 +50,11 @@ const DEFAULT_SETTINGS: Settings = {
 }
 
 function loadSettings(): Settings {
-  try { return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') } }
-  catch { return DEFAULT_SETTINGS }
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }
+  } catch {
+    return DEFAULT_SETTINGS
+  }
 }
 
 function saveSettings(s: Settings) {
@@ -91,12 +68,60 @@ const SettingsCtx = createContext<{ settings: Settings; update: (patch: Partial<
 
 const useSettings = () => useContext(SettingsCtx)
 
+// ── Edit context ─────────────────────────────────────────────────────────────
+
+interface EditCtxValue {
+  editMode: boolean
+  openEdit: (phrase: Phrase | null, isEmergency?: boolean) => void // null = new phrase
+}
+
+const EditCtx = createContext<EditCtxValue>({ editMode: false, openEdit: () => {} })
+const useEdit = () => useContext(EditCtx)
+
+// ── Phrase store (user edits persisted to localStorage) ───────────────────────
+// v2: ids are content-derived rather than array indices, so saved edits no
+// longer reattach to a neighbouring phrase when phrasetable.json changes.
+
+const PHRASE_STORE_KEY = 'dwellspeak_phrase_store_v2'
+
+interface StoredPhrase {
+  id: string
+  text: string
+  category: string
+}
+
+interface PhraseStore {
+  custom: StoredPhrase[] // user-added phrases
+  overrides: Record<string, string> // id → new text
+  hidden: string[] // ids removed by user
+}
+
+const emptyStore = (): PhraseStore => ({ custom: [], overrides: {}, hidden: [] })
+
+function loadPhraseStore(): PhraseStore {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PHRASE_STORE_KEY) ?? '{}')
+    const base = emptyStore()
+    return {
+      custom: Array.isArray(raw.custom) ? raw.custom : base.custom,
+      overrides: raw.overrides && typeof raw.overrides === 'object' ? raw.overrides : base.overrides,
+      hidden: Array.isArray(raw.hidden) ? raw.hidden : base.hidden,
+    }
+  } catch {
+    return emptyStore()
+  }
+}
+
+function savePhraseStore(s: PhraseStore) {
+  localStorage.setItem(PHRASE_STORE_KEY, JSON.stringify(s))
+}
+
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
 function MenuIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-      <line x1="3" y1="6"  x2="21" y2="6"  />
+      <line x1="3" y1="6" x2="21" y2="6" />
       <line x1="3" y1="12" x2="21" y2="12" />
       <line x1="3" y1="18" x2="21" y2="18" />
     </svg>
@@ -106,7 +131,8 @@ function MenuIcon() {
 function ClearIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   )
 }
@@ -114,7 +140,8 @@ function ClearIcon() {
 function UndoIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+      <path d="M9 14L4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
     </svg>
   )
 }
@@ -140,7 +167,7 @@ function CopyIcon() {
 
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="22" height="22">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -151,7 +178,7 @@ function GoogleIcon() {
 
 function AppleIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
       <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.39.07 2.35.74 3.17.78 1.21-.24 2.37-.93 3.67-.84 1.56.12 2.73.72 3.5 1.9-3.22 1.94-2.45 6.06.56 7.34-.65 1.58-1.51 3.17-2.9 3.7zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
     </svg>
   )
@@ -159,7 +186,7 @@ function AppleIcon() {
 
 function FacebookIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="#1877F2">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="#1877F2" aria-hidden="true">
       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
     </svg>
   )
@@ -167,7 +194,7 @@ function FacebookIcon() {
 
 function AppLogoIcon() {
   return (
-    <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <rect width="56" height="56" rx="16" fill="var(--accent)" fillOpacity="0.12"/>
       <path d="M10 16C10 13.8 11.8 12 14 12H42C44.2 12 46 13.8 46 16V34C46 36.2 44.2 38 42 38H30L22 46V38H14C11.8 38 10 36.2 10 34V16Z" fill="var(--accent)" fillOpacity="0.2" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round"/>
       <circle cx="20" cy="25" r="2.5" fill="var(--accent)"/>
@@ -177,127 +204,12 @@ function AppLogoIcon() {
   )
 }
 
-// ── useDwellRepeat hook ───────────────────────────────────────────────────────
-// Fires onAction after initialMs, then repeats every repeatMs while pointer stays.
-
-function useDwellRepeat(initialMs: number, repeatMs: number, onAction: () => void) {
-  const [active, setActive] = useState(false)
-  const initialRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const repeatRef  = useRef<ReturnType<typeof setInterval> | null>(null)
-  const onActionRef = useRef(onAction)
-  onActionRef.current = onAction
-
-  const start = useCallback(() => {
-    if (initialRef.current) return
-    setActive(true)
-    initialRef.current = setTimeout(() => {
-      onActionRef.current()
-      repeatRef.current = setInterval(() => onActionRef.current(), repeatMs)
-    }, initialMs)
-  }, [initialMs, repeatMs])
-
-  const cancel = useCallback(() => {
-    if (initialRef.current) { clearTimeout(initialRef.current);  initialRef.current = null }
-    if (repeatRef.current)  { clearInterval(repeatRef.current);  repeatRef.current  = null }
-    setActive(false)
-  }, [])
-
-  useEffect(() => {
-    const onOut = (e: PointerEvent) => {
-      const exitedWindow = !e.relatedTarget || !(e.relatedTarget instanceof Node) || !document.contains(e.relatedTarget)
-      if (exitedWindow) cancel()
-    }
-    window.addEventListener('pointerout', onOut, { passive: true })
-    window.addEventListener('cancelAlldwells', cancel)
-    return () => {
-      window.removeEventListener('pointerout', onOut)
-      window.removeEventListener('cancelAlldwells', cancel)
-      cancel()
-    }
-  }, [cancel])
-
-  return { active, start, cancel }
-}
-
-// ── useDwell hook ─────────────────────────────────────────────────────────────
-// Refs keep start() stable so frequent re-renders don't stale-close the timer.
-
-function useDwell(durationMs: number, onDwell: () => void, disabled = false) {
-  const [active, setActive] = useState(false)
-  const timerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const callbackRef = useRef(onDwell)
-  callbackRef.current = onDwell
-  const durationRef = useRef(durationMs)
-  durationRef.current = durationMs
-  const disabledRef = useRef(disabled)
-  disabledRef.current = disabled
-
-  const start = useCallback(() => {
-    if (disabledRef.current || timerRef.current) return
-    setActive(true)
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null
-      setActive(false)
-      callbackRef.current()
-    }, durationRef.current)
-  }, [])
-
-  const cancel = useCallback(() => {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
-    setActive(false)
-  }, [])
-
-  useEffect(() => {
-    const onOut = (e: PointerEvent) => {
-      const exitedWindow = !e.relatedTarget || !(e.relatedTarget instanceof Node) || !document.contains(e.relatedTarget)
-      if (exitedWindow) cancel()
-    }
-    window.addEventListener('pointerout', onOut, { passive: true })
-    window.addEventListener('cancelAlldwells', cancel)
-    return () => {
-      window.removeEventListener('pointerout', onOut)
-      window.removeEventListener('cancelAlldwells', cancel)
-      cancel()
-    }
-  }, [cancel])
-
-  return { active, start, cancel }
-}
-
-// ── DwellButton ───────────────────────────────────────────────────────────────
-
-function DwellButton({
-  onSelect, children, className = '', label, disabled = false, durationMs = 800,
-}: {
-  onSelect: () => void
-  children: React.ReactNode
-  className?: string
-  label: string
-  disabled?: boolean
-  durationMs?: number
-}) {
-  const [flash, setFlash] = useState(false)
-
-  const handleDwell = useCallback(() => {
-    if (disabled) return
-    onSelect()
-    setFlash(true)
-    setTimeout(() => setFlash(false), 320)
-  }, [disabled, onSelect])
-
-  const { active, start, cancel } = useDwell(durationMs, handleDwell, disabled)
-
+function PlusIcon() {
   return (
-    <div
-      role="button"
-      aria-label={label}
-      className={[className, active ? 'dwelling' : '', flash ? 'flashed' : '', disabled ? 'is-disabled' : ''].filter(Boolean).join(' ')}
-      style={{ '--dwell-ms': `${durationMs}ms` } as React.CSSProperties}
-      onPointerEnter={disabled ? undefined : start}
-      onPointerLeave={cancel}
-    >
-      {children}
-    </div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="20" height="20" aria-hidden="true">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
   )
 }
 
@@ -310,44 +222,226 @@ function DwellCursor() {
     const onMove = (e: PointerEvent) => {
       if (ref.current) {
         ref.current.style.left = `${e.clientX}px`
-        ref.current.style.top  = `${e.clientY}px`
+        ref.current.style.top = `${e.clientY}px`
       }
     }
-    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointermove', onMove, { passive: true })
     return () => window.removeEventListener('pointermove', onMove)
   }, [])
   return (
-    <div ref={ref} className="dwell-cursor" style={{ left: -100, top: -100 }}>
+    <div ref={ref} className="dwell-cursor" style={{ left: -100, top: -100 }} aria-hidden="true">
       <div className="dwell-cursor-dot" />
+    </div>
+  )
+}
+
+// ── DwellButton ───────────────────────────────────────────────────────────────
+// Generic dwell-activated button used where there is no bespoke markup.
+
+function DwellButton({
+  onSelect,
+  children,
+  className = '',
+  label,
+  disabled = false,
+  durationMs,
+}: {
+  onSelect: () => void
+  children: React.ReactNode
+  className?: string
+  label: string
+  disabled?: boolean
+  durationMs: number
+}) {
+  const [flash, setFlash] = useState(false)
+
+  const handleActivate = useCallback(() => {
+    onSelect()
+    setFlash(true)
+    setTimeout(() => setFlash(false), 320)
+  }, [onSelect])
+
+  const { active, props } = useDwellControl(durationMs, handleActivate, { disabled })
+
+  return (
+    <div
+      role="button"
+      aria-label={label}
+      className={cx(className, active && 'dwelling', flash && 'flashed', disabled && 'is-disabled')}
+      style={{ '--dwell-ms': `${durationMs}ms` } as React.CSSProperties}
+      {...props}
+    >
+      {children}
     </div>
   )
 }
 
 // ── PhraseCell ────────────────────────────────────────────────────────────────
 
-function PhraseCell({ phrase, onSelect }: { phrase: Phrase; onSelect: (p: Phrase) => void }) {
+const PhraseCell = memo(function PhraseCell({
+  phrase,
+  onSelect,
+}: {
+  phrase: Phrase
+  onSelect: (p: Phrase) => void
+}) {
   const { settings } = useSettings()
   const { editMode, openEdit } = useEdit()
   const [flash, setFlash] = useState(false)
 
-  const handleDwell = useCallback(() => {
-    if (editMode) { openEdit(phrase); return }
+  const handleActivate = useCallback(() => {
+    if (editMode) {
+      openEdit(phrase)
+      return
+    }
     onSelect(phrase)
     setFlash(true)
     setTimeout(() => setFlash(false), 350)
   }, [phrase, onSelect, editMode, openEdit])
 
-  const { active, start, cancel } = useDwell(settings.phraseDwellMs, handleDwell)
+  const { active, props } = useDwellControl(settings.phraseDwellMs, handleActivate)
+  const fillable = hasChoices(phrase.segments)
 
   return (
     <div
-      className={['phrase-cell', active ? 'dwelling' : '', flash ? 'selected' : '', editMode ? 'edit-mode' : ''].filter(Boolean).join(' ')}
-      style={{ '--dwell-duration': `${settings.phraseDwellMs}ms` } as React.CSSProperties}
-      onPointerEnter={start}
-      onPointerLeave={cancel}
+      className={cx('phrase-cell', active && 'dwelling', flash && 'selected', editMode && 'edit-mode')}
+      style={dwellVar(settings.phraseDwellMs)}
+      role="button"
+      aria-label={editMode ? `Edit phrase: ${phrase.text}` : fillable ? `${phrase.text} — choose wording` : phrase.text}
+      {...props}
     >
-      <span className="phrase-cell-text">{phrase.text}</span>
+      <span className="phrase-cell-text">
+        {phrase.segments.map((segment, i) =>
+          segment.kind === 'text' ? (
+            <span key={i}>{segment.text}</span>
+          ) : (
+            <span key={i} className={cx('phrase-slot', segment.options.length === 0 && 'is-blank')}>
+              {segment.label}
+            </span>
+          ),
+        )}
+      </span>
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
+    </div>
+  )
+})
+
+// ── SlotPicker ────────────────────────────────────────────────────────────────
+// Phrases from the table are fill-in-the-blank ("Please turn {control} the
+// {['music','tv']}"). Selecting one walks the user through its slots by dwell
+// rather than dropping raw placeholder text into the message.
+
+function SlotOption({ value, onPick }: { value: string; onPick: (v: string) => void }) {
+  const { settings } = useSettings()
+  const handle = useCallback(() => onPick(value), [value, onPick])
+  const { active, props } = useDwellControl(settings.phraseDwellMs, handle)
+  return (
+    <div
+      className={cx('slot-option', active && 'dwelling')}
+      style={dwellVar(settings.phraseDwellMs)}
+      role="button"
+      aria-label={value}
+      {...props}
+    >
+      {value}
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
+    </div>
+  )
+}
+
+function SlotPicker({ phrase, onComplete, onCancel }: {
+  phrase: Phrase
+  onComplete: (text: string) => void
+  onCancel: () => void
+}) {
+  const { settings } = useSettings()
+  const [choices, setChoices] = useState<(string | null)[]>(() =>
+    phrase.segments.filter(s => s.kind === 'slot').map(() => null),
+  )
+
+  // Indices (within the slot sequence) that the user actually chooses from.
+  const steps = useMemo(() => {
+    const out: number[] = []
+    let slot = -1
+    for (const segment of phrase.segments) {
+      if (segment.kind !== 'slot') continue
+      slot++
+      if (segment.options.length > 0) out.push(slot)
+    }
+    return out
+  }, [phrase])
+
+  const [step, setStep] = useState(0)
+  const slotIndex = steps[step]
+
+  const options = useMemo(() => {
+    let slot = -1
+    for (const segment of phrase.segments) {
+      if (segment.kind !== 'slot') continue
+      slot++
+      if (slot === slotIndex) return segment.options
+    }
+    return []
+  }, [phrase, slotIndex])
+
+  const pick = useCallback(
+    (value: string) => {
+      const next = [...choices]
+      next[slotIndex] = value
+      setChoices(next)
+      if (step + 1 < steps.length) setStep(step + 1)
+      else onComplete(compose(phrase.segments, next))
+    },
+    [choices, slotIndex, step, steps.length, phrase, onComplete],
+  )
+
+  const cancelHook = useDwellControl(settings.actionDwellMs, onCancel)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
+
+  // Preview with choices made so far; the slot in play is highlighted.
+  let slot = -1
+  const preview = phrase.segments.map((segment, i) => {
+    if (segment.kind === 'text') return <span key={i}>{segment.text}</span>
+    slot++
+    const chosen = choices[slot]
+    const isCurrent = slot === slotIndex
+    return (
+      <span key={i} className={cx('phrase-slot', isCurrent && 'is-current', chosen && 'is-filled')}>
+        {chosen ?? (segment.options.length ? segment.label : BLANK)}
+      </span>
+    )
+  })
+
+  return (
+    <div className="slot-picker-scrim" onPointerDown={e => { if (e.target === e.currentTarget) onCancel() }}>
+      <div className="slot-picker" role="dialog" aria-modal="true" aria-label="Choose wording">
+        <div className="slot-picker-preview">{preview}</div>
+        <div className="slot-picker-step">
+          Choose {steps.length > 1 ? `${step + 1} of ${steps.length}` : 'a word'}
+        </div>
+        <div className="slot-options" role="group">
+          {options.map(option => (
+            <SlotOption key={option} value={option} onPick={pick} />
+          ))}
+        </div>
+        <div
+          className={cx('slot-cancel', cancelHook.active && 'dwelling')}
+          style={dwellVar(settings.actionDwellMs)}
+          role="button"
+          aria-label="Cancel"
+          {...cancelHook.props}
+        >
+          <div className="dwell-bar" key={cancelHook.active ? 'a' : 'i'} />
+          Cancel
+        </div>
+      </div>
     </div>
   )
 }
@@ -355,28 +449,31 @@ function PhraseCell({ phrase, onSelect }: { phrase: Phrase; onSelect: (p: Phrase
 // ── ActionButton ──────────────────────────────────────────────────────────────
 
 function ActionButton({ onSelect, className = '', children, label, disabled }: {
-  onSelect: () => void; className?: string; children: React.ReactNode; label: string; disabled?: boolean
+  onSelect: () => void
+  className?: string
+  children: React.ReactNode
+  label: string
+  disabled?: boolean
 }) {
   const { settings } = useSettings()
   const [flash, setFlash] = useState(false)
 
-  const handleDwell = useCallback(() => {
-    if (disabled) return
+  const handleActivate = useCallback(() => {
     onSelect()
     setFlash(true)
     setTimeout(() => setFlash(false), 300)
-  }, [disabled, onSelect])
+  }, [onSelect])
 
-  const { active, start, cancel } = useDwell(settings.actionDwellMs, handleDwell, !!disabled)
+  const { active, props } = useDwellControl(settings.actionDwellMs, handleActivate, { disabled: !!disabled })
 
   return (
     <button
-      className={['icon-btn', className, active ? 'dwelling' : '', flash ? 'selected' : '', disabled ? 'opacity-30' : ''].filter(Boolean).join(' ')}
-      style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-      onPointerEnter={disabled ? undefined : start}
-      onPointerLeave={cancel}
+      type="button"
+      className={cx('icon-btn', className, active && 'dwelling', flash && 'selected', disabled && 'opacity-30')}
+      style={dwellVar(settings.actionDwellMs)}
       aria-label={label}
-      tabIndex={-1}
+      disabled={disabled}
+      {...props}
     >
       <div className="dwell-ring" />
       {children}
@@ -389,37 +486,43 @@ function ActionButton({ onSelect, className = '', children, label, disabled }: {
 const FEATURES = [
   { icon: '👁️', title: 'Dwell selection', body: 'No tapping or clicking — hover and hold to choose.' },
   { icon: '🔊', title: 'Instant speech', body: 'Selected phrases are spoken aloud immediately.' },
-  { icon: '📱', title: 'Works offline', body: 'Installed as a PWA, available without a network.' },
-  { icon: '☁️', title: 'Synced phrases', body: 'Sign in to back up and share your phrase library.' },
+  { icon: '📱', title: 'Works offline', body: 'Install it and it keeps working with no network.' },
+  { icon: '🔒', title: 'Stays on your device', body: 'Your phrases and settings are stored locally, never uploaded.' },
 ]
 
 function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
+  const { settings, update } = useSettings()
   const [loading, setLoading] = useState<User['provider'] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const handleOAuth = useCallback(async (provider: User['provider']) => {
-    if (provider === 'guest') {
-      onSignIn({ name: 'Guest', email: '', provider: 'guest' })
-      return
-    }
-    setError(null)
-    setLoading(provider)
-    try {
-      let oauthUser
-      if (provider === 'google')   oauthUser = await signInWithGoogle()
-      else if (provider === 'apple')    oauthUser = await signInWithApple()
-      else                              oauthUser = await signInWithFacebook()
-      onSignIn({
-        name:     oauthUser.name,
-        email:    oauthUser.email,
-        provider: oauthUser.provider,
-        avatar:   oauthUser.avatar,
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in failed')
-      setLoading(null)
-    }
-  }, [onSignIn])
+  const handleOAuth = useCallback(
+    async (provider: User['provider']) => {
+      if (provider === 'guest') {
+        onSignIn({ name: 'Guest', email: '', provider: 'guest' })
+        return
+      }
+      setError(null)
+      setLoading(provider)
+      try {
+        let oauthUser
+        if (provider === 'google') oauthUser = await signInWithGoogle()
+        else if (provider === 'apple') oauthUser = await signInWithApple()
+        else oauthUser = await signInWithFacebook()
+        onSignIn({
+          name: oauthUser.name,
+          email: oauthUser.email,
+          provider: oauthUser.provider,
+          avatar: oauthUser.avatar,
+        })
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Sign-in failed')
+        setLoading(null)
+      }
+    },
+    [onSignIn],
+  )
+
+  const dwellMs = settings.actionDwellMs
 
   return (
     <div className="signin-page">
@@ -432,7 +535,7 @@ function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
       <div className="signin-features">
         {FEATURES.map(f => (
           <div key={f.title} className="signin-feature">
-            <span className="signin-feature-icon">{f.icon}</span>
+            <span className="signin-feature-icon" aria-hidden="true">{f.icon}</span>
             <div>
               <div className="signin-feature-title">{f.title}</div>
               <div className="signin-feature-body">{f.body}</div>
@@ -450,32 +553,47 @@ function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
         ) : (
           <>
             {error && (
-              <div className="signin-error">
-                <span>⚠</span> {error}
+              <div className="signin-error" role="alert">
+                <span aria-hidden="true">⚠</span> {error}
               </div>
             )}
 
-            <DwellButton className="auth-btn" label="Continue with Google" onSelect={() => handleOAuth('google')} durationMs={1200}>
+            {/* Dwell time has to be adjustable before sign-in, or anyone who
+                needs a slow dwell cannot comfortably get into the app. */}
+            <div className="signin-dwell">
+              <span className="signin-dwell-label">Dwell time</span>
+              <SettingSpinner
+                value={settings.actionDwellMs}
+                min={300}
+                max={2000}
+                step={100}
+                format={v => `${(v / 1000).toFixed(1)}s`}
+                onValue={v => update({ actionDwellMs: v })}
+              />
+            </div>
+
+            <DwellButton className="auth-btn" label="Continue with Google" onSelect={() => handleOAuth('google')} durationMs={dwellMs}>
               <div className="auth-btn-inner"><GoogleIcon /><span>Continue with Google</span><div className="auth-dwell-bar" /></div>
             </DwellButton>
 
-            <DwellButton className="auth-btn" label="Continue with Apple" onSelect={() => handleOAuth('apple')} durationMs={1200}>
+            <DwellButton className="auth-btn" label="Continue with Apple" onSelect={() => handleOAuth('apple')} durationMs={dwellMs}>
               <div className="auth-btn-inner"><AppleIcon /><span>Continue with Apple</span><div className="auth-dwell-bar" /></div>
             </DwellButton>
 
-            <DwellButton className="auth-btn" label="Continue with Facebook" onSelect={() => handleOAuth('facebook')} durationMs={1200}>
+            <DwellButton className="auth-btn" label="Continue with Facebook" onSelect={() => handleOAuth('facebook')} durationMs={dwellMs}>
               <div className="auth-btn-inner"><FacebookIcon /><span>Continue with Facebook</span><div className="auth-dwell-bar" /></div>
             </DwellButton>
 
             <div className="signin-divider"><span>or</span></div>
 
-            <DwellButton className="auth-btn" label="Continue as guest" onSelect={() => handleOAuth('guest')} durationMs={1200}>
-              <div className="auth-btn-inner"><span className="auth-guest-icon">👤</span><span>Continue as guest</span><div className="auth-dwell-bar" /></div>
+            <DwellButton className="auth-btn" label="Continue as guest" onSelect={() => handleOAuth('guest')} durationMs={dwellMs}>
+              <div className="auth-btn-inner"><span className="auth-guest-icon" aria-hidden="true">👤</span><span>Continue as guest</span><div className="auth-dwell-bar" /></div>
             </DwellButton>
 
             <p className="signin-legal">
               By continuing you agree to our Terms of Service and Privacy Policy.
-              Your phrases and settings will not be saved without an account.
+              Signing in only personalises this device — your phrases and settings are
+              saved locally either way, and are not uploaded anywhere.
             </p>
           </>
         )}
@@ -486,24 +604,32 @@ function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
   )
 }
 
-// ── TopPanel ──────────────────────────────────────────────────────────────────
+// ── Panel navigation ──────────────────────────────────────────────────────────
 
 function NavItem({ icon, label, sublabel, onSelect }: {
-  icon: React.ReactNode; label: string; sublabel?: string; onSelect: () => void
+  icon: React.ReactNode
+  label: string
+  sublabel?: string
+  onSelect: () => void
 }) {
   const { settings } = useSettings()
   const [flash, setFlash] = useState(false)
-  const handleDwell = useCallback(() => { onSelect(); setFlash(true); setTimeout(() => setFlash(false), 320) }, [onSelect])
-  const { active, start, cancel } = useDwell(settings.actionDwellMs, handleDwell)
+  const handleActivate = useCallback(() => {
+    onSelect()
+    setFlash(true)
+    setTimeout(() => setFlash(false), 320)
+  }, [onSelect])
+  const { active, props } = useDwellControl(settings.actionDwellMs, handleActivate)
 
   return (
     <div
-      className={['nav-item', active ? 'dwelling' : '', flash ? 'flashed' : ''].filter(Boolean).join(' ')}
-      style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-      onPointerEnter={start} onPointerLeave={cancel}
-      role="button" aria-label={label}
+      className={cx('nav-item', active && 'dwelling', flash && 'flashed')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={label}
+      {...props}
     >
-      <span className="nav-item-icon">{icon}</span>
+      <span className="nav-item-icon" aria-hidden="true">{icon}</span>
       <div className="nav-item-text">
         <span className="nav-item-label">{label}</span>
         {sublabel && <span className="nav-item-sub">{sublabel}</span>}
@@ -526,31 +652,35 @@ function SettingRow({ label, children }: { label: string; children: React.ReactN
 
 function StepBtn({ onAction, children, label }: { onAction: () => void; children: React.ReactNode; label: string }) {
   const { settings } = useSettings()
-  const dwell   = useDwellRepeat(settings.actionDwellMs, 200, onAction)
+  const { active, props } = useDwellControl(settings.actionDwellMs, onAction, { repeatMs: 200 })
   return (
     <div
-      className={['step-btn', dwell.active ? 'dwelling' : ''].filter(Boolean).join(' ')}
-      style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-      onPointerEnter={dwell.start} onPointerLeave={dwell.cancel}
-      onClick={onAction}
-      role="button" aria-label={label}
+      className={cx('step-btn', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={label}
+      {...props}
     >
-      <div className="dwell-bar" key={dwell.active ? 'a' : 'i'} />
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
       {children}
     </div>
   )
 }
 
-function SettingSpinner({
-  value, min, max, step, format, onValue,
-}: {
-  value: number; min: number; max: number; step: number
+function SettingSpinner({ value, min, max, step, format, onValue }: {
+  value: number
+  min: number
+  max: number
+  step: number
   format: (v: number) => string
   onValue: (v: number) => void
 }) {
-  const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v / step) * step))
-  const dec = () => onValue(clamp(value - step))
-  const inc = () => onValue(clamp(value + step))
+  const clamp = useCallback(
+    (v: number) => Math.min(max, Math.max(min, Math.round(v / step) * step)),
+    [min, max, step],
+  )
+  const dec = useCallback(() => onValue(clamp(value - step)), [value, step, onValue, clamp])
+  const inc = useCallback(() => onValue(clamp(value + step)), [value, step, onValue, clamp])
 
   return (
     <div className="setting-spinner">
@@ -558,9 +688,14 @@ function SettingSpinner({
       <input
         className="setting-number"
         type="number"
-        min={min} max={max} step={step}
+        min={min}
+        max={max}
+        step={step}
         value={value}
-        onChange={e => { const n = Number(e.target.value); if (!isNaN(n)) onValue(clamp(n)) }}
+        onChange={e => {
+          const n = Number(e.target.value)
+          if (!isNaN(n)) onValue(clamp(n))
+        }}
       />
       <span className="setting-formatted">{format(value)}</span>
       <StepBtn onAction={inc} label="Increase">+</StepBtn>
@@ -568,27 +703,47 @@ function SettingSpinner({
   )
 }
 
-function VoiceDropdownItem({ name, selected, onSelect }: { name: string; selected: boolean; onSelect: () => void }) {
+function VoiceDropdownItem({ label, selected, onSelect }: { label: string; selected: boolean; onSelect: () => void }) {
   const { settings } = useSettings()
-  const { active, start, cancel } = useDwell(settings.actionDwellMs, onSelect)
+  const { active, props } = useDwellControl(settings.actionDwellMs, onSelect)
   return (
     <div
-      className={['voice-option', selected ? 'selected' : '', active ? 'dwelling' : ''].filter(Boolean).join(' ')}
-      style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-      onPointerEnter={start} onPointerLeave={cancel}
-      onClick={onSelect}
-      role="option" aria-selected={selected}
+      className={cx('voice-option', selected && 'selected', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="option"
+      aria-selected={selected}
+      {...props}
     >
-      {name}
+      {label}
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )
 }
 
-function VoiceListScroller({ children }: { children: React.ReactNode }) {
+function ScrollNudge({ direction, onScroll }: { direction: 'up' | 'down'; onScroll: (dy: number) => void }) {
   const { settings } = useSettings()
+  const dy = direction === 'up' ? -80 : 80
+  const handle = useCallback(() => onScroll(dy), [onScroll, dy])
+  const { active, props } = useDwellControl(settings.actionDwellMs, handle, { repeatMs: 180 })
+  return (
+    <div
+      className={cx('voice-scroll-btn', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={direction === 'up' ? 'Scroll up' : 'Scroll down'}
+      {...props}
+    >
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
+        {direction === 'up' ? <polyline points="18 15 12 9 6 15" /> : <polyline points="6 9 12 15 18 9" />}
+      </svg>
+    </div>
+  )
+}
+
+function VoiceListScroller({ children }: { children: React.ReactNode }) {
   const listRef = useRef<HTMLDivElement>(null)
-  const [canUp,   setCanUp]   = useState(false)
+  const [canUp, setCanUp] = useState(false)
   const [canDown, setCanDown] = useState(false)
 
   const update = useCallback(() => {
@@ -605,85 +760,69 @@ function VoiceListScroller({ children }: { children: React.ReactNode }) {
     el.addEventListener('scroll', update, { passive: true })
     const ro = new ResizeObserver(update)
     ro.observe(el)
-    return () => { el.removeEventListener('scroll', update); ro.disconnect() }
+    return () => {
+      el.removeEventListener('scroll', update)
+      ro.disconnect()
+    }
   }, [update])
 
-  const scrollBy = (dy: number) => listRef.current?.scrollBy({ top: dy, behavior: 'smooth' })
-
-  const upOnce   = useDwell(settings.actionDwellMs, () => scrollBy(-80))
-  const upRepeat = useDwellRepeat(settings.actionDwellMs, 180, () => scrollBy(-80))
-  const dnOnce   = useDwell(settings.actionDwellMs, () => scrollBy(80))
-  const dnRepeat = useDwellRepeat(settings.actionDwellMs, 180, () => scrollBy(80))
+  const scrollBy = useCallback((dy: number) => listRef.current?.scrollBy({ top: dy, behavior: 'smooth' }), [])
 
   return (
     <div className="voice-scroller">
-      {canUp && (
-        <div
-          className={['voice-scroll-btn', upRepeat.active || upOnce.active ? 'dwelling' : ''].filter(Boolean).join(' ')}
-          style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-          onPointerEnter={() => { upOnce.start(); upRepeat.start() }}
-          onPointerLeave={() => { upOnce.cancel(); upRepeat.cancel() }}
-          role="button" aria-label="Scroll up"
-        >
-          <div className="dwell-bar" key={(upRepeat.active || upOnce.active) ? 'a' : 'i'} />
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="18 15 12 9 6 15"/></svg>
-        </div>
-      )}
+      {canUp && <ScrollNudge direction="up" onScroll={scrollBy} />}
       <div ref={listRef} className="voice-list-inner">
         {children}
       </div>
-      {canDown && (
-        <div
-          className={['voice-scroll-btn', dnRepeat.active || dnOnce.active ? 'dwelling' : ''].filter(Boolean).join(' ')}
-          style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-          onPointerEnter={() => { dnOnce.start(); dnRepeat.start() }}
-          onPointerLeave={() => { dnOnce.cancel(); dnRepeat.cancel() }}
-          role="button" aria-label="Scroll down"
-        >
-          <div className="dwell-bar" key={(dnRepeat.active || dnOnce.active) ? 'a' : 'i'} />
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      )}
+      {canDown && <ScrollNudge direction="down" onScroll={scrollBy} />}
     </div>
   )
+}
+
+function voiceLabel(v: { name: string; lang?: string }) {
+  return v.lang ? `${v.name} · ${v.lang}` : v.name
 }
 
 function VoiceRow({ voices }: { voices: SpeechSynthesisVoice[] }) {
   const { settings, update } = useSettings()
   const [open, setOpen] = useState(false)
-  const items = [{ voiceURI: '', name: 'Default' }, ...voices]
+  const items = useMemo(
+    () => [{ voiceURI: '', name: 'Default', lang: '' }, ...voices.map(v => ({ voiceURI: v.voiceURI, name: v.name, lang: v.lang }))],
+    [voices],
+  )
   const current = items.find(v => v.voiceURI === settings.voiceURI) ?? items[0]
 
-  const { active: btnActive, start: btnStart, cancel: btnCancel } = useDwell(
-    settings.actionDwellMs,
-    () => setOpen(o => !o)
-  )
+  const { active, props } = useDwellControl(settings.actionDwellMs, () => setOpen(o => !o))
 
   return (
     <SettingRow label="Voice">
       <div className="voice-dropdown">
         <div
-          className={['voice-trigger', btnActive ? 'dwelling' : ''].filter(Boolean).join(' ')}
-          style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-          onPointerEnter={btnStart} onPointerLeave={btnCancel}
-          onClick={() => setOpen(o => !o)}
-          role="combobox" aria-expanded={open}
+          className={cx('voice-trigger', active && 'dwelling')}
+          style={dwellVar(settings.actionDwellMs)}
+          role="combobox"
+          aria-expanded={open}
+          aria-label={`Voice: ${voiceLabel(current)}`}
+          {...props}
         >
-          <span className="voice-trigger-label">{current.name}</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-            <polyline points="6 9 12 15 18 9"/>
+          <span className="voice-trigger-label">{voiceLabel(current)}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9" />
           </svg>
-          <div className="dwell-bar" key={btnActive ? 'a' : 'i'} />
+          <div className="dwell-bar" key={active ? 'a' : 'i'} />
         </div>
         {open && (
           <div className="voice-list" role="listbox" onPointerLeave={() => setOpen(false)}>
             <VoiceListScroller>
-              {items.map(v => (
+              {items.map((v, i) => (
                 <VoiceDropdownItem
-                  key={v.voiceURI}
-                  name={v.name}
+                  key={`${v.voiceURI}-${i}`}
+                  label={voiceLabel(v)}
                   selected={v.voiceURI === settings.voiceURI}
-                  onSelect={() => { update({ voiceURI: v.voiceURI }); setOpen(false) }}
+                  onSelect={() => {
+                    update({ voiceURI: v.voiceURI })
+                    setOpen(false)
+                  }}
                 />
               ))}
             </VoiceListScroller>
@@ -698,76 +837,117 @@ function SettingsPanel() {
   const { settings, update } = useSettings()
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
 
-  useEffect(() => {
-    const load = () => setVoices(speechSynthesis.getVoices().filter(v => v.lang.startsWith('en')))
-    load()
-    speechSynthesis.addEventListener('voiceschanged', load)
-    return () => speechSynthesis.removeEventListener('voiceschanged', load)
-  }, [])
+  useEffect(() => subscribeVoices(setVoices), [])
 
   return (
     <div className="settings-panel">
       <SettingRow label="Phrase dwell">
-        <SettingSpinner value={settings.phraseDwellMs} min={500} max={3000} step={100}
-          format={v => `${(v/1000).toFixed(1)}s`}
-          onValue={v => update({ phraseDwellMs: v })} />
+        <SettingSpinner
+          value={settings.phraseDwellMs}
+          min={500}
+          max={3000}
+          step={100}
+          format={v => `${(v / 1000).toFixed(1)}s`}
+          onValue={v => update({ phraseDwellMs: v })}
+        />
       </SettingRow>
       <SettingRow label="Action dwell">
-        <SettingSpinner value={settings.actionDwellMs} min={300} max={2000} step={100}
-          format={v => `${(v/1000).toFixed(1)}s`}
-          onValue={v => update({ actionDwellMs: v })} />
+        <SettingSpinner
+          value={settings.actionDwellMs}
+          min={300}
+          max={2000}
+          step={100}
+          format={v => `${(v / 1000).toFixed(1)}s`}
+          onValue={v => update({ actionDwellMs: v })}
+        />
       </SettingRow>
       <SettingRow label="Volume">
-        <SettingSpinner value={Math.round(settings.volume * 100)} min={0} max={100} step={10}
+        <SettingSpinner
+          value={Math.round(settings.volume * 100)}
+          min={0}
+          max={100}
+          step={10}
           format={v => `${v}%`}
-          onValue={v => update({ volume: v / 100 })} />
+          onValue={v => update({ volume: v / 100 })}
+        />
       </SettingRow>
       <SettingRow label="Speed">
-        <SettingSpinner value={Math.round(settings.rate * 10)} min={5} max={20} step={1}
-          format={v => `${(v/10).toFixed(1)}×`}
-          onValue={v => update({ rate: v / 10 })} />
+        <SettingSpinner
+          value={Math.round(settings.rate * 10)}
+          min={5}
+          max={20}
+          step={1}
+          format={v => `${(v / 10).toFixed(1)}×`}
+          onValue={v => update({ rate: v / 10 })}
+        />
       </SettingRow>
-      {voices.length > 0 && (
-        <VoiceRow voices={voices} />
-      )}
+      {voices.length > 0 && <VoiceRow voices={voices} />}
     </div>
   )
 }
 
 function TopPanel({ open, user, onClose, onSignOut }: {
-  open: boolean; user: User; onClose: () => void; onSignOut: () => void
+  open: boolean
+  user: User
+  onClose: () => void
+  onSignOut: () => void
 }) {
-  const handleSignOut = useCallback(() => { onClose(); onSignOut() }, [onClose, onSignOut])
+  const handleSignOut = useCallback(() => {
+    onClose()
+    onSignOut()
+  }, [onClose, onSignOut])
   const [showSettings, setShowSettings] = useState(false)
 
-  // Reset settings view when panel closes
-  useEffect(() => { if (!open) setShowSettings(false) }, [open])
+  // Reset the settings view whenever the panel opens or closes, so it never
+  // reopens mid-way into a sub-screen. Adjusting during render rather than in an
+  // effect avoids a second render pass with the stale view still on screen.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (wasOpen !== open) {
+    setWasOpen(open)
+    setShowSettings(false)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
 
   const scrimMoveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const handleScrimMove = useCallback(() => {
     if (scrimMoveTimer.current) return
-    scrimMoveTimer.current = setTimeout(() => { scrimMoveTimer.current = null; onClose() }, 600)
+    scrimMoveTimer.current = setTimeout(() => {
+      scrimMoveTimer.current = null
+      onClose()
+    }, 600)
   }, [onClose])
   const cancelScrimTimer = useCallback(() => {
-    if (scrimMoveTimer.current) { clearTimeout(scrimMoveTimer.current); scrimMoveTimer.current = null }
+    if (scrimMoveTimer.current) {
+      clearTimeout(scrimMoveTimer.current)
+      scrimMoveTimer.current = null
+    }
   }, [])
+  useEffect(() => cancelScrimTimer, [cancelScrimTimer])
 
   return (
     <>
       <div
-        className={`panel-scrim ${open ? 'open' : ''}`}
+        className={cx('panel-scrim', open && 'open')}
         onPointerMove={handleScrimMove}
         onPointerLeave={cancelScrimTimer}
       />
 
-      <div className={`top-panel ${open ? 'open' : ''}`} role="dialog" aria-label="Menu">
+      <div className={cx('top-panel', open && 'open')} role="dialog" aria-label="Menu" aria-hidden={!open}>
         {/* User row */}
         <div className="panel-user-row">
-          <div className="panel-avatar">
-            {user.provider === 'google'   && <span style={{ fontSize: 18 }}>G</span>}
-            {user.provider === 'apple'    && <span style={{ fontSize: 18 }}></span>}
+          <div className="panel-avatar" aria-hidden="true">
+            {user.provider === 'google' && <span style={{ fontSize: 18 }}>G</span>}
+            {user.provider === 'apple' && <span style={{ fontSize: 18 }}></span>}
             {user.provider === 'facebook' && <span style={{ fontSize: 18 }}>f</span>}
-            {user.provider === 'guest'    && <span style={{ fontSize: 18 }}>👤</span>}
+            {user.provider === 'guest' && <span style={{ fontSize: 18 }}>👤</span>}
           </div>
           <div className="panel-user-info">
             <span className="panel-user-name">{user.name}</span>
@@ -809,16 +989,29 @@ function TopPanel({ open, user, onClose, onSignOut }: {
   )
 }
 
-// ── Edit context ─────────────────────────────────────────────────────────────
-
-interface EditCtxValue {
-  editMode: boolean
-  openEdit: (phrase: Phrase | null, isEmergency?: boolean) => void  // null = new phrase
-}
-const EditCtx = createContext<EditCtxValue>({ editMode: false, openEdit: () => {} })
-const useEdit = () => useContext(EditCtx)
-
 // ── EditModal ─────────────────────────────────────────────────────────────────
+
+function EditAction({ kind, label, onActivate, disabled }: {
+  kind: 'danger' | 'cancel' | 'save'
+  label: string
+  onActivate: () => void
+  disabled?: boolean
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, { disabled })
+  return (
+    <div
+      className={cx('edit-action-btn', kind, active && 'dwelling', disabled && 'is-disabled')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={label}
+      {...props}
+    >
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
+      {label}
+    </div>
+  )
+}
 
 function EditModal({ phrase, isEmergency, allCategories, onSave, onDelete, onClose }: {
   phrase: Phrase | null
@@ -828,112 +1021,160 @@ function EditModal({ phrase, isEmergency, allCategories, onSave, onDelete, onClo
   onDelete: () => void
   onClose: () => void
 }) {
-  const { settings } = useSettings()
-  const [text, setText]       = useState(phrase?.text ?? '')
+  const [text, setText] = useState(phrase?.text ?? '')
   const [category, setCategory] = useState(phrase?.category ?? allCategories[0] ?? '')
   const isNew = phrase === null
+  const canSave = text.trim().length > 0
 
-  const saveHook   = useDwell(settings.actionDwellMs, () => { if (text.trim()) onSave(text.trim(), category) })
-  const deleteHook = useDwell(settings.actionDwellMs, onDelete)
-  const closeHook  = useDwell(settings.actionDwellMs, onClose)
+  const save = useCallback(() => {
+    if (canSave) onSave(text.trim(), category)
+  }, [canSave, text, category, onSave])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   return (
     <div className="edit-modal-scrim" onPointerDown={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="edit-modal" role="dialog" aria-label={isNew ? 'Add phrase' : 'Edit phrase'}>
-        <div className="edit-modal-title">{isNew ? 'Add phrase' : 'Edit phrase'}</div>
+      <div className="edit-modal" role="dialog" aria-modal="true" aria-label={isNew ? 'Add phrase' : 'Edit phrase'}>
+        <div className="edit-modal-title">
+          {isNew ? (isEmergency ? 'Add emergency phrase' : 'Add phrase') : 'Edit phrase'}
+        </div>
 
         <textarea
           className="edit-modal-text"
           value={text}
           onChange={e => setText(e.target.value)}
           placeholder="Phrase text…"
+          aria-label="Phrase text"
           autoFocus
           rows={3}
         />
 
         {!isEmergency && (
           <div className="edit-modal-row">
-            <label className="edit-modal-label">Category</label>
+            <label className="edit-modal-label" htmlFor="edit-category">Category</label>
             <select
+              id="edit-category"
               className="edit-modal-select"
               value={category}
               onChange={e => setCategory(e.target.value)}
             >
               {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
-              {!allCategories.includes(category) && category && (
-                <option value={category}>{category}</option>
-              )}
+              {!allCategories.includes(category) && category && <option value={category}>{category}</option>}
             </select>
           </div>
         )}
 
         <div className="edit-modal-actions">
-          {!isNew && (
-            <div
-              className={['edit-action-btn danger', deleteHook.active ? 'dwelling' : ''].filter(Boolean).join(' ')}
-              style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-              onPointerEnter={deleteHook.start} onPointerLeave={deleteHook.cancel}
-              onClick={onDelete} role="button"
-            >
-              <div className="dwell-bar" key={deleteHook.active ? 'a' : 'i'} />
-              Delete
-            </div>
-          )}
-          <div
-            className={['edit-action-btn cancel', closeHook.active ? 'dwelling' : ''].filter(Boolean).join(' ')}
-            style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-            onPointerEnter={closeHook.start} onPointerLeave={closeHook.cancel}
-            onClick={onClose} role="button"
-          >
-            <div className="dwell-bar" key={closeHook.active ? 'a' : 'i'} />
-            Cancel
-          </div>
-          <div
-            className={['edit-action-btn save', saveHook.active ? 'dwelling' : '', !text.trim() ? 'is-disabled' : ''].filter(Boolean).join(' ')}
-            style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-            onPointerEnter={text.trim() ? saveHook.start : undefined} onPointerLeave={saveHook.cancel}
-            onClick={() => { if (text.trim()) onSave(text.trim(), category) }} role="button"
-          >
-            <div className="dwell-bar" key={saveHook.active ? 'a' : 'i'} />
-            Save
-          </div>
+          {!isNew && <EditAction kind="danger" label="Delete" onActivate={onDelete} />}
+          <EditAction kind="cancel" label="Cancel" onActivate={onClose} />
+          <EditAction kind="save" label="Save" onActivate={save} disabled={!canSave} />
         </div>
       </div>
     </div>
   )
 }
 
-// ── Main app screen ───────────────────────────────────────────────────────────
-
+// ── Emergency phrases ─────────────────────────────────────────────────────────
 
 const EMERGENCY_PHRASES: Phrase[] = [
-  { id: 'em-0', text: 'Help me!',         category: 'Emergency' },
-  { id: 'em-1', text: "I'm in pain",      category: 'Emergency' },
-  { id: 'em-2', text: 'Call 911',         category: 'Emergency' },
-  { id: 'em-3', text: 'Get a doctor',     category: 'Emergency' },
-  { id: 'em-4', text: "I can't breathe",  category: 'Emergency' },
-  { id: 'em-5', text: 'Call my family',   category: 'Emergency' },
-]
-const MAIN_PHRASES = PHRASES
+  ['em-0', 'Help me!'],
+  ['em-1', "I'm in pain"],
+  ['em-2', 'Call 911'],
+  ['em-3', 'Get a doctor'],
+  ['em-4', "I can't breathe"],
+  ['em-5', 'Call my family'],
+].map(([id, text]) => plainPhrase(id, text, 'Emergency'))
 
-const CATEGORIES: { id: Category | 'all'; label: string }[] = [
-  { id: 'all', label: 'All' },
-  ...[...new Set(MAIN_PHRASES.map(p => p.category))].sort().map(c => ({ id: c, label: c })),
-]
+function EmergencyButton({ phrase }: { phrase: Phrase }) {
+  const { settings } = useSettings()
+  const { editMode, openEdit } = useEdit()
+  const [flash, setFlash] = useState(false)
+
+  const handleActivate = useCallback(() => {
+    if (editMode) {
+      openEdit(phrase, true)
+      return
+    }
+    speak(phrase.text, settings)
+    setFlash(true)
+    setTimeout(() => setFlash(false), 400)
+  }, [phrase, editMode, openEdit, settings])
+
+  // Emergency phrases use the same dwell time as any other phrase. A shorter
+  // fixed value would fire early for anyone who lengthened their dwell because
+  // of tremor — exactly the users most likely to need this bar.
+  const { active, props } = useDwellControl(settings.phraseDwellMs, handleActivate)
+
+  return (
+    <div
+      className={cx('emergency-btn', active && 'dwelling', flash && 'flashed', editMode && 'edit-mode')}
+      style={dwellVar(settings.phraseDwellMs)}
+      role="button"
+      aria-label={editMode ? `Edit emergency phrase: ${phrase.text}` : phrase.text}
+      {...props}
+    >
+      <span className="emergency-label">{phrase.text}</span>
+      <div className="emergency-dwell-bar" key={active ? 'a' : 'i'} />
+    </div>
+  )
+}
+
+function EmergencyAddButton() {
+  const { settings } = useSettings()
+  const { openEdit } = useEdit()
+  const handleActivate = useCallback(() => openEdit(null, true), [openEdit])
+  const { active, props } = useDwellControl(settings.actionDwellMs, handleActivate)
+  return (
+    <div
+      className={cx('emergency-btn emergency-add', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label="Add emergency phrase"
+      {...props}
+    >
+      <PlusIcon />
+      <div className="emergency-dwell-bar" key={active ? 'a' : 'i'} />
+    </div>
+  )
+}
+
+function EmergencyBar({ phrases }: { phrases: Phrase[] }) {
+  const { editMode } = useEdit()
+  if (phrases.length === 0 && !editMode) return null
+  return (
+    <div className="emergency-bar" role="group" aria-label="Emergency phrases">
+      {phrases.map(p => <EmergencyButton key={p.id} phrase={p} />)}
+      {editMode && <EmergencyAddButton />}
+    </div>
+  )
+}
+
+// ── Filter bar ────────────────────────────────────────────────────────────────
 
 function FilterTab({ label, active, onSelect }: { label: string; active: boolean; onSelect: () => void }) {
   const { settings } = useSettings()
   const [flash, setFlash] = useState(false)
-  const handleDwell = useCallback(() => { onSelect(); setFlash(true); setTimeout(() => setFlash(false), 300) }, [onSelect])
-  const { active: dwelling, start, cancel } = useDwell(settings.actionDwellMs, handleDwell, active)
+  const handleActivate = useCallback(() => {
+    onSelect()
+    setFlash(true)
+    setTimeout(() => setFlash(false), 300)
+  }, [onSelect])
+  const { active: dwelling, props } = useDwellControl(settings.actionDwellMs, handleActivate, { disabled: active })
 
   return (
     <div
-      className={['filter-tab', active ? 'active' : '', dwelling ? 'dwelling' : '', flash ? 'flashed' : ''].filter(Boolean).join(' ')}
-      style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-      onPointerEnter={active ? undefined : start}
-      onPointerLeave={cancel}
-      role="tab" aria-selected={active}
+      className={cx('filter-tab', active && 'active', dwelling && 'dwelling', flash && 'flashed')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="tab"
+      aria-selected={active}
+      {...props}
+      tabIndex={0}
     >
       {label}
       <div className="dwell-bar" key={dwelling ? 'a' : 'i'} />
@@ -942,134 +1183,93 @@ function FilterTab({ label, active, onSelect }: { label: string; active: boolean
 }
 
 function FilterArrow({ onAction, repeat, label, children }: {
-  onAction: () => void; repeat?: boolean; label: string; children: React.ReactNode
+  onAction: () => void
+  repeat?: boolean
+  label: string
+  children: React.ReactNode
 }) {
   const { settings } = useSettings()
-  const once    = useDwell(settings.actionDwellMs, onAction)
-  const repeats = useDwellRepeat(settings.actionDwellMs, 200, onAction)
-  const hook    = repeat ? repeats : once
+  const { active, props } = useDwellControl(settings.actionDwellMs, onAction, { repeatMs: repeat ? 200 : undefined })
   return (
     <div
-      className={['filter-arrow', hook.active ? 'dwelling' : ''].filter(Boolean).join(' ')}
-      style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-      onPointerEnter={hook.start} onPointerLeave={hook.cancel}
+      className={cx('filter-arrow', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
       aria-label={label}
+      {...props}
     >
       {children}
-      <div className="dwell-bar" key={hook.active ? 'a' : 'i'} />
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )
 }
 
-function FilterBar({ activeFilter, onSelect }: { activeFilter: string; onSelect: (id: string) => void }) {
+function FilterBar({ categories, activeFilter, onSelect }: {
+  categories: { id: string; label: string }[]
+  activeFilter: string
+  onSelect: (id: string) => void
+}) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const scrollTo   = useCallback((pos: number) =>
-    scrollRef.current?.scrollTo({ left: pos, behavior: 'smooth' }), [])
-  const scrollBy   = useCallback((dx: number) =>
-    scrollRef.current?.scrollBy({ left: dx, behavior: 'smooth' }), [])
+  const scrollTo = useCallback((pos: number) => scrollRef.current?.scrollTo({ left: pos, behavior: 'smooth' }), [])
+  const scrollBy = useCallback((dx: number) => scrollRef.current?.scrollBy({ left: dx, behavior: 'smooth' }), [])
 
   return (
     <div className="filter-bar-wrap" role="tablist" aria-label="Filter phrases by category">
-
-      {/* ⏮ go to start */}
-      <FilterArrow onAction={() => scrollTo(0)} label="Go to start">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <FilterArrow onAction={() => scrollTo(0)} label="Go to first category">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <line x1="5" y1="6" x2="5" y2="18"/><polyline points="19 18 11 12 19 6"/>
         </svg>
       </FilterArrow>
 
-      {/* ‹ scroll left (auto-repeat) */}
       <FilterArrow onAction={() => scrollBy(-200)} repeat label="Scroll categories left">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
       </FilterArrow>
 
       <div ref={scrollRef} className="filter-scroll">
-        {CATEGORIES.map(c => (
+        {categories.map(c => (
           <FilterTab key={c.id} label={c.label} active={activeFilter === c.id} onSelect={() => onSelect(c.id)} />
         ))}
       </div>
 
-      {/* › scroll right (auto-repeat) */}
       <FilterArrow onAction={() => scrollBy(200)} repeat label="Scroll categories right">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="9 18 15 12 9 6"/>
         </svg>
       </FilterArrow>
 
-      {/* ⏭ go to end */}
-      <FilterArrow onAction={() => scrollTo(999999)} label="Go to end">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <FilterArrow onAction={() => scrollTo(999999)} label="Go to last category">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <line x1="19" y1="6" x2="19" y2="18"/><polyline points="5 6 13 12 5 18"/>
         </svg>
       </FilterArrow>
-
     </div>
   )
 }
 
-// ── EmergencyBar ─────────────────────────────────────────────────────────────
-
-const EMERGENCY_DWELL_MS = 1500
-
-function EmergencyButton({ phrase }: { phrase: Phrase }) {
-  const { editMode, openEdit } = useEdit()
-  const [flash, setFlash] = useState(false)
-  const handleDwell = useCallback(() => {
-    if (editMode) { openEdit(phrase, true); return }
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel()
-      speechSynthesis.speak(new SpeechSynthesisUtterance(phrase.text))
-    }
-    setFlash(true)
-    setTimeout(() => setFlash(false), 400)
-  }, [phrase, editMode, openEdit])
-  const { active, start, cancel } = useDwell(EMERGENCY_DWELL_MS, handleDwell)
-  return (
-    <div
-      className={['emergency-btn', active ? 'dwelling' : '', flash ? 'flashed' : '', editMode ? 'edit-mode' : ''].filter(Boolean).join(' ')}
-      style={{ '--dwell-duration': `${EMERGENCY_DWELL_MS}ms` } as React.CSSProperties}
-      onPointerEnter={start} onPointerLeave={cancel}
-      role="button" aria-label={phrase.text} aria-live="assertive"
-    >
-      <span className="emergency-label">{phrase.text}</span>
-      <div className="emergency-dwell-bar" key={active ? 'a' : 'i'} />
-    </div>
-  )
-}
-
-function EmergencyBar({ phrases = [] }: { phrases?: Phrase[] }) {
-  if (!phrases || phrases.length === 0) return null
-  return (
-    <div className="emergency-bar">
-      {phrases.map(p => (
-        <EmergencyButton key={p.id} phrase={p} />
-      ))}
-    </div>
-  )
-}
-
-// ── GridScrollBar ─────────────────────────────────────────────────────────────
+// ── Grid scroll bar ───────────────────────────────────────────────────────────
 
 const SCROLL_STEP = 120
 
 function ScrollBtn({ onAction, repeat, label, children }: {
-  onAction: () => void; repeat?: boolean; label: string; children: React.ReactNode
+  onAction: () => void
+  repeat?: boolean
+  label: string
+  children: React.ReactNode
 }) {
   const { settings } = useSettings()
-  const dwellOnce   = useDwell(settings.actionDwellMs, onAction)
-  const dwellRepeat = useDwellRepeat(settings.actionDwellMs, 180, onAction)
-  const hook = repeat ? dwellRepeat : dwellOnce
+  const { active, props } = useDwellControl(settings.actionDwellMs, onAction, { repeatMs: repeat ? 180 : undefined })
   return (
     <div
-      className={['scroll-btn', hook.active ? 'dwelling' : ''].filter(Boolean).join(' ')}
-      style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-      onPointerEnter={hook.start} onPointerLeave={hook.cancel}
-      role="button" aria-label={label}
+      className={cx('scroll-btn', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={label}
+      {...props}
     >
-      <div className="scroll-btn-fill" key={hook.active ? 'a' : 'i'} />
+      <div className="scroll-btn-fill" key={active ? 'a' : 'i'} />
       {children}
     </div>
   )
@@ -1081,48 +1281,46 @@ function GridScrollBar({ gridRef, editMode, onToggleEdit }: {
   onToggleEdit: () => void
 }) {
   const { settings } = useSettings()
-  const editHook = useDwell(settings.actionDwellMs, onToggleEdit)
+  const { active, props } = useDwellControl(settings.actionDwellMs, onToggleEdit)
 
-  const scrollTo = useCallback((pos: number) =>
-    gridRef.current?.scrollTo({ top: pos, behavior: 'smooth' }), [gridRef])
-  const scrollBy = useCallback((dy: number) =>
-    gridRef.current?.scrollBy({ top: dy, behavior: 'smooth' }), [gridRef])
+  const scrollTo = useCallback((pos: number) => gridRef.current?.scrollTo({ top: pos, behavior: 'smooth' }), [gridRef])
+  const scrollBy = useCallback((dy: number) => gridRef.current?.scrollBy({ top: dy, behavior: 'smooth' }), [gridRef])
 
   return (
     <div className="grid-scrollbar">
       {/* Edit toggle — always visible above scroll controls */}
       <div
-        className={['scroll-btn edit-toggle-btn', editMode ? 'active' : '', editHook.active ? 'dwelling' : ''].filter(Boolean).join(' ')}
-        style={{ '--dwell-duration': `${settings.actionDwellMs}ms` } as React.CSSProperties}
-        onPointerEnter={editHook.start} onPointerLeave={editHook.cancel}
-        onClick={onToggleEdit}
-        role="button" aria-label={editMode ? 'Exit edit mode' : 'Edit phrases'}
+        className={cx('scroll-btn edit-toggle-btn', editMode && 'active', active && 'dwelling')}
+        style={dwellVar(settings.actionDwellMs)}
+        role="button"
+        aria-label={editMode ? 'Exit edit mode' : 'Edit phrases'}
         aria-pressed={editMode}
+        {...props}
       >
-        <div className="scroll-btn-fill" key={editHook.active ? 'a' : 'i'} />
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+        <div className="scroll-btn-fill" key={active ? 'a' : 'i'} />
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16" aria-hidden="true">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
         </svg>
       </div>
 
       <ScrollBtn onAction={() => scrollTo(0)} label="Scroll to top">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <line x1="5" y1="6" x2="19" y2="6"/><polyline points="8 14 12 10 16 14"/>
         </svg>
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollBy(-SCROLL_STEP)} repeat label="Scroll up">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="18 15 12 9 6 15"/>
         </svg>
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollBy(SCROLL_STEP)} repeat label="Scroll down">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollTo(999999)} label="Scroll to bottom">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <line x1="5" y1="18" x2="19" y2="18"/><polyline points="8 10 12 14 16 10"/>
         </svg>
       </ScrollBtn>
@@ -1130,59 +1328,100 @@ function GridScrollBar({ gridRef, editMode, onToggleEdit }: {
   )
 }
 
+// ── Main app screen ───────────────────────────────────────────────────────────
+
 function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const { settings } = useSettings()
-  const [text, setText]           = useState('')
-  const [history, setHistory]     = useState<string[]>([])
-  const [menuOpen, setMenuOpen]   = useState(false)
+  const [text, setText] = useState('')
+  const [history, setHistory] = useState<string[]>([])
+  const [menuOpen, setMenuOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [cursorPos, setCursorPos] = useState(0)
-  const [editMode, setEditMode]   = useState(false)
-  const [store, setStore]         = useState<PhraseStore>(loadPhraseStore)
-  const [editing, setEditing]     = useState<{ phrase: Phrase | null; isEmergency: boolean } | null>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [store, setStore] = useState<PhraseStore>(loadPhraseStore)
+  const [editing, setEditing] = useState<{ phrase: Phrase | null; isEmergency: boolean } | null>(null)
+  const [filling, setFilling] = useState<Phrase | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const gridRef = useRef<HTMLElement>(null)
   const showUndo = !text && history.length > 0
 
   const updateStore = useCallback((patch: Partial<PhraseStore>) => {
-    setStore(s => { const next = { ...s, ...patch }; savePhraseStore(next); return next })
+    setStore(s => {
+      const next = { ...s, ...patch }
+      savePhraseStore(next)
+      return next
+    })
   }, [])
 
-  // Effective phrase lists
+  const flashToast = useCallback((message: string) => {
+    setToast(message)
+    setTimeout(() => setToast(t => (t === message ? null : t)), 2200)
+  }, [])
+
+  // Overrides and user-authored phrases are re-parsed, so they behave like any
+  // other phrase — and keep their stored id, which is what delete matches on.
+  const buildPhrase = useCallback((id: string, raw: string, category: string): Phrase => {
+    const segments = parseSegments(raw)
+    return { id, text: compose(segments), segments, category }
+  }, [])
+
   const mainPhrases = useMemo(() => {
-    const overridden = MAIN_PHRASES
+    const base = PHRASES
       .filter(p => !store.hidden.includes(p.id))
-      .map(p => store.overrides[p.id] ? { ...p, text: store.overrides[p.id] } : p)
-    return [...overridden, ...store.custom.filter(p => p.category !== 'Emergency')]
-  }, [store])
+      .map(p => (store.overrides[p.id] ? buildPhrase(p.id, store.overrides[p.id], p.category) : p))
+    const custom = store.custom
+      .filter(c => c.category !== 'Emergency' && !store.hidden.includes(c.id))
+      .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, c.category))
+    return [...base, ...custom]
+  }, [store, buildPhrase])
 
   const emergencyPhrases = useMemo(() => {
-    return EMERGENCY_PHRASES
-      .map(p => store.overrides[p.id] ? { ...p, text: store.overrides[p.id] } : p)
+    const base = EMERGENCY_PHRASES
       .filter(p => !store.hidden.includes(p.id))
-      .concat(store.custom.filter(p => p.category === 'Emergency'))
-  }, [store])
+      .map(p => (store.overrides[p.id] ? buildPhrase(p.id, store.overrides[p.id], p.category) : p))
+    const custom = store.custom
+      .filter(c => c.category === 'Emergency' && !store.hidden.includes(c.id))
+      .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, 'Emergency'))
+    return [...base, ...custom]
+  }, [store, buildPhrase])
 
-  const allCategories = useMemo(() =>
-    [...new Set(mainPhrases.map(p => p.category))].sort(), [mainPhrases])
+  const allCategories = useMemo(
+    () => [...new Set(mainPhrases.map(p => p.category))].sort(),
+    [mainPhrases],
+  )
+
+  // Derived from the live phrase list so user-added categories get a tab and
+  // fully-hidden categories lose theirs.
+  const categories = useMemo(
+    () => [{ id: 'all', label: 'All' }, ...allCategories.map(c => ({ id: c, label: c }))],
+    [allCategories],
+  )
+
+  // Deleting the last phrase in a category takes its tab away; fall back to
+  // "All" rather than showing an empty grid under a tab that no longer exists.
+  const effectiveFilter =
+    activeFilter === 'all' || allCategories.includes(activeFilter) ? activeFilter : 'all'
 
   const openEdit = useCallback((phrase: Phrase | null, isEmergency = false) => {
+    cancelAllDwells()
     setEditing({ phrase, isEmergency })
   }, [])
 
-  const handleSave = useCallback((newText: string, newCategory: string) => {
-    if (!editing) return
-    const { phrase, isEmergency } = editing
-    if (phrase === null) {
-      // new phrase
-      const id = `custom-${Date.now()}`
-      const cat = isEmergency ? 'Emergency' : newCategory
-      updateStore({ custom: [...store.custom, { id, text: newText, category: cat }] })
-    } else {
-      // edit existing — store as override
-      updateStore({ overrides: { ...store.overrides, [phrase.id]: newText } })
-    }
-    setEditing(null)
-  }, [editing, store, updateStore])
+  const handleSave = useCallback(
+    (newText: string, newCategory: string) => {
+      if (!editing) return
+      const { phrase, isEmergency } = editing
+      if (phrase === null) {
+        const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        updateStore({ custom: [...store.custom, { id, text: newText, category: isEmergency ? 'Emergency' : newCategory }] })
+      } else {
+        updateStore({ overrides: { ...store.overrides, [phrase.id]: newText } })
+      }
+      setEditing(null)
+    },
+    [editing, store, updateStore],
+  )
 
   const handleDelete = useCallback(() => {
     if (!editing?.phrase) return
@@ -1195,10 +1434,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     setEditing(null)
   }, [editing, store, updateStore])
 
-  const editCtx: EditCtxValue = useMemo(() => ({
-    editMode,
-    openEdit,
-  }), [editMode, openEdit])
+  const editCtx: EditCtxValue = useMemo(() => ({ editMode, openEdit }), [editMode, openEdit])
 
   // Word immediately left of cursor
   const currentWord = useMemo(() => {
@@ -1207,7 +1443,8 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   }, [text, cursorPos])
 
   const visiblePhrases = useMemo(() => {
-    const pool = activeFilter === 'all' ? mainPhrases : mainPhrases.filter(p => p.category === activeFilter)
+    const pool =
+      effectiveFilter === 'all' ? mainPhrases : mainPhrases.filter(p => p.category === effectiveFilter)
     const q = currentWord.toLowerCase()
     if (!q) return pool
 
@@ -1220,8 +1457,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
       for (const w of words) {
         if (qi < q.length && w[0] === q[qi]) qi++
       }
-      if (qi === q.length) return 1
-      return 0
+      return qi === q.length ? 1 : 0
     }
 
     return pool
@@ -1229,139 +1465,182 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
       .filter(x => x.s > 0)
       .sort((a, b) => b.s - a.s)
       .map(x => x.p)
-  }, [activeFilter, currentWord])
+  }, [effectiveFilter, currentWord, mainPhrases])
 
   const trackCursor = useCallback((e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     setCursorPos(e.currentTarget.selectionStart ?? 0)
   }, [])
 
-  // When a phrase is dwelled, replace the current word with the phrase text
-  const handleSelectPhrase = useCallback((phrase: Phrase) => {
-    const el = textareaRef.current
-    const pos = el?.selectionStart ?? text.length
-    const before = text.slice(0, pos)
-    const after  = text.slice(pos)
-    // strip the partial word left of cursor, then insert phrase
-    const stripped = before.replace(/\S+$/, '')
-    const separator = stripped.length > 0 && !stripped.endsWith(' ') ? ' ' : ''
-    const newText = stripped + separator + phrase.text + (after.startsWith(' ') || after === '' ? '' : ' ') + after
-    setHistory(h => [...h, text])
-    setText(newText)
-    // move cursor to end of inserted phrase
-    const newPos = (stripped + separator + phrase.text).length
-    setTimeout(() => {
-      if (el) { el.selectionStart = el.selectionEnd = newPos }
-      setCursorPos(newPos)
-    }, 0)
-  }, [text])
+  /** Replace the partial word left of the cursor with `phraseText`. */
+  const insertPhrase = useCallback(
+    (phraseText: string) => {
+      const el = textareaRef.current
+      const pos = el?.selectionStart ?? text.length
+      const before = text.slice(0, pos)
+      const after = text.slice(pos)
+      const stripped = before.replace(/\S+$/, '')
+      const separator = stripped.length > 0 && !stripped.endsWith(' ') ? ' ' : ''
+      const inserted = stripped + separator + phraseText
+      const newText = inserted + (after.startsWith(' ') || after === '' ? '' : ' ') + after
+
+      setHistory(h => [...h, text])
+      setText(newText)
+
+      // Land the cursor on the first unfilled blank if there is one, so it can be
+      // typed over; otherwise sit at the end of what was just inserted.
+      const blankAt = inserted.indexOf(BLANK, stripped.length)
+      setTimeout(() => {
+        if (el) {
+          if (blankAt >= 0) {
+            el.selectionStart = blankAt
+            el.selectionEnd = blankAt + BLANK.length
+            el.focus()
+          } else {
+            el.selectionStart = el.selectionEnd = inserted.length
+          }
+        }
+        setCursorPos(blankAt >= 0 ? blankAt : inserted.length)
+      }, 0)
+    },
+    [text],
+  )
+
+  const handleSelectPhrase = useCallback(
+    (phrase: Phrase) => {
+      // Fill-in-the-blank phrases ask for their wording first.
+      if (hasChoices(phrase.segments)) {
+        cancelAllDwells()
+        setFilling(phrase)
+        return
+      }
+      insertPhrase(phrase.text)
+    },
+    [insertPhrase],
+  )
 
   const handleClearOrUndo = useCallback(() => {
-    if (text) { setHistory(h => [...h, text]); setText('') }
-    else if (history.length) { setText(history[history.length - 1]); setHistory(h => h.slice(0, -1)) }
+    if (text) {
+      setHistory(h => [...h, text])
+      setText('')
+    } else if (history.length) {
+      setText(history[history.length - 1])
+      setHistory(h => h.slice(0, -1))
+    }
   }, [text, history])
 
   const handleCopy = useCallback(() => {
     if (!text) return
-    navigator.clipboard.writeText(text).catch(() => {})
-  }, [text])
+    navigator.clipboard
+      .writeText(text)
+      .then(() => flashToast('Copied to clipboard'))
+      .catch(() => flashToast('Could not copy — clipboard unavailable'))
+  }, [text, flashToast])
 
-  const handleSpeak = useCallback(() => {
-    if (!text || !('speechSynthesis' in window)) return
-    speechSynthesis.cancel()
-    const utt = new SpeechSynthesisUtterance(text)
-    utt.volume = settings.volume
-    utt.rate   = settings.rate
-    if (settings.voiceURI) {
-      const voice = speechSynthesis.getVoices().find(v => v.voiceURI === settings.voiceURI)
-      if (voice) utt.voice = voice
-    }
-    speechSynthesis.speak(utt)
-  }, [text, settings])
+  const handleSpeak = useCallback(() => speak(text, settings), [text, settings])
 
-  const toggleMenu  = useCallback(() => setMenuOpen(o => !o), [])
-  const closeMenu   = useCallback(() => setMenuOpen(false), [])
-  const gridRef     = useRef<HTMLElement>(null)
+  const toggleMenu = useCallback(() => setMenuOpen(o => !o), [])
+  const closeMenu = useCallback(() => setMenuOpen(false), [])
 
   return (
     <EditCtx.Provider value={editCtx}>
-    <div className={['app', editMode ? 'edit-mode' : ''].filter(Boolean).join(' ')}>
-      {/* ── Topbar ── */}
-      <header className="topbar">
-        <ActionButton label={menuOpen ? 'Close menu' : 'Open menu'} onSelect={toggleMenu} className="menu-btn">
-          <MenuIcon />
-        </ActionButton>
+      <div className={cx('app', editMode && 'edit-mode')}>
+        {/* ── Topbar ── */}
+        <header className="topbar">
+          <ActionButton label={menuOpen ? 'Close menu' : 'Open menu'} onSelect={toggleMenu} className="menu-btn">
+            <MenuIcon />
+          </ActionButton>
 
-        <ActionButton
-          className="left"
-          onSelect={handleClearOrUndo}
-          label={showUndo ? 'Undo' : 'Clear'}
-          disabled={!text && !history.length}
-        >
-          {showUndo ? <UndoIcon /> : <ClearIcon />}
-        </ActionButton>
+          <ActionButton
+            className="left"
+            onSelect={handleClearOrUndo}
+            label={showUndo ? 'Undo' : 'Clear'}
+            disabled={!text && !history.length}
+          >
+            {showUndo ? <UndoIcon /> : <ClearIcon />}
+          </ActionButton>
 
-        <textarea
-          ref={textareaRef}
-          className="text-display"
-          aria-label="Composed message"
-          value={text}
-          onChange={e => { setText(e.target.value); trackCursor(e) }}
-          onSelect={trackCursor}
-          onClick={e => { trackCursor(e); if (editMode) openEdit(null) }}
-          onKeyUp={trackCursor}
-          placeholder={editMode ? 'Click to add a new phrase…' : 'Dwell on a phrase or type…'}
-          rows={1}
-          spellCheck
-          autoCapitalize="sentences"
-          readOnly={editMode}
-        />
+          <textarea
+            ref={textareaRef}
+            className="text-display"
+            aria-label="Composed message"
+            value={text}
+            onChange={e => {
+              setText(e.target.value)
+              trackCursor(e)
+            }}
+            onSelect={trackCursor}
+            onClick={e => {
+              trackCursor(e)
+              if (editMode) openEdit(null)
+            }}
+            onKeyUp={trackCursor}
+            placeholder={editMode ? 'Click to add a new phrase…' : 'Dwell on a phrase or type…'}
+            rows={1}
+            spellCheck
+            autoCapitalize="sentences"
+            readOnly={editMode}
+          />
 
-        <ActionButton className="right" onSelect={handleSpeak} label="Speak" disabled={!text}>
-          <SpeakIcon />
-        </ActionButton>
+          <ActionButton className="right" onSelect={handleSpeak} label="Speak" disabled={!text}>
+            <SpeakIcon />
+          </ActionButton>
 
-        <ActionButton className="right" onSelect={handleCopy} label="Copy to clipboard" disabled={!text}>
-          <CopyIcon />
-        </ActionButton>
-      </header>
+          <ActionButton className="right" onSelect={handleCopy} label="Copy to clipboard" disabled={!text}>
+            <CopyIcon />
+          </ActionButton>
+        </header>
 
-      {/* ── Filter bar — hidden while text search is active ── */}
-      {!(currentWord && visiblePhrases.length > 0) && (
-        <FilterBar activeFilter={activeFilter} onSelect={setActiveFilter} />
-      )}
+        {/* ── Filter bar — hidden while text search is active ── */}
+        {!(currentWord && visiblePhrases.length > 0) && (
+          <FilterBar categories={categories} activeFilter={effectiveFilter} onSelect={setActiveFilter} />
+        )}
 
-      {/* ── Phrase grid + scroll controls ── */}
-      <div className="grid-area">
-        <main ref={gridRef} className="grid-wrapper">
-          <div className="phrase-grid" role="grid" aria-label="Phrase selection grid">
-            {visiblePhrases.map(phrase => (
-              <PhraseCell key={phrase.id} phrase={phrase} onSelect={handleSelectPhrase} />
-            ))}
-          </div>
-        </main>
-        <GridScrollBar gridRef={gridRef} editMode={editMode} onToggleEdit={() => setEditMode(m => !m)} />
+        {/* ── Phrase grid + scroll controls ── */}
+        <div className="grid-area">
+          <main ref={gridRef} className="grid-wrapper">
+            <div className="phrase-grid" role="group" aria-label="Phrases">
+              {visiblePhrases.map(phrase => (
+                <PhraseCell key={phrase.id} phrase={phrase} onSelect={handleSelectPhrase} />
+              ))}
+            </div>
+          </main>
+          <GridScrollBar gridRef={gridRef} editMode={editMode} onToggleEdit={() => setEditMode(m => !m)} />
+        </div>
+
+        {/* ── Emergency bar — always visible at bottom ── */}
+        <EmergencyBar phrases={emergencyPhrases} />
+
+        {/* ── Top panel ── */}
+        <TopPanel open={menuOpen} user={user} onClose={closeMenu} onSignOut={onSignOut} />
+
+        <DwellCursor />
+
+        <div className="toast-region" role="status" aria-live="polite">
+          {toast && <div className="toast">{toast}</div>}
+        </div>
+
+        {filling && (
+          <SlotPicker
+            phrase={filling}
+            onComplete={t => {
+              setFilling(null)
+              insertPhrase(t)
+            }}
+            onCancel={() => setFilling(null)}
+          />
+        )}
+
+        {editing !== null && (
+          <EditModal
+            phrase={editing.phrase}
+            isEmergency={editing.isEmergency}
+            allCategories={allCategories}
+            onSave={handleSave}
+            onDelete={handleDelete}
+            onClose={() => setEditing(null)}
+          />
+        )}
       </div>
-
-      {/* ── Emergency bar — always visible at bottom ── */}
-      <EmergencyBar phrases={emergencyPhrases} />
-
-      {/* ── Top panel ── */}
-      <TopPanel open={menuOpen} user={user} onClose={closeMenu} onSignOut={onSignOut} />
-
-      <DwellCursor />
-
-      {/* ── Edit modal ── */}
-      {editing !== null && (
-        <EditModal
-          phrase={editing.phrase}
-          isEmergency={editing.isEmergency}
-          allCategories={allCategories}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          onClose={() => setEditing(null)}
-        />
-      )}
-    </div>
     </EditCtx.Provider>
   )
 }
@@ -1371,16 +1650,24 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
 const USER_KEY = 'dwellspeak_user'
 
 function loadUser(): User | null {
-  try { return JSON.parse(localStorage.getItem(USER_KEY) ?? 'null') } catch { return null }
+  try {
+    return JSON.parse(localStorage.getItem(USER_KEY) ?? 'null')
+  } catch {
+    return null
+  }
 }
 
 export default function App() {
-  const [user, setUser]         = useState<User | null>(loadUser)
+  const [user, setUser] = useState<User | null>(loadUser)
   const [settings, setSettings] = useState<Settings>(loadSettings)
   const screen: Screen = user ? 'app' : 'signin'
 
   const update = useCallback((patch: Partial<Settings>) => {
-    setSettings(s => { const next = { ...s, ...patch }; saveSettings(next); return next })
+    setSettings(s => {
+      const next = { ...s, ...patch }
+      saveSettings(next)
+      return next
+    })
   }, [])
 
   const handleSignIn = useCallback((u: User) => {
@@ -1393,11 +1680,11 @@ export default function App() {
     setUser(null)
   }, [])
 
+  const ctx = useMemo(() => ({ settings, update }), [settings, update])
+
   return (
-    <SettingsCtx.Provider value={{ settings, update }}>
-      {screen === 'signin'
-        ? <SignInPage onSignIn={handleSignIn} />
-        : <AACApp user={user!} onSignOut={handleSignOut} />}
+    <SettingsCtx.Provider value={ctx}>
+      {screen === 'signin' ? <SignInPage onSignIn={handleSignIn} /> : <AACApp user={user!} onSignOut={handleSignOut} />}
     </SettingsCtx.Provider>
   )
 }
