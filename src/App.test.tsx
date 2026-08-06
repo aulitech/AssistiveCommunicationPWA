@@ -395,6 +395,21 @@ describe('help', () => {
     expect($$('.help-section').length).toBe(HELP_SECTIONS.length)
   })
 
+  // The panel spans the full viewport, so without a constrained column the
+  // guide's lines run the whole width of a wide monitor.
+  it('keeps the prose in a reading column', () => {
+    renderApp()
+    openMenu()
+    click(nav('Help'))
+
+    const measure = $('.help-measure')
+    expect(measure).not.toBeNull()
+    // Every piece of prose sits inside it, not loose in the scroll area.
+    for (const el of [...$$('.help-text'), ...$$('.help-list'), ...$$('.help-section')]) {
+      expect(measure!.contains(el)).toBe(true)
+    }
+  })
+
   it('renders every section heading and its body', () => {
     renderApp()
     openMenu()
