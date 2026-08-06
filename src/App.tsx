@@ -39,6 +39,8 @@ interface Settings {
   voiceURI: string // empty = default
   volume: number // 0–1
   rate: number // 0.5–2
+  /** Speak each selected phrase immediately instead of composing a message. */
+  autoSpeak: boolean
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -47,6 +49,7 @@ const DEFAULT_SETTINGS: Settings = {
   voiceURI: '',
   volume: 1,
   rate: 1,
+  autoSpeak: false,
 }
 
 function loadSettings(): Settings {
@@ -200,6 +203,24 @@ function AppLogoIcon() {
       <circle cx="20" cy="25" r="2.5" fill="var(--accent)"/>
       <circle cx="28" cy="25" r="2.5" fill="var(--accent)"/>
       <circle cx="36" cy="25" r="2.5" fill="var(--accent)"/>
+    </svg>
+  )
+}
+
+function AutoSpeakIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16" aria-hidden="true">
+      <polygon points="10 5 6 9 3 9 3 15 6 15 10 19 10 5" />
+      <polyline points="18 6 15 11.5 19 11.5 16 18" />
+    </svg>
+  )
+}
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16" aria-hidden="true">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
     </svg>
   )
 }
@@ -1275,34 +1296,57 @@ function ScrollBtn({ onAction, repeat, label, children }: {
   )
 }
 
-function GridScrollBar({ gridRef, editMode, onToggleEdit }: {
+function ToggleBtn({ on, onToggle, label, children }: {
+  on: boolean
+  onToggle: () => void
+  label: string
+  children: React.ReactNode
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onToggle)
+  return (
+    <div
+      className={cx('scroll-btn toggle-btn', on && 'active', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={label}
+      aria-pressed={on}
+      {...props}
+    >
+      <div className="scroll-btn-fill" key={active ? 'a' : 'i'} />
+      {children}
+    </div>
+  )
+}
+
+function GridScrollBar({ gridRef, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak }: {
   gridRef: React.RefObject<HTMLElement | null>
   editMode: boolean
   onToggleEdit: () => void
+  autoSpeak: boolean
+  onToggleAutoSpeak: () => void
 }) {
-  const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onToggleEdit)
-
   const scrollTo = useCallback((pos: number) => gridRef.current?.scrollTo({ top: pos, behavior: 'smooth' }), [gridRef])
   const scrollBy = useCallback((dy: number) => gridRef.current?.scrollBy({ top: dy, behavior: 'smooth' }), [gridRef])
 
   return (
     <div className="grid-scrollbar">
-      {/* Edit toggle — always visible above scroll controls */}
-      <div
-        className={cx('scroll-btn edit-toggle-btn', editMode && 'active', active && 'dwelling')}
-        style={dwellVar(settings.actionDwellMs)}
-        role="button"
-        aria-label={editMode ? 'Exit edit mode' : 'Edit phrases'}
-        aria-pressed={editMode}
-        {...props}
+      {/* Mode toggles — always visible above the scroll controls */}
+      <ToggleBtn
+        on={autoSpeak}
+        onToggle={onToggleAutoSpeak}
+        label={autoSpeak ? 'Turn off auto-speak' : 'Turn on auto-speak — speak phrases immediately'}
       >
-        <div className="scroll-btn-fill" key={active ? 'a' : 'i'} />
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16" aria-hidden="true">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-        </svg>
-      </div>
+        <AutoSpeakIcon />
+      </ToggleBtn>
+
+      <ToggleBtn
+        on={editMode}
+        onToggle={onToggleEdit}
+        label={editMode ? 'Exit edit mode' : 'Edit phrases'}
+      >
+        <EditIcon />
+      </ToggleBtn>
 
       <ScrollBtn onAction={() => scrollTo(0)} label="Scroll to top">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1331,7 +1375,7 @@ function GridScrollBar({ gridRef, editMode, onToggleEdit }: {
 // ── Main app screen ───────────────────────────────────────────────────────────
 
 function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
-  const { settings } = useSettings()
+  const { settings, update } = useSettings()
   const [text, setText] = useState('')
   const [history, setHistory] = useState<string[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
@@ -1505,6 +1549,19 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     [text],
   )
 
+  /**
+   * Where a chosen phrase goes. In auto-speak it is spoken on the spot and the
+   * message box is left alone, so the grid works as a one-tap talker; otherwise
+   * it is composed into the message for the user to send when ready.
+   */
+  const deliverPhrase = useCallback(
+    (phraseText: string) => {
+      if (settings.autoSpeak) speak(phraseText, settings)
+      else insertPhrase(phraseText)
+    },
+    [settings, insertPhrase],
+  )
+
   const handleSelectPhrase = useCallback(
     (phrase: Phrase) => {
       // Fill-in-the-blank phrases ask for their wording first.
@@ -1513,9 +1570,9 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
         setFilling(phrase)
         return
       }
-      insertPhrase(phrase.text)
+      deliverPhrase(phrase.text)
     },
-    [insertPhrase],
+    [deliverPhrase],
   )
 
   const handleClearOrUndo = useCallback(() => {
@@ -1537,6 +1594,14 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   }, [text, flashToast])
 
   const handleSpeak = useCallback(() => speak(text, settings), [text, settings])
+
+  const toggleAutoSpeak = useCallback(() => {
+    const next = !settings.autoSpeak
+    update({ autoSpeak: next })
+    // The button's lit state is the only other cue, and it sits in a narrow
+    // rail — say plainly which way the mode just went.
+    flashToast(next ? 'Auto-speak on — phrases speak immediately' : 'Auto-speak off — phrases build a message')
+  }, [settings.autoSpeak, update, flashToast])
 
   const toggleMenu = useCallback(() => setMenuOpen(o => !o), [])
   const closeMenu = useCallback(() => setMenuOpen(false), [])
@@ -1574,7 +1639,13 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
               if (editMode) openEdit(null)
             }}
             onKeyUp={trackCursor}
-            placeholder={editMode ? 'Click to add a new phrase…' : 'Dwell on a phrase or type…'}
+            placeholder={
+              editMode
+                ? 'Click to add a new phrase…'
+                : settings.autoSpeak
+                  ? 'Auto-speak is on — phrases are spoken, not collected here'
+                  : 'Dwell on a phrase or type…'
+            }
             rows={1}
             spellCheck
             autoCapitalize="sentences"
@@ -1604,7 +1675,13 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
               ))}
             </div>
           </main>
-          <GridScrollBar gridRef={gridRef} editMode={editMode} onToggleEdit={() => setEditMode(m => !m)} />
+          <GridScrollBar
+            gridRef={gridRef}
+            editMode={editMode}
+            onToggleEdit={() => setEditMode(m => !m)}
+            autoSpeak={settings.autoSpeak}
+            onToggleAutoSpeak={toggleAutoSpeak}
+          />
         </div>
 
         {/* ── Emergency bar — always visible at bottom ── */}
@@ -1624,7 +1701,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
             phrase={filling}
             onComplete={t => {
               setFilling(null)
-              insertPhrase(t)
+              deliverPhrase(t)
             }}
             onCancel={() => setFilling(null)}
           />
