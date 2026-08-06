@@ -13,7 +13,7 @@
 [build.environment]
   # Mirrors .mise.toml, which Netlify does not read.
   NODE_VERSION = "22"
-  PNPM_VERSION = "10.34.3"
+  PNPM_VERSION = "11.20.0"
 
 # Single-page app: there is no router, but a deep link should still land on the
 # app rather than a 404. Netlify serves real files first, so this only catches
