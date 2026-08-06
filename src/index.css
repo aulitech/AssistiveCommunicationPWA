@@ -1554,18 +1554,26 @@ body {
 }
 
 .help-body {
-  padding: 14px 16px;
+  padding: 18px 16px 22px;
+}
+
+/* Reading column. The panel spans the whole viewport, so without this the
+   guide's lines run the full width of a wide monitor — a measure of a couple
+   of hundred characters, where comfortable reading is 45–75. */
+.help-measure {
+  max-width: 68ch;
+  margin-inline: auto;
 }
 
 .help-title {
   margin: 0 0 4px;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--text);
 }
 
 .help-section {
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 .help-section:first-of-type {
@@ -1573,16 +1581,16 @@ body {
 }
 
 .help-section-title {
-  margin: 0 0 6px;
-  font-size: 13px;
+  margin: 0 0 7px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--accent);
 }
 
 .help-text {
-  margin: 0 0 8px;
-  font-size: 13px;
-  line-height: 1.6;
+  margin: 0 0 10px;
+  font-size: 14.5px;
+  line-height: 1.65;
   color: var(--text);
 }
 
@@ -1595,8 +1603,8 @@ body {
 }
 
 .help-list li {
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 14.5px;
+  line-height: 1.6;
   color: var(--text);
 }
 

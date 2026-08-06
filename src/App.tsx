@@ -1072,23 +1072,27 @@ function HelpPanel() {
   return (
     <div className="help-panel">
       <ScrollPane className="help-scroller" paneClassName="help-body" step={120}>
-        <h2 className="help-title">Using DwellSpeak</h2>
-        {HELP_SECTIONS.map(section => (
-          <section key={section.title} className="help-section">
-            <h3 className="help-section-title">{section.title}</h3>
-            {section.blocks.map((block, i) =>
-              block.kind === 'text' ? (
-                <p key={i} className="help-text">{block.text}</p>
-              ) : (
-                <ul key={i} className="help-list">
-                  {block.items.map(item => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              ),
-            )}
-          </section>
-        ))}
+        {/* The panel spans the full viewport, so the prose needs its own
+            column — text running the width of a wide monitor is unreadable. */}
+        <div className="help-measure">
+          <h2 className="help-title">Using DwellSpeak</h2>
+          {HELP_SECTIONS.map(section => (
+            <section key={section.title} className="help-section">
+              <h3 className="help-section-title">{section.title}</h3>
+              {section.blocks.map((block, i) =>
+                block.kind === 'text' ? (
+                  <p key={i} className="help-text">{block.text}</p>
+                ) : (
+                  <ul key={i} className="help-list">
+                    {block.items.map(item => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ),
+              )}
+            </section>
+          ))}
+        </div>
       </ScrollPane>
     </div>
   )
