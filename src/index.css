@@ -587,20 +587,26 @@ body {
 }
 
 /* ── Sign-in page ── */
+/* A fixed frame the exact height of the viewport, with the content scrolling
+   inside it. The page itself must not scroll: the dwell arrows live at the top
+   and bottom of the frame, and would scroll away with everything else.
+   `dvh` last, so it wins where supported — `vh` counts the mobile browser
+   chrome that is not actually there. */
 .signin-page {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  min-height: 100dvh;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   background: var(--bg);
-  padding: 40px 20px 32px;
-  overflow-y: auto;
-
-  scrollbar-width: none;
+  overflow: hidden;
 }
 
-.signin-page::-webkit-scrollbar { display: none; }
+.signin-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px 32px;
+}
 
 /* Brand */
 .signin-brand {
@@ -687,6 +693,52 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Fitting the page on one screen.
+   Height is what runs out — a phone in landscape has barely 400px of it, and
+   the sign-in buttons alone want 400. So the page gives ground in order of
+   what it can afford to lose, and never touches the dwell-time control or the
+   ways in: someone who needs a slow dwell cannot reach anything without the
+   first, and nobody gets past this page without the second.
+   The dwell arrows catch whatever still does not fit. */
+
+/* Laptops and small windows: tighten, and drop the feature blurbs. The titles
+   still say what the app does. */
+@media (max-height: 900px) {
+  .signin-content { padding: 24px 20px 20px; }
+  .signin-brand { gap: 10px; margin-bottom: 20px; }
+  .signin-logo, .signin-logo svg { width: 56px; height: 56px; }
+  .signin-app-name { font-size: 26px; }
+  .signin-tagline { font-size: 15px; }
+  .signin-features { gap: 8px; margin-bottom: 20px; }
+  .signin-feature { padding: 9px 14px; }
+  .signin-feature-body { display: none; }
+}
+
+/* Phones held upright: the feature list goes entirely. The tagline says the
+   same thing in one line. */
+@media (max-height: 740px) {
+  .signin-features { display: none; }
+}
+
+/* Phones on their side: nothing promotional survives but the name. */
+@media (max-height: 560px) {
+  .signin-content { padding: 14px 20px 14px; }
+  .signin-brand {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .signin-logo, .signin-logo svg { width: 36px; height: 36px; }
+  .signin-app-name { font-size: 21px; }
+  .signin-tagline { display: none; }
+  .signin-legal { font-size: 11px; }
+}
+
+@media (max-width: 380px) {
+  .signin-content { padding-left: 12px; padding-right: 12px; }
 }
 
 /* Auth button */
