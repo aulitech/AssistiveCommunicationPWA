@@ -2166,8 +2166,10 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
               trackCursor(e)
               if (editMode) composerDwell.props.onClick()
             }}
-            // Only in edit mode: the handler swallows Space, which would
-            // otherwise stop the user typing one.
+            // The handler cancels Space so it cannot scroll the grid, and the
+            // hook's own disabled check already stops that outside edit mode —
+            // but that check reads a ref synced in an effect, and this is the
+            // one surface where swallowing a space is unacceptable.
             onKeyDown={editMode ? composerDwell.props.onKeyDown : undefined}
             onKeyUp={trackCursor}
             placeholder={
