@@ -7,17 +7,12 @@
 // them set it up. Short sentences, plain words, no jargon — someone may be
 // reading this while tired, and every screenful costs them dwell time.
 
-export type HelpBlock = { kind: 'text'; text: string } | { kind: 'list'; items: string[] }
+import { type ProseBlock, type ProseSection, list, text } from './prose'
 
-export interface HelpSection {
-  title: string
-  blocks: HelpBlock[]
-}
+export type HelpBlock = ProseBlock
+export type HelpSection = ProseSection
 
-const text = (t: string): HelpBlock => ({ kind: 'text', text: t })
-const list = (...items: string[]): HelpBlock => ({ kind: 'list', items })
-
-export const HELP_SECTIONS: HelpSection[] = [
+export const HELP_SECTIONS: ProseSection[] = [
   {
     title: 'How selecting works',
     blocks: [

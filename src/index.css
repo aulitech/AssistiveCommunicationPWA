@@ -1613,3 +1613,75 @@ body {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* ── Legal pages (/privacy, /terms) ── */
+/* Standalone documents rather than app screens: they are handed to Google and
+   Meta as published policy URLs, so they must stand on their own. */
+.legal-page {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 20px 64px;
+}
+
+.legal-measure {
+  max-width: 68ch;
+  margin-inline: auto;
+}
+
+.legal-back {
+  display: inline-block;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.legal-back:hover { text-decoration: underline; }
+
+.legal-title {
+  margin: 0 0 4px;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.legal-updated {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.legal-intro {
+  margin: 0 0 8px;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--text);
+  padding-left: 14px;
+  border-left: 2px solid var(--accent);
+}
+
+.help-legal-links {
+  margin: 28px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.help-legal-links a,
+.signin-legal a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.help-legal-links a:hover,
+.signin-legal a:hover { text-decoration: underline; }
+
+/* Documents are for reading, and the app disables selection globally. */
+.legal-page, .legal-page * {
+  user-select: text;
+  -webkit-user-select: text;
+}

@@ -481,3 +481,49 @@ describe('sign-in providers', () => {
     expect($('.app')).not.toBeNull()
   })
 })
+
+describe('legal pages', () => {
+  const at = (path: string) => {
+    window.history.replaceState({}, '', path)
+    container = render(<App />).container
+    settle()
+  }
+
+  afterEach(() => window.history.replaceState({}, '', '/'))
+
+  it.each([
+    ['/privacy', 'Privacy Policy'],
+    ['/terms', 'Terms of Service'],
+  ])('serves %s as a standalone document', (path, title) => {
+    at(path)
+    expect($('.legal-page')).not.toBeNull()
+    expect($('.legal-title')?.textContent).toBe(title)
+    expect($('.legal-updated')?.textContent).toMatch(/last updated/i)
+    expect($$('.help-section').length).toBeGreaterThan(4)
+  })
+
+  // Google and Meta fetch these URLs, and a visitor may have no account.
+  it('renders without an account and without the app around it', () => {
+    localStorage.clear()
+    at('/privacy')
+    expect($('.signin-page')).toBeNull()
+    expect($('.app')).toBeNull()
+    expect($('.legal-page')).not.toBeNull()
+  })
+
+  it('offers a way back to the app', () => {
+    at('/terms')
+    expect($<HTMLAnchorElement>('.legal-back')?.getAttribute('href')).toBe('/')
+  })
+
+  it('leaves other paths on the app', () => {
+    at('/')
+    expect($('.legal-page')).toBeNull()
+  })
+
+  it('links both documents from the sign-in page', () => {
+    at('/')
+    const hrefs = $$<HTMLAnchorElement>('.signin-legal a').map(a => a.getAttribute('href'))
+    expect(hrefs).toEqual(['/terms', '/privacy'])
+  })
+})
