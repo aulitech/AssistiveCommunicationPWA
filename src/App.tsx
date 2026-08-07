@@ -1760,11 +1760,30 @@ function ReorderIcon() {
   )
 }
 
+/* The two arrangements, drawn as what they are. Alphabetical is tidy lines
+   descending in length under an A-to-Z arrow; the user's own is the same lines
+   jumbled, beside a grip. Neither can be mistaken for the reorder button's
+   opposing arrows, which sits right next to them. */
+
 function SortAlphaIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <line x1="4" y1="6" x2="13" y2="6" /><line x1="4" y1="12" x2="11" y2="12" /><line x1="4" y1="18" x2="9" y2="18" />
       <polyline points="17 6 20 3 23 6" /><line x1="20" y1="3" x2="20" y2="21" />
+    </svg>
+  )
+}
+
+function CustomOrderIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="4" y1="6" x2="11" y2="6" /><line x1="4" y1="12" x2="15" y2="12" /><line x1="4" y1="18" x2="8" y2="18" />
+      {[6, 12, 18].map(y => (
+        <g key={y}>
+          <circle cx="18.5" cy={y} r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="22" cy={y} r="1.4" fill="currentColor" stroke="none" />
+        </g>
+      ))}
     </svg>
   )
 }
@@ -1931,15 +1950,22 @@ function FilterBar({
           {reordering
             ? onToggleSort && (
               <FilterBarButton
-                className="sort-alpha-tab"
-                label={isAlphabetical ? 'Use your own category order' : 'Sort categories A to Z'}
+                className="sort-order-tab"
+                // The green fill says which arrangement is on, so the icon and
+                // the name say it too rather than leaving colour to carry it.
+                // Both then name the switch, since neither state is "off".
+                label={
+                  isAlphabetical
+                    ? 'Sorted A to Z. Switch to your own order'
+                    : 'Your own order. Switch to A to Z'
+                }
                 pressed={isAlphabetical}
-                // Nothing to toggle to until there is an arrangement of their
+                // Nothing to switch to until there is an arrangement of their
                 // own to come back to.
                 disabled={isAlphabetical && !canRestoreOrder}
                 onActivate={onToggleSort}
               >
-                <SortAlphaIcon />
+                {isAlphabetical ? <SortAlphaIcon /> : <CustomOrderIcon />}
               </FilterBarButton>
             )
             : onAddCategory && (

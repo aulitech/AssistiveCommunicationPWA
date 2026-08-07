@@ -240,7 +240,7 @@ describe('the phrase editor', () => {
 
 describe('ordering categories', () => {
   const reorderBtn = () => $('.reorder-tab')
-  const sortBtn = () => $('.sort-alpha-tab')
+  const sortBtn = () => $('.sort-order-tab')
   const startReordering = () => {
     enterEditMode()
     click(reorderBtn())
@@ -292,7 +292,7 @@ describe('ordering categories', () => {
 
     click(reorderBtn())
     expect($('.filter-scroll .filter-bar-btn')).toBeNull()
-    expect($('.filter-bar-tools .sort-alpha-tab')).not.toBeNull()
+    expect($('.filter-bar-tools .sort-order-tab')).not.toBeNull()
   })
 
   // Add and sort share a slot, so the toolbar does not change width — and with
@@ -417,17 +417,23 @@ describe('ordering categories', () => {
       expect(names()).toEqual(arranged)
     })
 
-    it('says which way it will go', () => {
+    // Three cues for the same fact, because neither arrangement is "off" and
+    // the green fill alone cannot say which one is on.
+    it('says which arrangement is on, and which way it will go', () => {
       renderApp()
       startReordering()
       const arranged = names()
       dwellDrag(arranged[0], arranged[2])
-      expect(sortBtn()?.getAttribute('aria-label')).toBe('Sort categories A to Z')
+
+      expect(sortBtn()?.getAttribute('aria-label')).toBe('Your own order. Switch to A to Z')
       expect(sortBtn()?.getAttribute('aria-pressed')).toBe('false')
+      const custom = sortBtn()?.querySelector('svg')?.innerHTML
 
       click(sortBtn())
-      expect(sortBtn()?.getAttribute('aria-label')).toBe('Use your own category order')
+
+      expect(sortBtn()?.getAttribute('aria-label')).toBe('Sorted A to Z. Switch to your own order')
       expect(sortBtn()?.getAttribute('aria-pressed')).toBe('true')
+      expect(sortBtn()?.querySelector('svg')?.innerHTML).not.toBe(custom)
     })
 
     it('does nothing until there is an order of their own to come back to', () => {
