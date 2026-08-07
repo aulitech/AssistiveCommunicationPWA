@@ -1,0 +1,8 @@
+# The Figma Make plugin this project used to carry generated this file on every
+# build, from `robots.index: false` in its site config. Keeping it means
+# removing that plugin changed nothing about how the site is seen from outside.
+#
+# Delete this file and the robots meta tag in index.html together when Peri
+# should be findable.
+User-agent: *
+Disallow: /
