@@ -283,15 +283,26 @@ describe('ordering categories', () => {
 
   // These used to sit in with the tabs, where reaching them meant scrolling to
   // the end of a bar that can be dozens of categories long.
-  it('parks the controls outside the scroller, where they cannot scroll away', () => {
+  it('parks every category control outside the scroller, where none can scroll away', () => {
     renderApp()
     enterEditMode()
-    expect($('.filter-scroll .reorder-tab')).toBeNull()
+    expect($('.filter-scroll .filter-bar-btn')).toBeNull()
+    expect($('.filter-bar-tools .add-category-tab')).not.toBeNull()
     expect($('.filter-bar-tools .reorder-tab')).not.toBeNull()
 
     click(reorderBtn())
-    expect($('.filter-scroll .sort-alpha-tab')).toBeNull()
+    expect($('.filter-scroll .filter-bar-btn')).toBeNull()
     expect($('.filter-bar-tools .sort-alpha-tab')).not.toBeNull()
+  })
+
+  // Add and sort share a slot, so the toolbar does not change width — and with
+  // it the reorder button's position — as the mode is toggled.
+  it('keeps the toolbar to two controls in either mode', () => {
+    renderApp()
+    enterEditMode()
+    expect($$('.filter-bar-tools .filter-bar-btn')).toHaveLength(2)
+    click(reorderBtn())
+    expect($$('.filter-bar-tools .filter-bar-btn')).toHaveLength(2)
   })
 
   it('leaves no empty toolbar outside edit mode', () => {
