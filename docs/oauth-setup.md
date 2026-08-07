@@ -1,6 +1,6 @@
 # Setting up sign-in
 
-DwellSpeak can offer Google, Apple and Facebook sign-in. **All three are optional.** A provider with no credential is simply not shown on the sign-in page, and "Continue as guest" always works.
+Peri can offer Google, Apple and Facebook sign-in. **All three are optional.** A provider with no credential is simply not shown on the sign-in page, and "Continue as guest" always works.
 
 ## What sign-in actually does here
 
@@ -65,11 +65,11 @@ Apple is the most involved of the three and **requires a paid Apple Developer ac
 1. In the [Apple Developer portal](https://developer.apple.com/account/resources/identifiers/list), go to **Certificates, Identifiers & Profiles → Identifiers**.
 2. Create an **App ID** first if you do not have one:
    - Register a new identifier → **App IDs** → App.
-   - Give it a description and a bundle ID, e.g. `tech.auli.dwellspeak`.
+   - Give it a description and a bundle ID, e.g. `tech.auli.peri`.
    - Enable the **Sign in with Apple** capability.
 3. Create a **Services ID** — this is what the browser uses, and its identifier is the value you need:
    - Register a new identifier → **Services IDs**.
-   - Description: e.g. `DwellSpeak Web`. Identifier: e.g. `tech.auli.dwellspeak.signin`.
+   - Description: e.g. `Peri Web`. Identifier: e.g. `tech.auli.peri.signin`.
    - Save, then reopen it and tick **Sign in with Apple → Configure**:
      - **Primary App ID**: the App ID from step 2.
      - **Domains**: `aulitalk.netlify.app`
@@ -78,7 +78,7 @@ Apple is the most involved of the three and **requires a paid Apple Developer ac
 4. Copy the **Services ID identifier** — not the App ID — into:
 
 ```
-VITE_APPLE_CLIENT_ID=tech.auli.dwellspeak.signin
+VITE_APPLE_CLIENT_ID=tech.auli.peri.signin
 ```
 
 **Two things that surprise people:**

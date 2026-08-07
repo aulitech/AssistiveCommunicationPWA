@@ -24,6 +24,9 @@
   /* Rest is the other exception, and has to be told apart from both of the
      above at a glance — it is the way out when nothing else responds. */
   --rest: #f59e0b;
+  /* The Peri mark's own gold. Used by the logo and nothing else — the interface
+     stays green, so this never competes with a control for meaning. */
+  --brand: #fcdd6b;
 
 }
 

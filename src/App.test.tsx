@@ -53,6 +53,11 @@ describe('sign-in', () => {
     expect($('.app')).toBeNull()
   })
 
+  it('names the app', () => {
+    container = render(<App />).container
+    expect($('.signin-app-name')?.textContent).toBe('Peri')
+  })
+
   it('lets a guest through to the app', () => {
     container = render(<App />).container
     const guest = $$('.auth-btn').find(b => b.getAttribute('aria-label') === 'Continue as guest')
@@ -665,7 +670,7 @@ describe('help', () => {
     click(nav('Help'))
 
     expect($('.help-panel')).not.toBeNull()
-    expect($('.help-title')?.textContent).toMatch(/dwellspeak/i)
+    expect($('.help-title')?.textContent).toMatch(/peri/i)
     expect($$('.help-section').length).toBe(HELP_SECTIONS.length)
   })
 

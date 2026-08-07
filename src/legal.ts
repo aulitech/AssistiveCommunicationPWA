@@ -17,7 +17,7 @@ export const PRIVACY: ProseDocument = {
   title: 'Privacy Policy',
   updated: UPDATED,
   intro:
-    'DwellSpeak is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device.',
+    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device.',
   sections: [
     {
       title: 'What we collect',
@@ -122,7 +122,7 @@ export const TERMS: ProseDocument = {
       title: 'Not a medical device, and not an emergency service',
       blocks: [
         text(
-          'DwellSpeak is a communication aid. It is not a medical device, it is not certified as one, and it is not monitored by anyone.',
+          'Peri is a communication aid. It is not a medical device, it is not certified as one, and it is not monitored by anyone.',
         ),
         text(
           'The emergency phrases speak aloud through your device’s speaker. They do not call anyone, alert anyone, or reach any emergency service. Someone has to be within earshot for them to do anything at all.',
@@ -165,7 +165,7 @@ export const TERMS: ProseDocument = {
       title: 'Open source',
       blocks: [
         text(
-          'DwellSpeak is released under the MIT Licence. You are free to use, copy, modify and distribute it, including commercially, provided the copyright notice and licence text are kept. The licence text is in the repository and governs the software itself; these terms govern your use of the version we publish.',
+          'Peri is released under the MIT Licence. You are free to use, copy, modify and distribute it, including commercially, provided the copyright notice and licence text are kept. The licence text is in the repository and governs the software itself; these terms govern your use of the version we publish.',
         ),
       ],
     },

@@ -17,7 +17,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'How selecting works',
     blocks: [
       text(
-        'DwellSpeak is operated by resting, not clicking. Move the pointer onto a button and hold it still. A bar fills to show the button is being chosen, and it activates when the bar completes.',
+        'Peri is operated by resting, not clicking. Move the pointer onto a button and hold it still. A bar fills to show the button is being chosen, and it activates when the bar completes.',
       ),
       text('Move away before the bar fills and nothing happens, so a wrong turn costs you nothing.'),
       text('Clicking, tapping and the keyboard all work too, if any of those are easier for you.'),
@@ -125,7 +125,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Using it offline',
     blocks: [
       text(
-        'DwellSpeak can be installed to a home screen from your browser menu. Once installed it opens like any other app and keeps working with no internet connection.',
+        'Peri can be installed to a home screen from your browser menu. Once installed it opens like any other app and keeps working with no internet connection.',
       ),
       text(
         'Your phrases, your details and your settings are stored on this device only. Nothing is uploaded, and signing in does not change that.',

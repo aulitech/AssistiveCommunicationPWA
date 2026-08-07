@@ -1,6 +1,6 @@
 {
-  "name": "DwellSpeak — Assistive Communication",
-  "short_name": "DwellSpeak",
+  "name": "Peri — Assistive Communication",
+  "short_name": "Peri",
   "description": "Assistive communication driven entirely by gaze and dwell. Hover and hold to build a message and speak it aloud.",
   "start_url": "/",
   "scope": "/",
@@ -20,6 +20,24 @@
       "src": "/icon-maskable.svg",
       "sizes": "any",
       "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ]
