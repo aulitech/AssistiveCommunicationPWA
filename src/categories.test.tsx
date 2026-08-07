@@ -200,6 +200,27 @@ describe('the phrase editor', () => {
     saveModal()
 
     expect(tabLabels()).toContain('Invented')
+
+    // The tab appearing proves only that the category exists. What matters is
+    // that the phrase actually moved into it.
+    click(toggles()[1]) // leave edit mode
+    click(tabNamed('Invented'))
+    expect(cells().map(c => c.textContent)).toEqual(['A brand new phrase'])
+  })
+
+  it('moves an existing phrase between existing categories', () => {
+    renderApp()
+    enterEditMode()
+    const destination = tabs()[3].textContent!
+    const moved = cells()[0].textContent!
+
+    click(cells()[0])
+    type($('.edit-modal-select')!, destination)
+    saveModal()
+
+    click(toggles()[1]) // leave edit mode
+    click(tabNamed(destination))
+    expect(cells().map(c => c.textContent)).toContain(moved)
   })
 
   it('will not save a new category with no name', () => {
