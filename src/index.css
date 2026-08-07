@@ -65,6 +65,10 @@ body {
 
 /* ── Topbar ── */
 .topbar {
+  /* Anchors the Rest lozenge. Centring on the topbar rather than on the message
+     box itself puts it 4px off the box's true centre — the button rails either
+     side are not quite symmetric — which is not a difference anyone can see. */
+  position: relative;
   display: flex;
   align-items: stretch;
   gap: 0;
@@ -268,57 +272,58 @@ body {
 
 /* ── Grid area + scroll controls ── */
 .grid-area {
-  position: relative;
   display: flex;
   flex: 1;
   overflow: hidden;
-  /* Room for the Rest button. Padding here rather than inside the scroller, so
-     the phrases never pass under it. */
-  padding-top: 44px;
 }
 
 /* ── Rest ── */
-/* The one control that has to be found without looking for it, and told apart
-   from everything around it at a glance. Amber: green already means selected,
-   blue means held, and this is neither. */
+/* A bare lozenge straddling the top edge of the message box: 8rem × 0.5rem,
+   no icon and no word. Amber, because green already means selected and blue
+   means held, and this is the control someone has to find when nothing else
+   on screen will answer. Its name lives in `aria-label` alone. */
 .rest-btn {
   position: absolute;
-  top: 7px;
+  top: 6px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 5;
 
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 20px;
+  width: 8rem;
+  height: 0.5rem;
   border-radius: 999px;
-  border: 2px solid var(--rest);
-  background: var(--surface);
-  color: var(--rest);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
+  background: color-mix(in srgb, var(--rest) 80%, transparent);
   cursor: pointer;
   overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
-.rest-btn.dwelling { background: color-mix(in srgb, var(--rest) 22%, var(--surface)); }
-.rest-btn .dwell-bar { background: var(--rest); border-radius: 999px; }
+/* Half a rem is well under the 24px a pointing device wants, and this app is
+   driven by head and eye trackers. The painted size is what was asked for; the
+   area that answers to a pointer is taller, and invisible. */
+.rest-btn::before {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+}
+
+/* The fill runs the whole height rather than a 3px strip along the bottom —
+   at this size that strip would be most of the control anyway. */
+.rest-btn .dwell-bar { height: 100%; border-radius: 999px; background: #000; opacity: 0.45; }
+.rest-btn.dwelling { background: var(--rest); }
 .rest-btn.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
 
-/* Resting. Filled rather than outlined, and lit against an app that has gone
-   quiet around it. */
+/* Resting: full strength and haloed. The app dimming behind it is the cue that
+   carries — nothing this small can say much on its own. */
 .rest-btn.is-resting {
   background: var(--rest);
-  color: #000;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--rest) 25%, transparent), 0 2px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rest) 30%, transparent), 0 1px 4px rgba(0, 0, 0, 0.6);
+  animation: restPulse 1.6s ease-in-out infinite;
 }
 
-.rest-btn.is-resting.dwelling { background: color-mix(in srgb, var(--rest) 80%, #000); }
-.rest-btn.is-resting .dwell-bar { background: rgba(0, 0, 0, 0.35); }
+@keyframes restPulse {
+  50% { opacity: 0.5; }
+}
 
 /* Everything else, while resting. Dimmed because none of it will answer — but
    still legible, since reading the screen is most of why someone rests. */
@@ -1553,6 +1558,10 @@ body {
   /* The held category stops bobbing but stays raised, filled and ringed —
      none of which moves. */
   .filter-tab.is-held { animation: none !important; }
+
+  /* The resting lozenge stops pulsing; it stays lit, and the app is still
+     dimmed behind it. */
+  .rest-btn.is-resting { animation: none !important; }
 
   .signin-spinner { animation-duration: 2s !important; }
 }

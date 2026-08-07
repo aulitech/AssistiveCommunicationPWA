@@ -2047,26 +2047,14 @@ function ToggleBtn({ on, onToggle, label, children }: {
 
 // ── Rest ──────────────────────────────────────────────────────────────────────
 
-function PauseIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true">
-      <rect x="6" y="4" width="4" height="16" rx="1.5" /><rect x="14" y="4" width="4" height="16" rx="1.5" />
-    </svg>
-  )
-}
-
-function ResumeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true">
-      <path d="M7 4.5a1 1 0 0 1 1.53-.85l11 7.5a1 1 0 0 1 0 1.7l-11 7.5A1 1 0 0 1 7 19.5z" />
-    </svg>
-  )
-}
-
 /**
  * The only control that stays live while the app is resting — everything else
  * is switched off around it, so this has to be the way back. Its own dwell
  * therefore never depends on the resting state.
+ *
+ * A bare lozenge on the top edge of the message box: no icon, no word. The
+ * name lives only in `aria-label`, and the state is told by the whole app
+ * dimming behind it rather than by anything the control itself can say.
  */
 function RestButton({ resting, onToggle }: { resting: boolean; onToggle: () => void }) {
   const { settings } = useSettings()
@@ -2077,14 +2065,9 @@ function RestButton({ resting, onToggle }: { resting: boolean; onToggle: () => v
       style={dwellVar(settings.actionDwellMs)}
       role="button"
       aria-pressed={resting}
-      // Icon and words both name what dwelling here does. That it *is* resting
-      // is carried by the fill, the pressed state and the whole app dimming —
-      // none of which a label can be at odds with.
       aria-label={resting ? 'Resume. Switch dwell back on' : 'Rest. Switch dwell off everywhere but here'}
       {...props}
     >
-      {resting ? <ResumeIcon /> : <PauseIcon />}
-      <span>{resting ? 'Resume' : 'Rest'}</span>
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )
@@ -2517,6 +2500,11 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
       <div className={cx('app', editMode && 'edit-mode', resting && 'resting')}>
         {/* ── Topbar ── */}
         <header className="topbar">
+          {/* Straddling the top edge of the message box — the middle of the
+              screen's top, where a gaze on its way anywhere passes. Costs the
+              grid no height at all. */}
+          <RestButton resting={resting} onToggle={toggleRest} />
+
           <ActionButton label={menuOpen ? 'Close menu' : 'Open menu'} onSelect={toggleMenu} className="menu-btn">
             <MenuIcon />
           </ActionButton>
@@ -2603,10 +2591,6 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
 
         {/* ── Phrase grid + scroll controls ── */}
         <div className="grid-area">
-          {/* Over the phrases, where a wandering gaze is most likely to be
-              when it needs stopping. The grid area is padded to make room, so
-              it never covers a phrase. */}
-          <RestButton resting={resting} onToggle={toggleRest} />
           <main ref={gridRef} className="grid-wrapper">
             <div className="phrase-grid" role="group" aria-label="Phrases">
               {visiblePhrases.map(phrase => (

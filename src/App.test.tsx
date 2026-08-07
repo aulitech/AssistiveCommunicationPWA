@@ -130,9 +130,12 @@ describe('resting', () => {
   }
   const startResting = () => click(rest())
 
-  it('sits over the phrases, out of the way of any of them', () => {
+  // On the message box rather than over the phrases, so it costs the grid no
+  // height at all.
+  it('sits on the message box, taking nothing from the grid', () => {
     renderApp()
-    expect($('.grid-area > .rest-btn')).not.toBeNull()
+    expect($('.topbar > .rest-btn')).not.toBeNull()
+    expect($('.grid-area .rest-btn')).toBeNull()
   })
 
   // Dwell is this app's only input, so without a way to switch it off there is
@@ -191,17 +194,18 @@ describe('resting', () => {
     expect(message()).toBe('')
   })
 
-  it('says what dwelling it will do, either way', () => {
+  // It shows no icon and no word, so the label is the only thing that names it
+  // — for a screen reader, and for anyone reading the accessibility tree.
+  it('names itself and its state where nothing is drawn', () => {
     renderApp()
     expect(rest().getAttribute('aria-pressed')).toBe('false')
     expect(rest().getAttribute('aria-label')).toMatch(/^Rest\./)
-    expect(rest().textContent).toContain('Rest')
 
     startResting()
 
     expect(rest().getAttribute('aria-pressed')).toBe('true')
     expect(rest().getAttribute('aria-label')).toMatch(/^Resume\./)
-    expect(rest().textContent).toContain('Resume')
+    expect(rest().classList.contains('is-resting')).toBe(true)
   })
 })
 
