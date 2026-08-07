@@ -1730,7 +1730,8 @@ body {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
-.add-category-tab {
+/* The add / sort / reorder controls at the end of the bar. */
+.filter-bar-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1739,5 +1740,41 @@ body {
   color: var(--text-muted);
 }
 
-.add-category-tab svg { width: 14px; height: 14px; }
-.add-category-tab.dwelling { color: var(--accent); border-color: var(--accent); }
+.filter-bar-btn svg { width: 14px; height: 14px; }
+.filter-bar-btn.dwelling { color: var(--accent); border-color: var(--accent); }
+
+.filter-bar-btn.is-on {
+  color: #000;
+  background: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.filter-bar-btn[aria-disabled] {
+  opacity: 0.4;
+}
+
+/* ── Reordering categories ── */
+
+/* Solid rather than the dashed rename outline: in this mode a tab is a thing
+   to pick up, not a thing to open. */
+.filter-tab.reorderable {
+  cursor: grab;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* The tab in the air. Dimmed and lifted, so the gap it left is readable. */
+.filter-tab.is-held {
+  cursor: grabbing;
+  opacity: 0.55;
+  border-style: dashed;
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+/* Where a dragged tab would land. */
+.filter-tab.is-drop-target {
+  border-color: var(--accent);
+  box-shadow: -3px 0 0 var(--accent);
+}
