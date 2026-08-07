@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect, useMemo, memo, createContext, useContext } from 'react'
 import { SIGN_IN, SignInCancelled, configuredProviders, type Provider } from './auth'
 import { HELP_SECTIONS } from './help'
+import { legalDocumentFor } from './legal'
+import type { ProseDocument, ProseSection } from './prose'
 import { useDwellControl, cancelAllDwells } from './dwell'
 import { speak, subscribeVoices } from './speech'
 import {
@@ -657,9 +659,9 @@ function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
             </DwellButton>
 
             <p className="signin-legal">
-              By continuing you agree to our Terms of Service and Privacy Policy.
-              Signing in only personalises this device — your phrases and settings are
-              saved locally either way, and are not uploaded anywhere.
+              By continuing you agree to our <a href="/terms">Terms of Service</a> and{' '}
+              <a href="/privacy">Privacy Policy</a>. Signing in only personalises this device —
+              your phrases and settings are saved locally either way, and are not uploaded anywhere.
             </p>
           </>
         )}
@@ -1081,6 +1083,31 @@ function ProfilePanel({ profile, onChange }: { profile: Profile; onChange: (p: P
   )
 }
 
+// ── Prose ─────────────────────────────────────────────────────────────────────
+
+function ProseSections({ sections }: { sections: ProseSection[] }) {
+  return (
+    <>
+      {sections.map(section => (
+        <section key={section.title} className="help-section">
+          <h3 className="help-section-title">{section.title}</h3>
+          {section.blocks.map((block, i) =>
+            block.kind === 'text' ? (
+              <p key={i} className="help-text">{block.text}</p>
+            ) : (
+              <ul key={i} className="help-list">
+                {block.items.map(item => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            ),
+          )}
+        </section>
+      ))}
+    </>
+  )
+}
+
 // ── HelpPanel ─────────────────────────────────────────────────────────────────
 
 function HelpPanel() {
@@ -1091,22 +1118,10 @@ function HelpPanel() {
             column — text running the width of a wide monitor is unreadable. */}
         <div className="help-measure">
           <h2 className="help-title">Using DwellSpeak</h2>
-          {HELP_SECTIONS.map(section => (
-            <section key={section.title} className="help-section">
-              <h3 className="help-section-title">{section.title}</h3>
-              {section.blocks.map((block, i) =>
-                block.kind === 'text' ? (
-                  <p key={i} className="help-text">{block.text}</p>
-                ) : (
-                  <ul key={i} className="help-list">
-                    {block.items.map(item => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                ),
-              )}
-            </section>
-          ))}
+          <ProseSections sections={HELP_SECTIONS} />
+          <p className="help-legal-links">
+            <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a>
+          </p>
         </div>
       </ScrollPane>
     </div>
@@ -1967,6 +1982,30 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   )
 }
 
+// ── LegalPage ─────────────────────────────────────────────────────────────────
+// Served at /privacy and /terms. Standalone rather than a panel: these are
+// linked from the sign-in page and given to Google and Meta as the app's
+// published policy URLs, so they must render without an account and without
+// any of the app's state.
+
+function LegalPage({ doc }: { doc: ProseDocument }) {
+  return (
+    <div className="legal-page">
+      <article className="legal-measure">
+        <a className="legal-back" href="/">← Back to DwellSpeak</a>
+        <h1 className="legal-title">{doc.title}</h1>
+        <p className="legal-updated">Last updated {doc.updated}</p>
+        {doc.intro && <p className="legal-intro">{doc.intro}</p>}
+        <ProseSections sections={doc.sections} />
+        <p className="help-legal-links">
+          <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a> ·{' '}
+          <a href="/">DwellSpeak</a>
+        </p>
+      </article>
+    </div>
+  )
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 
 const USER_KEY = 'dwellspeak_user'
@@ -1980,6 +2019,10 @@ function loadUser(): User | null {
 }
 
 export default function App() {
+  // Legal pages are plain documents at their own URLs. Two leaf pages reached
+  // by real links need no router and no history handling.
+  const legalDoc = legalDocumentFor(window.location.pathname)
+
   const [user, setUser] = useState<User | null>(loadUser)
   const [settings, setSettings] = useState<Settings>(loadSettings)
   const screen: Screen = user ? 'app' : 'signin'
@@ -2003,6 +2046,8 @@ export default function App() {
   }, [])
 
   const ctx = useMemo(() => ({ settings, update }), [settings, update])
+
+  if (legalDoc) return <LegalPage doc={legalDoc} />
 
   return (
     <SettingsCtx.Provider value={ctx}>
