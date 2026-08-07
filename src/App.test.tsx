@@ -67,6 +67,60 @@ describe('sign-in', () => {
   })
 })
 
+describe('reaching the whole sign-in page', () => {
+  const pane = () => $('.signin-page .scroll-pane-inner')!
+  const arrows = () => $$('.pane-scroll-btn').map(b => b.getAttribute('aria-label'))
+
+  /** jsdom lays nothing out, so the overflow the arrows react to is supplied. */
+  const setGeometry = (scrollTop: number, clientHeight: number, scrollHeight: number) => {
+    const el = pane()
+    for (const [prop, value] of Object.entries({ scrollTop, clientHeight, scrollHeight })) {
+      Object.defineProperty(el, prop, { value, configurable: true })
+    }
+    fireEvent.scroll(el)
+    settle()
+  }
+
+  const showSignIn = () => {
+    container = render(<App />).container
+    settle()
+  }
+
+  it('scrolls its content rather than the page, so the arrows stay put', () => {
+    showSignIn()
+    expect($('.signin-page > .scroll-pane')).not.toBeNull()
+    expect($('.scroll-pane-inner.signin-content')).not.toBeNull()
+  })
+
+  // A dwell user has no wheel and no scrollbar. Content past the fold with no
+  // arrows is content that cannot be reached at all — including the only way
+  // into the app.
+  it('offers dwell arrows exactly when there is somewhere to go', () => {
+    showSignIn()
+    expect(arrows()).toEqual([])
+
+    setGeometry(0, 400, 900)
+    expect(arrows()).toEqual(['Scroll down'])
+
+    setGeometry(250, 400, 900)
+    expect(arrows()).toEqual(['Scroll up', 'Scroll down'])
+
+    setGeometry(500, 400, 900)
+    expect(arrows()).toEqual(['Scroll up'])
+  })
+
+  it('scrolls the content when one is dwelled', () => {
+    showSignIn()
+    setGeometry(0, 400, 900)
+
+    const scrollBy = vi.fn()
+    pane().scrollBy = scrollBy
+    click($('.pane-scroll-btn'))
+
+    expect(scrollBy).toHaveBeenCalledWith({ top: 120, behavior: 'smooth' })
+  })
+})
+
 describe('choosing a phrase', () => {
   it('composes it into the message', () => {
     renderApp()
