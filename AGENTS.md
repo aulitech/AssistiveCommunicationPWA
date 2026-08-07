@@ -27,7 +27,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `eslint.config.js` - Lint rules; `react-hooks/exhaustive-deps` is an error here, not a warning
 - `.mise.toml` - Toolchain versions for Node.js and pnpm
 
-The site is **not indexed**: `public/robots.txt` and a `robots` meta tag in `index.html` both say so. They are a pair — change them together, or not at all.
+The site is **indexed**: `public/robots.txt` allows everything and `index.html` carries no `robots` meta tag. The two are a pair — if either ever says no, the other has to as well, or the site ends up half-hidden. `src/shell.test.ts` fails if they disagree.
 
 ## Dependencies
 

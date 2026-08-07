@@ -10,13 +10,9 @@
       content="Assistive communication driven entirely by gaze and dwell. Hover and hold to build a message and speak it aloud."
     />
 
-    <!-- Carried over from the Figma Make configuration this project used to
-         hold, which set `robots.index: false` and generated the matching
-         robots.txt on every build. Dropping it silently would have made the
-         site indexable for the first time — a change to how it appears in the
-         world, not a build detail. Remove this and public/robots.txt together
-         when it should be findable. -->
-    <meta name="robots" content="noindex, nofollow" />
+    <!-- No `robots` meta tag: the default is to index, and public/robots.txt
+         says the same thing out loud. If one of them ever changes, the other
+         has to change with it or the site ends up half-hidden. -->
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Peri — Assistive Communication" />
