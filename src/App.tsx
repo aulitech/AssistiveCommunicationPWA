@@ -113,12 +113,15 @@ interface PhraseStore {
   /** id → category, for a single phrase moved out of the one it came in. */
   categoryOverrides: Record<string, string>
   /**
-   * The order to show category tabs in. Empty means alphabetical — the default,
-   * and what "Sort A–Z" returns to. Names missing from a non-empty list sit at
-   * the end, alphabetically, so a category added later has a settled place
-   * without every addition having to rewrite the order.
+   * The user's own arrangement of the category tabs. Kept whether or not it is
+   * the one on show, so switching to A–Z and back returns the tabs to exactly
+   * where they were rather than making the user rebuild it. Names missing from
+   * it sit at the end, alphabetically, so a category added later has a settled
+   * place without every addition having to rewrite the order.
    */
   categoryOrder: string[]
+  /** Which of the two arrangements is in effect. */
+  categorySort: 'alpha' | 'custom'
 }
 
 const emptyStore = (): PhraseStore => ({
@@ -129,6 +132,7 @@ const emptyStore = (): PhraseStore => ({
   categories: [],
   categoryOverrides: {},
   categoryOrder: [],
+  categorySort: 'alpha',
 })
 
 function loadPhraseStore(): PhraseStore {
@@ -136,6 +140,7 @@ function loadPhraseStore(): PhraseStore {
     const raw = JSON.parse(localStorage.getItem(PHRASE_STORE_KEY) ?? '{}')
     const base = emptyStore()
     const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null)
+    const categoryOrder = strings(raw.categoryOrder) ?? base.categoryOrder
     return {
       custom: Array.isArray(raw.custom) ? raw.custom : base.custom,
       overrides: raw.overrides && typeof raw.overrides === 'object' ? raw.overrides : base.overrides,
@@ -147,7 +152,16 @@ function loadPhraseStore(): PhraseStore {
         raw.categoryOverrides && typeof raw.categoryOverrides === 'object'
           ? raw.categoryOverrides
           : base.categoryOverrides,
-      categoryOrder: strings(raw.categoryOrder) ?? base.categoryOrder,
+      categoryOrder,
+      // Stores written before the two arrangements were told apart have an
+      // order and no flag; an order they took the trouble to make is the one
+      // they were looking at.
+      categorySort:
+        raw.categorySort === 'alpha' || raw.categorySort === 'custom'
+          ? raw.categorySort
+          : categoryOrder.length > 0
+            ? 'custom'
+            : 'alpha',
     }
   } catch {
     return emptyStore()
@@ -1785,8 +1799,9 @@ function FilterBar({
   onAddCategory,
   reordering,
   isAlphabetical,
+  canRestoreOrder,
   onToggleReorder,
-  onSortAlphabetically,
+  onToggleSort,
   onReorder,
   onLift,
 }: {
@@ -1797,9 +1812,12 @@ function FilterBar({
   onAddCategory?: () => void
   /** All of the below are edit-mode only. */
   reordering?: boolean
+  /** Which arrangement is on show. */
   isAlphabetical?: boolean
+  /** Whether an arrangement of the user's own exists to switch back to. */
+  canRestoreOrder?: boolean
   onToggleReorder?: () => void
-  onSortAlphabetically?: () => void
+  onToggleSort?: () => void
   onReorder?: (from: string, to: string) => void
   /** Announced when a tab is picked up — the styling alone says nothing aloud. */
   onLift?: (name: string) => void
@@ -1911,12 +1929,15 @@ function FilterBar({
       {(onAddCategory || onToggleReorder) && (
         <div className="filter-bar-tools">
           {reordering
-            ? onSortAlphabetically && (
+            ? onToggleSort && (
               <FilterBarButton
                 className="sort-alpha-tab"
-                label="Sort categories A to Z"
-                disabled={isAlphabetical}
-                onActivate={onSortAlphabetically}
+                label={isAlphabetical ? 'Use your own category order' : 'Sort categories A to Z'}
+                pressed={isAlphabetical}
+                // Nothing to toggle to until there is an arrangement of their
+                // own to come back to.
+                disabled={isAlphabetical && !canRestoreOrder}
+                onActivate={onToggleSort}
               >
                 <SortAlphaIcon />
               </FilterBarButton>
@@ -2132,9 +2153,11 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     () =>
       orderCategories(
         [...new Set([...mainPhrases.map(p => p.category), ...store.categories])],
-        store.categoryOrder,
+        // The custom arrangement is kept while A–Z is showing; it just is not
+        // the one being applied.
+        store.categorySort === 'custom' ? store.categoryOrder : [],
       ),
-    [mainPhrases, store.categories, store.categoryOrder],
+    [mainPhrases, store.categories, store.categoryOrder, store.categorySort],
   )
 
   const phraseCountByCategory = useMemo(() => {
@@ -2185,17 +2208,22 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     setEditingCategory(null)
   }, [editingCategory, store, updateStore])
 
-  // A drag or a drop writes the whole arrangement, so the first move away from
-  // alphabetical captures the order the user could see at the time.
+  // A drag or a drop writes the whole arrangement, so a move made while A–Z is
+  // showing captures the order the user could see at the time — and replaces
+  // whatever they had arranged before, which is what building a new one means.
   const handleReorder = useCallback(
-    (from: string, to: string) => updateStore({ categoryOrder: moveCategory(allCategories, from, to) }),
+    (from: string, to: string) =>
+      updateStore({ categoryOrder: moveCategory(allCategories, from, to), categorySort: 'custom' }),
     [allCategories, updateStore],
   )
 
-  const handleSortAlphabetically = useCallback(() => {
-    updateStore({ categoryOrder: [] })
-    flashToast('Categories sorted A–Z')
-  }, [updateStore, flashToast])
+  // One control, toggling between the two arrangements. The custom one is left
+  // in the store either way, so going to A–Z and back is not a way to lose it.
+  const handleToggleSort = useCallback(() => {
+    const toAlpha = store.categorySort === 'custom'
+    updateStore({ categorySort: toAlpha ? 'alpha' : 'custom' })
+    flashToast(toAlpha ? 'Categories sorted A–Z' : 'Your own category order restored')
+  }, [store.categorySort, updateStore, flashToast])
 
   const openEdit = useCallback((phrase: Phrase | null, isEmergency = false) => {
     cancelAllDwells()
@@ -2478,9 +2506,10 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
             onEditCategory={editMode ? openCategory : undefined}
             onAddCategory={editMode ? () => openCategory(null) : undefined}
             reordering={editMode && reordering}
-            isAlphabetical={store.categoryOrder.length === 0}
+            isAlphabetical={store.categorySort === 'alpha'}
+            canRestoreOrder={store.categoryOrder.length > 0}
             onToggleReorder={editMode ? () => setReordering(r => !r) : undefined}
-            onSortAlphabetically={editMode ? handleSortAlphabetically : undefined}
+            onToggleSort={editMode ? handleToggleSort : undefined}
             onReorder={editMode ? handleReorder : undefined}
             onLift={name => flashToast(`Holding ${name} — dwell where it should go`)}
           />
