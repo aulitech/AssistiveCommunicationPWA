@@ -441,6 +441,56 @@ describe('ordering categories', () => {
     expect($('.edit-modal')).toBeNull()
   })
 
+  // Holding a category must be unmistakable, and must not rest on colour
+  // alone — so the held tab, every other tab, and the live region each say it.
+  describe('the cue that something is held', () => {
+    it('marks the held tab and every other as somewhere to drop it', () => {
+      renderApp()
+      startReordering()
+      const [first, second] = names()
+
+      click(tabNamed(first))
+
+      expect(tabNamed(first)?.className).toMatch(/is-held/)
+      expect(tabNamed(first)?.className).not.toMatch(/is-drop-zone/)
+      expect(tabNamed(second)?.className).toMatch(/is-drop-zone/)
+    })
+
+    it('announces the lift, since styling says nothing aloud', () => {
+      renderApp()
+      startReordering()
+      const [first] = names()
+
+      click(tabNamed(first))
+
+      expect($('.toast')?.textContent).toContain(first)
+      expect($('[role="status"]')).not.toBeNull()
+    })
+
+    it('clears every trace of it once dropped', () => {
+      renderApp()
+      startReordering()
+      const [first, , third] = names()
+
+      dwellDrag(first, third)
+
+      expect($('.is-held')).toBeNull()
+      expect($('.is-drop-zone')).toBeNull()
+    })
+
+    it('says what dwelling each tab would now do', () => {
+      renderApp()
+      startReordering()
+      const [first, second] = names()
+      expect(tabNamed(first)?.getAttribute('aria-label')).toBe(`Move ${first}`)
+
+      click(tabNamed(first))
+
+      expect(tabNamed(first)?.getAttribute('aria-label')).toMatch(/^Holding /)
+      expect(tabNamed(second)?.getAttribute('aria-label')).toBe(`Drop ${first} here`)
+    })
+  })
+
   // Leaving reorder mode with a tab in the air used to leave it there. Coming
   // back, the next dwell would drop the forgotten tab instead of lifting the
   // one under the pointer.
