@@ -29,7 +29,9 @@ const storedStore = () => JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}')
 const cells = () => $$('.phrase-cell')
 const toggles = () => $$('.toggle-btn')
 const enterEditMode = () => click(toggles()[1])
-const tabs = () => $$('.filter-tab').filter(t => !t.classList.contains('add-category-tab'))
+// The bar also holds add / sort / reorder buttons, which are role="button"
+// rather than role="tab" — this keeps them out of the category list.
+const tabs = () => $$('.filter-tab[role="tab"]')
 const tabLabels = () => tabs().map(t => t.textContent)
 const tabNamed = (name: string) => tabs().find(t => t.textContent === name)
 const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
@@ -231,5 +233,220 @@ describe('the phrase editor', () => {
     type($('.edit-modal-select')!, ' __new_category__')
 
     expect(action('Save')?.className).toMatch(/is-disabled/)
+  })
+})
+
+// ── Ordering ──────────────────────────────────────────────────────────────────
+
+describe('ordering categories', () => {
+  const reorderBtn = () => $('.reorder-tab')
+  const sortBtn = () => $('.sort-alpha-tab')
+  const startReordering = () => {
+    enterEditMode()
+    click(reorderBtn())
+  }
+  /** Pick a tab up by dwell, then drop it on another. */
+  const dwellDrag = (from: string, to: string) => {
+    click(tabNamed(from))
+    click(tabNamed(to))
+  }
+  /** The same move by mouse, which is a native HTML5 drag. */
+  const mouseDrag = (from: string, to: string) => {
+    fireEvent.dragStart(tabNamed(from)!)
+    settle()
+    fireEvent.dragOver(tabNamed(to)!)
+    fireEvent.drop(tabNamed(to)!)
+    settle()
+  }
+  const names = () => tabLabels().slice(1) // "All" is not a category
+
+  it('is alphabetical to begin with', () => {
+    renderApp()
+    expect(names()).toEqual([...names()].sort())
+    expect(storedStore().categoryOrder ?? []).toEqual([])
+  })
+
+  it('offers no reorder control outside edit mode', () => {
+    renderApp()
+    expect(reorderBtn()).toBeNull()
+  })
+
+  it('offers one in edit mode', () => {
+    renderApp()
+    enterEditMode()
+    expect(reorderBtn()).not.toBeNull()
+    // Sorting is only on offer once reordering, where it makes sense.
+    expect(sortBtn()).toBeNull()
+    click(reorderBtn())
+    expect(sortBtn()).not.toBeNull()
+  })
+
+  it('moves a category by dwelling it and then its destination', () => {
+    renderApp()
+    startReordering()
+    const [first, , third] = names()
+
+    dwellDrag(first, third)
+
+    expect(names().indexOf(first)).toBe(names().indexOf(third) + 1)
+  })
+
+  it('moves a category by mouse drag', () => {
+    renderApp()
+    startReordering()
+    const [first, , third] = names()
+
+    mouseDrag(first, third)
+
+    expect(names().indexOf(first)).toBe(names().indexOf(third) + 1)
+  })
+
+  it('moves leftwards as well as rightwards', () => {
+    renderApp()
+    startReordering()
+    const before = names()
+    const last = before[before.length - 1]
+
+    dwellDrag(last, before[0])
+
+    expect(names()[0]).toBe(last)
+  })
+
+  it('persists the order and restores it on reload', () => {
+    renderApp()
+    startReordering()
+    const [first, , third] = names()
+    dwellDrag(first, third)
+    const arranged = names()
+
+    expect(storedStore().categoryOrder).toEqual(arranged)
+
+    container = render(<App />).container
+    settle()
+    expect(names()).toEqual(arranged)
+  })
+
+  it('puts a lifted category back when dwelled a second time', () => {
+    renderApp()
+    startReordering()
+    const before = names()
+
+    click(tabNamed(before[1])) // lift
+    expect(tabNamed(before[1])?.className).toMatch(/is-held/)
+    click(tabNamed(before[1])) // and put down
+
+    expect(names()).toEqual(before)
+    expect(storedStore().categoryOrder ?? []).toEqual([])
+  })
+
+  it('sorts back to A–Z, forgetting the custom order', () => {
+    renderApp()
+    startReordering()
+    const alphabetical = names()
+    dwellDrag(alphabetical[0], alphabetical[2])
+    expect(names()).not.toEqual(alphabetical)
+
+    click(sortBtn())
+
+    expect(names()).toEqual(alphabetical)
+    expect(storedStore().categoryOrder).toEqual([])
+  })
+
+  it('offers no A–Z when the order is already alphabetical', () => {
+    renderApp()
+    startReordering()
+    expect(sortBtn()?.getAttribute('aria-disabled')).toBe('true')
+
+    const arranged = names()
+    dwellDrag(arranged[0], arranged[2])
+    expect(sortBtn()?.getAttribute('aria-disabled')).toBeNull()
+  })
+
+  it('leaves "All" pinned first and unmovable', () => {
+    renderApp()
+    startReordering()
+    expect(tabLabels()[0]).toBe('All')
+    expect(tabs()[0].getAttribute('draggable')).toBeNull()
+
+    const arranged = names()
+    dwellDrag(arranged[arranged.length - 1], arranged[0])
+    expect(tabLabels()[0]).toBe('All')
+  })
+
+  // Renames are stored against the source name, so the order — stored against
+  // the shown name — has to be carried along or the category jumps to the end.
+  it('keeps a renamed category in its place', () => {
+    renderApp()
+    startReordering()
+    const arranged = names()
+    dwellDrag(arranged[0], arranged[2])
+    const moved = names()
+    const target = moved[1]
+    const at = names().indexOf(target)
+
+    click(reorderBtn()) // back to renaming
+    click(tabNamed(target))
+    type(nameField(), 'Renamed')
+    saveModal()
+
+    expect(names().indexOf('Renamed')).toBe(at)
+  })
+
+  it('drops a deleted category out of the stored order', () => {
+    renderApp()
+    enterEditMode()
+    click($('.add-category-tab'))
+    type(nameField(), 'Temporary')
+    saveModal()
+
+    click(reorderBtn())
+    const arranged = names()
+    dwellDrag(arranged[0], arranged[2])
+    expect(storedStore().categoryOrder).toContain('Temporary')
+
+    click(reorderBtn())
+    click(tabNamed('Temporary'))
+    click(action('Delete'))
+
+    expect(storedStore().categoryOrder).not.toContain('Temporary')
+  })
+
+  it('files a category added later at the end, without disturbing the order', () => {
+    renderApp()
+    startReordering()
+    const arranged = names()
+    dwellDrag(arranged[0], arranged[2])
+    const before = names()
+
+    click(reorderBtn()) // leave reorder mode to reach the add button
+    click($('.add-category-tab'))
+    type(nameField(), 'Aardvark') // alphabetically first, to prove it is not sorted in
+    saveModal()
+
+    expect(names()).toEqual([...before, 'Aardvark'])
+  })
+
+  it('renames rather than reorders once reordering is switched off', () => {
+    renderApp()
+    startReordering()
+    click(reorderBtn())
+    click(tabs()[1])
+    expect($('.edit-modal')?.getAttribute('aria-label')).toBe('Rename category')
+  })
+
+  it('reorders rather than renames while reordering is on', () => {
+    renderApp()
+    startReordering()
+    click(tabs()[1])
+    expect($('.edit-modal')).toBeNull()
+  })
+
+  it('does not stay armed after edit mode is left and re-entered', () => {
+    renderApp()
+    startReordering()
+    click(toggles()[1]) // leave edit mode
+    enterEditMode()
+    expect(sortBtn()).toBeNull()
+    expect($('.add-category-tab')).not.toBeNull()
   })
 })

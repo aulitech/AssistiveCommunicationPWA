@@ -112,6 +112,13 @@ interface PhraseStore {
   categories: string[]
   /** id → category, for a single phrase moved out of the one it came in. */
   categoryOverrides: Record<string, string>
+  /**
+   * The order to show category tabs in. Empty means alphabetical — the default,
+   * and what "Sort A–Z" returns to. Names missing from a non-empty list sit at
+   * the end, alphabetically, so a category added later has a settled place
+   * without every addition having to rewrite the order.
+   */
+  categoryOrder: string[]
 }
 
 const emptyStore = (): PhraseStore => ({
@@ -121,6 +128,7 @@ const emptyStore = (): PhraseStore => ({
   categoryRenames: {},
   categories: [],
   categoryOverrides: {},
+  categoryOrder: [],
 })
 
 function loadPhraseStore(): PhraseStore {
@@ -139,6 +147,7 @@ function loadPhraseStore(): PhraseStore {
         raw.categoryOverrides && typeof raw.categoryOverrides === 'object'
           ? raw.categoryOverrides
           : base.categoryOverrides,
+      categoryOrder: strings(raw.categoryOrder) ?? base.categoryOrder,
     }
   } catch {
     return emptyStore()
@@ -169,7 +178,37 @@ function renameCategory(store: PhraseStore, from: string, to: string): Partial<P
   return {
     categoryRenames: renames,
     categories: [...new Set(store.categories.map(c => (c === from ? to : c)))],
+    // A renamed category keeps the place its old name held; a merge collapses
+    // onto the earlier of the two positions.
+    categoryOrder: [...new Set(store.categoryOrder.map(c => (c === from ? to : c)))],
   }
+}
+
+/**
+ * Arrange category names for display. An empty `order` means alphabetical;
+ * otherwise the names it lists come first in that order and anything it has
+ * never heard of follows, alphabetically.
+ */
+function orderCategories(names: string[], order: string[]): string[] {
+  if (order.length === 0) return [...names].sort()
+  const rank = new Map(order.map((name, i) => [name, i]))
+  const ranked = names.filter(n => rank.has(n)).sort((a, b) => rank.get(a)! - rank.get(b)!)
+  const rest = names.filter(n => !rank.has(n)).sort()
+  return [...ranked, ...rest]
+}
+
+/**
+ * The full order after moving `from` to where `to` sits. Landing after the
+ * target when moving rightwards and before it when moving leftwards is what
+ * puts the category where the pointer actually is, either way.
+ */
+function moveCategory(shown: string[], from: string, to: string): string[] {
+  const fromIndex = shown.indexOf(from)
+  const toIndex = shown.indexOf(to)
+  if (fromIndex < 0 || toIndex < 0 || from === to) return shown
+  const rest = shown.filter(c => c !== from)
+  rest.splice(rest.indexOf(to) + (fromIndex < toIndex ? 1 : 0), 0, from)
+  return rest
 }
 
 function savePhraseStore(s: PhraseStore) {
@@ -1572,15 +1611,43 @@ function EmergencyBar({ phrases }: { phrases: Phrase[] }) {
 
 // ── Filter bar ────────────────────────────────────────────────────────────────
 
-function FilterTab({ label, active, onSelect, onEdit }: {
+/**
+ * Reordering by pointer-drag needs a button held down while the pointer moves,
+ * which is exactly the gesture a dwell user cannot make. So a tab can also be
+ * *lifted* — one dwell picks it up, a second dwell on another tab drops it
+ * there. `held` is the lifted tab; `heldLabel` is what is currently in the air,
+ * which every other tab needs in order to say what dropping would do.
+ */
+interface ReorderProps {
+  held: boolean
+  heldLabel: string | null
+  /** True while a native drag is in flight, which suspends the dwell. */
+  dragging: boolean
+  dropTarget: boolean
+  onLiftOrDrop: () => void
+  onDragStart: () => void
+  onDragOver: () => void
+  onDragEnd: () => void
+  onDrop: () => void
+}
+
+function FilterTab({ label, active, onSelect, onEdit, reorder }: {
   label: string
   active: boolean
   onSelect: () => void
   onEdit?: () => void
+  /** Present only in reorder mode, and never on "All". */
+  reorder?: ReorderProps
 }) {
   const { settings } = useSettings()
   const [flash, setFlash] = useState(false)
   const handleActivate = useCallback(() => {
+    // Reordering takes precedence: while it is on, a tab is a thing to move
+    // rather than a thing to rename or select.
+    if (reorder) {
+      reorder.onLiftOrDrop()
+      return
+    }
     // In edit mode a tab opens for renaming, the same way a phrase cell does.
     if (onEdit) {
       onEdit()
@@ -1589,18 +1656,49 @@ function FilterTab({ label, active, onSelect, onEdit }: {
     onSelect()
     setFlash(true)
     setTimeout(() => setFlash(false), 300)
-  }, [onSelect, onEdit])
+  }, [onSelect, onEdit, reorder])
   const { active: dwelling, props } = useDwellControl(settings.actionDwellMs, handleActivate, {
-    disabled: active && !onEdit,
+    // A dwell landing mid-drag would lift a second tab out from under the one
+    // already in the pointer's hand.
+    disabled: reorder ? reorder.dragging : active && !onEdit,
   })
+
+  const reorderLabel = reorder
+    ? reorder.held
+      ? `Holding ${label}. Dwell another category to drop it there, or here to put it back`
+      : reorder.heldLabel
+        ? `Drop ${reorder.heldLabel} here`
+        : `Move ${label}`
+    : null
 
   return (
     <div
-      className={cx('filter-tab', active && 'active', dwelling && 'dwelling', flash && 'flashed', onEdit && 'edit-mode')}
+      className={cx(
+        'filter-tab',
+        active && 'active',
+        dwelling && 'dwelling',
+        flash && 'flashed',
+        onEdit && !reorder && 'edit-mode',
+        reorder && 'reorderable',
+        reorder?.held && 'is-held',
+        reorder?.dropTarget && 'is-drop-target',
+      )}
       style={dwellVar(settings.actionDwellMs)}
       role="tab"
       aria-selected={active}
-      aria-label={onEdit ? `Rename category: ${label}` : label}
+      aria-label={reorderLabel ?? (onEdit ? `Rename category: ${label}` : label)}
+      draggable={reorder ? true : undefined}
+      onDragStart={reorder?.onDragStart}
+      onDragOver={reorder && (e => {
+        // Without this the browser refuses the drop outright.
+        e.preventDefault()
+        reorder.onDragOver()
+      })}
+      onDragEnd={reorder?.onDragEnd}
+      onDrop={reorder && (e => {
+        e.preventDefault()
+        reorder.onDrop()
+      })}
       {...props}
       tabIndex={0}
     >
@@ -1610,20 +1708,47 @@ function FilterTab({ label, active, onSelect, onEdit }: {
   )
 }
 
-function AddCategoryTab({ onAdd }: { onAdd: () => void }) {
+/** The controls at the end of the bar: add, sort, reorder. */
+function FilterBarButton({ className, label, pressed, disabled, onActivate, children }: {
+  className: string
+  label: string
+  pressed?: boolean
+  disabled?: boolean
+  onActivate: () => void
+  children: React.ReactNode
+}) {
   const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onAdd)
+  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, { disabled })
   return (
     <div
-      className={cx('filter-tab add-category-tab', active && 'dwelling')}
+      className={cx('filter-tab filter-bar-btn', className, active && 'dwelling', pressed && 'is-on')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
-      aria-label="Add category"
+      aria-label={label}
+      aria-pressed={pressed}
       {...props}
     >
-      <PlusIcon />
+      {children}
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>
+  )
+}
+
+function ReorderIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="7 8 4 5 1 8" /><line x1="4" y1="5" x2="4" y2="19" />
+      <polyline points="17 16 20 19 23 16" /><line x1="20" y1="19" x2="20" y2="5" />
+    </svg>
+  )
+}
+
+function SortAlphaIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="4" y1="6" x2="13" y2="6" /><line x1="4" y1="12" x2="11" y2="12" /><line x1="4" y1="18" x2="9" y2="18" />
+      <polyline points="17 6 20 3 23 6" /><line x1="20" y1="3" x2="20" y2="21" />
+    </svg>
   )
 }
 
@@ -1649,17 +1774,78 @@ function FilterArrow({ onAction, repeat, label, children }: {
   )
 }
 
-function FilterBar({ categories, activeFilter, onSelect, onEditCategory, onAddCategory }: {
+function FilterBar({
+  categories,
+  activeFilter,
+  onSelect,
+  onEditCategory,
+  onAddCategory,
+  reordering,
+  isAlphabetical,
+  onToggleReorder,
+  onSortAlphabetically,
+  onReorder,
+}: {
   categories: { id: string; label: string }[]
   activeFilter: string
   onSelect: (id: string) => void
   onEditCategory?: (name: string) => void
   onAddCategory?: () => void
+  /** All of the below are edit-mode only. */
+  reordering?: boolean
+  isAlphabetical?: boolean
+  onToggleReorder?: () => void
+  onSortAlphabetically?: () => void
+  onReorder?: (from: string, to: string) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  // Which tab is in the air, whether picked up by dwell or by drag. Transient,
+  // so it lives here rather than in the store.
+  const [held, setHeld] = useState<string | null>(null)
+  const [dragging, setDragging] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
+
+  // Leaving reorder mode puts down whatever was in the air.
+  const lifted = reordering ? held : null
 
   const scrollTo = useCallback((pos: number) => scrollRef.current?.scrollTo({ left: pos, behavior: 'smooth' }), [])
   const scrollBy = useCallback((dx: number) => scrollRef.current?.scrollBy({ left: dx, behavior: 'smooth' }), [])
+
+  const liftOrDrop = useCallback(
+    (name: string) => {
+      // Dwelling the tab already in hand puts it back where it was, which is
+      // the only way out of a lift for someone with no other button to press.
+      if (lifted === null) setHeld(name)
+      else {
+        if (lifted !== name) onReorder?.(lifted, name)
+        setHeld(null)
+      }
+    },
+    [lifted, onReorder],
+  )
+
+  const reorderPropsFor = (name: string): ReorderProps => ({
+    held: lifted === name,
+    heldLabel: lifted !== name ? lifted : null,
+    dragging: dragging !== null,
+    dropTarget: dropTarget === name && dragging !== name,
+    onLiftOrDrop: () => liftOrDrop(name),
+    onDragStart: () => {
+      // Starting a drag abandons any dwell-lift, so only one is ever in flight.
+      setHeld(null)
+      setDragging(name)
+    },
+    onDragOver: () => setDropTarget(name),
+    onDragEnd: () => {
+      setDragging(null)
+      setDropTarget(null)
+    },
+    onDrop: () => {
+      if (dragging && dragging !== name) onReorder?.(dragging, name)
+      setDragging(null)
+      setDropTarget(null)
+    },
+  })
 
   return (
     <div className="filter-bar-wrap" role="tablist" aria-label="Filter phrases by category">
@@ -1682,11 +1868,41 @@ function FilterBar({ categories, activeFilter, onSelect, onEditCategory, onAddCa
             label={c.label}
             active={activeFilter === c.id}
             onSelect={() => onSelect(c.id)}
-            // "All" is not a category, so there is nothing to rename.
+            // "All" is not a category, so there is nothing to rename or move.
             onEdit={onEditCategory && c.id !== 'all' ? () => onEditCategory(c.id) : undefined}
+            reorder={reordering && c.id !== 'all' ? reorderPropsFor(c.id) : undefined}
           />
         ))}
-        {onAddCategory && <AddCategoryTab onAdd={onAddCategory} />}
+
+        {/* Adding a category mid-reorder would drop what is in the air, so the
+            two are offered one at a time. */}
+        {onAddCategory && !reordering && (
+          <FilterBarButton className="add-category-tab" label="Add category" onActivate={onAddCategory}>
+            <PlusIcon />
+          </FilterBarButton>
+        )}
+
+        {reordering && onSortAlphabetically && (
+          <FilterBarButton
+            className="sort-alpha-tab"
+            label="Sort categories A to Z"
+            disabled={isAlphabetical}
+            onActivate={onSortAlphabetically}
+          >
+            <SortAlphaIcon />
+          </FilterBarButton>
+        )}
+
+        {onToggleReorder && (
+          <FilterBarButton
+            className="reorder-tab"
+            label={reordering ? 'Done reordering categories' : 'Reorder categories'}
+            pressed={reordering}
+            onActivate={onToggleReorder}
+          >
+            <ReorderIcon />
+          </FilterBarButton>
+        )}
       </div>
 
       <FilterArrow onAction={() => scrollBy(200)} repeat label="Scroll categories right">
@@ -1824,6 +2040,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
   const [composerFocused, setComposerFocused] = useState(false)
+  const [reordering, setReordering] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const gridRef = useRef<HTMLElement>(null)
@@ -1889,8 +2106,12 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const allCategories = useMemo(
     // User-created categories are listed even while empty, so one can be made
     // first and filled afterwards.
-    () => [...new Set([...mainPhrases.map(p => p.category), ...store.categories])].sort(),
-    [mainPhrases, store.categories],
+    () =>
+      orderCategories(
+        [...new Set([...mainPhrases.map(p => p.category), ...store.categories])],
+        store.categoryOrder,
+      ),
+    [mainPhrases, store.categories, store.categoryOrder],
   )
 
   const phraseCountByCategory = useMemo(() => {
@@ -1933,10 +2154,25 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const handleCategoryDelete = useCallback(() => {
     const name = editingCategory?.name
     if (!name) return
-    updateStore({ categories: store.categories.filter(c => c !== name) })
+    updateStore({
+      categories: store.categories.filter(c => c !== name),
+      categoryOrder: store.categoryOrder.filter(c => c !== name),
+    })
     setActiveFilter(f => (f === name ? 'all' : f))
     setEditingCategory(null)
   }, [editingCategory, store, updateStore])
+
+  // A drag or a drop writes the whole arrangement, so the first move away from
+  // alphabetical captures the order the user could see at the time.
+  const handleReorder = useCallback(
+    (from: string, to: string) => updateStore({ categoryOrder: moveCategory(allCategories, from, to) }),
+    [allCategories, updateStore],
+  )
+
+  const handleSortAlphabetically = useCallback(() => {
+    updateStore({ categoryOrder: [] })
+    flashToast('Categories sorted A–Z')
+  }, [updateStore, flashToast])
 
   const openEdit = useCallback((phrase: Phrase | null, isEmergency = false) => {
     cancelAllDwells()
@@ -2218,6 +2454,11 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
             onSelect={setActiveFilter}
             onEditCategory={editMode ? openCategory : undefined}
             onAddCategory={editMode ? () => openCategory(null) : undefined}
+            reordering={editMode && reordering}
+            isAlphabetical={store.categoryOrder.length === 0}
+            onToggleReorder={editMode ? () => setReordering(r => !r) : undefined}
+            onSortAlphabetically={editMode ? handleSortAlphabetically : undefined}
+            onReorder={editMode ? handleReorder : undefined}
           />
         )}
 
@@ -2233,7 +2474,12 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
           <GridScrollBar
             gridRef={gridRef}
             editMode={editMode}
-            onToggleEdit={() => setEditMode(m => !m)}
+            onToggleEdit={() => {
+              setEditMode(m => !m)
+              // Reordering is a mode within edit mode; leaving the outer one
+              // should not leave it armed for next time.
+              setReordering(false)
+            }}
             autoSpeak={settings.autoSpeak}
             onToggleAutoSpeak={toggleAutoSpeak}
           />
