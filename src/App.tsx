@@ -1823,6 +1823,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   >(null)
   const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
+  const [composerFocused, setComposerFocused] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const gridRef = useRef<HTMLElement>(null)
@@ -2118,12 +2119,25 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const toggleMenu = useCallback(() => setMenuOpen(o => !o), [])
   const closeMenu = useCallback(() => setMenuOpen(false), [])
 
-  // The message box is the only way to add an ordinary phrase, so in edit mode
-  // it has to answer to hover-and-hold like everything else — a click was the
-  // one thing a dwell-only user cannot produce. Outside edit mode the dwell
-  // stays disabled: the box is for typing, and opening a modal on hover would
-  // interrupt composing.
-  const composerDwell = useDwellControl(settings.actionDwellMs, openAddFromComposer, { disabled: !editMode })
+  // Hover-and-hold on the message box, doing whichever of its two jobs applies.
+  // Both were previously reachable only by clicking — the one input a
+  // dwell-only user cannot produce.
+  //
+  //  * In edit mode it opens the editor; adding an ordinary phrase has no other
+  //    entry point.
+  //  * Otherwise it moves focus there, so the caret can be placed and typed at
+  //    without a click.
+  const handleComposerDwell = useCallback(() => {
+    if (editMode) openAddFromComposer()
+    else textareaRef.current?.focus()
+  }, [editMode, openAddFromComposer])
+
+  // Once the box holds focus there is nothing left for a hold to do, so it
+  // stops arming — a pointer resting there while the user types should not keep
+  // lighting up a progress bar.
+  const composerDwell = useDwellControl(settings.actionDwellMs, handleComposerDwell, {
+    disabled: !editMode && composerFocused,
+  })
 
   return (
     <EditCtx.Provider value={editCtx}>
@@ -2146,7 +2160,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
           <textarea
             ref={textareaRef}
             className={cx('text-display', composerDwell.active && 'dwelling')}
-            style={editMode ? dwellVar(settings.actionDwellMs) : undefined}
+            style={dwellVar(settings.actionDwellMs)}
             aria-label={
               editMode
                 ? text.trim()
@@ -2160,6 +2174,8 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
               trackCursor(e)
             }}
             onSelect={trackCursor}
+            onFocus={() => setComposerFocused(true)}
+            onBlur={() => setComposerFocused(false)}
             onPointerEnter={composerDwell.props.onPointerEnter}
             onPointerLeave={composerDwell.props.onPointerLeave}
             onClick={e => {

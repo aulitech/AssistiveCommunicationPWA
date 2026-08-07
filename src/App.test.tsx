@@ -306,9 +306,9 @@ describe('adding a phrase from the message box', () => {
     expect(modalText()).toBe('')
   })
 
-  // Outside edit mode the box is for typing. A dwell that opened a modal would
-  // fire while the user was mid-message.
-  it('does not dwell outside edit mode', () => {
+  // Outside edit mode the box is for typing, so a hold must not open the editor
+  // while the user is mid-message.
+  it('does not open the editor outside edit mode', () => {
     renderApp()
     dwell(composer())
     expect($('.edit-modal')).toBeNull()
@@ -320,6 +320,62 @@ describe('adding a phrase from the message box', () => {
     renderApp()
     expect(fireEvent.keyDown(composer(), { key: ' ' })).toBe(true)
     expect($('.edit-modal')).toBeNull()
+  })
+})
+
+describe('focusing the message box by dwell', () => {
+  const composer = () => $<HTMLTextAreaElement>('.text-display')!
+  const dwell = (el: Element) => {
+    fireEvent.pointerEnter(el)
+    act(() => void vi.advanceTimersByTime(800))
+    settle()
+  }
+
+  // Placing the caret to type meant clicking the box, which a dwell-only user
+  // cannot do — the message was theirs to build but not to correct.
+  it('gives it focus after a hold', () => {
+    renderApp()
+    expect(document.activeElement).not.toBe(composer())
+    dwell(composer())
+    expect(document.activeElement).toBe(composer())
+  })
+
+  it('shows the hold progressing', () => {
+    renderApp()
+    fireEvent.pointerEnter(composer())
+    act(() => void vi.advanceTimersByTime(400))
+    expect(composer().classList.contains('dwelling')).toBe(true)
+  })
+
+  // A pointer left resting on the box while its owner types should not sit
+  // there re-arming and flashing a progress bar at them.
+  it('stops arming once the box already holds focus', () => {
+    renderApp()
+    dwell(composer())
+    fireEvent.pointerLeave(composer())
+
+    fireEvent.pointerEnter(composer())
+    act(() => void vi.advanceTimersByTime(400))
+    expect(composer().classList.contains('dwelling')).toBe(false)
+  })
+
+  // The bar is a CSS animation timed off this variable. Without it the
+  // animation falls back to a fixed 800ms and drifts away from the real hold
+  // for anyone who has changed their dwell time.
+  it('paces the bar to the configured dwell time', () => {
+    renderApp({ actionDwellMs: 2000 })
+    expect(composer().style.getPropertyValue('--dwell-duration')).toBe('2000ms')
+  })
+
+  it('arms again once focus has moved away', () => {
+    renderApp()
+    dwell(composer())
+    act(() => void composer().blur())
+    fireEvent.pointerLeave(composer())
+
+    fireEvent.pointerEnter(composer())
+    act(() => void vi.advanceTimersByTime(400))
+    expect(composer().classList.contains('dwelling')).toBe(true)
   })
 })
 
