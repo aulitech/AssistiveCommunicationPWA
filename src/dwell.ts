@@ -14,7 +14,15 @@
 // listener rather than a pair per control: the grid mounts thousands of cells,
 // and `pointerout` fires on every pointer transition between elements.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+
+/**
+ * True while the app is resting. Dwell is the only input this app has, so
+ * someone who wants to look at the screen without choosing anything — or simply
+ * to look away — has no way to stop it firing. Resting switches every control
+ * off at once, and the Rest control itself opts out so there is a way back.
+ */
+export const RestingContext = createContext(false)
 
 type Cancel = () => void
 
@@ -53,10 +61,17 @@ export interface DwellOptions {
   disabled?: boolean
   /** When set, the action repeats at this interval while the pointer stays. */
   repeatMs?: number
+  /** Stays live while the app is resting. Only the Rest control sets this. */
+  ignoresRest?: boolean
 }
 
 export function useDwellControl(durationMs: number, onActivate: () => void, options: DwellOptions = {}) {
-  const { disabled = false, repeatMs } = options
+  const { disabled: disabledByCaller = false, repeatMs, ignoresRest = false } = options
+  // Resting disables the control outright rather than only its hover path:
+  // tap and Enter/Space go through the same gate, so nothing is left that can
+  // fire while the app is meant to be doing nothing.
+  const resting = useContext(RestingContext)
+  const disabled = disabledByCaller || (resting && !ignoresRest)
 
   const [active, setActive] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
