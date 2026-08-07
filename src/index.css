@@ -168,6 +168,18 @@ body {
 
 .filter-scroll::-webkit-scrollbar { display: none; }
 
+/* On a narrow screen the arrows, the category tools and the tabs all want the
+   same width, and the arrows are what repeat — four of them spend 144px before
+   a single category is visible. They give way first.
+
+   They keep full bar height, which is the dimension a dwell actually needs, and
+   28px stays clear of the 24px minimum target size. The tools do not shrink:
+   being findable is the whole reason they sit out here. */
+@media (max-width: 700px) {
+  .filter-arrow { width: 28px; }
+  .filter-arrow svg { width: 14px; height: 14px; }
+}
+
 .filter-arrow {
   position: relative;
   display: flex;
