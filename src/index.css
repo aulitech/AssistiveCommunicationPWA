@@ -1741,6 +1741,21 @@ body {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
+/* Ordering controls, parked past the scroll arrows so they hold still while
+   the tabs move under them. Bigger than the pills in the scroller, since these
+   are the ones a user has to find. */
+.filter-bar-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+}
+
+.filter-bar-tools .filter-bar-btn { padding: 9px 14px; }
+.filter-bar-tools .filter-bar-btn svg { width: 17px; height: 17px; }
+
 /* The add / sort / reorder controls at the end of the bar. */
 .filter-bar-btn {
   display: flex;

@@ -1895,27 +1895,6 @@ function FilterBar({
           </FilterBarButton>
         )}
 
-        {reordering && onSortAlphabetically && (
-          <FilterBarButton
-            className="sort-alpha-tab"
-            label="Sort categories A to Z"
-            disabled={isAlphabetical}
-            onActivate={onSortAlphabetically}
-          >
-            <SortAlphaIcon />
-          </FilterBarButton>
-        )}
-
-        {onToggleReorder && (
-          <FilterBarButton
-            className="reorder-tab"
-            label={reordering ? 'Done reordering categories' : 'Reorder categories'}
-            pressed={reordering}
-            onActivate={toggleReorder}
-          >
-            <ReorderIcon />
-          </FilterBarButton>
-        )}
       </div>
 
       <FilterArrow onAction={() => scrollBy(200)} repeat label="Scroll categories right">
@@ -1929,6 +1908,33 @@ function FilterBar({
           <line x1="19" y1="6" x2="19" y2="18"/><polyline points="5 6 13 12 5 18"/>
         </svg>
       </FilterArrow>
+
+      {/* Ordering sits past the scroll controls rather than in with the tabs.
+          Inside the scroller it was only reachable by scrolling to the end —
+          the controls a user has to find are the ones that must not move. */}
+      {onToggleReorder && (
+        <div className="filter-bar-tools">
+          {reordering && onSortAlphabetically && (
+            <FilterBarButton
+              className="sort-alpha-tab"
+              label="Sort categories A to Z"
+              disabled={isAlphabetical}
+              onActivate={onSortAlphabetically}
+            >
+              <SortAlphaIcon />
+            </FilterBarButton>
+          )}
+
+          <FilterBarButton
+            className="reorder-tab"
+            label={reordering ? 'Done reordering categories' : 'Reorder categories'}
+            pressed={reordering}
+            onActivate={toggleReorder}
+          >
+            <ReorderIcon />
+          </FilterBarButton>
+        </div>
+      )}
     </div>
   )
 }
