@@ -67,12 +67,21 @@ describe('the manifest', () => {
   })
 })
 
-// These two say the same thing to different readers. Changing one alone leaves
-// the site half-hidden, which is the kind of thing nobody notices for months.
+// robots.txt and the robots meta tag say the same thing to different readers.
+// Changing one alone leaves the site half-hidden, which is the kind of thing
+// nobody notices for months.
 describe('indexing', () => {
   it('has robots.txt and the robots meta tag agreeing', () => {
     const disallowed = read('public/robots.txt').includes('Disallow: /')
     const noindex = /<meta\s+name="robots"\s+content="noindex/.test(html)
     expect(noindex).toBe(disallowed)
+  })
+
+  // An empty or missing file agrees with anything, so the check above would
+  // pass while every crawl 404s.
+  it('serves a robots.txt that actually says something', () => {
+    const robots = read('public/robots.txt')
+    expect(robots).toMatch(/^User-agent:/m)
+    expect(robots).toMatch(/^(Allow|Disallow):/m)
   })
 })

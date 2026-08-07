@@ -71,7 +71,7 @@ A PR description that says *why* is worth more than one that lists *what*; the d
 
 ## Things that will surprise you
 
-- **The site is not indexed.** `public/robots.txt` and a `robots` meta tag in `index.html` both say so, and they are a pair — changing one alone leaves the site half-hidden.
+- **Indexing is stated in two places.** `public/robots.txt` and the `robots` meta tag in `index.html` have to agree, or the site ends up half-hidden. A test enforces it.
 - **`react-hooks/exhaustive-deps` is an error, not a warning.** A stale dependency array is how the phrase grid once silently stopped refreshing after an edit. If a dependency genuinely does not belong, restructure rather than suppressing.
 - **The repo is not formatter-clean.** `oxfmt` is available but has never been run across the tree, so running it would bury your change in noise. Match the surrounding style instead.
 - **Phrase slots depend on how many options they have** — none renders a typed blank, exactly one is substituted inline with no picker, two or more opens the picker. See the phrase notes in [AGENTS.md](AGENTS.md) before touching `src/phrases.ts`.

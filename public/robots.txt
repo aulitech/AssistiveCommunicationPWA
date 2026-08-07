@@ -1,8 +1,7 @@
-# The Figma Make plugin this project used to carry generated this file on every
-# build, from `robots.index: false` in its site config. Keeping it means
-# removing that plugin changed nothing about how the site is seen from outside.
+# Peri is meant to be found. Someone looking for a free communication aid
+# should be able to reach it without being sent a link first.
 #
-# Delete this file and the robots meta tag in index.html together when Peri
-# should be findable.
+# Kept as an explicit file rather than deleted: a missing robots.txt is a 404
+# on every crawl, and this states the intent where the next person will look.
 User-agent: *
-Disallow: /
+Allow: /
