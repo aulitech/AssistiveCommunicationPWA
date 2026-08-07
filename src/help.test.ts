@@ -23,6 +23,12 @@ describe('the user guide', () => {
     }
   })
 
+  // The app was called DwellSpeak. Prose is where a rename leaves survivors.
+  it('calls the app Peri throughout', () => {
+    expect(allText.some(l => l.includes('Peri'))).toBe(true)
+    expect(allText.filter(l => /dwellspeak/i.test(l))).toEqual([])
+  })
+
   it('uses unique section titles, so nothing is duplicated or lost', () => {
     const titles = HELP_SECTIONS.map(s => s.title)
     expect(new Set(titles).size).toBe(titles.length)

@@ -42,6 +42,16 @@ describe('both documents', () => {
   ])('%s says how to get in touch', (_name, doc) => {
     expect(allText(doc).some(l => l.includes('@'))).toBe(true)
   })
+
+  // The app was called DwellSpeak. A document that names it wrongly is a
+  // document about some other product.
+  it.each([
+    ['privacy', PRIVACY],
+    ['terms', TERMS],
+  ])('%s calls the app Peri throughout', (_name, doc) => {
+    expect(allText(doc).some(l => l.includes('Peri'))).toBe(true)
+    expect(allText(doc).filter(l => /dwellspeak/i.test(l))).toEqual([])
+  })
 })
 
 describe('the privacy policy', () => {

@@ -12,7 +12,11 @@
 //
 // Bump CACHE to force clients onto a new generation.
 
-const CACHE = 'dwellspeak-v1'
+// Renamed from `dwellspeak-v1`, which doubles as the generation bump the icon
+// change needs: assets are served cache-first, so an installed copy would
+// otherwise keep the old mark indefinitely. Activate deletes every cache that
+// is not this one.
+const CACHE = 'peri-v1'
 const SHELL = '/index.html'
 const PRECACHE = ['/', SHELL, '/manifest.webmanifest', '/icon.svg', '/icon-maskable.svg']
 
