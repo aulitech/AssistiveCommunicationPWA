@@ -1108,6 +1108,21 @@ body {
   outline: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
+/* The dwell progress everywhere else is a child element; a textarea cannot hold
+   one, so it is painted as a background layer instead. Same bar, no wrapper —
+   which keeps the topbar's flex layout exactly as it was. */
+.text-display.dwelling {
+  background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  animation: composerDwellFill var(--dwell-duration, 800ms) linear forwards;
+}
+
+@keyframes composerDwellFill {
+  from { background-size: 0 3px; }
+  to { background-size: 100% 3px; }
+}
+
 /* ── Mode toggles (auto-speak, edit) ── */
 /* These sit above the scroll controls and stay put, so they must not flex to
    fill the rail the way the scroll buttons do. */

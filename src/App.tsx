@@ -1332,15 +1332,17 @@ function EditAction({ kind, label, onActivate, disabled }: {
 /** Sentinel <option> value; the leading space cannot occur in a trimmed name. */
 const NEW_CATEGORY = ' __new_category__'
 
-function EditModal({ phrase, isEmergency, allCategories, onSave, onDelete, onClose }: {
+function EditModal({ phrase, isEmergency, initialText, allCategories, onSave, onDelete, onClose }: {
   phrase: Phrase | null
   isEmergency: boolean
+  /** Seeds a new phrase — the composed message, when adding from the message box. */
+  initialText?: string
   allCategories: string[]
   onSave: (text: string, category: string) => void
   onDelete: () => void
   onClose: () => void
 }) {
-  const [text, setText] = useState(phrase?.text ?? '')
+  const [text, setText] = useState(phrase?.text ?? initialText ?? '')
   const [category, setCategory] = useState(phrase?.category ?? allCategories[0] ?? '')
   const [creatingCategory, setCreatingCategory] = useState(false)
   const isNew = phrase === null
@@ -1816,7 +1818,9 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [editMode, setEditMode] = useState(false)
   const [store, setStore] = useState<PhraseStore>(loadPhraseStore)
   const [profile, setProfile] = useState<Profile>(loadProfile)
-  const [editing, setEditing] = useState<{ phrase: Phrase | null; isEmergency: boolean } | null>(null)
+  const [editing, setEditing] = useState<
+    { phrase: Phrase | null; isEmergency: boolean; initialText?: string } | null
+  >(null)
   const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -1937,6 +1941,16 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     cancelAllDwells()
     setEditing({ phrase, isEmergency })
   }, [])
+
+  // Adding from the message box carries whatever is composed there into the
+  // editor, so a message worth keeping becomes a phrase without retyping it.
+  // Deliberately not routed through `openEdit`: that one is on the edit context
+  // every phrase cell reads, and making it depend on `text` would re-render the
+  // whole grid on each keystroke.
+  const openAddFromComposer = useCallback(() => {
+    cancelAllDwells()
+    setEditing({ phrase: null, isEmergency: false, initialText: text.trim() })
+  }, [text])
 
   const handleSave = useCallback(
     (newText: string, newCategory: string) => {
@@ -2104,6 +2118,13 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const toggleMenu = useCallback(() => setMenuOpen(o => !o), [])
   const closeMenu = useCallback(() => setMenuOpen(false), [])
 
+  // The message box is the only way to add an ordinary phrase, so in edit mode
+  // it has to answer to hover-and-hold like everything else — a click was the
+  // one thing a dwell-only user cannot produce. Outside edit mode the dwell
+  // stays disabled: the box is for typing, and opening a modal on hover would
+  // interrupt composing.
+  const composerDwell = useDwellControl(settings.actionDwellMs, openAddFromComposer, { disabled: !editMode })
+
   return (
     <EditCtx.Provider value={editCtx}>
       <div className={cx('app', editMode && 'edit-mode')}>
@@ -2124,22 +2145,34 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
 
           <textarea
             ref={textareaRef}
-            className="text-display"
-            aria-label="Composed message"
+            className={cx('text-display', composerDwell.active && 'dwelling')}
+            style={editMode ? dwellVar(settings.actionDwellMs) : undefined}
+            aria-label={
+              editMode
+                ? text.trim()
+                  ? 'Add this message as a new phrase'
+                  : 'Add a new phrase'
+                : 'Composed message'
+            }
             value={text}
             onChange={e => {
               setText(e.target.value)
               trackCursor(e)
             }}
             onSelect={trackCursor}
+            onPointerEnter={composerDwell.props.onPointerEnter}
+            onPointerLeave={composerDwell.props.onPointerLeave}
             onClick={e => {
               trackCursor(e)
-              if (editMode) openEdit(null)
+              if (editMode) composerDwell.props.onClick()
             }}
+            // Only in edit mode: the handler swallows Space, which would
+            // otherwise stop the user typing one.
+            onKeyDown={editMode ? composerDwell.props.onKeyDown : undefined}
             onKeyUp={trackCursor}
             placeholder={
               editMode
-                ? 'Click to add a new phrase…'
+                ? 'Hold here to add a new phrase…'
                 : settings.autoSpeak
                   ? 'Auto-speak is on — phrases are spoken, not collected here'
                   : 'Dwell on a phrase or type…'
@@ -2233,6 +2266,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
           <EditModal
             phrase={editing.phrase}
             isEmergency={editing.isEmergency}
+            initialText={editing.initialText}
             allCategories={allCategories}
             onSave={handleSave}
             onDelete={handleDelete}
