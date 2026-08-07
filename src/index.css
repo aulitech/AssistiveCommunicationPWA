@@ -1685,3 +1685,44 @@ body {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* ── Category editing (edit mode) ── */
+.edit-modal-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  outline: none;
+}
+
+.edit-modal-input:focus { border-color: var(--accent); }
+.edit-modal-input::placeholder { color: var(--text-muted); }
+
+.edit-modal-note {
+  margin: -6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* A tab that is about to be renamed rather than selected. */
+.filter-tab.edit-mode {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.add-category-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.add-category-tab svg { width: 14px; height: 14px; }
+.add-category-tab.dwelling { color: var(--accent); border-color: var(--accent); }

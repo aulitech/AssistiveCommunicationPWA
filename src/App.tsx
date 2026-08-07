@@ -102,21 +102,73 @@ interface PhraseStore {
   custom: StoredPhrase[] // user-added phrases
   overrides: Record<string, string> // id → new text
   hidden: string[] // ids removed by user
+  /**
+   * Source category name → the name to show. A single entry renames a whole
+   * category, including the built-in phrases in it, which per-phrase overrides
+   * could not do.
+   */
+  categoryRenames: Record<string, string>
+  /** Categories the user created. Kept so one can exist before it has phrases. */
+  categories: string[]
+  /** id → category, for a single phrase moved out of the one it came in. */
+  categoryOverrides: Record<string, string>
 }
 
-const emptyStore = (): PhraseStore => ({ custom: [], overrides: {}, hidden: [] })
+const emptyStore = (): PhraseStore => ({
+  custom: [],
+  overrides: {},
+  hidden: [],
+  categoryRenames: {},
+  categories: [],
+  categoryOverrides: {},
+})
 
 function loadPhraseStore(): PhraseStore {
   try {
     const raw = JSON.parse(localStorage.getItem(PHRASE_STORE_KEY) ?? '{}')
     const base = emptyStore()
+    const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null)
     return {
       custom: Array.isArray(raw.custom) ? raw.custom : base.custom,
       overrides: raw.overrides && typeof raw.overrides === 'object' ? raw.overrides : base.overrides,
       hidden: Array.isArray(raw.hidden) ? raw.hidden : base.hidden,
+      categoryRenames:
+        raw.categoryRenames && typeof raw.categoryRenames === 'object' ? raw.categoryRenames : base.categoryRenames,
+      categories: strings(raw.categories) ?? base.categories,
+      categoryOverrides:
+        raw.categoryOverrides && typeof raw.categoryOverrides === 'object'
+          ? raw.categoryOverrides
+          : base.categoryOverrides,
     }
   } catch {
     return emptyStore()
+  }
+}
+
+/** The name a category is shown under, after any rename. */
+function displayCategory(source: string, renames: Record<string, string>): string {
+  return renames[source] ?? source
+}
+
+/**
+ * Rename every source category currently displayed as `from` so it shows as
+ * `to`. Renaming onto an existing name merges the two, which is the only sane
+ * reading of giving two categories the same name.
+ */
+function renameCategory(store: PhraseStore, from: string, to: string): Partial<PhraseStore> {
+  const renames = { ...store.categoryRenames }
+  for (const [source, shown] of Object.entries(renames)) {
+    if (shown === from) renames[source] = to
+  }
+  // A source that has never been renamed still displays under its own name.
+  if (!(from in renames)) renames[from] = to
+  // Identity entries carry no information.
+  for (const [source, shown] of Object.entries(renames)) {
+    if (source === shown) delete renames[source]
+  }
+  return {
+    categoryRenames: renames,
+    categories: [...new Set(store.categories.map(c => (c === from ? to : c)))],
   }
 }
 
@@ -1277,6 +1329,9 @@ function EditAction({ kind, label, onActivate, disabled }: {
   )
 }
 
+/** Sentinel <option> value; the leading space cannot occur in a trimmed name. */
+const NEW_CATEGORY = ' __new_category__'
+
 function EditModal({ phrase, isEmergency, allCategories, onSave, onDelete, onClose }: {
   phrase: Phrase | null
   isEmergency: boolean
@@ -1287,11 +1342,13 @@ function EditModal({ phrase, isEmergency, allCategories, onSave, onDelete, onClo
 }) {
   const [text, setText] = useState(phrase?.text ?? '')
   const [category, setCategory] = useState(phrase?.category ?? allCategories[0] ?? '')
+  const [creatingCategory, setCreatingCategory] = useState(false)
   const isNew = phrase === null
-  const canSave = text.trim().length > 0
+  // A brand-new category needs a name before the phrase can be filed under it.
+  const canSave = text.trim().length > 0 && (isEmergency || category.trim().length > 0)
 
   const save = useCallback(() => {
-    if (canSave) onSave(text.trim(), category)
+    if (canSave) onSave(text.trim(), category.trim())
   }, [canSave, text, category, onSave])
 
   useEffect(() => {
@@ -1325,12 +1382,38 @@ function EditModal({ phrase, isEmergency, allCategories, onSave, onDelete, onClo
             <select
               id="edit-category"
               className="edit-modal-select"
-              value={category}
-              onChange={e => setCategory(e.target.value)}
+              value={creatingCategory ? NEW_CATEGORY : category}
+              onChange={e => {
+                if (e.target.value === NEW_CATEGORY) {
+                  setCreatingCategory(true)
+                  setCategory('')
+                } else {
+                  setCreatingCategory(false)
+                  setCategory(e.target.value)
+                }
+              }}
             >
               {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
-              {!allCategories.includes(category) && category && <option value={category}>{category}</option>}
+              {!allCategories.includes(category) && category && !creatingCategory && (
+                <option value={category}>{category}</option>
+              )}
+              <option value={NEW_CATEGORY}>New category…</option>
             </select>
+          </div>
+        )}
+
+        {!isEmergency && creatingCategory && (
+          <div className="edit-modal-row">
+            <label className="edit-modal-label" htmlFor="new-category">New name</label>
+            <input
+              id="new-category"
+              className="edit-modal-input"
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              placeholder="Category name…"
+              aria-label="New category name"
+              autoFocus
+            />
           </div>
         )}
 
@@ -1338,6 +1421,72 @@ function EditModal({ phrase, isEmergency, allCategories, onSave, onDelete, onClo
           {!isNew && <EditAction kind="danger" label="Delete" onActivate={onDelete} />}
           <EditAction kind="cancel" label="Cancel" onActivate={onClose} />
           <EditAction kind="save" label="Save" onActivate={save} disabled={!canSave} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── CategoryModal ─────────────────────────────────────────────────────────────
+
+function CategoryModal({ name, phraseCount, existing, onSave, onDelete, onClose }: {
+  name: string | null // null = creating a new one
+  phraseCount: number
+  existing: string[]
+  onSave: (name: string) => void
+  onDelete: () => void
+  onClose: () => void
+}) {
+  const [value, setValue] = useState(name ?? '')
+  const isNew = name === null
+  const trimmed = value.trim()
+
+  const clash = existing.some(c => c !== name && c.toLowerCase() === trimmed.toLowerCase())
+  const canSave = trimmed !== '' && trimmed !== name && !clash
+  // Only a category with nothing in it can go; otherwise deleting it would
+  // silently take phrases with it.
+  const canDelete = !isNew && phraseCount === 0
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="edit-modal-scrim" onPointerDown={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="edit-modal" role="dialog" aria-modal="true" aria-label={isNew ? 'Add category' : 'Rename category'}>
+        <div className="edit-modal-title">{isNew ? 'Add category' : 'Rename category'}</div>
+
+        <input
+          className="edit-modal-input"
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && canSave) {
+              e.preventDefault()
+              onSave(trimmed)
+            }
+          }}
+          placeholder="Category name…"
+          aria-label="Category name"
+          autoFocus
+        />
+
+        {clash && <p className="edit-modal-note">A category is already called that.</p>}
+        {!isNew && phraseCount > 0 && (
+          <p className="edit-modal-note">
+            {phraseCount} phrase{phraseCount === 1 ? '' : 's'} will move with it. Empty a category before
+            deleting it.
+          </p>
+        )}
+
+        <div className="edit-modal-actions">
+          {canDelete && <EditAction kind="danger" label="Delete" onActivate={onDelete} />}
+          <EditAction kind="cancel" label="Cancel" onActivate={onClose} />
+          <EditAction kind="save" label="Save" onActivate={() => onSave(trimmed)} disabled={!canSave} />
         </div>
       </div>
     </div>
@@ -1421,27 +1570,57 @@ function EmergencyBar({ phrases }: { phrases: Phrase[] }) {
 
 // ── Filter bar ────────────────────────────────────────────────────────────────
 
-function FilterTab({ label, active, onSelect }: { label: string; active: boolean; onSelect: () => void }) {
+function FilterTab({ label, active, onSelect, onEdit }: {
+  label: string
+  active: boolean
+  onSelect: () => void
+  onEdit?: () => void
+}) {
   const { settings } = useSettings()
   const [flash, setFlash] = useState(false)
   const handleActivate = useCallback(() => {
+    // In edit mode a tab opens for renaming, the same way a phrase cell does.
+    if (onEdit) {
+      onEdit()
+      return
+    }
     onSelect()
     setFlash(true)
     setTimeout(() => setFlash(false), 300)
-  }, [onSelect])
-  const { active: dwelling, props } = useDwellControl(settings.actionDwellMs, handleActivate, { disabled: active })
+  }, [onSelect, onEdit])
+  const { active: dwelling, props } = useDwellControl(settings.actionDwellMs, handleActivate, {
+    disabled: active && !onEdit,
+  })
 
   return (
     <div
-      className={cx('filter-tab', active && 'active', dwelling && 'dwelling', flash && 'flashed')}
+      className={cx('filter-tab', active && 'active', dwelling && 'dwelling', flash && 'flashed', onEdit && 'edit-mode')}
       style={dwellVar(settings.actionDwellMs)}
       role="tab"
       aria-selected={active}
+      aria-label={onEdit ? `Rename category: ${label}` : label}
       {...props}
       tabIndex={0}
     >
       {label}
       <div className="dwell-bar" key={dwelling ? 'a' : 'i'} />
+    </div>
+  )
+}
+
+function AddCategoryTab({ onAdd }: { onAdd: () => void }) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onAdd)
+  return (
+    <div
+      className={cx('filter-tab add-category-tab', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label="Add category"
+      {...props}
+    >
+      <PlusIcon />
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )
 }
@@ -1468,10 +1647,12 @@ function FilterArrow({ onAction, repeat, label, children }: {
   )
 }
 
-function FilterBar({ categories, activeFilter, onSelect }: {
+function FilterBar({ categories, activeFilter, onSelect, onEditCategory, onAddCategory }: {
   categories: { id: string; label: string }[]
   activeFilter: string
   onSelect: (id: string) => void
+  onEditCategory?: (name: string) => void
+  onAddCategory?: () => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -1494,8 +1675,16 @@ function FilterBar({ categories, activeFilter, onSelect }: {
 
       <div ref={scrollRef} className="filter-scroll">
         {categories.map(c => (
-          <FilterTab key={c.id} label={c.label} active={activeFilter === c.id} onSelect={() => onSelect(c.id)} />
+          <FilterTab
+            key={c.id}
+            label={c.label}
+            active={activeFilter === c.id}
+            onSelect={() => onSelect(c.id)}
+            // "All" is not a category, so there is nothing to rename.
+            onEdit={onEditCategory && c.id !== 'all' ? () => onEditCategory(c.id) : undefined}
+          />
         ))}
+        {onAddCategory && <AddCategoryTab onAdd={onAddCategory} />}
       </div>
 
       <FilterArrow onAction={() => scrollBy(200)} repeat label="Scroll categories right">
@@ -1628,6 +1817,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [store, setStore] = useState<PhraseStore>(loadPhraseStore)
   const [profile, setProfile] = useState<Profile>(loadProfile)
   const [editing, setEditing] = useState<{ phrase: Phrase | null; isEmergency: boolean } | null>(null)
+  const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -1664,12 +1854,20 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const tablePhrases = useMemo(() => buildPhrases(profile), [profile])
 
   const mainPhrases = useMemo(() => {
+    // A phrase moved individually keeps that category; otherwise it follows any
+    // rename applied to the category it came in.
+    const shown = (id: string, source: string) =>
+      store.categoryOverrides[id] ?? displayCategory(source, store.categoryRenames)
     const base = tablePhrases
       .filter(p => !store.hidden.includes(p.id))
-      .map(p => (store.overrides[p.id] ? buildPhrase(p.id, store.overrides[p.id], p.category) : p))
+      .map(p =>
+        store.overrides[p.id]
+          ? buildPhrase(p.id, store.overrides[p.id], shown(p.id, p.category))
+          : { ...p, category: shown(p.id, p.category) },
+      )
     const custom = store.custom
       .filter(c => c.category !== 'Emergency' && !store.hidden.includes(c.id))
-      .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, c.category))
+      .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, shown(c.id, c.category)))
     return [...base, ...custom]
   }, [store, buildPhrase, tablePhrases])
 
@@ -1684,9 +1882,17 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   }, [store, buildPhrase])
 
   const allCategories = useMemo(
-    () => [...new Set(mainPhrases.map(p => p.category))].sort(),
-    [mainPhrases],
+    // User-created categories are listed even while empty, so one can be made
+    // first and filled afterwards.
+    () => [...new Set([...mainPhrases.map(p => p.category), ...store.categories])].sort(),
+    [mainPhrases, store.categories],
   )
+
+  const phraseCountByCategory = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const p of mainPhrases) counts.set(p.category, (counts.get(p.category) ?? 0) + 1)
+    return counts
+  }, [mainPhrases])
 
   // Derived from the live phrase list so user-added categories get a tab and
   // fully-hidden categories lose theirs.
@@ -1700,6 +1906,33 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const effectiveFilter =
     activeFilter === 'all' || allCategories.includes(activeFilter) ? activeFilter : 'all'
 
+  const openCategory = useCallback((name: string | null) => {
+    cancelAllDwells()
+    setEditingCategory({ name })
+  }, [])
+
+  const handleCategorySave = useCallback(
+    (name: string) => {
+      const current = editingCategory?.name ?? null
+      if (current === null) {
+        updateStore({ categories: [...new Set([...store.categories, name])] })
+      } else {
+        updateStore(renameCategory(store, current, name))
+        setActiveFilter(f => (f === current ? name : f))
+      }
+      setEditingCategory(null)
+    },
+    [editingCategory, store, updateStore],
+  )
+
+  const handleCategoryDelete = useCallback(() => {
+    const name = editingCategory?.name
+    if (!name) return
+    updateStore({ categories: store.categories.filter(c => c !== name) })
+    setActiveFilter(f => (f === name ? 'all' : f))
+    setEditingCategory(null)
+  }, [editingCategory, store, updateStore])
+
   const openEdit = useCallback((phrase: Phrase | null, isEmergency = false) => {
     cancelAllDwells()
     setEditing({ phrase, isEmergency })
@@ -1711,9 +1944,21 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
       const { phrase, isEmergency } = editing
       if (phrase === null) {
         const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-        updateStore({ custom: [...store.custom, { id, text: newText, category: isEmergency ? 'Emergency' : newCategory }] })
+        updateStore({
+          custom: [...store.custom, { id, text: newText, category: isEmergency ? 'Emergency' : newCategory }],
+          categories: isEmergency ? store.categories : [...new Set([...store.categories, newCategory])],
+        })
       } else {
-        updateStore({ overrides: { ...store.overrides, [phrase.id]: newText } })
+        const patch: Partial<PhraseStore> = {
+          overrides: { ...store.overrides, [phrase.id]: newText },
+        }
+        // The editor has always shown a category for existing phrases; until
+        // now, changing it was silently discarded.
+        if (!isEmergency && newCategory && newCategory !== phrase.category) {
+          patch.categoryOverrides = { ...store.categoryOverrides, [phrase.id]: newCategory }
+          patch.categories = [...new Set([...store.categories, newCategory])]
+        }
+        updateStore(patch)
       }
       setEditing(null)
     },
@@ -1916,7 +2161,13 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
 
         {/* ── Filter bar — hidden while text search is active ── */}
         {!(currentWord && visiblePhrases.length > 0) && (
-          <FilterBar categories={categories} activeFilter={effectiveFilter} onSelect={setActiveFilter} />
+          <FilterBar
+            categories={categories}
+            activeFilter={effectiveFilter}
+            onSelect={setActiveFilter}
+            onEditCategory={editMode ? openCategory : undefined}
+            onAddCategory={editMode ? () => openCategory(null) : undefined}
+          />
         )}
 
         {/* ── Phrase grid + scroll controls ── */}
@@ -1964,6 +2215,17 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
               deliverPhrase(t)
             }}
             onCancel={() => setFilling(null)}
+          />
+        )}
+
+        {editingCategory !== null && (
+          <CategoryModal
+            name={editingCategory.name}
+            phraseCount={editingCategory.name ? (phraseCountByCategory.get(editingCategory.name) ?? 0) : 0}
+            existing={allCategories}
+            onSave={handleCategorySave}
+            onDelete={handleCategoryDelete}
+            onClose={() => setEditingCategory(null)}
           />
         )}
 
