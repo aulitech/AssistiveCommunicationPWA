@@ -441,6 +441,23 @@ describe('ordering categories', () => {
     expect($('.edit-modal')).toBeNull()
   })
 
+  // Leaving reorder mode with a tab in the air used to leave it there. Coming
+  // back, the next dwell would drop the forgotten tab instead of lifting the
+  // one under the pointer.
+  it('empties its hands when reordering is switched off', () => {
+    renderApp()
+    startReordering()
+    const before = names()
+
+    click(tabNamed(before[1])) // lift
+    click(reorderBtn()) // leave reorder mode holding it
+    click(reorderBtn()) // and come back
+
+    click(tabNamed(before[2]))
+    expect(names()).toEqual(before)
+    expect(tabNamed(before[2])?.className).toMatch(/is-held/)
+  })
+
   it('does not stay armed after edit mode is left and re-entered', () => {
     renderApp()
     startReordering()
