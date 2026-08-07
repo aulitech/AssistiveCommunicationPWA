@@ -368,27 +368,102 @@ describe('ordering categories', () => {
     expect(storedStore().categoryOrder ?? []).toEqual([])
   })
 
-  it('sorts back to A–Z, forgetting the custom order', () => {
-    renderApp()
-    startReordering()
-    const alphabetical = names()
-    dwellDrag(alphabetical[0], alphabetical[2])
-    expect(names()).not.toEqual(alphabetical)
+  // Switching to A–Z must not be a way to lose an arrangement someone built by
+  // hand, a tab at a time.
+  describe('the A–Z toggle', () => {
+    it('goes to alphabetical and back to their own order', () => {
+      renderApp()
+      startReordering()
+      const alphabetical = names()
+      dwellDrag(alphabetical[0], alphabetical[2])
+      const arranged = names()
+      expect(arranged).not.toEqual(alphabetical)
 
-    click(sortBtn())
+      click(sortBtn())
+      expect(names()).toEqual(alphabetical)
 
-    expect(names()).toEqual(alphabetical)
-    expect(storedStore().categoryOrder).toEqual([])
-  })
+      click(sortBtn())
+      expect(names()).toEqual(arranged)
+    })
 
-  it('offers no A–Z when the order is already alphabetical', () => {
-    renderApp()
-    startReordering()
-    expect(sortBtn()?.getAttribute('aria-disabled')).toBe('true')
+    it('keeps their order in the store while A–Z is showing', () => {
+      renderApp()
+      startReordering()
+      const alphabetical = names()
+      dwellDrag(alphabetical[0], alphabetical[2])
+      const arranged = names()
 
-    const arranged = names()
-    dwellDrag(arranged[0], arranged[2])
-    expect(sortBtn()?.getAttribute('aria-disabled')).toBeNull()
+      click(sortBtn())
+
+      expect(storedStore().categorySort).toBe('alpha')
+      expect(storedStore().categoryOrder).toEqual(arranged)
+    })
+
+    it('survives a reload in whichever arrangement is showing', () => {
+      renderApp()
+      startReordering()
+      const alphabetical = names()
+      dwellDrag(alphabetical[0], alphabetical[2])
+      const arranged = names()
+      click(sortBtn())
+
+      container = render(<App />).container
+      settle()
+      expect(names()).toEqual(alphabetical)
+
+      enterEditMode()
+      click(reorderBtn())
+      click(sortBtn())
+      expect(names()).toEqual(arranged)
+    })
+
+    it('says which way it will go', () => {
+      renderApp()
+      startReordering()
+      const arranged = names()
+      dwellDrag(arranged[0], arranged[2])
+      expect(sortBtn()?.getAttribute('aria-label')).toBe('Sort categories A to Z')
+      expect(sortBtn()?.getAttribute('aria-pressed')).toBe('false')
+
+      click(sortBtn())
+      expect(sortBtn()?.getAttribute('aria-label')).toBe('Use your own category order')
+      expect(sortBtn()?.getAttribute('aria-pressed')).toBe('true')
+    })
+
+    it('does nothing until there is an order of their own to come back to', () => {
+      renderApp()
+      startReordering()
+      expect(sortBtn()?.getAttribute('aria-disabled')).toBe('true')
+
+      const arranged = names()
+      dwellDrag(arranged[0], arranged[2])
+      expect(sortBtn()?.getAttribute('aria-disabled')).toBeNull()
+    })
+
+    // Rearranging while A–Z is showing is building a new order, not editing the
+    // old one — so it replaces it, and switches back to showing it.
+    it('replaces their order when they rearrange from alphabetical', () => {
+      renderApp()
+      startReordering()
+      const alphabetical = names()
+      dwellDrag(alphabetical[0], alphabetical[2])
+      const first = names()
+      click(sortBtn())
+
+      dwellDrag(alphabetical[1], alphabetical[3])
+
+      expect(names()).not.toEqual(first)
+      expect(names()).not.toEqual(alphabetical)
+      expect(storedStore().categorySort).toBe('custom')
+      expect(storedStore().categoryOrder).toEqual(names())
+    })
+
+    // Anyone who reordered before the toggle existed has an order and no flag.
+    it('shows the order of a store written before the flag existed', () => {
+      localStorage.setItem(STORE_KEY, JSON.stringify({ categoryOrder: ['Food', 'Feelings'] }))
+      renderApp()
+      expect(names().slice(0, 2)).toEqual(['Food', 'Feelings'])
+    })
   })
 
   it('leaves "All" pinned first and unmovable', () => {
