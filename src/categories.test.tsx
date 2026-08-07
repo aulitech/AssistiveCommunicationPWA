@@ -281,6 +281,24 @@ describe('ordering categories', () => {
     expect(sortBtn()).not.toBeNull()
   })
 
+  // These used to sit in with the tabs, where reaching them meant scrolling to
+  // the end of a bar that can be dozens of categories long.
+  it('parks the controls outside the scroller, where they cannot scroll away', () => {
+    renderApp()
+    enterEditMode()
+    expect($('.filter-scroll .reorder-tab')).toBeNull()
+    expect($('.filter-bar-tools .reorder-tab')).not.toBeNull()
+
+    click(reorderBtn())
+    expect($('.filter-scroll .sort-alpha-tab')).toBeNull()
+    expect($('.filter-bar-tools .sort-alpha-tab')).not.toBeNull()
+  })
+
+  it('leaves no empty toolbar outside edit mode', () => {
+    renderApp()
+    expect($('.filter-bar-tools')).toBeNull()
+  })
+
   it('moves a category by dwelling it and then its destination', () => {
     renderApp()
     startReordering()
