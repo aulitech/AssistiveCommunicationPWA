@@ -1681,6 +1681,9 @@ function FilterTab({ label, active, onSelect, onEdit, reorder }: {
         onEdit && !reorder && 'edit-mode',
         reorder && 'reorderable',
         reorder?.held && 'is-held',
+        // Somewhere the held tab could go — every other category, while one is
+        // in the air.
+        reorder?.heldLabel && 'is-drop-zone',
         reorder?.dropTarget && 'is-drop-target',
       )}
       style={dwellVar(settings.actionDwellMs)}
@@ -1785,6 +1788,7 @@ function FilterBar({
   onToggleReorder,
   onSortAlphabetically,
   onReorder,
+  onLift,
 }: {
   categories: { id: string; label: string }[]
   activeFilter: string
@@ -1797,6 +1801,8 @@ function FilterBar({
   onToggleReorder?: () => void
   onSortAlphabetically?: () => void
   onReorder?: (from: string, to: string) => void
+  /** Announced when a tab is picked up — the styling alone says nothing aloud. */
+  onLift?: (name: string) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   // Which tab is in the air, whether picked up by dwell or by drag. Transient,
@@ -1820,13 +1826,15 @@ function FilterBar({
     (name: string) => {
       // Dwelling the tab already in hand puts it back where it was, which is
       // the only way out of a lift for someone with no other button to press.
-      if (held === null) setHeld(name)
-      else {
+      if (held === null) {
+        setHeld(name)
+        onLift?.(name)
+      } else {
         if (held !== name) onReorder?.(held, name)
         setHeld(null)
       }
     },
-    [held, onReorder],
+    [held, onReorder, onLift],
   )
 
   const reorderPropsFor = (name: string): ReorderProps => ({
@@ -2464,6 +2472,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
             onToggleReorder={editMode ? () => setReordering(r => !r) : undefined}
             onSortAlphabetically={editMode ? handleSortAlphabetically : undefined}
             onReorder={editMode ? handleReorder : undefined}
+            onLift={name => flashToast(`Holding ${name} — dwell where it should go`)}
           />
         )}
 
