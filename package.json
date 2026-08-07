@@ -1,5 +1,6 @@
 {
-  "name": "figma-make-app",
+  "name": "peri",
+  "description": "Assistive communication driven entirely by gaze and dwell.",
   "private": true,
   "version": "1.0.0",
   "license": "MIT",

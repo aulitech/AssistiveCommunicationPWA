@@ -1,25 +1,43 @@
 <!doctype html>
-<html lang="<!-- figma:lang -->">
+<html lang="en">
   <head>
-    <!-- figma:head-start -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><!-- figma:title --></title>
+
+    <title>Peri — Assistive Communication</title>
+    <meta
+      name="description"
+      content="Assistive communication driven entirely by gaze and dwell. Hover and hold to build a message and speak it aloud."
+    />
+
+    <!-- Carried over from the Figma Make configuration this project used to
+         hold, which set `robots.index: false` and generated the matching
+         robots.txt on every build. Dropping it silently would have made the
+         site indexable for the first time — a change to how it appears in the
+         world, not a build detail. Remove this and public/robots.txt together
+         when it should be findable. -->
+    <meta name="robots" content="noindex, nofollow" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Peri — Assistive Communication" />
+    <meta
+      property="og:description"
+      content="Assistive communication driven entirely by gaze and dwell. Hover and hold to build a message and speak it aloud."
+    />
+
     <meta name="theme-color" content="#0f0f0f" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Peri" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <!-- iOS ignores an SVG here, so the home-screen icon has to be a PNG. -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <!-- figma:head-end -->
   </head>
   <body>
-    <!-- figma:body-start -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- figma:body-end -->
   </body>
 </html>
