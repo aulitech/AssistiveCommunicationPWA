@@ -1805,28 +1805,33 @@ function FilterBar({
   const [dragging, setDragging] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
 
-  // Leaving reorder mode puts down whatever was in the air.
-  const lifted = reordering ? held : null
-
   const scrollTo = useCallback((pos: number) => scrollRef.current?.scrollTo({ left: pos, behavior: 'smooth' }), [])
   const scrollBy = useCallback((dx: number) => scrollRef.current?.scrollBy({ left: dx, behavior: 'smooth' }), [])
+
+  // Switching the mode off puts down whatever was in the air. Without this the
+  // tab stays held across the round trip, and the next dwell drops the
+  // forgotten one instead of lifting the tab under the pointer.
+  const toggleReorder = useCallback(() => {
+    setHeld(null)
+    onToggleReorder?.()
+  }, [onToggleReorder])
 
   const liftOrDrop = useCallback(
     (name: string) => {
       // Dwelling the tab already in hand puts it back where it was, which is
       // the only way out of a lift for someone with no other button to press.
-      if (lifted === null) setHeld(name)
+      if (held === null) setHeld(name)
       else {
-        if (lifted !== name) onReorder?.(lifted, name)
+        if (held !== name) onReorder?.(held, name)
         setHeld(null)
       }
     },
-    [lifted, onReorder],
+    [held, onReorder],
   )
 
   const reorderPropsFor = (name: string): ReorderProps => ({
-    held: lifted === name,
-    heldLabel: lifted !== name ? lifted : null,
+    held: held === name,
+    heldLabel: held !== name ? held : null,
     dragging: dragging !== null,
     dropTarget: dropTarget === name && dragging !== name,
     onLiftOrDrop: () => liftOrDrop(name),
@@ -1898,7 +1903,7 @@ function FilterBar({
             className="reorder-tab"
             label={reordering ? 'Done reordering categories' : 'Reorder categories'}
             pressed={reordering}
-            onActivate={onToggleReorder}
+            onActivate={toggleReorder}
           >
             <ReorderIcon />
           </FilterBarButton>
