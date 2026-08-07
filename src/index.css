@@ -1425,6 +1425,10 @@ body {
 
   .dwell-cursor-dot { animation: none !important; }
 
+  /* The held category stops bobbing but stays raised, filled and ringed —
+     none of which moves. */
+  .filter-tab.is-held { animation: none !important; }
+
   .signin-spinner { animation-duration: 2s !important; }
 }
 
@@ -1788,6 +1792,9 @@ body {
     inset 0 0 0 2px var(--surface),
     inset 0 0 0 4px var(--held),
     0 4px 10px rgba(0, 0, 0, 0.5);
+  /* The resting position, and what remains when the bob is switched off under
+     reduced motion — held still reads as raised. */
+  transform: translateY(-4px);
   animation: heldBob 1.1s ease-in-out infinite;
 }
 
@@ -1803,13 +1810,6 @@ body {
   color: var(--text);
   border-style: dashed;
   border-color: color-mix(in srgb, var(--held) 70%, transparent);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .filter-tab.is-held {
-    animation: none;
-    transform: translateY(-4px);
-  }
 }
 
 /* Where a dragged tab would land. */
