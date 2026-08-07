@@ -1886,15 +1886,6 @@ function FilterBar({
             reorder={reordering && c.id !== 'all' ? reorderPropsFor(c.id) : undefined}
           />
         ))}
-
-        {/* Adding a category mid-reorder would drop what is in the air, so the
-            two are offered one at a time. */}
-        {onAddCategory && !reordering && (
-          <FilterBarButton className="add-category-tab" label="Add category" onActivate={onAddCategory}>
-            <PlusIcon />
-          </FilterBarButton>
-        )}
-
       </div>
 
       <FilterArrow onAction={() => scrollBy(200)} repeat label="Scroll categories right">
@@ -1909,30 +1900,43 @@ function FilterBar({
         </svg>
       </FilterArrow>
 
-      {/* Ordering sits past the scroll controls rather than in with the tabs.
-          Inside the scroller it was only reachable by scrolling to the end —
-          the controls a user has to find are the ones that must not move. */}
-      {onToggleReorder && (
+      {/* The category tools sit past the scroll controls rather than in with
+          the tabs. Inside the scroller they were only reachable by scrolling to
+          the end — the controls a user has to find are the ones that must not
+          move.
+
+          Adding and sorting share the first slot: adding a category mid-reorder
+          would drop whatever is in the air, so the two are never offered at
+          once, and the pair keeps a constant width either way. */}
+      {(onAddCategory || onToggleReorder) && (
         <div className="filter-bar-tools">
-          {reordering && onSortAlphabetically && (
+          {reordering
+            ? onSortAlphabetically && (
+              <FilterBarButton
+                className="sort-alpha-tab"
+                label="Sort categories A to Z"
+                disabled={isAlphabetical}
+                onActivate={onSortAlphabetically}
+              >
+                <SortAlphaIcon />
+              </FilterBarButton>
+            )
+            : onAddCategory && (
+              <FilterBarButton className="add-category-tab" label="Add category" onActivate={onAddCategory}>
+                <PlusIcon />
+              </FilterBarButton>
+            )}
+
+          {onToggleReorder && (
             <FilterBarButton
-              className="sort-alpha-tab"
-              label="Sort categories A to Z"
-              disabled={isAlphabetical}
-              onActivate={onSortAlphabetically}
+              className="reorder-tab"
+              label={reordering ? 'Done reordering categories' : 'Reorder categories'}
+              pressed={reordering}
+              onActivate={toggleReorder}
             >
-              <SortAlphaIcon />
+              <ReorderIcon />
             </FilterBarButton>
           )}
-
-          <FilterBarButton
-            className="reorder-tab"
-            label={reordering ? 'Done reordering categories' : 'Reorder categories'}
-            pressed={reordering}
-            onActivate={toggleReorder}
-          >
-            <ReorderIcon />
-          </FilterBarButton>
         </div>
       )}
     </div>
