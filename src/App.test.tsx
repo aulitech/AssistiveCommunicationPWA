@@ -247,6 +247,82 @@ describe('edit mode', () => {
   })
 })
 
+describe('adding a phrase from the message box', () => {
+  const composer = () => $<HTMLTextAreaElement>('.text-display')!
+  const modalText = () => $<HTMLTextAreaElement>('.edit-modal-text')?.value
+  const enterEditMode = () => click(toggles()[1])
+  const dwell = (el: Element) => {
+    fireEvent.pointerEnter(el)
+    act(() => void vi.advanceTimersByTime(800))
+    settle()
+  }
+  const compose = (value: string) => {
+    fireEvent.change(composer(), { target: { value } })
+    settle()
+  }
+
+  // Regression guard: the message box is the only way to add an ordinary
+  // phrase, and it used to answer to a click alone — the one input a
+  // dwell-only user cannot produce.
+  it('opens the editor on hover and hold', () => {
+    renderApp()
+    enterEditMode()
+    dwell(composer())
+    expect($('.edit-modal-title')?.textContent).toBe('Add phrase')
+  })
+
+  it('opens the editor from the keyboard, for switch access', () => {
+    renderApp()
+    enterEditMode()
+    fireEvent.keyDown(composer(), { key: 'Enter' })
+    settle()
+    expect($('.edit-modal-title')?.textContent).toBe('Add phrase')
+  })
+
+  it('carries the composed message into the editor', () => {
+    renderApp()
+    compose('  Please pass me the water  ')
+    enterEditMode()
+    dwell(composer())
+    expect(modalText()).toBe('Please pass me the water')
+  })
+
+  it('saves the carried message as a real phrase', () => {
+    renderApp()
+    compose('Please pass me the water')
+    enterEditMode()
+    dwell(composer())
+    click($$('.edit-action-btn').find(b => b.textContent?.includes('Save')))
+    clearMessage()
+    click(toggles()[1]) // leave edit mode
+
+    expect(cells().map(c => c.textContent)).toContain('Please pass me the water')
+  })
+
+  it('opens an empty editor when nothing is composed', () => {
+    renderApp()
+    enterEditMode()
+    dwell(composer())
+    expect(modalText()).toBe('')
+  })
+
+  // Outside edit mode the box is for typing. A dwell that opened a modal would
+  // fire while the user was mid-message.
+  it('does not dwell outside edit mode', () => {
+    renderApp()
+    dwell(composer())
+    expect($('.edit-modal')).toBeNull()
+  })
+
+  // Wiring the dwell key handler unconditionally would swallow Space, which the
+  // hook cancels to stop the grid scrolling — in the one place people type.
+  it('does not swallow Space while composing', () => {
+    renderApp()
+    expect(fireEvent.keyDown(composer(), { key: ' ' })).toBe(true)
+    expect($('.edit-modal')).toBeNull()
+  })
+})
+
 describe('composing', () => {
   it('undoes back to the previous message', () => {
     renderApp()
