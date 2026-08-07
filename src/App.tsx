@@ -3,7 +3,7 @@ import { SIGN_IN, SignInCancelled, configuredProviders, type Provider } from './
 import { HELP_SECTIONS } from './help'
 import { legalDocumentFor } from './legal'
 import type { ProseDocument, ProseSection } from './prose'
-import { useDwellControl, cancelAllDwells } from './dwell'
+import { useDwellControl, cancelAllDwells, RestingContext } from './dwell'
 import { speak, subscribeVoices } from './speech'
 import {
   EMPTY_PROFILE,
@@ -2045,6 +2045,51 @@ function ToggleBtn({ on, onToggle, label, children }: {
   )
 }
 
+// ── Rest ──────────────────────────────────────────────────────────────────────
+
+function PauseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true">
+      <rect x="6" y="4" width="4" height="16" rx="1.5" /><rect x="14" y="4" width="4" height="16" rx="1.5" />
+    </svg>
+  )
+}
+
+function ResumeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true">
+      <path d="M7 4.5a1 1 0 0 1 1.53-.85l11 7.5a1 1 0 0 1 0 1.7l-11 7.5A1 1 0 0 1 7 19.5z" />
+    </svg>
+  )
+}
+
+/**
+ * The only control that stays live while the app is resting — everything else
+ * is switched off around it, so this has to be the way back. Its own dwell
+ * therefore never depends on the resting state.
+ */
+function RestButton({ resting, onToggle }: { resting: boolean; onToggle: () => void }) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onToggle, { ignoresRest: true })
+  return (
+    <div
+      className={cx('rest-btn', resting && 'is-resting', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-pressed={resting}
+      // Icon and words both name what dwelling here does. That it *is* resting
+      // is carried by the fill, the pressed state and the whole app dimming —
+      // none of which a label can be at odds with.
+      aria-label={resting ? 'Resume. Switch dwell back on' : 'Rest. Switch dwell off everywhere but here'}
+      {...props}
+    >
+      {resting ? <ResumeIcon /> : <PauseIcon />}
+      <span>{resting ? 'Resume' : 'Rest'}</span>
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
+    </div>
+  )
+}
+
 function GridScrollBar({ gridRef, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak }: {
   gridRef: React.RefObject<HTMLElement | null>
   editMode: boolean
@@ -2117,6 +2162,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [filling, setFilling] = useState<Phrase | null>(null)
   const [composerFocused, setComposerFocused] = useState(false)
   const [reordering, setReordering] = useState(false)
+  const [resting, setResting] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const gridRef = useRef<HTMLElement>(null)
@@ -2438,6 +2484,13 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const toggleMenu = useCallback(() => setMenuOpen(o => !o), [])
   const closeMenu = useCallback(() => setMenuOpen(false), [])
 
+  // Anything part-way through when rest begins would otherwise complete after
+  // it, which is the one thing resting is supposed to prevent.
+  const toggleRest = useCallback(() => {
+    cancelAllDwells()
+    setResting(r => !r)
+  }, [])
+
   // Hover-and-hold on the message box, doing whichever of its two jobs applies.
   // Both were previously reachable only by clicking — the one input a
   // dwell-only user cannot produce.
@@ -2460,7 +2513,8 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
 
   return (
     <EditCtx.Provider value={editCtx}>
-      <div className={cx('app', editMode && 'edit-mode')}>
+     <RestingContext.Provider value={resting}>
+      <div className={cx('app', editMode && 'edit-mode', resting && 'resting')}>
         {/* ── Topbar ── */}
         <header className="topbar">
           <ActionButton label={menuOpen ? 'Close menu' : 'Open menu'} onSelect={toggleMenu} className="menu-btn">
@@ -2549,6 +2603,10 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
 
         {/* ── Phrase grid + scroll controls ── */}
         <div className="grid-area">
+          {/* Over the phrases, where a wandering gaze is most likely to be
+              when it needs stopping. The grid area is padded to make room, so
+              it never covers a phrase. */}
+          <RestButton resting={resting} onToggle={toggleRest} />
           <main ref={gridRef} className="grid-wrapper">
             <div className="phrase-grid" role="group" aria-label="Phrases">
               {visiblePhrases.map(phrase => (
@@ -2623,6 +2681,7 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
           />
         )}
       </div>
+     </RestingContext.Provider>
     </EditCtx.Provider>
   )
 }

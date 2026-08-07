@@ -121,6 +121,90 @@ describe('reaching the whole sign-in page', () => {
   })
 })
 
+describe('resting', () => {
+  const rest = () => $('.rest-btn')!
+  const dwell = (el: Element, ms = 1500) => {
+    fireEvent.pointerEnter(el)
+    act(() => void vi.advanceTimersByTime(ms))
+    settle()
+  }
+  const startResting = () => click(rest())
+
+  it('sits over the phrases, out of the way of any of them', () => {
+    renderApp()
+    expect($('.grid-area > .rest-btn')).not.toBeNull()
+  })
+
+  // Dwell is this app's only input, so without a way to switch it off there is
+  // no way to look at the screen without choosing something.
+  it('stops a phrase answering to a dwell', () => {
+    renderApp()
+    startResting()
+
+    dwell(plainCell())
+
+    expect(message()).toBe('')
+    expect($('.app')?.classList.contains('resting')).toBe(true)
+  })
+
+  // Tap and Enter go through the same gate, or resting would only be resting
+  // for one of the three ways a control can fire.
+  it('stops a phrase answering to a tap or a key', () => {
+    renderApp()
+    startResting()
+
+    const cell = plainCell()
+    fireEvent.click(cell)
+    fireEvent.keyDown(cell, { key: 'Enter' })
+    settle()
+
+    expect(message()).toBe('')
+  })
+
+  it('stops the emergency phrases too', () => {
+    renderApp()
+    startResting()
+    click($('.emergency-btn'))
+    expect(spoken).toEqual([])
+  })
+
+  it('lets go again, and everything answers as before', () => {
+    renderApp()
+    startResting()
+    click(rest()) // resume
+
+    expect($('.app')?.classList.contains('resting')).toBe(false)
+    click(plainCell())
+    expect(message()).not.toBe('')
+  })
+
+  // A dwell already part-way through when rest begins would land after it.
+  it('abandons a dwell that was already running', () => {
+    renderApp()
+    const cell = plainCell()
+    fireEvent.pointerEnter(cell)
+    act(() => void vi.advanceTimersByTime(1000)) // not yet the 1500ms
+
+    startResting()
+    act(() => void vi.advanceTimersByTime(2000))
+
+    expect(message()).toBe('')
+  })
+
+  it('says what dwelling it will do, either way', () => {
+    renderApp()
+    expect(rest().getAttribute('aria-pressed')).toBe('false')
+    expect(rest().getAttribute('aria-label')).toMatch(/^Rest\./)
+    expect(rest().textContent).toContain('Rest')
+
+    startResting()
+
+    expect(rest().getAttribute('aria-pressed')).toBe('true')
+    expect(rest().getAttribute('aria-label')).toMatch(/^Resume\./)
+    expect(rest().textContent).toContain('Resume')
+  })
+})
+
 describe('choosing a phrase', () => {
   it('composes it into the message', () => {
     renderApp()
