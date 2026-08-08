@@ -662,7 +662,7 @@
             "count": 0
         },
         {
-            "txt": "And then{}",
+            "txt": "And then {}",
             "id": 58,
             "image": "",
             "category": "Continuations",
@@ -869,7 +869,7 @@
             "count": 0
         },
         {
-            "txt": "I need to make an appointment for{}",
+            "txt": "I need to make an appointment for {}",
             "id": 81,
             "image": "",
             "category": "Appointments",
@@ -887,7 +887,7 @@
             "count": 0
         },
         {
-            "txt": "I would like to make a date with{}..",
+            "txt": "I would like to make a date with {}",
             "id": 83,
             "image": "",
             "category": "Appointments",
@@ -1580,7 +1580,7 @@
             "count": 0
         },
         {
-            "txt": "I think that {}{}",
+            "txt": "I think that {}",
             "id": 160,
             "image": "",
             "category": "Ice Breakers",
@@ -1598,7 +1598,7 @@
             "count": 0
         },
         {
-            "txt": "I would like to {}..",
+            "txt": "I would like to {}",
             "id": 162,
             "image": "",
             "category": "Ice Breakers",
@@ -1616,7 +1616,7 @@
             "count": 0
         },
         {
-            "txt": "I'd rather {}..",
+            "txt": "I'd rather {}",
             "id": 164,
             "image": "",
             "category": "Ice Breakers",
@@ -1670,7 +1670,7 @@
             "count": 0
         },
         {
-            "txt": "I've been thinking about {}..",
+            "txt": "I've been thinking about {}",
             "id": 170,
             "image": "",
             "category": "Ice Breakers",
@@ -1706,7 +1706,7 @@
             "count": 0
         },
         {
-            "txt": "Someday I want to {}{}.",
+            "txt": "Someday I want to {}.",
             "id": 174,
             "image": "",
             "category": "Ice Breakers",
@@ -1715,7 +1715,7 @@
             "count": 0
         },
         {
-            "txt": "Tell me about {}..",
+            "txt": "Tell me about {}",
             "id": 175,
             "image": "",
             "category": "Ice Breakers",
@@ -1760,7 +1760,7 @@
             "count": 0
         },
         {
-            "txt": "What do you think about{}.?",
+            "txt": "What do you think about {}?",
             "id": 180,
             "image": "",
             "category": "Ice Breakers",
@@ -2498,7 +2498,7 @@
             "count": 0
         },
         {
-            "txt": "Can you read me a { 'book', 'magazine']}?",
+            "txt": "Can you read me a {['book', 'magazine']}?",
             "id": 262,
             "image": "",
             "category": "Ask Help",
@@ -2732,7 +2732,7 @@
             "count": 0
         },
         {
-            "txt": "Please button my {[ 'shirt', 'coat', 'blouse', 'jacket', 'pants']}",
+            "txt": "Please button my {['shirt', 'coat', 'blouse', 'jacket', 'pants']}",
             "id": 288,
             "image": "",
             "category": "Ask Help",
@@ -2894,7 +2894,7 @@
             "count": 0
         },
         {
-            "txt": "Will you be able to help me with {}.?",
+            "txt": "Will you be able to help me with {}?",
             "id": 306,
             "image": "",
             "category": "Ask Help",
@@ -3479,7 +3479,7 @@
             "count": 0
         },
         {
-            "txt": "You could have{}",
+            "txt": "You could have {}",
             "id": 371,
             "image": "",
             "category": "Encourage-Discourage",
@@ -3542,7 +3542,7 @@
             "count": 0
         },
         {
-            "txt": "Do you know where{}",
+            "txt": "Do you know where {}",
             "id": 378,
             "image": "",
             "category": "Location",
@@ -3560,7 +3560,7 @@
             "count": 0
         },
         {
-            "txt": "I don't have to go{}.",
+            "txt": "I don't have to go {}.",
             "id": 380,
             "image": "",
             "category": "Location",
@@ -3623,7 +3623,7 @@
             "count": 0
         },
         {
-            "txt": "I want to stay{}",
+            "txt": "I want to stay {}",
             "id": 387,
             "image": "",
             "category": "Location",
@@ -3695,7 +3695,7 @@
             "count": 0
         },
         {
-            "txt": "We are going{}.",
+            "txt": "We are going {}.",
             "id": 395,
             "image": "",
             "category": "Location",
@@ -6314,7 +6314,7 @@
             "count": 0
         },
         {
-            "txt": "I'm not anxious to take any {}..",
+            "txt": "I'm not anxious to take any {}",
             "id": 686,
             "image": "",
             "category": "Point of View",
@@ -7124,7 +7124,7 @@
             "count": 0
         },
         {
-            "txt": "Can you bring me {}.?",
+            "txt": "Can you bring me {}?",
             "id": 776,
             "image": "",
             "category": "Information",
@@ -7349,7 +7349,7 @@
             "count": 0
         },
         {
-            "txt": "How do I know when{}{}?",
+            "txt": "How do I know when {}?",
             "id": 801,
             "image": "",
             "category": "Information",
@@ -7466,7 +7466,7 @@
             "count": 0
         },
         {
-            "txt": "How will I{}..?",
+            "txt": "How will I {}?",
             "id": 814,
             "image": "",
             "category": "Information",
@@ -8006,7 +8006,7 @@
             "count": 0
         },
         {
-            "txt": "What is the definition of{}.?",
+            "txt": "What is the definition of {}?",
             "id": 874,
             "image": "",
             "category": "Information",
@@ -8303,7 +8303,7 @@
             "count": 0
         },
         {
-            "txt": "Where is {}.?",
+            "txt": "Where is {}?",
             "id": 907,
             "image": "",
             "category": "Information",
@@ -11570,7 +11570,7 @@
             "count": 0
         },
         {
-            "txt": "I heard from{}.",
+            "txt": "I heard from {}.",
             "id": 1270,
             "image": "",
             "category": "Responses",
@@ -13505,7 +13505,7 @@
             "count": 0
         },
         {
-            "txt": "That would be {{'great', 'awful']}",
+            "txt": "That would be {['great', 'awful']}",
             "id": 1485,
             "image": "",
             "category": "Responses",
@@ -14495,7 +14495,7 @@
             "count": 0
         },
         {
-            "txt": "Can I have some {{'mayonnaise', 'mustard']} on my sandwich?",
+            "txt": "Can I have some {['mayonnaise', 'mustard']} on my sandwich?",
             "id": 1595,
             "image": "",
             "category": "Food",
@@ -14639,7 +14639,7 @@
             "count": 0
         },
         {
-            "txt": "I can't eat {}..I am allergic to it",
+            "txt": "I can't eat {}, I am allergic to it",
             "id": 1611,
             "image": "",
             "category": "Food",
@@ -15107,7 +15107,7 @@
             "count": 0
         },
         {
-            "txt": "I'd like my eggs {['fried', 'scrambled', 'poached']",
+            "txt": "I'd like my eggs {['fried', 'scrambled', 'poached']}",
             "id": 1663,
             "image": "",
             "category": "Food",
@@ -15179,7 +15179,7 @@
             "count": 0
         },
         {
-            "txt": "I'd like to eat breakfast {{'now', 'soon']}",
+            "txt": "I'd like to eat breakfast {['now', 'soon']}",
             "id": 1671,
             "image": "",
             "category": "Food",
@@ -15215,7 +15215,7 @@
             "count": 0
         },
         {
-            "txt": "I'd like a bagel with with {['butter', 'cream cheese', 'jam', 'jelly']}",
+            "txt": "I'd like a bagel with {['butter', 'cream cheese', 'jam', 'jelly']}",
             "id": 1675,
             "image": "",
             "category": "Food",
@@ -15359,7 +15359,7 @@
             "count": 0
         },
         {
-            "txt": "I'd like to have {{'pancakes', 'waffles']} with syrup",
+            "txt": "I'd like to have {['pancakes', 'waffles']} with syrup",
             "id": 1691,
             "image": "",
             "category": "Food",
@@ -15521,7 +15521,7 @@
             "count": 0
         },
         {
-            "txt": "Would you like something to {[drink', 'eat', 'snack']}?",
+            "txt": "Would you like something to {['drink', 'eat', 'snack']}?",
             "id": 1709,
             "image": "",
             "category": "Food",
@@ -15809,7 +15809,7 @@
             "count": 0
         },
         {
-            "txt": "I'd like to read a {{'book', 'magazine']}",
+            "txt": "I'd like to read a {['book', 'magazine']}",
             "id": 1741,
             "image": "",
             "category": "Like-Dislike",
@@ -16466,7 +16466,7 @@
             "count": 0
         },
         {
-            "txt": "I fear the loss of{}.",
+            "txt": "I fear the loss of {}.",
             "id": 1814,
             "image": "",
             "category": "ALS",
@@ -16943,7 +16943,7 @@
             "count": 0
         },
         {
-            "txt": "I hope it doesn't {{'snow', 'rain']}",
+            "txt": "I hope it doesn't {['snow', 'rain']}",
             "id": 1867,
             "image": "",
             "category": "Weather",
@@ -17528,7 +17528,7 @@
             "count": 0
         },
         {
-            "txt": "Can you help me {}..",
+            "txt": "Can you help me {}",
             "id": 1932,
             "image": "",
             "category": "Personal Care",
@@ -17915,7 +17915,7 @@
             "count": 0
         },
         {
-            "txt": "My feet are cold, can I have my {['slippers', 'socks']",
+            "txt": "My feet are cold, can I have my {['slippers', 'socks']}",
             "id": 1975,
             "image": "",
             "category": "Personal Care",
@@ -17924,7 +17924,7 @@
             "count": 0
         },
         {
-            "txt": "Please cut my {{'fingernails', 'toenails']}",
+            "txt": "Please cut my {['fingernails', 'toenails']}",
             "id": 1976,
             "image": "",
             "category": "Personal Care",
@@ -18185,7 +18185,7 @@
             "count": 0
         },
         {
-            "txt": "I want to talk about{}.",
+            "txt": "I want to talk about {}.",
             "id": 2005,
             "image": "",
             "category": "Self Determination",
@@ -19130,7 +19130,7 @@
             "count": 0
         },
         {
-            "txt": "Did you {{'start', 'finish']} your homework?",
+            "txt": "Did you {['start', 'finish']} your homework?",
             "id": 2110,
             "image": "",
             "category": "Family Routines",

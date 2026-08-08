@@ -13,6 +13,11 @@ import {
   profileAliases,
   type Profile,
 } from './phrases'
+import table from './imports/phrasetable.json'
+
+// The source rows, before parsing. Some faults are only visible in what the
+// table says — a parsed phrase has already lost the mistake.
+const RAW_TABLE = table as { phrases: { txt: string }[]; aliases: Record<string, unknown>[] }
 
 const slots = (raw: string) => parseSegments(raw).filter(s => s.kind === 'slot')
 const optionsOf = (raw: string) => slots(raw).map(s => (s.kind === 'slot' ? s.options : []))
@@ -149,6 +154,53 @@ describe('the shipped phrase table', () => {
         .map(s => (s.kind === 'slot' && s.options.length ? s.options[0] : null))
       expect(compose(phrase.segments, picks)).not.toMatch(/[{}]/)
     }
+  })
+
+  // The leaked-brace tests above only catch a placeholder the parser cannot
+  // read at all. These three catch the ones it reads and gets wrong, which
+  // show up as a phrase that merely looks a bit odd — nothing throws, nothing
+  // renders a brace, and the option the user wanted is quietly not there.
+
+  // A misspelt alias silently becomes a blank to type in, since that is also
+  // what an empty `{}` renders as — nothing distinguishes the two once parsed,
+  // so this has to read the source. `lookupAlias` tries the name, its plural
+  // and its singular, which is why phrases write `{direction}` against a
+  // `directions` list; the check has to allow the same three.
+  it('has no named placeholder that names nothing', () => {
+    const defined = new Set(RAW_TABLE.aliases.flatMap(entry => Object.keys(entry)))
+    const resolves = (name: string) => {
+      const key = name.toLowerCase().split('.')[0]
+      return defined.has(key) || defined.has(`${key}s`) || defined.has(key.replace(/s$/, ''))
+    }
+
+    const orphans: string[] = []
+    for (const { txt } of RAW_TABLE.phrases) {
+      for (const m of txt.matchAll(/\{([^{}[\]()]*)\}/g)) {
+        const name = m[1].trim()
+        if (!name) continue // `{}` is a typed blank on purpose
+        if (!resolves(name)) orphans.push(`{${name}} in "${txt}"`)
+      }
+    }
+    expect(orphans).toEqual([])
+  })
+
+  // `{[drink', 'eat']}` parses, and quietly offers one option fewer than it
+  // reads like it should.
+  it('keeps every quoted option in an inline list', () => {
+    const wrong: string[] = []
+    for (const entry of RAW_TABLE.phrases) {
+      for (const m of entry.txt.matchAll(/\{\[([^\]]*)\]\}/g)) {
+        const quoted = (m[1].match(/'/g) ?? []).length
+        if (quoted % 2 !== 0) wrong.push(entry.txt)
+      }
+    }
+    expect(wrong).toEqual([])
+  })
+
+  // Two blanks in a row ask the same question twice, and came from replacing
+  // rows of dots with `{}` a character at a time.
+  it('never puts two blanks next to each other', () => {
+    expect(RAW_TABLE.phrases.filter(p => /\{\}\s*\{\}/.test(p.txt)).map(p => p.txt)).toEqual([])
   })
 })
 
