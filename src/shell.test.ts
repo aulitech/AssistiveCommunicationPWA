@@ -36,6 +36,14 @@ describe('the HTML shell', () => {
     expect(html).toMatch(/property="og:title"/)
   })
 
+  // A link shared with someone who needs the app previews as a blank card
+  // without this, and a preview image that 404s is the same blank card.
+  it('offers a preview image that exists', () => {
+    const src = html.match(/property="og:image"\s+content="\/([^"]+)"/)?.[1]
+    expect(src, 'no og:image').toBeDefined()
+    expect(existsSync(repoFile(`public/${src}`)), `public/${src} is missing`).toBe(true)
+  })
+
   it('points only at files that exist', () => {
     const refs = [...html.matchAll(/(?:href|src)="\/([^"]+)"/g)].map(m => m[1])
     expect(refs.length).toBeGreaterThan(0)

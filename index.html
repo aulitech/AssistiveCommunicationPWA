@@ -20,6 +20,13 @@
       property="og:description"
       content="Assistive communication driven entirely by gaze and dwell. Hover and hold to build a message and speak it aloud."
     />
+    <!-- A link to Peri is most likely to be shared with someone who needs it,
+         by someone explaining what it is. Without this the preview is a blank
+         card. Root-relative rather than absolute so it survives deploy previews
+         and a change of domain; every current scraper resolves it. -->
+    <meta property="og:image" content="/icon-512.png" />
+    <meta property="og:image:alt" content="The Peri mark" />
+    <meta name="twitter:card" content="summary" />
 
     <meta name="theme-color" content="#0f0f0f" />
     <meta name="mobile-web-app-capable" content="yes" />
