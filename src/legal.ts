@@ -192,7 +192,7 @@ export const TERMS: ProseDocument = {
   ],
 }
 
-export const LEGAL_ROUTES: Record<string, ProseDocument> = {
+const LEGAL_ROUTES: Record<string, ProseDocument> = {
   '/privacy': PRIVACY,
   '/terms': TERMS,
 }
