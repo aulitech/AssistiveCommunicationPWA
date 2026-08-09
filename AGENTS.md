@@ -41,6 +41,7 @@ Modules are layered, and imports only ever point down the list. Nothing below im
 
 - `src/use-board.ts` - What is on the board and every way of changing it: the store, the profile, the phrases and categories derived from them, and the operations that write back
 - `src/use-composer.ts` - The message being built: its text, its history, and the caret
+- `src/use-sent.ts` - The messages already spoken or copied, as phrases that can be said again
 - `src/use-toast.ts` - The line that appears and fades
 
 **Surfaces** — one file per thing on screen
@@ -89,6 +90,7 @@ Run `pnpm check` before handing work back — it runs `typecheck`, `lint`, and `
 Tests live beside the code they cover:
 
 - `src/phrases.test.ts` - Placeholder parsing, alias resolution, and whole-table invariants
+- `src/sent.test.ts` - The list of what was said: newest first, no repeats, and the cap
 - `src/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
 - `src/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
 - `src/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
@@ -133,6 +135,14 @@ Two things in `src/backup.ts` are deliberate and easy to "fix" by mistake:
 
 - **Merging never removes a phrase.** Deleting a phrase is the one change the app offers no way back from, so a file someone else made cannot make one on your device. Only *replace* applies removals, and `canReplace` refuses it for a file covering a few categories — everything the file said nothing about would go.
 - **Imported settings are clamped to `SETTING_LIMITS`.** A dwell time of zero fires every control the instant a pointer crosses it, leaving a gaze user no working control to undo it with. A file does not get to set a value the settings panel could not.
+
+## Sent messages
+
+Every message spoken or copied is kept, newest first, and shown under a **Sent** tab pinned to the left of **All**. Selecting one puts it back in the message box; in edit mode the editor offers to *Keep* it as a real phrase or *Forget* it.
+
+- **Sent is not a category.** Its filter id is `SENT_FILTER`, which begins with a space so no real category — names are trimmed — can ever collide with it. Both it and All carry `fixed: true` in the `categories` prop, which is how `FilterBar` knows a tab cannot be renamed, dragged or reordered.
+- **The list is never in a backup.** It is a record of what somebody actually said, and a backup is a file made to be handed to somebody else. Its own storage key, outside the three things `buildBackup` reads, with a test holding it there.
+- **`record` and `forget` read storage back rather than closing over state.** Two sends can happen without a render in between, and the second would otherwise be written against a list that no longer exists.
 
 ## Voices
 

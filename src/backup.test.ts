@@ -16,7 +16,7 @@ import {
 } from './backup'
 import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from './store'
 import { EMPTY_PROFILE, type Profile } from './phrases'
-import { saveElevenLabs } from './store'
+import { saveElevenLabs, saveSent } from './store'
 
 // A store with something of the user's in every field, and the map of ids to
 // categories the app would hand alongside it.
@@ -406,6 +406,17 @@ describe('what a backup must never carry', () => {
 
     expect(file).not.toContain('sk-secret-key')
     expect(file).not.toMatch(/apiKey/i)
+  })
+
+  // What somebody actually said — what hurts, what they want, who they were
+  // asking for — is not something to hand over with a set of phrases.
+  it('leaves the record of what was said out of the file', () => {
+    saveSent([{ id: 's1', text: 'I need the toilet' }, { id: 's2', text: 'My chest hurts' }])
+    const { state, categoryById } = fixture()
+    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+
+    expect(file).not.toContain('I need the toilet')
+    expect(file).not.toContain('My chest hurts')
   })
 
   // The chosen voice does travel, and on a device with no account of its own it

@@ -169,8 +169,10 @@ function GridScrollBar({ gridRef, editMode, onToggleEdit, autoSpeak, onToggleAut
  * The grid and the rail beside it. They are one component because the rail
  * scrolls the grid, and the reference between them is nobody else's business.
  */
-export function PhraseGrid({ phrases, onSelect, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak }: {
+export function PhraseGrid({ phrases, emptyMessage, onSelect, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak }: {
   phrases: Phrase[]
+  /** Shown when there is nothing to show, for filters that can legitimately be empty. */
+  emptyMessage?: string
   onSelect: (phrase: Phrase) => void
   editMode: boolean
   onToggleEdit: () => void
@@ -186,6 +188,7 @@ export function PhraseGrid({ phrases, onSelect, editMode, onToggleEdit, autoSpea
             <PhraseCell key={phrase.id} phrase={phrase} onSelect={onSelect} />
           ))}
         </div>
+        {phrases.length === 0 && emptyMessage && <p className="grid-empty">{emptyMessage}</p>}
       </main>
       <GridScrollBar
         gridRef={gridRef}

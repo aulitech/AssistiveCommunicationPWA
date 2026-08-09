@@ -49,6 +49,7 @@ describe('the user guide', () => {
     ['offline use', /offline|no internet/i],
     ['backup and import', /backup/i],
     ['linked voices', /ElevenLabs/],
+    ['the sent list', /Sent tab/],
   ])('covers %s', (_feature, pattern) => {
     expect(allText.some(line => pattern.test(line))).toBe(true)
   })

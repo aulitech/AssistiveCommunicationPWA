@@ -113,6 +113,23 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Saying something again',
+    blocks: [
+      text(
+        'The Sent tab, first in the row above the grid, keeps every message you speak or copy. The newest is first.',
+      ),
+      list(
+        'Rest on one to put it back in the message box, ready to say again.',
+        'The same message said twice moves back to the top rather than appearing twice.',
+        'The last two hundred are kept; older ones drop off the end.',
+      ),
+      text(
+        'In edit mode, resting on one offers to keep it as a phrase of your own, or to forget it. Forgetting is worth knowing about if you have just said something private.',
+      ),
+      text('This list stays on your device and is never put in a backup file.'),
+    ],
+  },
+  {
     title: 'Better voices',
     blocks: [
       text(

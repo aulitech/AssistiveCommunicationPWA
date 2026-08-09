@@ -34,18 +34,28 @@ function EditAction({ kind, label, onActivate, disabled }: {
 /** Sentinel <option> value; the leading space cannot occur in a trimmed name. */
 const NEW_CATEGORY = ' __new_category__'
 
-export function EditModal({ phrase, isEmergency, initialText, allCategories, onSave, onDelete, onClose }: {
+export function EditModal({ phrase, isEmergency, initialText, allCategories, keeping, onSave, onDelete, onClose }: {
   phrase: Phrase | null
   isEmergency: boolean
   /** Seeds a new phrase — the composed message, when adding from the message box. */
   initialText?: string
   allCategories: string[]
+  /**
+   * The phrase is a message already said. Saving keeps it as a phrase of the
+   * user's own; deleting forgets having said it. Neither edits anything, so the
+   * dialog says what it will do rather than "Edit phrase".
+   */
+  keeping?: boolean
   onSave: (text: string, category: string) => void
   onDelete: () => void
   onClose: () => void
 }) {
   const [text, setText] = useState(phrase?.text ?? initialText ?? '')
-  const [category, setCategory] = useState(phrase?.category ?? allCategories[0] ?? '')
+  // A phrase whose category is not one of the real ones — a sent message — has
+  // to land somewhere the user actually keeps things.
+  const [category, setCategory] = useState(
+    phrase && allCategories.includes(phrase.category) ? phrase.category : (allCategories[0] ?? ''),
+  )
   const [creatingCategory, setCreatingCategory] = useState(false)
   const isNew = phrase === null
   // A brand-new category needs a name before the phrase can be filed under it.
@@ -65,9 +75,20 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, onS
 
   return (
     <div className="edit-modal-scrim" onPointerDown={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="edit-modal" role="dialog" aria-modal="true" aria-label={isNew ? 'Add phrase' : 'Edit phrase'}>
+      <div
+        className="edit-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={keeping ? 'Keep this message' : isNew ? 'Add phrase' : 'Edit phrase'}
+      >
         <div className="edit-modal-title">
-          {isNew ? (isEmergency ? 'Add emergency phrase' : 'Add phrase') : 'Edit phrase'}
+          {keeping
+            ? 'Keep this message'
+            : isNew
+              ? isEmergency
+                ? 'Add emergency phrase'
+                : 'Add phrase'
+              : 'Edit phrase'}
         </div>
 
         <textarea
@@ -122,9 +143,11 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, onS
         )}
 
         <div className="edit-modal-actions">
-          {!isNew && <EditAction kind="danger" label="Delete" onActivate={onDelete} />}
+          {!isNew && (
+            <EditAction kind="danger" label={keeping ? 'Forget' : 'Delete'} onActivate={onDelete} />
+          )}
           <EditAction kind="cancel" label="Cancel" onActivate={onClose} />
-          <EditAction kind="save" label="Save" onActivate={save} disabled={!canSave} />
+          <EditAction kind="save" label={keeping ? 'Keep' : 'Save'} onActivate={save} disabled={!canSave} />
         </div>
       </div>
     </div>

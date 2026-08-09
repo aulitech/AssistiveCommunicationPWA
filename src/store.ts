@@ -18,6 +18,7 @@ const PHRASE_STORE_KEY = 'dwellspeak_phrase_store_v2'
 const PROFILE_KEY = 'dwellspeak_profile'
 const USER_KEY = 'dwellspeak_user'
 const ELEVENLABS_KEY = 'peri_elevenlabs'
+const SENT_KEY = 'peri_sent'
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
@@ -171,6 +172,56 @@ export function loadProfile(): Profile {
 
 export function saveProfile(p: Profile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(p))
+}
+
+// ── Messages already said ─────────────────────────────────────────────────────
+// A conversation repeats itself, and rebuilding a sentence word by word is the
+// slowest thing this app asks of anyone. What was said once is kept so it can be
+// said again in one dwell.
+//
+// Its own key, and deliberately not part of a backup: this is a record of what
+// somebody actually said — what hurts, what they want, who they were asking for
+// — and a backup is a file made to be handed to somebody else. `src/backup.test.ts`
+// holds it to that.
+
+export interface SentMessage {
+  id: string
+  text: string
+}
+
+/** Newest first, so the grid opens on what was just said. */
+const SENT_LIMIT = 200
+
+export function loadSent(): SentMessage[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SENT_KEY) ?? '[]')
+    if (!Array.isArray(raw)) return []
+    return raw
+      .filter((m: unknown): m is SentMessage =>
+        typeof m === 'object' && m !== null && typeof (m as SentMessage).text === 'string')
+      .map((m: SentMessage) => ({ id: String(m.id ?? m.text), text: m.text }))
+      .slice(0, SENT_LIMIT)
+  } catch {
+    return []
+  }
+}
+
+export function saveSent(messages: SentMessage[]) {
+  localStorage.setItem(SENT_KEY, JSON.stringify(messages))
+}
+
+/**
+ * The list after saying `text`. Saying the same thing twice moves it back to the
+ * top rather than listing it twice — the list is for reaching a sentence again,
+ * and ten copies of "yes please" makes that harder, not easier.
+ */
+export function addSent(messages: SentMessage[], text: string): SentMessage[] {
+  const trimmed = text.trim()
+  if (!trimmed) return messages
+  const rest = messages.filter(m => m.text !== trimmed)
+  const existing = messages.find(m => m.text === trimmed)
+  return [existing ?? { id: `sent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: trimmed }, ...rest]
+    .slice(0, SENT_LIMIT)
 }
 
 // ── A linked ElevenLabs account ───────────────────────────────────────────────
