@@ -54,7 +54,7 @@ Speech goes through `speak()` in `src/speech.ts` so the user's voice, volume, an
 
 ## Tests
 
-Tests live beside the code they cover. `src/phrases.test.ts` and `src/dwell.test.tsx` are unit-level; `src/App.test.tsx` drives the whole app through the DOM.
+Tests live beside the code they cover. `src/phrases.test.ts`, `src/backup.test.ts` and `src/dwell.test.tsx` are unit-level; `src/App.test.tsx` drives the whole app through the DOM.
 
 **When you fix a bug, prove the test earns its place**: write it, then revert your fix and confirm it fails. A regression guard that passes with the bug reintroduced is worse than no test, because it looks like coverage. Several existing tests say in a comment which defect they guard.
 
@@ -74,6 +74,8 @@ A PR description that says *why* is worth more than one that lists *what*; the d
 - **Indexing is stated in two places.** `public/robots.txt` and the `robots` meta tag in `index.html` have to agree, or the site ends up half-hidden. A test enforces it.
 - **`react-hooks/exhaustive-deps` is an error, not a warning.** A stale dependency array is how the phrase grid once silently stopped refreshing after an edit. If a dependency genuinely does not belong, restructure rather than suppressing.
 - **The repo is not formatter-clean.** `oxfmt` is available but has never been run across the tree, so running it would bury your change in noise. Match the surrounding style instead.
+- **`src/App.tsx` is fifty lines and is not where UI work starts.** It answers "which screen is on" and nothing else. The talking screen is `src/talk.tsx`; [AGENTS.md](AGENTS.md) lists which file owns what.
+- **The stylesheet is deliberately one file.** Reordering its blocks changes the cascade, and no test here lays anything out. See the Styling section of [AGENTS.md](AGENTS.md).
 - **Phrase slots depend on how many options they have** — none renders a typed blank, exactly one is substituted inline with no picker, two or more opens the picker. See the phrase notes in [AGENTS.md](AGENTS.md) before touching `src/phrases.ts`.
 
 [AGENTS.md](AGENTS.md) documents the project layout and is the fastest way to find where something lives.
