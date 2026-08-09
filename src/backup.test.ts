@@ -123,9 +123,19 @@ describe('building a backup', () => {
   it('has nothing to say about an untouched app', () => {
     const backup = buildBackup({ ...fresh(), categoryById: new Map() })
     const summary = summarize(backup)
-    expect(summary.empty).toBe(false) // details and settings still ride along
     expect(summary.added + summary.edited + summary.removed).toBe(0)
+    expect(summary.empty).toBe(false) // the settings still ride along
     expect(summarize(buildBackup({ ...fresh(), categoryById: new Map(), scope: ['Food'] })).empty).toBe(true)
+  })
+
+  // Otherwise the panel offers someone "your details" when they have entered
+  // none, and replacing from that file would clear the name on the device that
+  // receives it.
+  it('leaves an untouched profile out rather than writing empty strings', () => {
+    const backup = buildBackup({ ...fresh(), categoryById: new Map() })
+    expect(backup.profile).toBeUndefined()
+    expect(summarize(backup).profile).toBe(false)
+    expect(describeBackup(summarize(backup))).toBe('your settings')
   })
 })
 
