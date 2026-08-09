@@ -12,15 +12,56 @@ Nothing starts a server for you — this project was scaffolded by Figma Make an
 
 This is the canonical project structure. Start with task-relevant files below. Only follow imports or inspect other files when required, when a documented path is missing, or when the repository contradicts this guide.
 
+Modules are layered, and imports only ever point down the list. Nothing below imports anything above it, so there are no cycles to reason about.
+
+**Entry**
+
 - `src/main.tsx` - React entrypoint; imports `src/index.css`, mounts `src/App.tsx` into the `#root` element, and registers the service worker in production builds
-- `src/App.tsx` - Primary application component and the usual starting point for UI work
-- `src/phrases.ts` - Parses `src/imports/phrasetable.json` into phrases, including the fill-in-the-blank slots, their `aliases` lookups, and the user profile that fills `{contact}` and `{name}`
-- `src/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, and the four `localStorage` keys
+- `src/App.tsx` - The shell: which of the three screens is on, and the settings provider every one of them reads. Fifty lines; **it is not where UI work starts**
+
+**Data and platform** — no React, no dependants of their own
+
+- `src/phrases.ts` - Parses `src/imports/phrasetable.json` into phrases, including the fill-in-the-blank slots, their `aliases` lookups, the profile that fills `{contact}` and `{name}`, and the fixed emergency phrases
+- `src/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, the four `localStorage` keys, and the pure operations that arrange categories
 - `src/backup.ts` - The export/import file format under **Menu → Backup & sharing**: building one, reading one back, and applying it
 - `src/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
 - `src/speech.ts` - Speech synthesis; the single place utterances are created
 - `src/auth.ts` - Google, Apple, and Facebook OAuth sign-in
-- `src/index.css` - Global CSS entrypoint and Tailwind CSS v4 import
+- `src/help.ts`, `src/legal.ts`, `src/prose.ts` - Long-form text as data, and the blocks it is written in
+
+**Shared** — the vocabulary every screen is built from
+
+- `src/settings.ts`, `src/edit-mode.ts` - The two React contexts. Separate modules because `ui.tsx` needs a dwell time and would otherwise have to import the settings screen, which is built out of `ui.tsx`
+- `src/style.ts` - `cx` and `dwellVar`. Not components, so not in `ui.tsx` — a module mixing the two loses fast refresh for everything importing it
+- `src/icons.tsx` - Inline SVG. Icons used by exactly one screen stay with that screen
+- `src/ui.tsx` - The dwell controls more than one screen uses: `DwellButton`, `NavItem`, `SettingRow`, `SettingSpinner`, `ScrollPane`, `ProseSections`, `DwellCursor`
+
+**State** — the talking screen's own hooks
+
+- `src/use-board.ts` - What is on the board and every way of changing it: the store, the profile, the phrases and categories derived from them, and the operations that write back
+- `src/use-composer.ts` - The message being built: its text, its history, and the caret
+- `src/use-toast.ts` - The line that appears and fades
+
+**Surfaces** — one file per thing on screen
+
+- `src/topbar.tsx` - The message box, the controls acting on it, and Rest
+- `src/grid.tsx` - The phrase grid, the phrase cell, and the rail that scrolls it
+- `src/filter-bar.tsx` - The category tabs, and the controls that arrange them
+- `src/emergency.tsx` - The red bar along the bottom
+- `src/slots.tsx` - The picker that fills a phrase's blanks
+- `src/editors.tsx` - The phrase and category dialogs
+- `src/settings-panel.tsx`, `src/profile-panel.tsx`, `src/backup-panel.tsx` - The three panels reached from the menu
+- `src/menu.tsx` - The panel that slides down from the top, and the help guide inside it
+
+**Screens**
+
+- `src/talk.tsx` - The talking screen, and **the usual starting point for UI work**
+- `src/signin.tsx` - The way in
+- `src/legal-page.tsx` - `/privacy` and `/terms`
+
+**Styling**
+
+- `src/index.css` - Global CSS entrypoint and Tailwind CSS v4 import. One file, ordered by accretion rather than by concern — see the note under Styling before reorganising it
 - `index.html` - Vite HTML shell: the `#root` element, `src/main.tsx`, and every `<meta>` the page carries
 - `public/` - Served at the site root: PWA manifest, icons, `robots.txt`, and `sw.js` (the offline service worker)
 - `package.json` - Project dependencies and the Vite build, development, preview, test, and formatting scripts
@@ -67,6 +108,8 @@ This project uses **Tailwind CSS v4** through the `@tailwindcss/vite` plugin con
 
 `src/main.tsx` imports `src/index.css`, so global font wiring belongs in `src/index.css`. Keep CSS `@import` statements first, then add any `@font-face` rules and font-family defaults there.
 
+**The stylesheet is one file on purpose.** It is ordered by accretion rather than by concern — the rules for reordering categories sit two thousand lines below the rules for the tabs they reorder — so splitting it into partials would mean either importing the same concern twice or moving blocks past each other. Moving them changes the cascade wherever two selectors have equal specificity, and jsdom lays nothing out, so no test here would catch the difference. Reorganise it only alongside a visual comparison against a deploy preview.
+
 ## Phrases and slots
 
 Phrases in `phrasetable.json` can carry fill-in-the-blank slots — `Please turn {control} the lights`. A slot's options come from one of three places, resolved in `resolveSlot`:
@@ -92,4 +135,6 @@ Two things in `src/backup.ts` are deliberate and easy to "fix" by mistake:
 
 - Use double quotes for strings containing apostrophes (`"We're here to help"`), or escape them in single-quoted strings. An unescaped apostrophe in a single-quoted string breaks the build.
 - Ensure JSX tags are closed and braces are balanced.
-- Export components as default exports.
+- `src/App.tsx` has the only default export. Everything else is named, so a rename is a compiler error rather than a silently different component.
+- Export only what another module imports. A component with one caller stays private to its file.
+- The phrase grid is memoised over a couple of thousand cells. A callback reaching it must not depend on a whole hook result — those are a fresh object every render, and the memo would never hold. Depend on the specific function instead; `deliverPhrase` in `src/talk.tsx` shows the shape.

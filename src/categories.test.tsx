@@ -627,3 +627,27 @@ describe('ordering categories', () => {
     expect($('.add-category-tab')).not.toBeNull()
   })
 })
+
+describe('a category that runs out of phrases', () => {
+  // Deleting the last phrase in a category takes its tab away. The filter still
+  // named it, which left the grid empty under a tab that no longer existed and
+  // no way back to it.
+  it('falls back to All rather than leaving an empty grid', () => {
+    localStorage.setItem(
+      STORE_KEY,
+      JSON.stringify({ custom: [{ id: 'custom-solo', text: 'Only one', category: 'Solo' }] }),
+    )
+    renderApp()
+
+    click(tabNamed('Solo'))
+    expect(cells().map(c => c.textContent)).toEqual(['Only one'])
+
+    enterEditMode()
+    click(cells()[0])
+    click(action('Delete'))
+
+    expect(tabNamed('Solo')).toBeUndefined()
+    expect(tabs()[0].getAttribute('aria-selected')).toBe('true')
+    expect(cells().length).toBeGreaterThan(1)
+  })
+})

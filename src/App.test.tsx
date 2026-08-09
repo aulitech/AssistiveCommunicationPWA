@@ -721,6 +721,56 @@ describe('help', () => {
   })
 })
 
+describe('the scroll rail', () => {
+  const railBtn = (label: string) => $$('.scroll-btn').find(b => b.getAttribute('aria-label') === label)
+
+  // A dwell user has no wheel and no scrollbar, so this rail is the only way
+  // down a grid of two thousand phrases. Nothing else checks it is wired to the
+  // grid rather than to whatever it was last pointed at.
+  it('scrolls the grid it sits beside', () => {
+    renderApp()
+    const grid = $('.grid-wrapper')!
+    const scrollBy = vi.fn()
+    const scrollTo = vi.fn()
+    grid.scrollBy = scrollBy
+    grid.scrollTo = scrollTo
+
+    click(railBtn('Scroll down'))
+    expect(scrollBy).toHaveBeenCalledWith({ top: 120, behavior: 'smooth' })
+
+    click(railBtn('Scroll up'))
+    expect(scrollBy).toHaveBeenLastCalledWith({ top: -120, behavior: 'smooth' })
+
+    click(railBtn('Scroll to top'))
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
+  })
+})
+
+describe('a phrase with a blank', () => {
+  // The blank is there to be typed over, and a dwell user cannot place a caret
+  // by clicking — so putting it on the blank is the whole of that feature.
+  it('lands the caret on the blank, selected, ready to type over', () => {
+    renderApp()
+    const blankCell = cells().find(c => (c.textContent ?? '').includes(BLANK))!
+    click(blankCell)
+    settle()
+
+    const box = $<HTMLTextAreaElement>('.text-display')!
+    expect(box.value).toContain(BLANK)
+    expect(box.value.slice(box.selectionStart, box.selectionEnd)).toBe(BLANK)
+  })
+
+  it('sits at the end when there is no blank to land on', () => {
+    renderApp()
+    click(plainCell())
+    settle()
+
+    const box = $<HTMLTextAreaElement>('.text-display')!
+    expect(box.selectionStart).toBe(box.value.length)
+    expect(box.selectionStart).toBe(box.selectionEnd)
+  })
+})
+
 describe('backup & sharing', () => {
   const STORE_KEY = 'dwellspeak_phrase_store_v2'
   const MINE = { id: 'custom-seed', text: 'Put the kettle on', category: 'Kitchen' }
