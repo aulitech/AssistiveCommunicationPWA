@@ -1777,6 +1777,174 @@ body {
   -webkit-user-select: text;
 }
 
+/* ── Backup & sharing ── */
+/* Same shape as the help guide: a bounded, dwell-scrollable pane, because the
+   category list grows with the user's own categories and would otherwise push
+   the Back button off the bottom of the panel. */
+.backup-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 52vh;
+}
+
+.backup-scroller {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.backup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 18px;
+  max-width: 68ch;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.backup-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.backup-heading {
+  width: auto;
+  margin-top: 2px;
+}
+
+.backup-scope {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.backup-scope-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.backup-scope-row:last-child { border-bottom: none; }
+.backup-scope-row.dwelling { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); }
+.backup-scope-row .dwell-bar { background: var(--accent); }
+.backup-scope-row.is-selected { color: var(--accent); }
+
+/* Ticked state carries a mark as well as the colour: green alone is the app's
+   "selected" cue everywhere else, and this list is read, not glanced at. */
+.backup-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: #000;
+}
+
+.backup-scope-row.is-selected .backup-check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.backup-scope-label { flex: 1; }
+
+.backup-scope-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.backup-scope-row.is-selected .backup-scope-count { color: color-mix(in srgb, var(--accent) 70%, var(--text-muted)); }
+
+.backup-summary {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.backup-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--surface);
+}
+
+.backup-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+.backup-btn.danger  { background: transparent; color: #ef4444; border-color: #ef4444; }
+.backup-btn.is-disabled { opacity: 0.4; cursor: default; }
+.backup-btn.dwelling { filter: brightness(1.2); }
+.backup-btn .dwell-bar { background: rgba(255,255,255,0.3); }
+.backup-btn.danger .dwell-bar { background: rgba(239,68,68,0.3); }
+
+/* The file picker is the browser's, and it opens only for a real click or an
+   Enter on the input itself — never for a timer. Laying the input over the whole
+   button means a click anywhere on it counts, rather than Peri having to
+   synthesise one that the browser would refuse. */
+.backup-file { position: relative; }
+
+.backup-file-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0;
+}
+
+.backup-file:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.backup-incoming {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: var(--accent-dim);
+}
+
+.backup-error,
+.backup-status {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.backup-error { color: #f87171; }
+.backup-status { color: var(--accent); }
+
 /* ── Legal pages (/privacy, /terms) ── */
 /* Standalone documents rather than app screens: they are handed to Google and
    Meta as published policy URLs, so they must stand on their own. */

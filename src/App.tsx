@@ -6,7 +6,6 @@ import type { ProseDocument, ProseSection } from './prose'
 import { useDwellControl, cancelAllDwells, RestingContext } from './dwell'
 import { speak, subscribeVoices } from './speech'
 import {
-  EMPTY_PROFILE,
   buildPhrases,
   BLANK,
   compose,
@@ -16,17 +15,39 @@ import {
   type Phrase,
   type Profile,
 } from './phrases'
+import {
+  DEFAULT_SETTINGS,
+  clearUser,
+  loadPhraseStore,
+  loadProfile,
+  loadSettings,
+  loadUser,
+  saveProfile,
+  savePhraseStore,
+  saveSettings,
+  saveUser,
+  type PhraseStore,
+  type Settings,
+  type User,
+} from './store'
+import {
+  applyBackup,
+  backupFilename,
+  buildBackup,
+  canReplace,
+  describeBackup,
+  parseBackup,
+  serializeBackup,
+  summarize,
+  type AppState,
+  type Backup,
+  type BackupSummary,
+  type ImportMode,
+} from './backup'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type Screen = 'signin' | 'app'
-
-interface User {
-  name: string
-  email: string
-  provider: 'google' | 'apple' | 'facebook' | 'guest'
-  avatar?: string
-}
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
@@ -35,44 +56,6 @@ const cx = (...parts: (string | false | undefined | null)[]) => parts.filter(Boo
 const dwellVar = (ms: number) => ({ '--dwell-duration': `${ms}ms` }) as React.CSSProperties
 
 // ── Settings ─────────────────────────────────────────────────────────────────
-
-// The four storage keys still say `dwellspeak_`, the app's former name. They
-// are deliberately not renamed: everything a user has — their phrases, their
-// edits, their dwell times — lives under these keys and nowhere else, and
-// renaming them without a migration would silently empty the app for everyone
-// already using it. The name is cosmetic; the data is not.
-const SETTINGS_KEY = 'dwellspeak_settings'
-
-interface Settings {
-  phraseDwellMs: number
-  actionDwellMs: number
-  voiceURI: string // empty = default
-  volume: number // 0–1
-  rate: number // 0.5–2
-  /** Speak each selected phrase immediately instead of composing a message. */
-  autoSpeak: boolean
-}
-
-const DEFAULT_SETTINGS: Settings = {
-  phraseDwellMs: 1500,
-  actionDwellMs: 800,
-  voiceURI: '',
-  volume: 1,
-  rate: 1,
-  autoSpeak: false,
-}
-
-function loadSettings(): Settings {
-  try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }
-  } catch {
-    return DEFAULT_SETTINGS
-  }
-}
-
-function saveSettings(s: Settings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))
-}
 
 const SettingsCtx = createContext<{ settings: Settings; update: (patch: Partial<Settings>) => void }>({
   settings: DEFAULT_SETTINGS,
@@ -91,87 +74,7 @@ interface EditCtxValue {
 const EditCtx = createContext<EditCtxValue>({ editMode: false, openEdit: () => {} })
 const useEdit = () => useContext(EditCtx)
 
-// ── Phrase store (user edits persisted to localStorage) ───────────────────────
-// v2: ids are content-derived rather than array indices, so saved edits no
-// longer reattach to a neighbouring phrase when phrasetable.json changes.
-
-const PHRASE_STORE_KEY = 'dwellspeak_phrase_store_v2'
-
-interface StoredPhrase {
-  id: string
-  text: string
-  category: string
-}
-
-interface PhraseStore {
-  custom: StoredPhrase[] // user-added phrases
-  overrides: Record<string, string> // id → new text
-  hidden: string[] // ids removed by user
-  /**
-   * Source category name → the name to show. A single entry renames a whole
-   * category, including the built-in phrases in it, which per-phrase overrides
-   * could not do.
-   */
-  categoryRenames: Record<string, string>
-  /** Categories the user created. Kept so one can exist before it has phrases. */
-  categories: string[]
-  /** id → category, for a single phrase moved out of the one it came in. */
-  categoryOverrides: Record<string, string>
-  /**
-   * The user's own arrangement of the category tabs. Kept whether or not it is
-   * the one on show, so switching to A–Z and back returns the tabs to exactly
-   * where they were rather than making the user rebuild it. Names missing from
-   * it sit at the end, alphabetically, so a category added later has a settled
-   * place without every addition having to rewrite the order.
-   */
-  categoryOrder: string[]
-  /** Which of the two arrangements is in effect. */
-  categorySort: 'alpha' | 'custom'
-}
-
-const emptyStore = (): PhraseStore => ({
-  custom: [],
-  overrides: {},
-  hidden: [],
-  categoryRenames: {},
-  categories: [],
-  categoryOverrides: {},
-  categoryOrder: [],
-  categorySort: 'alpha',
-})
-
-function loadPhraseStore(): PhraseStore {
-  try {
-    const raw = JSON.parse(localStorage.getItem(PHRASE_STORE_KEY) ?? '{}')
-    const base = emptyStore()
-    const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null)
-    const categoryOrder = strings(raw.categoryOrder) ?? base.categoryOrder
-    return {
-      custom: Array.isArray(raw.custom) ? raw.custom : base.custom,
-      overrides: raw.overrides && typeof raw.overrides === 'object' ? raw.overrides : base.overrides,
-      hidden: Array.isArray(raw.hidden) ? raw.hidden : base.hidden,
-      categoryRenames:
-        raw.categoryRenames && typeof raw.categoryRenames === 'object' ? raw.categoryRenames : base.categoryRenames,
-      categories: strings(raw.categories) ?? base.categories,
-      categoryOverrides:
-        raw.categoryOverrides && typeof raw.categoryOverrides === 'object'
-          ? raw.categoryOverrides
-          : base.categoryOverrides,
-      categoryOrder,
-      // Stores written before the two arrangements were told apart have an
-      // order and no flag; an order they took the trouble to make is the one
-      // they were looking at.
-      categorySort:
-        raw.categorySort === 'alpha' || raw.categorySort === 'custom'
-          ? raw.categorySort
-          : categoryOrder.length > 0
-            ? 'custom'
-            : 'alpha',
-    }
-  } catch {
-    return emptyStore()
-  }
-}
+// ── Categories ────────────────────────────────────────────────────────────────
 
 /** The name a category is shown under, after any rename. */
 function displayCategory(source: string, renames: Record<string, string>): string {
@@ -228,37 +131,6 @@ function moveCategory(shown: string[], from: string, to: string): string[] {
   const rest = shown.filter(c => c !== from)
   rest.splice(rest.indexOf(to) + (fromIndex < toIndex ? 1 : 0), 0, from)
   return rest
-}
-
-function savePhraseStore(s: PhraseStore) {
-  localStorage.setItem(PHRASE_STORE_KEY, JSON.stringify(s))
-}
-
-// ── Profile ──────────────────────────────────────────────────────────────────
-// Fills the `contacts` and `name` aliases the phrase table ships empty, so
-// phrases like "I'm going to call {contact}" have something to offer.
-
-const PROFILE_KEY = 'dwellspeak_profile'
-
-function loadProfile(): Profile {
-  try {
-    const raw = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? '{}')
-    const str = (v: unknown) => (typeof v === 'string' ? v : '')
-    return {
-      name: {
-        given: str(raw?.name?.given),
-        surname: str(raw?.name?.surname),
-        nickname: str(raw?.name?.nickname),
-      },
-      contacts: Array.isArray(raw?.contacts) ? raw.contacts.filter((c: unknown) => typeof c === 'string') : [],
-    }
-  } catch {
-    return EMPTY_PROFILE
-  }
-}
-
-function saveProfile(p: Profile) {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(p))
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -1202,6 +1074,271 @@ function ProfilePanel({ profile, onChange }: { profile: Profile; onChange: (p: P
   )
 }
 
+// ── BackupPanel ───────────────────────────────────────────────────────────────
+// Everything a user has made of Peri lives in this browser and nowhere else, so
+// this is both the backup and the only way to move a board between devices or
+// hand one to somebody else.
+
+function BackupButton({ label, kind, onActivate, disabled }: {
+  label: string
+  kind: 'primary' | 'plain' | 'danger'
+  onActivate: () => void
+  disabled?: boolean
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, { disabled })
+  return (
+    <div
+      className={cx('backup-btn', kind, active && 'dwelling', disabled && 'is-disabled')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={label}
+      {...props}
+    >
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
+      {label}
+    </div>
+  )
+}
+
+function BackupScopeRow({ label, sublabel, selected, onSelect }: {
+  label: string
+  sublabel?: string
+  selected: boolean
+  onSelect: () => void
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onSelect)
+  return (
+    <div
+      className={cx('backup-scope-row', selected && 'is-selected', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="checkbox"
+      aria-checked={selected}
+      aria-label={label}
+      {...props}
+    >
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
+      <span className="backup-check" aria-hidden="true">
+        {selected && (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        )}
+      </span>
+      <span className="backup-scope-label">{label}</span>
+      {sublabel && <span className="backup-scope-count">{sublabel}</span>}
+    </div>
+  )
+}
+
+function BackupPanel({ store, profile, categories, categoryById, onRestore }: {
+  store: PhraseStore
+  profile: Profile
+  /** Every category that can be exported on its own, in the order shown. */
+  categories: string[]
+  categoryById: Map<string, string>
+  onRestore: (next: AppState, message: string) => void
+}) {
+  const { settings } = useSettings()
+  // Null is "everything", which is not the same as every category ticked: only
+  // a whole-app backup carries the details and settings, and only a whole-app
+  // backup may be restored by replacing.
+  const [scope, setScope] = useState<string[] | null>(null)
+  const [status, setStatus] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [incoming, setIncoming] = useState<{ backup: Backup; summary: BackupSummary } | null>(null)
+
+  const backup = useMemo(
+    () => buildBackup({ store, profile, settings, categoryById, scope }),
+    [store, profile, settings, categoryById, scope],
+  )
+  const summary = useMemo(() => summarize(backup), [backup])
+  // What "Everything" would hold, whether or not it is the current choice — it
+  // is the line under the option, so it has to stand for the option and not for
+  // whatever categories happen to be ticked.
+  const everything = useMemo(
+    () => (scope === null ? summary : summarize(buildBackup({ store, profile, settings, categoryById }))),
+    [scope, summary, store, profile, settings, categoryById],
+  )
+
+  const toggleCategory = useCallback((name: string) => {
+    setStatus(null)
+    setScope(current => {
+      if (current === null) return [name]
+      const next = current.includes(name) ? current.filter(c => c !== name) : [...current, name]
+      // Unticking the last one means "not a subset any more", which is the whole
+      // app — otherwise the panel would sit in a state that exports nothing.
+      return next.length === 0 ? null : next
+    })
+  }, [])
+
+  const download = useCallback(() => {
+    const json = serializeBackup(backup)
+    const name = backupFilename(backup)
+    try {
+      const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = name
+      link.click()
+      URL.revokeObjectURL(url)
+      setError(null)
+      setStatus(`Saved as ${name}`)
+    } catch {
+      setError('Peri could not save the file. Copy the backup instead.')
+    }
+  }, [backup])
+
+  const copy = useCallback(() => {
+    navigator.clipboard
+      .writeText(serializeBackup(backup))
+      .then(() => {
+        setError(null)
+        setStatus('Backup copied — paste it somewhere safe')
+      })
+      .catch(() => setError('Peri could not reach the clipboard. Save the file instead.'))
+  }, [backup])
+
+  const load = useCallback((text: string) => {
+    const result = parseBackup(text)
+    if (!result.ok) {
+      setIncoming(null)
+      setStatus(null)
+      setError(result.error)
+      return
+    }
+    const parsed = summarize(result.backup)
+    if (parsed.empty) {
+      setIncoming(null)
+      setStatus(null)
+      setError('That backup is empty — there is nothing in it to restore.')
+      return
+    }
+    setError(null)
+    setStatus(null)
+    setIncoming({ backup: result.backup, summary: parsed })
+  }, [])
+
+  const readFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      // Chosen and then cleared, so picking the same file twice in a row still
+      // fires a change event.
+      e.target.value = ''
+      if (!file) return
+      file
+        .text()
+        .then(load)
+        .catch(() => setError('Peri could not read that file.'))
+    },
+    [load],
+  )
+
+  const paste = useCallback(() => {
+    navigator.clipboard
+      ?.readText?.()
+      .then(load)
+      .catch(() => setError('Peri could not reach the clipboard. Choose a backup file instead.'))
+  }, [load])
+
+  const restore = useCallback(
+    (mode: ImportMode) => {
+      if (!incoming) return
+      const next = applyBackup(incoming.backup, { store, profile, settings }, mode)
+      onRestore(next, mode === 'replace' ? 'Backup restored' : 'Backup merged in')
+    },
+    [incoming, store, profile, settings, onRestore],
+  )
+
+  return (
+    <div className="backup-panel">
+      <ScrollPane className="backup-scroller" paneClassName="backup-body" step={120}>
+        <p className="backup-note">
+          Your phrases live in this browser and nowhere else. A backup carries everything you
+          changed — what you added, reworded, moved or removed, your details and your settings.
+          The phrases Peri came with are already in the app, so they are not in the file.
+        </p>
+
+        <span className="setting-label backup-heading">What to save</span>
+        <div className="backup-scope" role="group" aria-label="What to save">
+          <BackupScopeRow
+            label="Everything"
+            sublabel={describeBackup(everything)}
+            selected={scope === null}
+            onSelect={() => {
+              setStatus(null)
+              setScope(null)
+            }}
+          />
+          {categories.map(name => (
+            <BackupScopeRow
+              key={name}
+              label={name}
+              selected={scope !== null && scope.includes(name)}
+              onSelect={() => toggleCategory(name)}
+            />
+          ))}
+        </div>
+
+        {scope !== null && <p className="backup-summary">{describeBackup(summary)}</p>}
+
+        <div className="backup-actions">
+          <BackupButton kind="primary" label="Save a file" onActivate={download} disabled={summary.empty} />
+          <BackupButton kind="plain" label="Copy" onActivate={copy} disabled={summary.empty} />
+        </div>
+
+        <span className="setting-label backup-heading">Bring a backup in</span>
+
+        {incoming ? (
+          <div className="backup-incoming" role="group" aria-label="Restore this backup">
+            <p className="backup-summary">
+              {incoming.backup.scope
+                ? `${incoming.backup.scope.join(', ')} — `
+                : 'Whole backup — '}
+              {describeBackup(incoming.summary)}.
+            </p>
+            <div className="backup-actions">
+              <BackupButton kind="primary" label="Add to what's here" onActivate={() => restore('merge')} />
+              {canReplace(incoming.backup) && (
+                <BackupButton kind="danger" label="Replace everything" onActivate={() => restore('replace')} />
+              )}
+              <BackupButton kind="plain" label="Cancel" onActivate={() => setIncoming(null)} />
+            </div>
+            <p className="backup-note">
+              Adding never takes a phrase away. Replacing makes this device match the file exactly,
+              including anything the backup had removed.
+            </p>
+          </div>
+        ) : (
+          <div className="backup-actions">
+            {/* A real <input> rather than a dwell button that clicks one: the
+                file picker belongs to the browser and only opens for a genuine
+                click or an Enter on the input itself. Filling the label with it
+                means a click anywhere on the button opens it, and a keyboard
+                lands on it in the ordinary way. Clipboard is the way in for
+                anyone whose dwell never produces a click at all. */}
+            <label className="backup-btn plain backup-file">
+              <input
+                type="file"
+                className="backup-file-input"
+                accept="application/json,.json"
+                aria-label="Choose a backup file"
+                onChange={readFile}
+              />
+              Choose a file
+            </label>
+            <BackupButton kind="plain" label="Paste a backup" onActivate={paste} />
+          </div>
+        )}
+
+        {error && <p className="backup-error" role="alert">{error}</p>}
+        {status && <p className="backup-status" role="status">{status}</p>}
+      </ScrollPane>
+    </div>
+  )
+}
+
 // ── Prose ─────────────────────────────────────────────────────────────────────
 
 function ProseSections({ sections }: { sections: ProseSection[] }) {
@@ -1247,15 +1384,19 @@ function HelpPanel() {
   )
 }
 
-type PanelView = 'menu' | 'settings' | 'profile' | 'help'
+type PanelView = 'menu' | 'settings' | 'profile' | 'backup' | 'help'
 
-function TopPanel({ open, user, onClose, onSignOut, profile, onProfileChange }: {
+function TopPanel({ open, user, onClose, onSignOut, profile, onProfileChange, store, categories, categoryById, onRestore }: {
   open: boolean
   user: User
   onClose: () => void
   onSignOut: () => void
   profile: Profile
   onProfileChange: (p: Profile) => void
+  store: PhraseStore
+  categories: string[]
+  categoryById: Map<string, string>
+  onRestore: (next: AppState, message: string) => void
 }) {
   const handleSignOut = useCallback(() => {
     onClose()
@@ -1324,6 +1465,15 @@ function TopPanel({ open, user, onClose, onSignOut, profile, onProfileChange }: 
           <>
             {view === 'settings' && <SettingsPanel />}
             {view === 'profile' && <ProfilePanel profile={profile} onChange={onProfileChange} />}
+            {view === 'backup' && (
+              <BackupPanel
+                store={store}
+                profile={profile}
+                categories={categories}
+                categoryById={categoryById}
+                onRestore={onRestore}
+              />
+            )}
             {view === 'help' && <HelpPanel />}
             <nav className="panel-nav">
               <NavItem
@@ -1350,6 +1500,12 @@ function TopPanel({ open, user, onClose, onSignOut, profile, onProfileChange }: 
                   : 'Your name and contacts'
               }
               onSelect={() => setView('profile')}
+            />
+            <NavItem
+              icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
+              label="Backup & sharing"
+              sublabel="Save your phrases, or bring some in"
+              onSelect={() => setView('backup')}
             />
             <NavItem
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
@@ -2229,6 +2385,20 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     [mainPhrases, store.categories, store.categoryOrder, store.categorySort],
   )
 
+  // The category every phrase belongs to, hidden ones included. Exporting a few
+  // categories needs a category for phrases that are not on screen: one the user
+  // removed still belongs to the category it came from, and that is the only way
+  // to tell whether their removal is part of what they asked to export.
+  const categoryById = useMemo(() => {
+    const map = new Map<string, string>()
+    const shown = (id: string, source: string) =>
+      store.categoryOverrides[id] ?? displayCategory(source, store.categoryRenames)
+    for (const p of tablePhrases) map.set(p.id, shown(p.id, p.category))
+    for (const p of EMERGENCY_PHRASES) map.set(p.id, 'Emergency')
+    for (const c of store.custom) map.set(c.id, shown(c.id, c.category))
+    return map
+  }, [tablePhrases, store.categoryOverrides, store.categoryRenames, store.custom])
+
   const phraseCountByCategory = useMemo(() => {
     const counts = new Map<string, number>()
     for (const p of mainPhrases) counts.set(p.category, (counts.get(p.category) ?? 0) + 1)
@@ -2241,6 +2411,8 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     () => [{ id: 'all', label: 'All' }, ...allCategories.map(c => ({ id: c, label: c }))],
     [allCategories],
   )
+
+  const backupCategories = useMemo(() => [...allCategories, 'Emergency'], [allCategories])
 
   // Deleting the last phrase in a category takes its tab away; fall back to
   // "All" rather than showing an empty grid under a tab that no longer exists.
@@ -2293,6 +2465,20 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     updateStore({ categorySort: toAlpha ? 'alpha' : 'custom' })
     flashToast(toAlpha ? 'Categories sorted A–Z' : 'Your own category order restored')
   }, [store.categorySort, updateStore, flashToast])
+
+  // An import lands in one go rather than a field at a time: the three stores
+  // are written together and the panel closes onto the result, so there is no
+  // moment where the grid is showing half of someone's backup.
+  const handleRestore = useCallback(
+    (next: AppState, message: string) => {
+      updateStore(next.store)
+      handleProfileChange(next.profile)
+      update(next.settings)
+      setMenuOpen(false)
+      flashToast(message)
+    },
+    [updateStore, handleProfileChange, update, flashToast],
+  )
 
   const openEdit = useCallback((phrase: Phrase | null, isEmergency = false) => {
     cancelAllDwells()
@@ -2631,6 +2817,12 @@ function AACApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
           onSignOut={onSignOut}
           profile={profile}
           onProfileChange={handleProfileChange}
+          store={store}
+          // Emergency has no tab of its own, so it would otherwise be the one
+          // set of phrases that could not be exported on its own.
+          categories={backupCategories}
+          categoryById={categoryById}
+          onRestore={handleRestore}
         />
 
         <DwellCursor />
@@ -2704,16 +2896,6 @@ function LegalPage({ doc }: { doc: ProseDocument }) {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
-const USER_KEY = 'dwellspeak_user'
-
-function loadUser(): User | null {
-  try {
-    return JSON.parse(localStorage.getItem(USER_KEY) ?? 'null')
-  } catch {
-    return null
-  }
-}
-
 export default function App() {
   // Legal pages are plain documents at their own URLs. Two leaf pages reached
   // by real links need no router and no history handling.
@@ -2732,12 +2914,12 @@ export default function App() {
   }, [])
 
   const handleSignIn = useCallback((u: User) => {
-    localStorage.setItem(USER_KEY, JSON.stringify(u))
+    saveUser(u)
     setUser(u)
   }, [])
 
   const handleSignOut = useCallback(() => {
-    localStorage.removeItem(USER_KEY)
+    clearUser()
     setUser(null)
   }, [])
 

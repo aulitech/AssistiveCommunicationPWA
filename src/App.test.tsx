@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fireEvent, render, act } from '@testing-library/react'
+import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import App from './App'
 import { BLANK } from './phrases'
 import { HELP_SECTIONS } from './help'
-import { spoken, lastUtterance } from './test/setup'
+import { parseBackup } from './backup'
+import { spoken, lastUtterance, downloads, setClipboardText } from './test/setup'
 
 // The grid renders every phrase, so query the DOM directly — building an
 // accessibility tree over a couple of thousand cells for each lookup is slow.
@@ -717,6 +718,196 @@ describe('help', () => {
     openMenu() // reopen
 
     expect($('.help-panel')).toBeNull()
+  })
+})
+
+describe('backup & sharing', () => {
+  const STORE_KEY = 'dwellspeak_phrase_store_v2'
+  const MINE = { id: 'custom-seed', text: 'Put the kettle on', category: 'Kitchen' }
+
+  const seed = (store: Record<string, unknown>) => localStorage.setItem(STORE_KEY, JSON.stringify(store))
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const openBackup = () => {
+    openMenu()
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Backup & sharing'))
+  }
+  const btn = (label: string) => $$('.backup-btn').find(b => b.getAttribute('aria-label') === label)
+  const scopeRow = (label: string) => $$('.backup-scope-row').find(r => r.getAttribute('aria-label') === label)
+  /** Dwells "Save a file" and reads back the file that came out. */
+  const saved = () => {
+    click(btn('Save a file'))
+    const file = downloads[downloads.length - 1]
+    const result = parseBackup(file.text)
+    if (!result.ok) throw new Error(result.error)
+    return { ...file, backup: result.backup }
+  }
+  /** The file readers are promise-based; fake timers do not hold up microtasks. */
+  const flush = async () => {
+    await act(async () => {
+      await Promise.resolve()
+    })
+    settle()
+  }
+  const cellTexts = () => cells().map(c => c.textContent)
+
+  it('is offered in the menu', () => {
+    renderApp()
+    openMenu()
+    const item = $$('.nav-item').find(n => n.getAttribute('aria-label') === 'Backup & sharing')
+    expect(item).toBeDefined()
+    expect(item?.textContent).toMatch(/save your phrases/i)
+  })
+
+  it('offers the whole app or any one category, Emergency included', () => {
+    seed({ custom: [MINE] })
+    renderApp()
+    openBackup()
+
+    const rows = $$('.backup-scope-row').map(r => r.getAttribute('aria-label'))
+    expect(rows[0]).toBe('Everything')
+    expect(rows).toContain('Kitchen')
+    // The emergency bar has no tab of its own, so nothing else here would let
+    // its phrases be exported on their own.
+    expect(rows).toContain('Emergency')
+    expect(scopeRow('Everything')?.getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('saves a file carrying the phrases the user wrote', () => {
+    seed({ custom: [MINE] })
+    renderApp()
+    openBackup()
+
+    const { filename, backup } = saved()
+    expect(filename).toMatch(/^peri-backup-\d{4}-\d{2}-\d{2}\.json$/)
+    expect(backup.added).toContainEqual(MINE)
+    expect(backup.scope).toBeNull()
+  })
+
+  it('narrows the file to the categories that are ticked', () => {
+    seed({ custom: [MINE, { id: 'custom-2', text: 'Time for bed', category: 'Night' }] })
+    renderApp()
+    openBackup()
+
+    click(scopeRow('Kitchen'))
+    const { filename, backup } = saved()
+    expect(backup.scope).toEqual(['Kitchen'])
+    expect(backup.added).toEqual([MINE])
+    expect(filename).toBe(`peri-Kitchen-${backup.exported.slice(0, 10)}.json`)
+  })
+
+  it('copies the same file to the clipboard', () => {
+    seed({ custom: [MINE] })
+    renderApp()
+    openBackup()
+
+    click(btn('Copy'))
+    settle()
+    const written = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+    const result = parseBackup(written)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.backup.added).toContainEqual(MINE)
+  })
+
+  // The whole point of the feature: a phrase written on one device turning up
+  // on another one that has never seen it.
+  it('brings a pasted backup in', async () => {
+    seed({ custom: [MINE] })
+    renderApp()
+    openBackup()
+    const { text: file } = saved()
+
+    // A second, empty device.
+    cleanup()
+    localStorage.removeItem(STORE_KEY)
+    renderApp()
+    expect(cellTexts()).not.toContain(MINE.text)
+
+    openBackup()
+    setClipboardText(file)
+    click(btn('Paste a backup'))
+    await flush()
+
+    expect($('.backup-incoming')).not.toBeNull()
+    click(btn("Add to what's here"))
+    await flush()
+
+    expect(cellTexts()).toContain(MINE.text)
+    expect(JSON.parse(localStorage.getItem(STORE_KEY)!).custom).toContainEqual(MINE)
+  })
+
+  it('brings in a backup chosen from a file', async () => {
+    seed({ custom: [MINE] })
+    renderApp()
+    openBackup()
+    const { text: file } = saved()
+
+    cleanup()
+    localStorage.removeItem(STORE_KEY)
+    renderApp()
+    openBackup()
+
+    const input = $<HTMLInputElement>('.backup-file-input')!
+    fireEvent.change(input, { target: { files: [new File([file], 'peri-backup.json', { type: 'application/json' })] } })
+    await flush()
+    click(btn("Add to what's here"))
+    await flush()
+
+    expect(cellTexts()).toContain(MINE.text)
+  })
+
+  it('says why when the file is not a backup, and imports nothing', async () => {
+    renderApp()
+    openBackup()
+
+    setClipboardText('{"hello":"world"}')
+    click(btn('Paste a backup'))
+    await flush()
+
+    expect($('.backup-error')?.textContent).toMatch(/isn't a Peri backup/i)
+    expect($('.backup-incoming')).toBeNull()
+  })
+
+  // Replacing means making the device match the file, so a file covering one
+  // category must not be able to take everything else with it.
+  it('offers replacing only for a whole backup', async () => {
+    seed({ custom: [MINE] })
+    renderApp()
+    openBackup()
+    click(scopeRow('Kitchen'))
+    const { text: partial } = saved()
+    click(scopeRow('Everything'))
+    const { text: whole } = saved()
+
+    setClipboardText(partial)
+    click(btn('Paste a backup'))
+    await flush()
+    expect(btn('Replace everything')).toBeUndefined()
+
+    click(btn('Cancel'))
+    setClipboardText(whole)
+    click(btn('Paste a backup'))
+    await flush()
+    expect(btn('Replace everything')).toBeDefined()
+  })
+
+  it('closes the menu onto the restored phrases', async () => {
+    seed({ custom: [MINE] })
+    renderApp()
+    openBackup()
+    const { text: file } = saved()
+
+    cleanup()
+    localStorage.removeItem(STORE_KEY)
+    renderApp()
+    openBackup()
+    setClipboardText(file)
+    click(btn('Paste a backup'))
+    await flush()
+    click(btn("Add to what's here"))
+    await flush()
+
+    expect($('.top-panel.open')).toBeNull()
+    expect($('.toast')?.textContent).toMatch(/merged/i)
   })
 })
 
