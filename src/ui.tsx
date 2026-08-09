@@ -114,7 +114,7 @@ export function SettingRow({ label, children }: { label: string; children: React
   )
 }
 
-export function StepBtn({ onAction, children, label }: { onAction: () => void; children: React.ReactNode; label: string }) {
+function StepBtn({ onAction, children, label }: { onAction: () => void; children: React.ReactNode; label: string }) {
   const { settings } = useSettings()
   const { active, props } = useDwellControl(settings.actionDwellMs, onAction, { repeatMs: 200 })
   return (
