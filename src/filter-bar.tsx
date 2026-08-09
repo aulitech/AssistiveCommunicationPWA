@@ -210,7 +210,8 @@ export function FilterBar({
   onReorder,
   onLift,
 }: {
-  categories: { id: string; label: string }[]
+  /** `fixed` marks a tab that is not a category: nothing to rename or move. */
+  categories: { id: string; label: string; fixed?: boolean }[]
   activeFilter: string
   onSelect: (id: string) => void
   onEditCategory?: (name: string) => void
@@ -304,9 +305,8 @@ export function FilterBar({
             label={c.label}
             active={activeFilter === c.id}
             onSelect={() => onSelect(c.id)}
-            // "All" is not a category, so there is nothing to rename or move.
-            onEdit={onEditCategory && c.id !== 'all' ? () => onEditCategory(c.id) : undefined}
-            reorder={reordering && c.id !== 'all' ? reorderPropsFor(c.id) : undefined}
+            onEdit={onEditCategory && !c.fixed ? () => onEditCategory(c.id) : undefined}
+            reorder={reordering && !c.fixed ? reorderPropsFor(c.id) : undefined}
           />
         ))}
       </div>

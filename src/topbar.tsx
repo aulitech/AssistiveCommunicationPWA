@@ -69,7 +69,7 @@ function RestButton({ resting, onToggle }: { resting: boolean; onToggle: () => v
   )
 }
 
-export function Topbar({ composer, editMode, menuOpen, onToggleMenu, resting, onToggleRest, onAddPhrase, onCopy }: {
+export function Topbar({ composer, editMode, menuOpen, onToggleMenu, resting, onToggleRest, onAddPhrase, onSpeak, onCopy }: {
   composer: Composer
   editMode: boolean
   menuOpen: boolean
@@ -78,13 +78,13 @@ export function Topbar({ composer, editMode, menuOpen, onToggleMenu, resting, on
   onToggleRest: () => void
   /** Turn what is composed into a phrase of its own. Edit mode only. */
   onAddPhrase: () => void
-  /** Copying reports whether it worked, which only the screen can announce. */
+  /** Both of these are how a message leaves, which the screen keeps a record of. */
+  onSpeak: () => void
   onCopy: () => void
 }) {
   const { settings } = useSettings()
   const { text, setText, showUndo, canClear, clearOrUndo, focus, focused, setFocused, textareaRef, trackCursor } =
     composer
-  const speakMessage = composer.speak
 
   // Hover-and-hold on the message box, doing whichever of its two jobs applies.
   // Both were previously reachable only by clicking — the one input a
@@ -170,7 +170,7 @@ export function Topbar({ composer, editMode, menuOpen, onToggleMenu, resting, on
         readOnly={editMode}
       />
 
-      <ActionButton className="right" onSelect={speakMessage} label="Speak" disabled={!text}>
+      <ActionButton className="right" onSelect={onSpeak} label="Speak" disabled={!text}>
         <SpeakIcon />
       </ActionButton>
 

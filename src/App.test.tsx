@@ -1019,6 +1019,185 @@ describe('leaving a panel', () => {
   })
 })
 
+describe('sent messages', () => {
+  const SENT_KEY = 'peri_sent'
+  const tabs = () => $$('.filter-tab[role="tab"]')
+  const tabNamed = (name: string) => tabs().find(el => el.textContent === name)
+  // The filter bar hides while a typed word is narrowing the grid, and a phrase
+  // just inserted leaves the caret in one — so empty the box before looking.
+  const sentTexts = () => {
+    clearMessage()
+    click(tabNamed('Sent'))
+    return cells().map(c => c.textContent)
+  }
+  const iconBtn = (label: string) => $$('.icon-btn').find(b => b.getAttribute('aria-label') === label)
+  const stored = () => JSON.parse(localStorage.getItem(SENT_KEY) ?? '[]').map((m: { text: string }) => m.text)
+
+  it('puts Sent to the left of All, always', () => {
+    renderApp()
+    expect(tabs().map(el => el.textContent).slice(0, 2)).toEqual(['Sent', 'All'])
+  })
+
+  it('says so rather than showing a blank panel before anything is said', () => {
+    renderApp()
+    click(tabNamed('Sent'))
+    expect(cells()).toHaveLength(0)
+    expect($('.grid-empty')?.textContent).toMatch(/nothing said yet/i)
+  })
+
+  it('keeps a message that was spoken', () => {
+    renderApp()
+    click(plainCell())
+    const said = message()
+    click(iconBtn('Speak'))
+
+    expect(spoken).toEqual([said])
+    expect(sentTexts()).toEqual([said])
+  })
+
+  // Recorded once the clipboard confirms it took it, so a copy that failed is
+  // not filed as something that was said.
+  it('keeps a message that was copied out', async () => {
+    renderApp()
+    click(plainCell())
+    const said = message()
+    click(iconBtn('Copy to clipboard'))
+    await act(async () => {
+      await Promise.resolve()
+    })
+    settle()
+
+    expect(sentTexts()).toEqual([said])
+  })
+
+  it('keeps nothing when the clipboard refuses', async () => {
+    renderApp()
+    ;(navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('denied'))
+    click(plainCell())
+    click(iconBtn('Copy to clipboard'))
+    await act(async () => {
+      await Promise.resolve()
+    })
+    settle()
+
+    expect(stored()).toEqual([])
+  })
+
+  // In auto-speak the phrase never reaches the box — it is spoken on the spot,
+  // so that is the moment it counts as said.
+  it('keeps each phrase spoken in auto-speak', () => {
+    renderApp({ autoSpeak: true })
+    const [first, second] = cells().filter(c => !c.querySelector('.phrase-slot')).slice(0, 2)
+    const texts = [first.textContent!, second.textContent!]
+    click(first)
+    click(second)
+
+    expect(sentTexts()).toEqual([texts[1], texts[0]])
+  })
+
+  it('keeps nothing for an empty message', () => {
+    renderApp()
+    click(iconBtn('Speak'))
+    click(iconBtn('Copy to clipboard'))
+    expect(stored()).toEqual([])
+  })
+
+  // The list is for reaching a sentence again. Ten copies of "yes please" makes
+  // that harder, not easier.
+  it('moves a repeat to the top rather than listing it twice', () => {
+    renderApp({ autoSpeak: true })
+    const [first, second] = cells().filter(c => !c.querySelector('.phrase-slot')).slice(0, 2)
+    const texts = [first.textContent!, second.textContent!]
+    click(first)
+    click(second)
+    click(first)
+
+    expect(sentTexts()).toEqual([texts[0], texts[1]])
+  })
+
+  it('says a kept message again in one dwell', () => {
+    renderApp()
+    click(plainCell())
+    const said = message()
+    click(iconBtn('Speak'))
+    clearMessage()
+    clearMessage()
+
+    click(tabNamed('Sent'))
+    click(cells()[0])
+
+    expect(message()).toBe(said)
+  })
+
+  it('survives a reload', () => {
+    renderApp()
+    click(plainCell())
+    const said = message()
+    click(iconBtn('Speak'))
+
+    cleanup()
+    renderApp()
+    expect(sentTexts()).toEqual([said])
+  })
+
+  describe('in edit mode', () => {
+    const enterEditMode = () => click(toggles()[1])
+    const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
+    const sendOne = () => {
+      click(plainCell())
+      const said = message()
+      click(iconBtn('Speak'))
+      clearMessage()
+      clearMessage()
+      return said
+    }
+
+    // A sent message is a record, not a phrase. There is nothing in it to edit —
+    // only to keep, or to forget.
+    it('offers keeping it rather than editing it', () => {
+      renderApp()
+      const said = sendOne()
+      click(tabNamed('Sent'))
+      enterEditMode()
+      click(cells()[0])
+
+      expect($('.edit-modal-title')?.textContent).toMatch(/keep this message/i)
+      expect(action('Keep')).toBeDefined()
+      expect(action('Forget')).toBeDefined()
+      // It must not offer to file it under "Sent", which is not a real category.
+      expect($<HTMLSelectElement>('.edit-modal-select')?.value).not.toBe('Sent')
+      expect(said).not.toBe('')
+    })
+
+    it('keeps it as a phrase of its own, leaving the record alone', () => {
+      renderApp()
+      const said = sendOne()
+      click(tabNamed('Sent'))
+      enterEditMode()
+      click(cells()[0])
+      click(action('Keep'))
+
+      const custom = JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!).custom
+      expect(custom.map((c: { text: string }) => c.text)).toEqual([said])
+      expect(stored()).toEqual([said])
+    })
+
+    // Somebody who has just said something private needs a way to take it off
+    // the screen, and this is the only one.
+    it('forgets it', () => {
+      renderApp()
+      sendOne()
+      click(tabNamed('Sent'))
+      enterEditMode()
+      click(cells()[0])
+      click(action('Forget'))
+
+      expect(stored()).toEqual([])
+      expect(cells()).toHaveLength(0)
+    })
+  })
+})
+
 describe('the emergency bar with a linked account', () => {
   // The one place the better voice is refused. A request going out and coming
   // back is not what "I can't breathe" needs, and with the network down it is

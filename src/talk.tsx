@@ -24,6 +24,7 @@ import { CategoryModal, EditModal } from './editors'
 import { TopPanel } from './menu'
 import { useBoard } from './use-board'
 import { useComposer } from './use-composer'
+import { SENT_CATEGORY, SENT_FILTER, useSent } from './use-sent'
 import { useToast } from './use-toast'
 
 /** Which phrase the editor is open on, if any. `phrase: null` means a new one. */
@@ -38,6 +39,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const { settings, update } = useSettings()
   const board = useBoard()
   const composer = useComposer()
+  const sent = useSent()
   const { toast, flashToast } = useToast()
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -53,12 +55,19 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // Pulled out rather than reached through `composer`, which is a fresh object
   // every render: a callback depending on the whole of it would change identity
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
-  const { insert: insertPhrase, text: message, currentWord, copy: copyMessage } = composer
+  const { insert: insertPhrase, text: message, currentWord, copy: copyMessage, speak: speakMessage } =
+    composer
 
   // Derived from the live phrase list so user-added categories get a tab and
   // fully-hidden categories lose theirs.
   const tabs = useMemo(
-    () => [{ id: 'all', label: 'All' }, ...allCategories.map(c => ({ id: c, label: c }))],
+    () => [
+      // Neither of these is a category: they cannot be renamed, and the custom
+      // order cannot move them out of the two places a user learns to look.
+      { id: SENT_FILTER, label: SENT_CATEGORY, fixed: true },
+      { id: 'all', label: 'All', fixed: true },
+      ...allCategories.map(c => ({ id: c, label: c })),
+    ],
     [allCategories],
   )
 
@@ -69,11 +78,20 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // Deleting the last phrase in a category takes its tab away; fall back to
   // "All" rather than showing an empty grid under a tab that no longer exists.
   const effectiveFilter =
-    activeFilter === 'all' || allCategories.includes(activeFilter) ? activeFilter : 'all'
+    activeFilter === 'all' || activeFilter === SENT_FILTER || allCategories.includes(activeFilter)
+      ? activeFilter
+      : 'all'
 
+  const showingSent = effectiveFilter === SENT_FILTER
+
+  // Sent messages are their own list rather than part of the board: they are a
+  // record of what was said, not phrases anybody added.
   const visiblePhrases = useMemo(
-    () => search(board.mainPhrases, effectiveFilter, currentWord),
-    [board.mainPhrases, effectiveFilter, currentWord],
+    () =>
+      showingSent
+        ? search(sent.phrases, SENT_CATEGORY, currentWord)
+        : search(board.mainPhrases, effectiveFilter, currentWord),
+    [showingSent, sent.phrases, board.mainPhrases, effectiveFilter, currentWord],
   )
 
   // ── Choosing a phrase ──────────────────────────────────────────────────────
@@ -85,10 +103,16 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    */
   const deliverPhrase = useCallback(
     (phraseText: string) => {
-      if (settings.autoSpeak) speak(phraseText, settings)
-      else insertPhrase(phraseText)
+      // In auto-speak the phrase is the message — it is spoken and never
+      // reaches the box, so this is the moment it counts as said.
+      if (settings.autoSpeak) {
+        speak(phraseText, settings)
+        sent.record(phraseText)
+      } else {
+        insertPhrase(phraseText)
+      }
     },
-    [settings, insertPhrase],
+    [settings, insertPhrase, sent],
   )
 
   const handleSelectPhrase = useCallback(
@@ -111,6 +135,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     setEditing({ phrase, isEmergency })
   }, [])
 
+  const editingSent = editing?.phrase?.category === SENT_CATEGORY
+
   // Adding from the message box carries whatever is composed there into the
   // editor, so a message worth keeping becomes a phrase without retyping it.
   // Deliberately not routed through `openEdit`: that one is on the edit context
@@ -125,7 +151,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     (text: string, category: string) => {
       if (!editing) return
       const { phrase, isEmergency } = editing
-      if (phrase === null) board.addPhrase(text, category, isEmergency)
+      // Saving a sent message keeps it: it becomes a phrase of the user's own,
+      // in a category they pick, rather than editing the record of having said
+      // it. The record is left exactly as it was.
+      if (phrase === null || phrase.category === SENT_CATEGORY) board.addPhrase(text, category, isEmergency)
       else board.editPhrase(phrase, text, category, isEmergency)
       setEditing(null)
     },
@@ -134,9 +163,12 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
   const handleDelete = useCallback(() => {
     if (!editing?.phrase) return
-    board.removePhrase(editing.phrase.id)
+    // Forgetting a message is the only way to take something off this list, and
+    // somebody who has just said something private needs one.
+    if (editing.phrase.category === SENT_CATEGORY) sent.forget(editing.phrase.id)
+    else board.removePhrase(editing.phrase.id)
     setEditing(null)
-  }, [editing, board])
+  }, [editing, board, sent])
 
   // ── Editing the categories ─────────────────────────────────────────────────
 
@@ -198,10 +230,21 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     setResting(r => !r)
   }, [])
 
+  const handleSpeak = useCallback(() => {
+    if (!message.trim()) return
+    speakMessage()
+    sent.record(message)
+  }, [message, speakMessage, sent])
+
+  // Copying is the other way a message leaves — into a text, an email, someone
+  // else's screen. It was still said.
   const handleCopy = useCallback(() => {
     if (!message) return
-    copyMessage().then(ok => flashToast(ok ? 'Copied to clipboard' : 'Could not copy — clipboard unavailable'))
-  }, [message, copyMessage, flashToast])
+    copyMessage().then(ok => {
+      flashToast(ok ? 'Copied to clipboard' : 'Could not copy — clipboard unavailable')
+      if (ok) sent.record(message)
+    })
+  }, [message, copyMessage, flashToast, sent])
 
   // The panel closes onto the restored board, so the result is the first thing
   // the user sees rather than the screen they restored it from.
@@ -229,6 +272,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             resting={resting}
             onToggleRest={toggleRest}
             onAddPhrase={openAddFromComposer}
+            onSpeak={handleSpeak}
             onCopy={handleCopy}
           />
 
@@ -253,6 +297,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
           <PhraseGrid
             phrases={visiblePhrases}
+            emptyMessage={
+              showingSent ? 'Nothing said yet. Messages you speak or copy are kept here.' : undefined
+            }
             onSelect={handleSelectPhrase}
             editMode={editMode}
             onToggleEdit={toggleEditMode}
@@ -314,6 +361,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
               onSave={handleSave}
               onDelete={handleDelete}
               onClose={() => setEditing(null)}
+              keeping={editingSent}
             />
           )}
         </div>

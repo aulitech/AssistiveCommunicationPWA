@@ -33,6 +33,11 @@ const enterEditMode = () => click(toggles()[1])
 // rather than role="tab" — this keeps them out of the category list.
 const tabs = () => $$('.filter-tab[role="tab"]')
 const tabLabels = () => tabs().map(t => t.textContent)
+// "Sent" and "All" lead the bar and are not categories. Everything about
+// renaming, deleting and ordering is about what comes after them.
+const FIXED_TABS = 2
+const catTabs = () => tabs().slice(FIXED_TABS)
+const catLabels = () => catTabs().map(t => t.textContent)
 const tabNamed = (name: string) => tabs().find(t => t.textContent === name)
 const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
 const saveModal = () => click(action('Save'))
@@ -49,7 +54,7 @@ describe('outside edit mode', () => {
   it('offers no category editing at all', () => {
     renderApp()
     expect($('.add-category-tab')).toBeNull()
-    expect(tabs()[1].getAttribute('aria-label')).not.toMatch(/rename/i)
+    expect(catTabs()[0].getAttribute('aria-label')).not.toMatch(/rename/i)
   })
 })
 
@@ -58,14 +63,16 @@ describe('in edit mode', () => {
     renderApp()
     enterEditMode()
     expect($('.add-category-tab')).not.toBeNull()
-    expect(tabs()[1].getAttribute('aria-label')).toMatch(/^Rename category:/)
+    expect(catTabs()[0].getAttribute('aria-label')).toMatch(/^Rename category:/)
   })
 
-  it('leaves "All" alone, since it is not a category', () => {
+  it('leaves the tabs that are not categories alone', () => {
     renderApp()
     enterEditMode()
-    expect(tabs()[0].textContent).toBe('All')
-    expect(tabs()[0].getAttribute('aria-label')).not.toMatch(/rename/i)
+    expect(tabLabels().slice(0, FIXED_TABS)).toEqual(['Sent', 'All'])
+    for (const tab of tabs().slice(0, FIXED_TABS)) {
+      expect(tab.getAttribute('aria-label')).not.toMatch(/rename/i)
+    }
   })
 })
 
@@ -84,7 +91,7 @@ describe('adding a category', () => {
   it('refuses a name another category already uses, whatever the casing', () => {
     renderApp()
     enterEditMode()
-    const existing = tabs()[2].textContent!
+    const existing = catTabs()[1].textContent!
     click($('.add-category-tab'))
     type(nameField(), existing.toUpperCase())
 
@@ -105,7 +112,7 @@ describe('renaming a category', () => {
   it('renames a built-in category and takes its phrases with it', () => {
     renderApp()
     enterEditMode()
-    const original = tabs()[1].textContent!
+    const original = catTabs()[0].textContent!
 
     click(tabNamed(original))
     type(nameField(), 'Renamed')
@@ -122,7 +129,7 @@ describe('renaming a category', () => {
 
   it('follows the rename with the current filter', () => {
     renderApp()
-    const original = tabs()[1].textContent!
+    const original = catTabs()[0].textContent!
     click(tabNamed(original)) // select it first
     enterEditMode()
     click(tabNamed(original))
@@ -135,7 +142,7 @@ describe('renaming a category', () => {
   it('survives being renamed twice', () => {
     renderApp()
     enterEditMode()
-    const original = tabs()[1].textContent!
+    const original = catTabs()[0].textContent!
 
     click(tabNamed(original))
     type(nameField(), 'Once')
@@ -152,7 +159,7 @@ describe('renaming a category', () => {
   it('stores the rename against the source name, not per phrase', () => {
     renderApp()
     enterEditMode()
-    const original = tabs()[1].textContent!
+    const original = catTabs()[0].textContent!
     click(tabNamed(original))
     type(nameField(), 'Mapped')
     saveModal()
@@ -181,7 +188,7 @@ describe('deleting a category', () => {
   it('refuses one that holds phrases, and says why', () => {
     renderApp()
     enterEditMode()
-    click(tabs()[1])
+    click(catTabs()[0])
 
     expect(action('Delete')).toBeUndefined()
     expect($('.edit-modal-note')?.textContent).toMatch(/will move with it/i)
@@ -213,7 +220,7 @@ describe('the phrase editor', () => {
   it('moves an existing phrase between existing categories', () => {
     renderApp()
     enterEditMode()
-    const destination = tabs()[3].textContent!
+    const destination = catTabs()[2].textContent!
     const moved = cells()[0].textContent!
 
     click(cells()[0])
@@ -258,7 +265,7 @@ describe('ordering categories', () => {
     fireEvent.drop(tabNamed(to)!)
     settle()
   }
-  const names = () => tabLabels().slice(1) // "All" is not a category
+  const names = catLabels
 
   it('is alphabetical to begin with', () => {
     renderApp()
@@ -472,15 +479,15 @@ describe('ordering categories', () => {
     })
   })
 
-  it('leaves "All" pinned first and unmovable', () => {
+  it('leaves "Sent" and "All" pinned first and unmovable', () => {
     renderApp()
     startReordering()
-    expect(tabLabels()[0]).toBe('All')
-    expect(tabs()[0].getAttribute('draggable')).toBeNull()
+    expect(tabLabels().slice(0, FIXED_TABS)).toEqual(['Sent', 'All'])
+    for (const tab of tabs().slice(0, FIXED_TABS)) expect(tab.getAttribute('draggable')).toBeNull()
 
     const arranged = names()
     dwellDrag(arranged[arranged.length - 1], arranged[0])
-    expect(tabLabels()[0]).toBe('All')
+    expect(tabLabels().slice(0, FIXED_TABS)).toEqual(['Sent', 'All'])
   })
 
   // Renames are stored against the source name, so the order — stored against
@@ -540,14 +547,14 @@ describe('ordering categories', () => {
     renderApp()
     startReordering()
     click(reorderBtn())
-    click(tabs()[1])
+    click(catTabs()[0])
     expect($('.edit-modal')?.getAttribute('aria-label')).toBe('Rename category')
   })
 
   it('reorders rather than renames while reordering is on', () => {
     renderApp()
     startReordering()
-    click(tabs()[1])
+    click(catTabs()[0])
     expect($('.edit-modal')).toBeNull()
   })
 
@@ -647,7 +654,7 @@ describe('a category that runs out of phrases', () => {
     click(action('Delete'))
 
     expect(tabNamed('Solo')).toBeUndefined()
-    expect(tabs()[0].getAttribute('aria-selected')).toBe('true')
+    expect(tabNamed('All')?.getAttribute('aria-selected')).toBe('true')
     expect(cells().length).toBeGreaterThan(1)
   })
 })
