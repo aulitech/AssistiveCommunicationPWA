@@ -133,9 +133,17 @@ export function buildBackup(input: BackupInput): Backup {
       order: store.categoryOrder.filter(inScope),
       ...(scope ? {} : { sort: store.categorySort }),
     },
-    ...(scope ? {} : { profile, settings }),
+    // An untouched profile is left out rather than written as a block of empty
+    // strings, so the panel does not offer someone "your details" when they have
+    // never entered any — and so replacing from a file does not quietly clear
+    // the name on the device that receives it.
+    ...(scope || !hasDetails(profile) ? {} : { profile }),
+    ...(scope ? {} : { settings }),
   }
 }
+
+const hasDetails = (profile: Profile) =>
+  profile.contacts.length > 0 || Object.values(profile.name).some(Boolean)
 
 // ── Reading a file back ───────────────────────────────────────────────────────
 // Anything can be dropped into a file picker, including a backup half-written by
