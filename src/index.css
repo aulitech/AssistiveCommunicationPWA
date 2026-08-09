@@ -564,7 +564,49 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* Takes the slack so Back keeps the corner, and gives it up rather than
+     pushing Back off the edge when an email is long. */
+  flex: 1;
+  min-width: 0;
 }
+
+.panel-user-name,
+.panel-user-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The way out of a panel. Top right of every one of them, in the row that is
+   already there, so it is in the same place whatever the panel below it is
+   doing — a target that moves with the content is one a gaze user has to find
+   again each time. */
+.panel-back {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 10px 15px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.panel-back:hover,
+.panel-back.dwelling {
+  background: var(--cell-hover);
+  border-color: var(--accent);
+}
+
+.panel-back .dwell-bar { background: var(--accent); }
+.panel-back.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
 
 .panel-user-name {
   font-size: 14px;
@@ -1706,7 +1748,8 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  /* Leaves room for the Back button below without the panel growing off-screen. */
+  /* Keeps the panel on screen on a short viewport rather than running past the
+     bottom of it. */
   max-height: 52vh;
 }
 

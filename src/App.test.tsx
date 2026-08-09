@@ -605,7 +605,7 @@ describe('my details', () => {
       settle()
       click($('.contact-add-btn'))
     }
-    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Back'))
+    click($('.panel-back'))
     click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
 
     const callCell = cells().find(c => /going to call/.test(c.textContent ?? ''))!
@@ -657,6 +657,7 @@ describe('my details', () => {
 describe('help', () => {
   const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
   const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
+  const back = () => $('.panel-back')
 
   it('is offered in the menu', () => {
     renderApp()
@@ -704,7 +705,7 @@ describe('help', () => {
     renderApp()
     openMenu()
     click(nav('Help'))
-    click(nav('Back'))
+    click(back())
 
     expect($('.help-panel')).toBeNull()
     expect(nav('Help')).toBeDefined()
@@ -958,6 +959,63 @@ describe('backup & sharing', () => {
 
     expect($('.top-panel.open')).toBeNull()
     expect($('.toast')?.textContent).toMatch(/merged/i)
+  })
+})
+
+describe('leaving a panel', () => {
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
+  const back = () => $('.panel-back')
+  const PANELS = ['Settings', 'My details', 'Backup & sharing', 'Help']
+
+  // The panels are different heights, and the way out used to sit under their
+  // content — so it moved whenever the content did. A target a gaze user has to
+  // find again each time is a poor one, so it lives in the row above instead,
+  // which is the same place on every panel.
+  it.each(PANELS)('offers Back in the top right of %s', panel => {
+    renderApp()
+    openMenu()
+    click(nav(panel))
+
+    const row = $('.panel-user-row')!
+    expect(row.contains(back()!), 'Back is not in the top row').toBe(true)
+    expect(row.lastElementChild).toBe(back())
+  })
+
+  it.each(PANELS)('returns to the menu from %s', panel => {
+    renderApp()
+    openMenu()
+    click(nav(panel))
+    click(back())
+
+    expect(nav('Settings')).toBeDefined()
+    expect(back()).toBeNull()
+  })
+
+  // The menu is not somewhere you go back from — it closes.
+  it('offers no Back on the menu itself', () => {
+    renderApp()
+    openMenu()
+    expect(back()).toBeNull()
+  })
+
+  it('answers a dwell, a tap and a key like every other control', () => {
+    renderApp()
+    openMenu()
+    click(nav('Settings'))
+
+    expect(back()?.getAttribute('role')).toBe('button')
+    expect(back()?.getAttribute('tabindex')).toBe('0')
+
+    fireEvent.pointerEnter(back()!)
+    act(() => void vi.advanceTimersByTime(800))
+    settle()
+    expect(back()).toBeNull()
+
+    click(nav('Settings'))
+    fireEvent.keyDown(back()!, { key: 'Enter' })
+    settle()
+    expect(back()).toBeNull()
   })
 })
 
