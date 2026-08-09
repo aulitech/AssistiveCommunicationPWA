@@ -1179,6 +1179,43 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Linking an ElevenLabs account. Stacks under its label rather than sitting on
+   one line: a key field, a button, an error and a note do not fit beside a
+   96px label on a phone. */
+.eleven-row { align-items: flex-start; }
+
+.eleven-control {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.eleven-key {
+  flex: 1;
+  min-width: 140px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.eleven-status {
+  flex: 1;
+  min-width: 120px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.eleven-error,
+.eleven-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.eleven-error { color: #f87171; }
+.eleven-note { color: var(--text-muted); }
+
 .voice-dropdown {
   position: relative;
   width: 186px;
@@ -1927,7 +1964,7 @@ body {
   gap: 8px;
 }
 
-.backup-btn {
+.panel-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -1943,12 +1980,12 @@ body {
   background: var(--surface);
 }
 
-.backup-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
-.backup-btn.danger  { background: transparent; color: #ef4444; border-color: #ef4444; }
-.backup-btn.is-disabled { opacity: 0.4; cursor: default; }
-.backup-btn.dwelling { filter: brightness(1.2); }
-.backup-btn .dwell-bar { background: rgba(255,255,255,0.3); }
-.backup-btn.danger .dwell-bar { background: rgba(239,68,68,0.3); }
+.panel-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+.panel-btn.danger  { background: transparent; color: #ef4444; border-color: #ef4444; }
+.panel-btn.is-disabled { opacity: 0.4; cursor: default; }
+.panel-btn.dwelling { filter: brightness(1.2); }
+.panel-btn .dwell-bar { background: rgba(255,255,255,0.3); }
+.panel-btn.danger .dwell-bar { background: rgba(239,68,68,0.3); }
 
 /* The file picker is the browser's, and it opens only for a real click or an
    Enter on the input itself — never for a timer. Laying the input over the whole

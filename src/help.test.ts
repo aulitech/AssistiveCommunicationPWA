@@ -48,6 +48,7 @@ describe('the user guide', () => {
     ['keyboard access', /keyboard|Tab key/i],
     ['offline use', /offline|no internet/i],
     ['backup and import', /backup/i],
+    ['linked voices', /ElevenLabs/],
   ])('covers %s', (_feature, pattern) => {
     expect(allText.some(line => pattern.test(line))).toBe(true)
   })

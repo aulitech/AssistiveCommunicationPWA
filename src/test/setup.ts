@@ -25,6 +25,15 @@ export const voices: SpeechSynthesisVoice[] = []
 /** Files the app has offered to download, in order. */
 export const downloads: { filename: string; text: string }[] = []
 
+/** Audio the app has started playing, in order. */
+export const played: { volume: number; rate: number }[] = []
+
+/** Set false to make playback fail the way a browser blocking autoplay does. */
+export let audioPlays = true
+export const setAudioPlays = (ok: boolean) => {
+  audioPlays = ok
+}
+
 /** What `navigator.clipboard.readText()` will hand back. */
 export let clipboardText = ''
 export const setClipboardText = (text: string) => {
@@ -92,6 +101,8 @@ beforeEach(() => {
   })
 
   clipboardText = ''
+  audioPlays = true
+  played.length = 0
   downloads.length = 0
   blobText.clear()
   // jsdom has no object URLs and no downloads. Recording what a download would
@@ -102,6 +113,14 @@ beforeEach(() => {
   HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
     if (this.download) downloads.push({ filename: this.download, text: blobText.get(this.href) ?? '' })
   }
+
+  // jsdom has the element but none of the playback behind it.
+  HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
+    if (!audioPlays) return Promise.reject(new DOMException('blocked', 'NotAllowedError'))
+    played.push({ volume: this.volume, rate: this.playbackRate })
+    return Promise.resolve()
+  }
+  HTMLMediaElement.prototype.pause = () => {}
 })
 
 afterEach(() => {

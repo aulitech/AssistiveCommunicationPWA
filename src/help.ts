@@ -113,6 +113,27 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Better voices',
+    blocks: [
+      text(
+        'The voices in the Voice list come from your device. They are instant, they cost nothing and they work with no internet.',
+      ),
+      text(
+        'If you would rather not sound like a browser, you can link an ElevenLabs account under Settings. Paste the API key from your ElevenLabs account and its voices join the same list.',
+      ),
+      list(
+        'These voices need an internet connection, and take a moment to arrive the first time.',
+        'They use your own ElevenLabs credits. A phrase said again costs nothing — Peri keeps what it already fetched.',
+        'If one cannot be fetched, Peri speaks with the device voice instead rather than saying nothing.',
+        'The red emergency bar always uses the device voice, so it stays instant and works offline.',
+      ),
+      text(
+        'Choosing one of these voices means the words you speak are sent to ElevenLabs to be turned into audio. Unlink the account, or pick a device voice, and nothing is sent.',
+      ),
+      text('Your key is kept on this device and is never put in a backup file, so sharing a backup does not share your account.'),
+    ],
+  },
+  {
     title: 'Backup and sharing',
     blocks: [
       text(
@@ -146,6 +167,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'Your phrases, your details and your settings are stored on this device only. Nothing is uploaded, and signing in does not change that.',
+      ),
+      text(
+        'The one exception is a linked ElevenLabs account: choosing one of its voices sends the words you speak to ElevenLabs to be spoken back. Everything else still works with no connection, including the emergency bar.',
       ),
       text(
         'Because of that, clearing your browser data would take them with it. Save a backup from time to time — see Backup and sharing above.',

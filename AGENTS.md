@@ -25,7 +25,8 @@ Modules are layered, and imports only ever point down the list. Nothing below im
 - `src/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, the four `localStorage` keys, and the pure operations that arrange categories
 - `src/backup.ts` - The export/import file format under **Menu → Backup & sharing**: building one, reading one back, and applying it
 - `src/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
-- `src/speech.ts` - Speech synthesis; the single place utterances are created
+- `src/speech.ts` - Speech output; the single place utterances are created, and the routing between the device voice and a linked account
+- `src/elevenlabs.ts` - A linked ElevenLabs account: validating a key, fetching its voices, fetching audio, and the cache in front of it
 - `src/auth.ts` - Google, Apple, and Facebook OAuth sign-in
 - `src/help.ts`, `src/legal.ts`, `src/prose.ts` - Long-form text as data, and the blocks it is written in
 
@@ -89,6 +90,8 @@ Tests live beside the code they cover:
 
 - `src/phrases.test.ts` - Placeholder parsing, alias resolution, and whole-table invariants
 - `src/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
+- `src/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
+- `src/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
 - `src/dwell.test.tsx` - The dwell hook: timing, tap, keyboard, disabled, and repeat
 - `src/App.test.tsx` - Whole-app flows driven through the real DOM
 - `src/categories.test.tsx` - Adding, renaming, deleting and ordering category tabs
@@ -130,6 +133,21 @@ Two things in `src/backup.ts` are deliberate and easy to "fix" by mistake:
 
 - **Merging never removes a phrase.** Deleting a phrase is the one change the app offers no way back from, so a file someone else made cannot make one on your device. Only *replace* applies removals, and `canReplace` refuses it for a file covering a few categories — everything the file said nothing about would go.
 - **Imported settings are clamped to `SETTING_LIMITS`.** A dwell time of zero fires every control the instant a pointer crosses it, leaving a gaze user no working control to undo it with. A file does not get to set a value the settings panel could not.
+
+## Voices
+
+Two sources sit behind `speak()`. The device's own synthesiser is instant, free and works offline. A linked ElevenLabs account sounds better and does none of those things. Everything in `src/speech.ts` is arranged around one rule:
+
+**A phrase never fails into silence.** A flat connection, an expired key, a rate limit, a browser refusing to autoplay — every one of them ends in the device speaking the words instead. If you add a path that can produce no audio, it falls back too.
+
+Two consequences worth knowing before changing any of it:
+
+- **The emergency bar always speaks on the device**, via `speak(text, settings, { local: true })`. A request that has to go out and come back is not what "I can't breathe" needs, and with the network down it is nothing at all.
+- **The API key is never in a backup.** It lives under its own storage key, outside the three things `buildBackup` is built from. A backup is made to be shared, and the key in one hands over the account. `src/backup.test.ts` holds it to that, and `src/legal.ts` says so to the user.
+
+Audio is cached in memory by voice and text. An AAC board is the same phrases over and over, so the second time is free and instant — which is the difference between a usable feature and a bill.
+
+Sending the words somewhere is a disclosure, so it is stated in three places that must agree: the ElevenLabs row in Settings, the **Better voices** section of the guide, and the Speech section of the privacy policy. Change one and change all three.
 
 ## Code quality
 

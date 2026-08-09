@@ -21,7 +21,11 @@ function EmergencyButton({ phrase }: { phrase: Phrase }) {
       openEdit(phrase, true)
       return
     }
-    speak(phrase.text, settings)
+    // Always the device voice, whatever is chosen elsewhere. A linked account
+    // means a request going out and coming back before anything is heard, and
+    // it means nothing is heard at all with the network down. "I can't breathe"
+    // does not get to depend on the wifi.
+    speak(phrase.text, settings, { local: true })
     setFlash(true)
     setTimeout(() => setFlash(false), 400)
   }, [phrase, editMode, openEdit, settings])

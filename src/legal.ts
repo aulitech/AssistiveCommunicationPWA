@@ -9,7 +9,7 @@
 
 import { type ProseDocument, list, text } from './prose'
 
-const UPDATED = '6 August 2026'
+const UPDATED = '9 August 2026'
 const CONTACT = 'spero@auli.tech'
 const ENTITY = 'Autonomous Living Technologies, Inc.'
 
@@ -17,7 +17,7 @@ export const PRIVACY: ProseDocument = {
   title: 'Privacy Policy',
   updated: UPDATED,
   intro:
-    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device.',
+    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device, unless you choose to link an ElevenLabs account for its voices — in which case the words you speak are sent to ElevenLabs to be turned into audio. Nothing goes to us either way.',
   sections: [
     {
       title: 'What we collect',
@@ -31,9 +31,10 @@ export const PRIVACY: ProseDocument = {
           'Your settings — dwell times, voice, volume and speed.',
           'Your details — your name and the contacts you enter.',
           'Which account you last signed in with, if any.',
+          'Your ElevenLabs API key, if you linked an account.',
         ),
         text(
-          'This information never leaves your device. We cannot see it, and we could not retrieve it for you if you lost it.',
+          'This information never leaves your device. We cannot see it, and we could not retrieve it for you if you lost it. Your ElevenLabs key is not included in a backup file, so sharing a backup does not share your account.',
         ),
       ],
     },
@@ -60,6 +61,12 @@ export const PRIVACY: ProseDocument = {
         text(
           'One caveat worth knowing: some operating systems offer higher-quality voices that run in the cloud rather than on the device. If you select one of those, your browser or operating system may send the text to be spoken to its own servers. That is between you, your browser and your device maker — it does not pass through us — but if it matters to you, choose a voice marked as on-device in your system settings.',
         ),
+        text(
+          'The same applies, deliberately and visibly, if you link an ElevenLabs account. Choosing one of its voices means that each phrase you speak is sent to ElevenLabs to be turned into audio, using your own account and your own credits. It goes from your device straight to them and does not pass through us. What they do with it is governed by their privacy policy, not this one. Unlink the account, or choose a device voice, and nothing is sent.',
+        ),
+        text(
+          'The emergency bar always uses a device voice, whatever else is selected, so those phrases are spoken instantly and still work with no connection.',
+        ),
       ],
     },
     {
@@ -69,7 +76,7 @@ export const PRIVACY: ProseDocument = {
           'The app is served by Netlify. Like any web host, their servers record standard request information such as IP addresses and browser type when a page is loaded. That is Netlify’s processing, under their privacy policy, and it happens whether or not you sign in.',
         ),
         text(
-          'Once the app is installed or cached, it runs offline and makes no requests at all except when you sign in.',
+          'Once the app is installed or cached, it runs offline and makes no requests at all — except when you sign in, and when speaking through a linked ElevenLabs account.',
         ),
       ],
     },
