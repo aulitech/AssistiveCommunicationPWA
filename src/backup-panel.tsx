@@ -21,29 +21,8 @@ import {
   type ImportMode,
 } from './backup'
 import { cx, dwellVar } from './style'
-import { ScrollPane } from './ui'
+import { PanelButton, ScrollPane } from './ui'
 
-function BackupButton({ label, kind, onActivate, disabled }: {
-  label: string
-  kind: 'primary' | 'plain' | 'danger'
-  onActivate: () => void
-  disabled?: boolean
-}) {
-  const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, { disabled })
-  return (
-    <div
-      className={cx('backup-btn', kind, active && 'dwelling', disabled && 'is-disabled')}
-      style={dwellVar(settings.actionDwellMs)}
-      role="button"
-      aria-label={label}
-      {...props}
-    >
-      <div className="dwell-bar" key={active ? 'a' : 'i'} />
-      {label}
-    </div>
-  )
-}
 
 function BackupScopeRow({ label, sublabel, selected, onSelect }: {
   label: string
@@ -228,8 +207,8 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
         {scope !== null && <p className="backup-summary">{describeBackup(summary)}</p>}
 
         <div className="backup-actions">
-          <BackupButton kind="primary" label="Save a file" onActivate={download} disabled={summary.empty} />
-          <BackupButton kind="plain" label="Copy" onActivate={copy} disabled={summary.empty} />
+          <PanelButton kind="primary" label="Save a file" onActivate={download} disabled={summary.empty} />
+          <PanelButton kind="plain" label="Copy" onActivate={copy} disabled={summary.empty} />
         </div>
 
         <span className="setting-label backup-heading">Bring a backup in</span>
@@ -243,11 +222,11 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
               {describeBackup(incoming.summary)}.
             </p>
             <div className="backup-actions">
-              <BackupButton kind="primary" label="Add to what's here" onActivate={() => restore('merge')} />
+              <PanelButton kind="primary" label="Add to what's here" onActivate={() => restore('merge')} />
               {canReplace(incoming.backup) && (
-                <BackupButton kind="danger" label="Replace everything" onActivate={() => restore('replace')} />
+                <PanelButton kind="danger" label="Replace everything" onActivate={() => restore('replace')} />
               )}
-              <BackupButton kind="plain" label="Cancel" onActivate={() => setIncoming(null)} />
+              <PanelButton kind="plain" label="Cancel" onActivate={() => setIncoming(null)} />
             </div>
             <p className="backup-note">
               Adding never takes a phrase away. Replacing makes this device match the file exactly,
@@ -262,7 +241,7 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
                 means a click anywhere on the button opens it, and a keyboard
                 lands on it in the ordinary way. Clipboard is the way in for
                 anyone whose dwell never produces a click at all. */}
-            <label className="backup-btn plain backup-file">
+            <label className="panel-btn plain backup-file">
               <input
                 type="file"
                 className="backup-file-input"
@@ -272,7 +251,7 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
               />
               Choose a file
             </label>
-            <BackupButton kind="plain" label="Paste a backup" onActivate={paste} />
+            <PanelButton kind="plain" label="Paste a backup" onActivate={paste} />
           </div>
         )}
 

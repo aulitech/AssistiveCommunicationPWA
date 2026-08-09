@@ -261,3 +261,29 @@ export function ProseSections({ sections }: { sections: ProseSection[] }) {
     </>
   )
 }
+
+/**
+ * An action inside a panel — save, cancel, link, replace. `danger` is for the
+ * ones that take something away.
+ */
+export function PanelButton({ label, kind, onActivate, disabled }: {
+  label: string
+  kind: 'primary' | 'plain' | 'danger'
+  onActivate: () => void
+  disabled?: boolean
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, { disabled })
+  return (
+    <div
+      className={cx('panel-btn', kind, active && 'dwelling', disabled && 'is-disabled')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={label}
+      {...props}
+    >
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
+      {label}
+    </div>
+  )
+}

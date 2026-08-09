@@ -6,16 +6,18 @@
 // store is a backup that silently restores nothing.
 
 import { EMPTY_PROFILE, type Profile } from './phrases'
+import { type ElevenLabsAccount, type RemoteVoice } from './elevenlabs'
 
-// The four storage keys still say `dwellspeak_`, the app's former name. They
-// are deliberately not renamed: everything a user has — their phrases, their
-// edits, their dwell times — lives under these keys and nowhere else, and
+// Four of these storage keys still say `dwellspeak_`, the app's former name.
+// They are deliberately not renamed: everything a user has — their phrases,
+// their edits, their dwell times — lives under these keys and nowhere else, and
 // renaming them without a migration would silently empty the app for everyone
 // already using it. The name is cosmetic; the data is not.
 const SETTINGS_KEY = 'dwellspeak_settings'
 const PHRASE_STORE_KEY = 'dwellspeak_phrase_store_v2'
 const PROFILE_KEY = 'dwellspeak_profile'
 const USER_KEY = 'dwellspeak_user'
+const ELEVENLABS_KEY = 'peri_elevenlabs'
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
@@ -169,6 +171,34 @@ export function loadProfile(): Profile {
 
 export function saveProfile(p: Profile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(p))
+}
+
+// ── A linked ElevenLabs account ───────────────────────────────────────────────
+// Its own key, and deliberately not part of a backup: a backup is made to be
+// shared, and the key in one hands over the account it belongs to along with
+// whatever that account can be billed for. `src/backup.test.ts` holds it to
+// that. What a backup does carry is the chosen voice, which on a device with no
+// account of its own simply falls back to the device voice.
+
+export function loadElevenLabs(): ElevenLabsAccount | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ELEVENLABS_KEY) ?? 'null')
+    if (!raw || typeof raw.apiKey !== 'string' || !raw.apiKey) return null
+    const voices: RemoteVoice[] = Array.isArray(raw.voices)
+      ? raw.voices
+          .filter((v: unknown): v is RemoteVoice =>
+            typeof v === 'object' && v !== null && typeof (v as RemoteVoice).id === 'string')
+          .map((v: RemoteVoice) => ({ id: v.id, name: String(v.name ?? v.id) }))
+      : []
+    return { apiKey: raw.apiKey, voices }
+  } catch {
+    return null
+  }
+}
+
+export function saveElevenLabs(account: ElevenLabsAccount | null) {
+  if (account) localStorage.setItem(ELEVENLABS_KEY, JSON.stringify(account))
+  else localStorage.removeItem(ELEVENLABS_KEY)
 }
 
 // ── Who is signed in ─────────────────────────────────────────────────────────

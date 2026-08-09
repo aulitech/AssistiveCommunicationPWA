@@ -121,3 +121,27 @@ describe('the terms', () => {
     expect(says(/MIT Licence|MIT License/i)).toBe(true)
   })
 })
+
+// The app gained a way to send what you say to a third party. A privacy policy
+// that still promised the words never leave the device would be wrong, and this
+// one is published as the app's policy URL.
+describe('the privacy policy on linked voices', () => {
+  const says = (pattern: RegExp) => allText(PRIVACY).some(l => pattern.test(l))
+
+  it('says the words are sent when an ElevenLabs voice is chosen', () => {
+    expect(says(/ElevenLabs/)).toBe(true)
+    expect(says(/sent to ElevenLabs/i)).toBe(true)
+  })
+
+  it('says how to stop it', () => {
+    expect(says(/unlink|choose a device voice/i)).toBe(true)
+  })
+
+  it('does not claim the app makes no requests once cached', () => {
+    expect(says(/makes no requests at all except when you sign in\./i)).toBe(false)
+  })
+
+  it('says the key is not in a backup', () => {
+    expect(says(/not included in a backup|does not share your account/i)).toBe(true)
+  })
+})

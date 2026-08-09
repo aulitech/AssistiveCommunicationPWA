@@ -782,7 +782,7 @@ describe('backup & sharing', () => {
     openMenu()
     click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Backup & sharing'))
   }
-  const btn = (label: string) => $$('.backup-btn').find(b => b.getAttribute('aria-label') === label)
+  const btn = (label: string) => $$('.panel-btn').find(b => b.getAttribute('aria-label') === label)
   const scopeRow = (label: string) => $$('.backup-scope-row').find(r => r.getAttribute('aria-label') === label)
   /** Dwells "Save a file" and reads back the file that came out. */
   const saved = () => {
@@ -1016,6 +1016,145 @@ describe('leaving a panel', () => {
     fireEvent.keyDown(back()!, { key: 'Enter' })
     settle()
     expect(back()).toBeNull()
+  })
+})
+
+describe('the emergency bar with a linked account', () => {
+  // The one place the better voice is refused. A request going out and coming
+  // back is not what "I can't breathe" needs, and with the network down it is
+  // nothing at all — so these phrases never leave the device, whatever is
+  // selected. Testing it here rather than against speak() alone: the option has
+  // to actually be passed, and the bar is the only caller that passes it.
+  it('speaks on the device however good the chosen voice is', () => {
+    localStorage.setItem(
+      'peri_elevenlabs',
+      JSON.stringify({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }),
+    )
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    renderApp({ voiceURI: 'elevenlabs:v1' })
+
+    click($('.emergency-btn'))
+
+    expect(spoken).toEqual(['Help me!'])
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  // The grid does use it, or linking an account would have bought nothing.
+  it('while the grid speaks with the account voice', () => {
+    localStorage.setItem(
+      'peri_elevenlabs',
+      JSON.stringify({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }),
+    )
+    const fetcher = vi.fn(async () => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) }))
+    vi.stubGlobal('fetch', fetcher)
+    renderApp({ voiceURI: 'elevenlabs:v1', autoSpeak: true })
+
+    click(plainCell())
+
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(spoken).toEqual([])
+  })
+})
+
+describe('linking an ElevenLabs account', () => {
+  const openSettings = () => {
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+  }
+  const keyField = () => $<HTMLInputElement>('input[aria-label="ElevenLabs API key"]')
+  const btn = (label: string) => $$('.panel-btn').find(b => b.getAttribute('aria-label') === label)
+  const voiceOptions = () => {
+    click($('.voice-trigger'))
+    return $$('.voice-option').map(o => o.textContent)
+  }
+  const respondWith = (voices: unknown[]) =>
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ voices }) })))
+  const flush = async () => {
+    await act(async () => {
+      await Promise.resolve()
+    })
+    settle()
+  }
+
+  it('is offered in settings, unlinked, with the key never on screen', () => {
+    renderApp()
+    openSettings()
+
+    expect(keyField()).not.toBeNull()
+    // A key is a credential; a support call over a shared screen should not
+    // leak it, and it is pasted rather than read back.
+    expect(keyField()?.type).toBe('password')
+    expect(btn('Link')?.getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('adds the account voices to the picker, above the device ones', async () => {
+    renderApp()
+    openSettings()
+    respondWith([{ voice_id: 'v1', name: 'Rachel' }, { voice_id: 'v2', name: 'Adam' }])
+
+    fireEvent.change(keyField()!, { target: { value: 'sk-test' } })
+    settle()
+    click(btn('Link'))
+    await flush()
+
+    expect($('.eleven-status')?.textContent).toMatch(/2 voices/)
+    expect(voiceOptions()).toEqual(['Default', 'Rachel · ElevenLabs', 'Adam · ElevenLabs'])
+  })
+
+  it('keeps the account across a reload, and the key out of sight', async () => {
+    renderApp()
+    openSettings()
+    respondWith([{ voice_id: 'v1', name: 'Rachel' }])
+    fireEvent.change(keyField()!, { target: { value: 'sk-test' } })
+    settle()
+    click(btn('Link'))
+    await flush()
+
+    expect(JSON.parse(localStorage.getItem('peri_elevenlabs')!).apiKey).toBe('sk-test')
+    // Not in the phrase store, the profile or the settings — the three things a
+    // backup is built from.
+    for (const key of ['dwellspeak_phrase_store_v2', 'dwellspeak_profile', 'dwellspeak_settings']) {
+      expect(localStorage.getItem(key) ?? '').not.toContain('sk-test')
+    }
+  })
+
+  it('says what went wrong and links nothing', async () => {
+    renderApp()
+    openSettings()
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) })))
+
+    fireEvent.change(keyField()!, { target: { value: 'wrong' } })
+    settle()
+    click(btn('Link'))
+    await flush()
+
+    expect($('.eleven-error')?.textContent).toMatch(/not accepted/i)
+    expect(localStorage.getItem('peri_elevenlabs')).toBeNull()
+    expect(keyField()).not.toBeNull()
+  })
+
+  // Unlinking with one of its voices chosen would leave the picker naming a
+  // voice that is not there any more.
+  it('hands the voice back to the device when unlinked', async () => {
+    renderApp()
+    openSettings()
+    respondWith([{ voice_id: 'v1', name: 'Rachel' }])
+    fireEvent.change(keyField()!, { target: { value: 'sk-test' } })
+    settle()
+    click(btn('Link'))
+    await flush()
+
+    click($('.voice-trigger'))
+    click($$('.voice-option').find(o => o.textContent?.includes('Rachel')))
+    expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).voiceURI).toBe('elevenlabs:v1')
+
+    click(btn('Unlink'))
+    settle()
+
+    expect(localStorage.getItem('peri_elevenlabs')).toBeNull()
+    expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).voiceURI).toBe('')
+    expect(keyField()).not.toBeNull()
   })
 })
 

@@ -16,6 +16,7 @@ import {
 } from './backup'
 import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from './store'
 import { EMPTY_PROFILE, type Profile } from './phrases'
+import { saveElevenLabs } from './store'
 
 // A store with something of the user's in every field, and the map of ids to
 // categories the app would hand alongside it.
@@ -390,5 +391,29 @@ describe('merging into a device that is already in use', () => {
     const next = applyBackup(exportOf(['Home']), local(), 'merge')
     expect(next.profile).toEqual(local().profile)
     expect(next.settings.rate).toBe(1.6)
+  })
+})
+
+// A backup is made to be shared. An API key in one hands over the account it
+// belongs to, and whatever that account can be billed for. It lives under its
+// own storage key and never passes through `buildBackup`, which is easy to undo
+// by accident if someone later gathers "everything Peri keeps" into one export.
+describe('what a backup must never carry', () => {
+  it('leaves a linked ElevenLabs key out of the file', () => {
+    saveElevenLabs({ apiKey: 'sk-secret-key', voices: [{ id: 'v1', name: 'Rachel' }] })
+    const { state, categoryById } = fixture()
+    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+
+    expect(file).not.toContain('sk-secret-key')
+    expect(file).not.toMatch(/apiKey/i)
+  })
+
+  // The chosen voice does travel, and on a device with no account of its own it
+  // falls back to the device voice rather than going quiet.
+  it('does carry the chosen voice, which is not a secret', () => {
+    const { state, categoryById } = fixture()
+    state.settings.voiceURI = 'elevenlabs:v1'
+    const backup = buildBackup({ ...state, categoryById })
+    expect(backup.settings?.voiceURI).toBe('elevenlabs:v1')
   })
 })

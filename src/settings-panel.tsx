@@ -1,12 +1,22 @@
 
 // Menu → Settings. Dwell times, volume, speed and voice.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDwellControl } from './dwell'
+import { clearAudioCache, linkAccount, remoteVoiceURI, type ElevenLabsAccount } from './elevenlabs'
 import { useSettings } from './settings'
 import { subscribeVoices } from './speech'
+import { loadElevenLabs, saveElevenLabs } from './store'
 import { cx, dwellVar } from './style'
-import { ScrollPane, SettingRow, SettingSpinner } from './ui'
+import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from './ui'
+
+/** A voice offered in the picker, wherever it comes from. */
+interface VoiceChoice {
+  voiceURI: string
+  name: string
+  lang?: string
+  remote?: boolean
+}
 
 function VoiceDropdownItem({ label, selected, onSelect }: { label: string; selected: boolean; onSelect: () => void }) {
   const { settings } = useSettings()
@@ -25,16 +35,23 @@ function VoiceDropdownItem({ label, selected, onSelect }: { label: string; selec
   )
 }
 
-function voiceLabel(v: { name: string; lang?: string }) {
+function voiceLabel(v: VoiceChoice) {
+  if (v.remote) return `${v.name} · ElevenLabs`
   return v.lang ? `${v.name} · ${v.lang}` : v.name
 }
 
-function VoiceRow({ voices }: { voices: SpeechSynthesisVoice[] }) {
+function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account: ElevenLabsAccount | null }) {
   const { settings, update } = useSettings()
   const [open, setOpen] = useState(false)
-  const items = useMemo(
-    () => [{ voiceURI: '', name: 'Default', lang: '' }, ...voices.map(v => ({ voiceURI: v.voiceURI, name: v.name, lang: v.lang }))],
-    [voices],
+  // The account's voices come first: someone who went to the trouble of linking
+  // one is looking for those, not scrolling past sixty the device came with.
+  const items = useMemo<VoiceChoice[]>(
+    () => [
+      { voiceURI: '', name: 'Default', lang: '' },
+      ...(account?.voices ?? []).map(v => ({ voiceURI: remoteVoiceURI(v.id), name: v.name, remote: true })),
+      ...voices.map(v => ({ voiceURI: v.voiceURI, name: v.name, lang: v.lang })),
+    ],
+    [voices, account],
   )
   const current = items.find(v => v.voiceURI === settings.voiceURI) ?? items[0]
 
@@ -82,8 +99,19 @@ function VoiceRow({ voices }: { voices: SpeechSynthesisVoice[] }) {
 export function SettingsPanel() {
   const { settings, update } = useSettings()
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+  const [account, setLinked] = useState<ElevenLabsAccount | null>(loadElevenLabs)
 
   useEffect(() => subscribeVoices(setVoices), [])
+
+  // Written straight through, and `speak` reads it back per utterance, so there
+  // is no second copy to keep in step. The cache goes with it: audio fetched on
+  // one account's credits is not another's to use, and a voice re-linked may
+  // well be a different one under the same name.
+  const setAccount = useCallback((next: ElevenLabsAccount | null) => {
+    saveElevenLabs(next)
+    clearAudioCache()
+    setLinked(next)
+  }, [])
 
   return (
     <div className="settings-panel">
@@ -127,7 +155,92 @@ export function SettingsPanel() {
           onValue={v => update({ rate: v / 10 })}
         />
       </SettingRow>
-      {voices.length > 0 && <VoiceRow voices={voices} />}
+      {(voices.length > 0 || account) && <VoiceRow voices={voices} account={account} />}
+      <ElevenLabsRow account={account} onChange={setAccount} />
+    </div>
+  )
+}
+
+/**
+ * Linking an account. Typed rather than dwelled, like the rest of the one-off
+ * setup — an API key is forty characters of noise, and whoever is pasting it is
+ * at a keyboard.
+ */
+function ElevenLabsRow({ account, onChange }: {
+  account: ElevenLabsAccount | null
+  onChange: (account: ElevenLabsAccount | null) => void
+}) {
+  const { settings, update } = useSettings()
+  const [key, setKey] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const link = useCallback(() => {
+    setBusy(true)
+    setError(null)
+    linkAccount(key).then(result => {
+      setBusy(false)
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      setKey('')
+      onChange(result.account)
+    })
+  }, [key, onChange])
+
+  // Unlinking while one of its voices is chosen would leave the picker naming a
+  // voice that is no longer there, so the device voice takes over with it.
+  const unlink = useCallback(() => {
+    setError(null)
+    if (settings.voiceURI.startsWith('elevenlabs:')) update({ voiceURI: '' })
+    onChange(null)
+  }, [onChange, settings.voiceURI, update])
+
+  return (
+    <div className="setting-row eleven-row">
+      <span className="setting-label">ElevenLabs</span>
+      <div className="setting-control eleven-control">
+        {account ? (
+          <>
+            <span className="eleven-status">
+              Linked · {account.voices.length} voice{account.voices.length === 1 ? '' : 's'}
+            </span>
+            <PanelButton kind="danger" label="Unlink" onActivate={unlink} />
+          </>
+        ) : (
+          <>
+            <input
+              className="profile-input eleven-key"
+              type="password"
+              value={key}
+              onChange={e => setKey(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  link()
+                }
+              }}
+              placeholder="Paste your API key"
+              aria-label="ElevenLabs API key"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <PanelButton
+              kind="primary"
+              label={busy ? 'Linking…' : 'Link'}
+              onActivate={link}
+              disabled={busy || key.trim() === ''}
+            />
+          </>
+        )}
+        {error && <p className="eleven-error" role="alert">{error}</p>}
+        <p className="eleven-note">
+          {account
+            ? 'These voices need the internet and use your ElevenLabs credits. Peri falls back to the device voice if one cannot be fetched, and the emergency bar always uses the device voice.'
+            : 'Optional. Adds the voices from your ElevenLabs account. The key stays on this device and is never put in a backup.'}
+        </p>
+      </div>
     </div>
   )
 }
