@@ -4,7 +4,7 @@
 // The grid renders every phrase in the table — a couple of thousand cells — so
 // the cell is memoised and takes callbacks that do not change between renders.
 
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback, useRef, useState } from 'react'
 import { useDwellControl } from './dwell'
 import { useSettings } from './settings'
 import { useEdit } from './edit-mode'
@@ -12,7 +12,7 @@ import { hasChoices, type Phrase } from './phrases'
 import { AutoSpeakIcon, EditIcon } from './icons'
 import { cx, dwellVar } from './style'
 
-export const PhraseCell = memo(function PhraseCell({
+const PhraseCell = memo(function PhraseCell({
   phrase,
   onSelect,
 }: {
@@ -112,7 +112,7 @@ function ToggleBtn({ on, onToggle, label, children }: {
   )
 }
 
-export function GridScrollBar({ gridRef, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak }: {
+function GridScrollBar({ gridRef, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak }: {
   gridRef: React.RefObject<HTMLElement | null>
   editMode: boolean
   onToggleEdit: () => void
@@ -161,6 +161,39 @@ export function GridScrollBar({ gridRef, editMode, onToggleEdit, autoSpeak, onTo
           <line x1="5" y1="18" x2="19" y2="18"/><polyline points="8 10 12 14 16 10"/>
         </svg>
       </ScrollBtn>
+    </div>
+  )
+}
+
+/**
+ * The grid and the rail beside it. They are one component because the rail
+ * scrolls the grid, and the reference between them is nobody else's business.
+ */
+export function PhraseGrid({ phrases, onSelect, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak }: {
+  phrases: Phrase[]
+  onSelect: (phrase: Phrase) => void
+  editMode: boolean
+  onToggleEdit: () => void
+  autoSpeak: boolean
+  onToggleAutoSpeak: () => void
+}) {
+  const gridRef = useRef<HTMLElement>(null)
+  return (
+    <div className="grid-area">
+      <main ref={gridRef} className="grid-wrapper">
+        <div className="phrase-grid" role="group" aria-label="Phrases">
+          {phrases.map(phrase => (
+            <PhraseCell key={phrase.id} phrase={phrase} onSelect={onSelect} />
+          ))}
+        </div>
+      </main>
+      <GridScrollBar
+        gridRef={gridRef}
+        editMode={editMode}
+        onToggleEdit={onToggleEdit}
+        autoSpeak={autoSpeak}
+        onToggleAutoSpeak={onToggleAutoSpeak}
+      />
     </div>
   )
 }
