@@ -15,6 +15,8 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `src/main.tsx` - React entrypoint; imports `src/index.css`, mounts `src/App.tsx` into the `#root` element, and registers the service worker in production builds
 - `src/App.tsx` - Primary application component and the usual starting point for UI work
 - `src/phrases.ts` - Parses `src/imports/phrasetable.json` into phrases, including the fill-in-the-blank slots, their `aliases` lookups, and the user profile that fills `{contact}` and `{name}`
+- `src/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, and the four `localStorage` keys
+- `src/backup.ts` - The export/import file format under **Menu → Backup & sharing**: building one, reading one back, and applying it
 - `src/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
 - `src/speech.ts` - Speech synthesis; the single place utterances are created
 - `src/auth.ts` - Google, Apple, and Facebook OAuth sign-in
@@ -45,6 +47,7 @@ Run `pnpm check` before handing work back — it runs `typecheck`, `lint`, and `
 Tests live beside the code they cover:
 
 - `src/phrases.test.ts` - Placeholder parsing, alias resolution, and whole-table invariants
+- `src/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
 - `src/dwell.test.tsx` - The dwell hook: timing, tap, keyboard, disabled, and repeat
 - `src/App.test.tsx` - Whole-app flows driven through the real DOM
 - `src/categories.test.tsx` - Adding, renaming, deleting and ordering category tabs
@@ -75,6 +78,15 @@ Phrases in `phrasetable.json` can carry fill-in-the-blank slots — `Please turn
 How many options a slot ends up with decides the interaction, so mind the boundaries: **none** renders as `___` and the cursor lands on it for typing, **exactly one** is substituted straight into the text with no picker, and **two or more** opens the slot picker. `hasChoices` and `choosableSlots` both key off `options.length > 1` for that reason.
 
 Slot options are baked in at parse time, so `buildPhrases(profile)` re-parses the table when the profile changes. Phrase ids hash the *source* text rather than the rendered text, so saved edits survive a profile change.
+
+## Backups
+
+A backup is a **diff against the phrase table, not a copy of it**. The table ships with the app, so a file holds only what the user did — added, reworded, moved, removed, rearranged — plus their details and settings. That is why ids matter: they hash the source text, so an id in a backup still names the same phrase in a later release, and one that names nothing is skipped.
+
+Two things in `src/backup.ts` are deliberate and easy to "fix" by mistake:
+
+- **Merging never removes a phrase.** Deleting a phrase is the one change the app offers no way back from, so a file someone else made cannot make one on your device. Only *replace* applies removals, and `canReplace` refuses it for a file covering a few categories — everything the file said nothing about would go.
+- **Imported settings are clamped to `SETTING_LIMITS`.** A dwell time of zero fires every control the instant a pointer crosses it, leaving a gaze user no working control to undo it with. A file does not get to set a value the settings panel could not.
 
 ## Code quality
 

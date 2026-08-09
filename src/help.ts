@@ -113,6 +113,23 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Backup and sharing',
+    blocks: [
+      text(
+        'Open the menu and choose Backup & sharing. Everything you have changed can be saved as one file: the phrases you added, the wording you changed, what you moved or removed, your details and your settings.',
+      ),
+      list(
+        'Save a file keeps a copy in your downloads. Copy puts the same thing on the clipboard.',
+        'Tick a category instead of Everything to save just that one — useful for passing a set of phrases to someone else.',
+        'Choose a file, or Paste a backup, to bring one in.',
+      ),
+      text(
+        'Bringing a backup in offers two ways to do it. Add to what’s here keeps everything already on this device and never removes a phrase. Replace everything makes this device match the file exactly, including anything the file had removed.',
+      ),
+      text('The phrases Peri came with are already in the app, so they are not in the file. It stays small.'),
+    ],
+  },
+  {
     title: 'Keyboard and switch access',
     blocks: [
       text(
@@ -129,6 +146,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'Your phrases, your details and your settings are stored on this device only. Nothing is uploaded, and signing in does not change that.',
+      ),
+      text(
+        'Because of that, clearing your browser data would take them with it. Save a backup from time to time — see Backup and sharing above.',
       ),
     ],
   },
