@@ -197,3 +197,64 @@ export function saveUser(u: User) {
 export function clearUser() {
   localStorage.removeItem(USER_KEY)
 }
+
+// ── Arranging the categories ─────────────────────────────────────────────────
+// Pure operations over the store above: what a category is called, and what
+// order the tabs come in.
+
+/** The name a category is shown under, after any rename. */
+export function displayCategory(source: string, renames: Record<string, string>): string {
+  return renames[source] ?? source
+}
+
+/**
+ * Rename every source category currently displayed as `from` so it shows as
+ * `to`. Renaming onto an existing name merges the two, which is the only sane
+ * reading of giving two categories the same name.
+ */
+export function renameCategory(store: PhraseStore, from: string, to: string): Partial<PhraseStore> {
+  const renames = { ...store.categoryRenames }
+  for (const [source, shown] of Object.entries(renames)) {
+    if (shown === from) renames[source] = to
+  }
+  // A source that has never been renamed still displays under its own name.
+  if (!(from in renames)) renames[from] = to
+  // Identity entries carry no information.
+  for (const [source, shown] of Object.entries(renames)) {
+    if (source === shown) delete renames[source]
+  }
+  return {
+    categoryRenames: renames,
+    categories: [...new Set(store.categories.map(c => (c === from ? to : c)))],
+    // A renamed category keeps the place its old name held; a merge collapses
+    // onto the earlier of the two positions.
+    categoryOrder: [...new Set(store.categoryOrder.map(c => (c === from ? to : c)))],
+  }
+}
+
+/**
+ * Arrange category names for display. An empty `order` means alphabetical;
+ * otherwise the names it lists come first in that order and anything it has
+ * never heard of follows, alphabetically.
+ */
+export function orderCategories(names: string[], order: string[]): string[] {
+  if (order.length === 0) return [...names].sort()
+  const rank = new Map(order.map((name, i) => [name, i]))
+  const ranked = names.filter(n => rank.has(n)).sort((a, b) => rank.get(a)! - rank.get(b)!)
+  const rest = names.filter(n => !rank.has(n)).sort()
+  return [...ranked, ...rest]
+}
+
+/**
+ * The full order after moving `from` to where `to` sits. Landing after the
+ * target when moving rightwards and before it when moving leftwards is what
+ * puts the category where the pointer actually is, either way.
+ */
+export function moveCategory(shown: string[], from: string, to: string): string[] {
+  const fromIndex = shown.indexOf(from)
+  const toIndex = shown.indexOf(to)
+  if (fromIndex < 0 || toIndex < 0 || from === to) return shown
+  const rest = shown.filter(c => c !== from)
+  rest.splice(rest.indexOf(to) + (fromIndex < toIndex ? 1 : 0), 0, from)
+  return rest
+}

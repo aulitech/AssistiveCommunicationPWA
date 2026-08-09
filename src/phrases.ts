@@ -290,3 +290,16 @@ export function buildPhrases(profile: Profile = EMPTY_PROFILE): Phrase[] {
 
 /** The table with no profile applied. */
 export const PHRASES: Phrase[] = buildPhrases()
+
+// ── Emergency phrases ────────────────────────────────────────────────────────
+// Not part of the table: they are fixed, they are few, and they have to exist
+// whether or not the table ever loads.
+
+export const EMERGENCY_PHRASES: Phrase[] = [
+  ['em-0', 'Help me!'],
+  ['em-1', "I'm in pain"],
+  ['em-2', 'Call 911'],
+  ['em-3', 'Get a doctor'],
+  ['em-4', "I can't breathe"],
+  ['em-5', 'Call my family'],
+].map(([id, text]) => plainPhrase(id, text, 'Emergency'))
