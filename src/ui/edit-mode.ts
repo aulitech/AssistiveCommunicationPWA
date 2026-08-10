@@ -6,7 +6,7 @@
 // files and neither owns the idea.
 
 import { createContext, useContext } from 'react'
-import { type Phrase } from './phrases'
+import { type Phrase } from '../core/phrases'
 
 export interface EditCtxValue {
   editMode: boolean

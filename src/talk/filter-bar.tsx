@@ -6,10 +6,10 @@
 // whole arrangement.
 
 import { useCallback, useRef, useState } from 'react'
-import { useDwellControl } from './dwell'
-import { useSettings } from './settings'
-import { PlusIcon } from './icons'
-import { cx, dwellVar } from './style'
+import { useDwellControl } from '../ui/dwell'
+import { useSettings } from '../ui/settings'
+import { PlusIcon } from '../ui/icons'
+import { cx, dwellVar } from '../ui/style'
 
 /**
  * Reordering by pointer-drag needs a button held down while the pointer moves,

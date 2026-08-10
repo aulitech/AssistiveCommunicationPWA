@@ -5,12 +5,12 @@
 // the cell is memoised and takes callbacks that do not change between renders.
 
 import { memo, useCallback, useRef, useState } from 'react'
-import { useDwellControl } from './dwell'
-import { useSettings } from './settings'
-import { useEdit } from './edit-mode'
-import { hasChoices, type Phrase } from './phrases'
-import { AutoSpeakIcon, EditIcon } from './icons'
-import { cx, dwellVar } from './style'
+import { useDwellControl } from '../ui/dwell'
+import { useSettings } from '../ui/settings'
+import { useEdit } from '../ui/edit-mode'
+import { hasChoices, type Phrase } from '../core/phrases'
+import { AutoSpeakIcon, EditIcon } from '../ui/icons'
+import { cx, dwellVar } from '../ui/style'
 
 const PhraseCell = memo(function PhraseCell({
   phrase,

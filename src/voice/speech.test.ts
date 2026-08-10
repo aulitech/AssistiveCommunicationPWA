@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { speak } from './speech'
 import { clearAudioCache, remoteVoiceURI } from './elevenlabs'
-import { saveElevenLabs } from './store'
-import { spoken, lastUtterance, played, setAudioPlays } from './test/setup'
+import { saveElevenLabs } from '../core/store'
+import { spoken, lastUtterance, played, setAudioPlays } from '../test/setup'
 
 // Which of the two voices a phrase comes out of, and — the point of all of it —
 // that it always comes out of one of them. Somebody's only way of speaking does

@@ -6,9 +6,9 @@
 // it went.
 
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { BLANK } from './phrases'
-import { useSettings } from './settings'
-import { speak } from './speech'
+import { BLANK } from '../core/phrases'
+import { useSettings } from '../ui/settings'
+import { speak } from '../voice/speech'
 
 export function useComposer() {
   const { settings } = useSettings()

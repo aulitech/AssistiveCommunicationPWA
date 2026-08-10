@@ -1,4 +1,12 @@
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
+
+/* Tailwind scans the whole project for words that look like utility names, and
+   finds them in prose: `container.querySelector` in AGENTS.md was shipping a
+   real `.container` rule and five media queries to every user, and `relative`
+   from a node:path import added another. Only the files that can carry a class
+   are scanned — components, and not their tests. */
+@source "./**/*.tsx";
+@source not "./**/*.test.tsx";
 
 :root {
   /* System stack rather than a webfont: the app has to work with no network,

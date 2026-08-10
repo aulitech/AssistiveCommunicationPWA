@@ -3,13 +3,13 @@
 // spoken the moment it is chosen rather than composed into the message first.
 
 import { useCallback, useState } from 'react'
-import { useDwellControl } from './dwell'
-import { useSettings } from './settings'
-import { useEdit } from './edit-mode'
-import { speak } from './speech'
-import { type Phrase } from './phrases'
-import { PlusIcon } from './icons'
-import { cx, dwellVar } from './style'
+import { useDwellControl } from '../ui/dwell'
+import { useSettings } from '../ui/settings'
+import { useEdit } from '../ui/edit-mode'
+import { speak } from '../voice/speech'
+import { type Phrase } from '../core/phrases'
+import { PlusIcon } from '../ui/icons'
+import { cx, dwellVar } from '../ui/style'
 
 function EmergencyButton({ phrase }: { phrase: Phrase }) {
   const { settings } = useSettings()

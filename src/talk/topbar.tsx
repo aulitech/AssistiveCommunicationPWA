@@ -4,10 +4,10 @@
 // no height from the grid.
 
 import { useCallback, useState } from 'react'
-import { useSettings } from './settings'
-import { useDwellControl } from './dwell'
-import { ClearIcon, CopyIcon, MenuIcon, SpeakIcon, UndoIcon } from './icons'
-import { cx, dwellVar } from './style'
+import { useSettings } from '../ui/settings'
+import { useDwellControl } from '../ui/dwell'
+import { ClearIcon, CopyIcon, MenuIcon, SpeakIcon, UndoIcon } from '../ui/icons'
+import { cx, dwellVar } from '../ui/style'
 import type { Composer } from './use-composer'
 
 function ActionButton({ onSelect, className = '', children, label, disabled }: {

@@ -2,10 +2,10 @@
 // Menu → Backup & sharing. The screen over the format in `backup.ts`.
 
 import { useCallback, useMemo, useState } from 'react'
-import { useDwellControl } from './dwell'
-import { useSettings } from './settings'
-import { type Profile } from './phrases'
-import { type PhraseStore } from './store'
+import { useDwellControl } from '../ui/dwell'
+import { useSettings } from '../ui/settings'
+import { type Profile } from '../core/phrases'
+import { type PhraseStore } from '../core/store'
 import {
   applyBackup,
   backupFilename,
@@ -19,9 +19,9 @@ import {
   type Backup,
   type BackupSummary,
   type ImportMode,
-} from './backup'
-import { cx, dwellVar } from './style'
-import { PanelButton, ScrollPane } from './ui'
+} from '../core/backup'
+import { cx, dwellVar } from '../ui/style'
+import { PanelButton, ScrollPane } from '../ui/controls'
 
 
 function BackupScopeRow({ label, sublabel, selected, onSelect }: {

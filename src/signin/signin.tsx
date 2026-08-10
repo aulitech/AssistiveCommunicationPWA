@@ -5,10 +5,10 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { SIGN_IN, SignInCancelled, configuredProviders, type Provider } from './auth'
-import { useSettings } from './settings'
-import { type User } from './store'
-import { AppLogoIcon, AppleIcon, FacebookIcon, GoogleIcon } from './icons'
-import { DwellButton, DwellCursor, ScrollPane, SettingSpinner } from './ui'
+import { useSettings } from '../ui/settings'
+import { type User } from '../core/store'
+import { AppLogoIcon, AppleIcon, FacebookIcon, GoogleIcon } from '../ui/icons'
+import { DwellButton, DwellCursor, ScrollPane, SettingSpinner } from '../ui/controls'
 
 const FEATURES = [
   { icon: '👁️', title: 'Dwell selection', body: 'No tapping or clicking — hover and hold to choose.' },

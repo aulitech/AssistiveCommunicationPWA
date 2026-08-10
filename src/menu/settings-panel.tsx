@@ -2,13 +2,14 @@
 // Menu → Settings. Dwell times, volume, speed and voice.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useDwellControl } from './dwell'
-import { clearAudioCache, linkAccount, remoteVoiceURI, type ElevenLabsAccount } from './elevenlabs'
-import { useSettings } from './settings'
-import { subscribeVoices } from './speech'
-import { loadElevenLabs, saveElevenLabs } from './store'
-import { cx, dwellVar } from './style'
-import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from './ui'
+import { useDwellControl } from '../ui/dwell'
+import { clearAudioCache, linkAccount, remoteVoiceURI } from '../voice/elevenlabs'
+import { type ElevenLabsAccount } from '../core/store'
+import { useSettings } from '../ui/settings'
+import { subscribeVoices } from '../voice/speech'
+import { loadElevenLabs, saveElevenLabs } from '../core/store'
+import { cx, dwellVar } from '../ui/style'
+import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
 
 /** A voice offered in the picker, wherever it comes from. */
 interface VoiceChoice {

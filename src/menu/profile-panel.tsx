@@ -3,12 +3,12 @@
 // ships empty, so phrases that name someone have something to offer.
 
 import { useCallback, useState } from 'react'
-import { useDwellControl } from './dwell'
-import { useSettings } from './settings'
-import { type Profile } from './phrases'
-import { PlusIcon } from './icons'
-import { cx, dwellVar } from './style'
-import { SettingRow } from './ui'
+import { useDwellControl } from '../ui/dwell'
+import { useSettings } from '../ui/settings'
+import { type Profile } from '../core/phrases'
+import { PlusIcon } from '../ui/icons'
+import { cx, dwellVar } from '../ui/style'
+import { SettingRow } from '../ui/controls'
 
 function ContactRow({ name, onRemove }: { name: string; onRemove: () => void }) {
   const { settings } = useSettings()

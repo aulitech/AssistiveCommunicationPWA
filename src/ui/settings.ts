@@ -6,7 +6,7 @@
 // panel is built out of those same controls.
 
 import { createContext, useContext } from 'react'
-import { DEFAULT_SETTINGS, type Settings } from './store'
+import { DEFAULT_SETTINGS, type Settings } from '../core/store'
 
 export const SettingsCtx = createContext<{ settings: Settings; update: (patch: Partial<Settings>) => void }>({
   settings: DEFAULT_SETTINGS,

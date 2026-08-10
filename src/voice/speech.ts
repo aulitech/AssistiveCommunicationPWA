@@ -7,8 +7,8 @@
 // failing is never heard as silence: any path that cannot produce audio ends in
 // the device saying the words instead.
 
-import { loadElevenLabs } from './store'
-import { remoteVoiceId, synthesize, type ElevenLabsAccount } from './elevenlabs'
+import { loadElevenLabs, type ElevenLabsAccount } from '../core/store'
+import { remoteVoiceId, synthesize } from './elevenlabs'
 
 export interface VoiceSettings {
   voiceURI: string // empty = browser default

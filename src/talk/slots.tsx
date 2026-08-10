@@ -3,10 +3,10 @@
 // asks for them one slot at a time before it is delivered anywhere.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useDwellControl } from './dwell'
-import { useSettings } from './settings'
-import { BLANK, compose, type Phrase } from './phrases'
-import { cx, dwellVar } from './style'
+import { useDwellControl } from '../ui/dwell'
+import { useSettings } from '../ui/settings'
+import { BLANK, compose, type Phrase } from '../core/phrases'
+import { cx, dwellVar } from '../ui/style'
 
 function SlotOption({ value, onPick }: { value: string; onPick: (v: string) => void }) {
   const { settings } = useSettings()

@@ -17,7 +17,7 @@ import {
   parseSegments,
   type Phrase,
   type Profile,
-} from './phrases'
+} from '../core/phrases'
 import {
   displayCategory,
   loadPhraseStore,
@@ -28,7 +28,7 @@ import {
   saveProfile,
   savePhraseStore,
   type PhraseStore,
-} from './store'
+} from '../core/store'
 
 /** Phrases the user wrote carry this prefix, which is how a delete tells them apart. */
 const newPhraseId = () => `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
