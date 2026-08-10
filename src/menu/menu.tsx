@@ -2,17 +2,17 @@
 // The panel that slides down from the top, and everything reached from it.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useDwellControl } from './dwell'
-import { HELP_SECTIONS } from './help'
-import { type Profile } from './phrases'
-import { useSettings } from './settings'
-import { type PhraseStore, type User } from './store'
-import { type AppState } from './backup'
-import { cx, dwellVar } from './style'
-import { NavItem, ProseSections, ScrollPane } from './ui'
+import { useDwellControl } from '../ui/dwell'
+import { type Profile } from '../core/phrases'
+import { useSettings } from '../ui/settings'
+import { type PhraseStore, type User } from '../core/store'
+import { type AppState } from '../core/backup'
+import { cx, dwellVar } from '../ui/style'
+import { NavItem } from '../ui/controls'
 import { SettingsPanel } from './settings-panel'
 import { ProfilePanel } from './profile-panel'
 import { BackupPanel } from './backup-panel'
+import { HelpPanel } from './help-panel'
 
 /**
  * The way out of a panel, in the top right corner of every one of them.
@@ -38,24 +38,6 @@ function PanelBack({ onSelect }: { onSelect: () => void }) {
         <polyline points="15 18 9 12 15 6" />
       </svg>
       Back
-    </div>
-  )
-}
-
-function HelpPanel() {
-  return (
-    <div className="help-panel">
-      <ScrollPane className="help-scroller" paneClassName="help-body" step={120}>
-        {/* The panel spans the full viewport, so the prose needs its own
-            column — text running the width of a wide monitor is unreadable. */}
-        <div className="help-measure">
-          <h2 className="help-title">Using Peri</h2>
-          <ProseSections sections={HELP_SECTIONS} />
-          <p className="help-legal-links">
-            <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a>
-          </p>
-        </div>
-      </ScrollPane>
     </div>
   )
 }

@@ -7,7 +7,7 @@
 //
 // Not written by a lawyer. Accurate, but worth review before it is relied on.
 
-import { type ProseDocument, list, text } from './prose'
+import { type ProseDocument, list, text } from '../core/prose'
 
 const UPDATED = '9 August 2026'
 const CONTACT = 'spero@auli.tech'

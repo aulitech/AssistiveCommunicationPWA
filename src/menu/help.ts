@@ -7,7 +7,7 @@
 // them set it up. Short sentences, plain words, no jargon — someone may be
 // reading this while tired, and every screenful costs them dwell time.
 
-import { type ProseBlock, type ProseSection, list, text } from './prose'
+import { type ProseBlock, type ProseSection, list, text } from '../core/prose'
 
 export type HelpBlock = ProseBlock
 export type HelpSection = ProseSection

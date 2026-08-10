@@ -1,8 +1,8 @@
 // The messages already said, as phrases that can be said again.
 
 import { useCallback, useMemo, useState } from 'react'
-import { addSent, loadSent, saveSent, type SentMessage } from './store'
-import { plainPhrase, type Phrase } from './phrases'
+import { addSent, loadSent, saveSent, type SentMessage } from '../core/store'
+import { plainPhrase, type Phrase } from '../core/phrases'
 
 /** The category its phrases claim, and the word on its tab. */
 export const SENT_CATEGORY = 'Sent'

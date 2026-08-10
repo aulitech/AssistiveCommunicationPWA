@@ -4,8 +4,8 @@
 // published policy URLs, so they must render without an account and without any
 // of the app's state.
 
-import { type ProseDocument } from './prose'
-import { ProseSections } from './ui'
+import { type ProseDocument } from '../core/prose'
+import { ProseSections } from '../ui/controls'
 
 export function LegalPage({ doc }: { doc: ProseDocument }) {
   return (

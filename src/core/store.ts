@@ -6,7 +6,6 @@
 // store is a backup that silently restores nothing.
 
 import { EMPTY_PROFILE, type Profile } from './phrases'
-import { type ElevenLabsAccount, type RemoteVoice } from './elevenlabs'
 
 // Four of these storage keys still say `dwellspeak_`, the app's former name.
 // They are deliberately not renamed: everything a user has — their phrases,
@@ -230,6 +229,17 @@ export function addSent(messages: SentMessage[], text: string): SentMessage[] {
 // whatever that account can be billed for. `src/backup.test.ts` holds it to
 // that. What a backup does carry is the chosen voice, which on a device with no
 // account of its own simply falls back to the device voice.
+
+export interface RemoteVoice {
+  id: string
+  name: string
+}
+
+export interface ElevenLabsAccount {
+  apiKey: string
+  /** Kept so the picker can still name the chosen voice while offline. */
+  voices: RemoteVoice[]
+}
 
 export function loadElevenLabs(): ElevenLabsAccount | null {
   try {

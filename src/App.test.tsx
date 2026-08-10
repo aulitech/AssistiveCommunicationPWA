@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import App from './App'
-import { BLANK } from './phrases'
-import { HELP_SECTIONS } from './help'
-import { parseBackup } from './backup'
+import { BLANK } from './core/phrases'
+import { HELP_SECTIONS } from './menu/help'
+import { parseBackup } from './core/backup'
 import { spoken, lastUtterance, downloads, setClipboardText } from './test/setup'
 
 // The grid renders every phrase, so query the DOM directly — building an

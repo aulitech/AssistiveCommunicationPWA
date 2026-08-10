@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDwellControl } from './dwell'
 import { useSettings } from './settings'
-import type { ProseSection } from './prose'
+import type { ProseSection } from '../core/prose'
 import { cx, dwellVar } from './style'
 
 export function DwellCursor() {

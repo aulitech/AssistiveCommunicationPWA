@@ -4,10 +4,10 @@
 // whoever configures the device.
 
 import { useCallback, useEffect, useState } from 'react'
-import { useDwellControl } from './dwell'
-import { useSettings } from './settings'
-import { type Phrase } from './phrases'
-import { cx, dwellVar } from './style'
+import { useDwellControl } from '../ui/dwell'
+import { useSettings } from '../ui/settings'
+import { type Phrase } from '../core/phrases'
+import { cx, dwellVar } from '../ui/style'
 
 function EditAction({ kind, label, onActivate, disabled }: {
   kind: 'danger' | 'cancel' | 'save'

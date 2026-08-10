@@ -7,8 +7,8 @@ import {
   remoteVoiceId,
   remoteVoiceURI,
   synthesize,
-  type ElevenLabsAccount,
 } from './elevenlabs'
+import { type ElevenLabsAccount } from '../core/store'
 
 const ACCOUNT: ElevenLabsAccount = { apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }
 

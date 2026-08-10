@@ -12,57 +12,61 @@ Nothing starts a server for you — this project was scaffolded by Figma Make an
 
 This is the canonical project structure. Start with task-relevant files below. Only follow imports or inspect other files when required, when a documented path is missing, or when the repository contradicts this guide.
 
-Modules are layered, and imports only ever point down the list. Nothing below imports anything above it, so there are no cycles to reason about.
+`src/` is **layered, lowest first**. A directory may import from itself and from anything on an earlier line, never from a later one. `src/structure.test.ts` fails the build if that is broken, so the rule is enforced rather than merely described.
 
-**Entry**
+| Layer | Directory | Holds |
+|---|---|---|
+| 1 | `core/` | What Peri knows and keeps. No React, no network, no screens |
+| 2 | `ui/` | The controls and contexts every screen is built from |
+| 2 | `voice/` | Making sound come out |
+| 3 | `menu/` | The panel that slides down, and everything reached from it |
+| 4 | `talk/` `signin/` `legal/` | The three screens |
+| 5 | *(root)* | `App.tsx`, `main.tsx`, and the tests that drive the whole app |
 
-- `src/main.tsx` - React entrypoint; imports `src/index.css`, mounts `src/App.tsx` into the `#root` element, and registers the service worker in production builds
-- `src/App.tsx` - The shell: which of the three screens is on, and the settings provider every one of them reads. Fifty lines; **it is not where UI work starts**
+**core/** — readable on its own; nothing else in `src` is needed to follow it
 
-**Data and platform** — no React, no dependants of their own
+- `core/phrases.ts` - Parses `core/imports/phrasetable.json` into phrases, including the fill-in-the-blank slots, their `aliases` lookups, the profile that fills `{contact}` and `{name}`, and the fixed emergency phrases
+- `core/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, the linked account, the sent messages, the six `localStorage` keys, and the pure operations that arrange categories
+- `core/backup.ts` - The export/import file format under **Menu → Backup & sharing**: building one, reading one back, and applying it
+- `core/prose.ts` - The blocks long-form text is written in
 
-- `src/phrases.ts` - Parses `src/imports/phrasetable.json` into phrases, including the fill-in-the-blank slots, their `aliases` lookups, the profile that fills `{contact}` and `{name}`, and the fixed emergency phrases
-- `src/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, the four `localStorage` keys, and the pure operations that arrange categories
-- `src/backup.ts` - The export/import file format under **Menu → Backup & sharing**: building one, reading one back, and applying it
-- `src/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
-- `src/speech.ts` - Speech output; the single place utterances are created, and the routing between the device voice and a linked account
-- `src/elevenlabs.ts` - A linked ElevenLabs account: validating a key, fetching its voices, fetching audio, and the cache in front of it
-- `src/auth.ts` - Google, Apple, and Facebook OAuth sign-in
-- `src/help.ts`, `src/legal.ts`, `src/prose.ts` - Long-form text as data, and the blocks it is written in
+**ui/** — the shared vocabulary
 
-**Shared** — the vocabulary every screen is built from
+- `ui/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
+- `ui/controls.tsx` - The dwell controls more than one screen uses: `DwellButton`, `NavItem`, `SettingRow`, `SettingSpinner`, `ScrollPane`, `PanelButton`, `ProseSections`, `DwellCursor`
+- `ui/settings.ts`, `ui/edit-mode.ts` - The two React contexts. Separate from the panels that edit them, or `controls.tsx` would have to import the settings screen, which is built out of `controls.tsx`
+- `ui/style.ts` - `cx` and `dwellVar`. Not components, so not in `controls.tsx` — a module mixing the two loses fast refresh for everything importing it
+- `ui/icons.tsx` - Inline SVG. Icons used by exactly one screen stay with that screen
 
-- `src/settings.ts`, `src/edit-mode.ts` - The two React contexts. Separate modules because `ui.tsx` needs a dwell time and would otherwise have to import the settings screen, which is built out of `ui.tsx`
-- `src/style.ts` - `cx` and `dwellVar`. Not components, so not in `ui.tsx` — a module mixing the two loses fast refresh for everything importing it
-- `src/icons.tsx` - Inline SVG. Icons used by exactly one screen stay with that screen
-- `src/ui.tsx` - The dwell controls more than one screen uses: `DwellButton`, `NavItem`, `SettingRow`, `SettingSpinner`, `ScrollPane`, `ProseSections`, `DwellCursor`
+**voice/**
 
-**State** — the talking screen's own hooks
+- `voice/speech.ts` - The single place utterances are created, and the routing between the device voice and a linked account
+- `voice/elevenlabs.ts` - A linked ElevenLabs account: validating a key, fetching its voices, fetching audio, and the cache in front of it
 
-- `src/use-board.ts` - What is on the board and every way of changing it: the store, the profile, the phrases and categories derived from them, and the operations that write back
-- `src/use-composer.ts` - The message being built: its text, its history, and the caret
-- `src/use-sent.ts` - The messages already spoken or copied, as phrases that can be said again
-- `src/use-toast.ts` - The line that appears and fades
+**menu/**
 
-**Surfaces** — one file per thing on screen
+- `menu/menu.tsx` - The panel itself and the four things it opens
+- `menu/settings-panel.tsx`, `menu/profile-panel.tsx`, `menu/backup-panel.tsx`, `menu/help-panel.tsx` - Those four
+- `menu/help.ts` - The guide, as data
 
-- `src/topbar.tsx` - The message box, the controls acting on it, and Rest
-- `src/grid.tsx` - The phrase grid, the phrase cell, and the rail that scrolls it
-- `src/filter-bar.tsx` - The category tabs, and the controls that arrange them
-- `src/emergency.tsx` - The red bar along the bottom
-- `src/slots.tsx` - The picker that fills a phrase's blanks
-- `src/editors.tsx` - The phrase and category dialogs
-- `src/settings-panel.tsx`, `src/profile-panel.tsx`, `src/backup-panel.tsx` - The three panels reached from the menu
-- `src/menu.tsx` - The panel that slides down from the top, and the help guide inside it
+**talk/** — **the usual starting point for UI work**
 
-**Screens**
+- `talk/talk.tsx` - The screen: which dialog is open, which category is showing, and what to say when an operation finishes
+- `talk/use-board.ts` - What is on the board and every way of changing it
+- `talk/use-composer.ts` - The message being built: its text, its history, and the caret
+- `talk/use-sent.ts` - The messages already spoken or copied
+- `talk/use-toast.ts` - The line that appears and fades
+- `talk/topbar.tsx`, `talk/grid.tsx`, `talk/filter-bar.tsx`, `talk/emergency.tsx`, `talk/slots.tsx`, `talk/editors.tsx` - One surface each
 
-- `src/talk.tsx` - The talking screen, and **the usual starting point for UI work**
-- `src/signin.tsx` - The way in
-- `src/legal-page.tsx` - `/privacy` and `/terms`
+**signin/**, **legal/** — a screen and the module behind it, twice
 
-**Styling**
+- `signin/auth.ts` - Google, Apple, and Facebook OAuth sign-in
+- `legal/legal.ts` - The privacy policy and terms, served at `/privacy` and `/terms`
 
+**Root and elsewhere**
+
+- `src/App.tsx` - Which of the three screens is on, and the settings provider. Fifty lines; **it is not where UI work starts**
+- `src/main.tsx` - React entrypoint; imports `src/index.css`, mounts `App` into `#root`, and registers the service worker in production builds
 - `src/index.css` - Global CSS entrypoint and Tailwind CSS v4 import. One file, ordered by accretion rather than by concern — see the note under Styling before reorganising it
 - `index.html` - Vite HTML shell: the `#root` element, `src/main.tsx`, and every `<meta>` the page carries
 - `public/` - Served at the site root: PWA manifest, icons, `robots.txt`, and `sw.js` (the offline service worker)
@@ -89,16 +93,19 @@ Run `pnpm check` before handing work back — it runs `typecheck`, `lint`, and `
 
 Tests live beside the code they cover:
 
-- `src/phrases.test.ts` - Placeholder parsing, alias resolution, and whole-table invariants
-- `src/sent.test.ts` - The list of what was said: newest first, no repeats, and the cap
-- `src/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
-- `src/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
-- `src/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
-- `src/dwell.test.tsx` - The dwell hook: timing, tap, keyboard, disabled, and repeat
+Unit tests sit beside what they cover; tests that drive the whole app through `App` sit at the root with it.
+
+- `core/phrases.test.ts` - Placeholder parsing, alias resolution, and whole-table invariants
+- `core/sent.test.ts` - The list of what was said: newest first, no repeats, and the cap
+- `core/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
+- `voice/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
+- `voice/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
+- `ui/dwell.test.tsx` - The dwell hook: timing, tap, keyboard, disabled, and repeat
 - `src/App.test.tsx` - Whole-app flows driven through the real DOM
 - `src/categories.test.tsx` - Adding, renaming, deleting and ordering category tabs
 - `src/shell.test.ts` - `index.html` and the manifest: the parts of the app no component renders
-- `src/test/setup.ts` - Stubs for the platform APIs jsdom lacks (speech synthesis, `ResizeObserver`, scrolling, clipboard)
+- `src/structure.test.ts` - The layering above, plus the two ways it quietly rots: a module dropped at the root, and Tailwind widening its scan back to the whole project
+- `src/test/setup.ts` - Stubs for the platform APIs jsdom lacks (speech synthesis, `ResizeObserver`, scrolling, clipboard, audio playback)
 
 Two things worth knowing when adding to them:
 
@@ -112,6 +119,8 @@ When fixing a bug, add the test that fails without the fix, then confirm it actu
 This project uses **Tailwind CSS v4** through the `@tailwindcss/vite` plugin configured in `vite.config.ts`. `src/index.css` imports Tailwind with `@import 'tailwindcss';`. Use Tailwind utility classes directly in JSX and put global CSS or Tailwind v4 theme customization in `src/index.css`. This scaffold does not need a Tailwind config file or PostCSS config.
 
 `src/main.tsx` imports `src/index.css`, so global font wiring belongs in `src/index.css`. Keep CSS `@import` statements first, then add any `@font-face` rules and font-family defaults there.
+
+**Tailwind is given an allowlist, not the whole project.** `src/index.css` opens with `@import 'tailwindcss' source(none)` and then names `./**/*.tsx` minus tests. Left to scan everything, it takes any word that looks like a utility name — `container.querySelector` written in this file shipped a real `.container` rule with five media queries to every user, and words in the stylesheet's own property values added ten more. Narrowing it took three kilobytes off the bundle. Add to the `@source` list if a class ever needs to come from somewhere else.
 
 **The stylesheet is one file on purpose.** It is ordered by accretion rather than by concern — the rules for reordering categories sit two thousand lines below the rules for the tabs they reorder — so splitting it into partials would mean either importing the same concern twice or moving blocks past each other. Moving them changes the cascade wherever two selectors have equal specificity, and jsdom lays nothing out, so no test here would catch the difference. Reorganise it only alongside a visual comparison against a deploy preview.
 

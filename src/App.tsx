@@ -5,12 +5,12 @@
 // looking at" and nothing more.
 
 import { useCallback, useMemo, useState } from 'react'
-import { legalDocumentFor } from './legal'
-import { loadSettings, saveSettings, clearUser, loadUser, saveUser, type Settings, type User } from './store'
-import { SettingsCtx } from './settings'
-import { SignInPage } from './signin'
-import { LegalPage } from './legal-page'
-import { TalkScreen } from './talk'
+import { legalDocumentFor } from './legal/legal'
+import { loadSettings, saveSettings, clearUser, loadUser, saveUser, type Settings, type User } from './core/store'
+import { SettingsCtx } from './ui/settings'
+import { SignInPage } from './signin/signin'
+import { LegalPage } from './legal/legal-page'
+import { TalkScreen } from './talk/talk'
 
 export default function App() {
   // Legal pages are plain documents at their own URLs. Two leaf pages reached
