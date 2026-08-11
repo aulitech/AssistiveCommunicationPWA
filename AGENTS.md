@@ -46,7 +46,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 **menu/**
 
 - `menu/menu.tsx` - The panel itself and the four things it opens. **Back is the only way out that does not need a keyboard** — the scrim behind the panel is inert on purpose, since a pointer wandering across it used to take the menu away
-- `menu/settings-panel.tsx`, `menu/profile-panel.tsx`, `menu/backup-panel.tsx`, `menu/help-panel.tsx` - Those four. The voice picker is a full-screen grid, and choosing a voice speaks a sample in it and leaves the grid open — a preview button beside each of sixty tiles would put two targets in every one. Cancel puts back the voice the picker opened on, which is what makes trying them free
+- `menu/settings-panel.tsx`, `menu/profile-panel.tsx`, `menu/backup-panel.tsx`, `menu/help-panel.tsx` - Those four. The voice picker is a full-screen grid, and choosing a voice speaks a sample in it and leaves the grid open — a preview button beside each of sixty tiles would put two targets in every one. Cancel puts back the voice the picker opened on, which is what makes trying them free. It is portalled to the body: the panel is animated with `transform`, and a transformed ancestor makes `position: fixed` resolve against that ancestor rather than the viewport — any full-screen overlay opened from inside a panel needs the same treatment
 - `menu/help.ts` - The guide, as data
 
 **talk/** — **the usual starting point for UI work**

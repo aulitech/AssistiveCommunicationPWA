@@ -2,6 +2,7 @@
 // Menu → Settings. Dwell times, volume, speed and voice.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useDwellControl } from '../ui/dwell'
 import { clearAudioCache, linkAccount, remoteVoiceURI } from '../voice/elevenlabs'
 import { type ElevenLabsAccount } from '../core/store'
@@ -79,7 +80,13 @@ function VoiceModal({ voices, selected, onPick, onDone, onCancel }: {
     return () => window.removeEventListener('keydown', onKey)
   }, [onCancel])
 
-  return (
+  // Rendered at the body rather than where it sits in the tree. The panel it
+  // opens from is animated with `transform`, and a transformed ancestor makes
+  // `position: fixed` resolve against that ancestor instead of the viewport —
+  // so the modal came out squeezed inside the menu panel, a few hundred pixels
+  // wide, instead of taking the screen. Nothing in jsdom lays anything out, so
+  // no test could see it; what a test can see is that it is not in there.
+  return createPortal(
     <div className="voice-modal-scrim">
       <div className="voice-modal" role="dialog" aria-modal="true" aria-label="Choose a voice">
         <div className="voice-modal-head">
@@ -105,7 +112,8 @@ function VoiceModal({ voices, selected, onPick, onDone, onCancel }: {
           </div>
         </ScrollPane>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
