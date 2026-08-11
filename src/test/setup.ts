@@ -77,6 +77,9 @@ function installSpeechSynthesis() {
 beforeEach(() => {
   spoken.length = 0
   lastUtterance = null
+  // Mutable and shared, like the rest of these: a test that seeds voices must
+  // not leave them for the next one.
+  voices.length = 0
   localStorage.clear()
 
   installSpeechSynthesis()

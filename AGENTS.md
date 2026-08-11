@@ -45,7 +45,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 
 **menu/**
 
-- `menu/menu.tsx` - The panel itself and the four things it opens
+- `menu/menu.tsx` - The panel itself and the four things it opens. **Back is the only way out that does not need a keyboard** — the scrim behind the panel is inert on purpose, since a pointer wandering across it used to take the menu away
 - `menu/settings-panel.tsx`, `menu/profile-panel.tsx`, `menu/backup-panel.tsx`, `menu/help-panel.tsx` - Those four
 - `menu/help.ts` - The guide, as data
 

@@ -1,7 +1,7 @@
 
 // The panel that slides down from the top, and everything reached from it.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { type Profile } from '../core/phrases'
 import { useSettings } from '../ui/settings'
@@ -80,29 +80,14 @@ export function TopPanel({ open, user, onClose, onSignOut, profile, onProfileCha
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  const scrimMoveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const handleScrimMove = useCallback(() => {
-    if (scrimMoveTimer.current) return
-    scrimMoveTimer.current = setTimeout(() => {
-      scrimMoveTimer.current = null
-      onClose()
-    }, 600)
-  }, [onClose])
-  const cancelScrimTimer = useCallback(() => {
-    if (scrimMoveTimer.current) {
-      clearTimeout(scrimMoveTimer.current)
-      scrimMoveTimer.current = null
-    }
-  }, [])
-  useEffect(() => cancelScrimTimer, [cancelScrimTimer])
-
   return (
     <>
-      <div
-        className={cx('panel-scrim', open && 'open')}
-        onPointerMove={handleScrimMove}
-        onPointerLeave={cancelScrimTimer}
-      />
+      {/* Dark, and it swallows pointer events so nothing behind it can be
+          dwelled by mistake — but it is not a way out. Moving across it used to
+          close the panel after 600ms, which meant a pointer wandering on its way
+          to the menu took the menu away again. The way out is the Back button,
+          which is in the same corner of every panel including this one. */}
+      <div className={cx('panel-scrim', open && 'open')} />
 
       <div className={cx('top-panel', open && 'open')} role="dialog" aria-label="Menu" aria-hidden={!open}>
         {/* User row */}
@@ -117,7 +102,7 @@ export function TopPanel({ open, user, onClose, onSignOut, profile, onProfileCha
             <span className="panel-user-name">{user.name}</span>
             {user.email && <span className="panel-user-email">{user.email}</span>}
           </div>
-          {view !== 'menu' && <PanelBack onSelect={() => setView('menu')} />}
+          <PanelBack onSelect={view === 'menu' ? onClose : () => setView('menu')} />
         </div>
 
         {view !== 'menu' ? (

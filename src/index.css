@@ -1237,19 +1237,15 @@ body {
 .eleven-error { color: #f87171; }
 .eleven-note { color: var(--text-muted); }
 
-.voice-dropdown {
-  position: relative;
-  width: 186px;
-}
-
+/* The trigger stays in the settings row; the choosing happens full screen. */
 .voice-trigger {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  width: 100%;
-  padding: 6px 10px;
+  width: 186px;
+  padding: 8px 10px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1270,21 +1266,105 @@ body {
   pointer-events: none;
 }
 
-.voice-list {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  max-height: 220px;
-  z-index: 200;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+/* ── Voice picker ── */
+/* Sixty device voices in a 186px dropdown was the one list in this app that a
+   gaze user could not realistically work through. It takes the screen instead,
+   in the same shape as the slot picker. */
+.voice-modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(2px);
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.voice-modal {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 900px;
+  max-height: 88vh;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  overflow: hidden;
 }
+
+.voice-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.voice-modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.voice-modal-body { padding: 14px; }
+
+.voice-grid {
+  display: grid;
+  /* Wide enough for a voice name and where it came from, and no narrower on a
+     phone than a dwell can comfortably hold. */
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.voice-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-height: 62px;
+  padding: 10px 12px;
+  background: var(--cell);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.voice-tile:hover,
+.voice-tile.dwelling { background: var(--cell-hover); border-color: var(--accent); }
+.voice-tile .dwell-bar { background: var(--accent); }
+
+.voice-tile.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.voice-tile-name {
+  font-size: 14px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-tile-source {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The account's voices are the reason somebody linked one; they lead the grid
+   and say so without having to be read. */
+.voice-tile.is-remote .voice-tile-source { color: var(--brand); }
 
 /* Shared scrollable pane with dwell-driven arrows (voice list, help guide). */
 .scroll-pane {

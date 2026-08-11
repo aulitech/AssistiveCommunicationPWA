@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, act } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import App from './App'
 import { BLANK } from './core/phrases'
 import { HELP_SECTIONS } from './menu/help'
 import { parseBackup } from './core/backup'
-import { spoken, lastUtterance, downloads, setClipboardText } from './test/setup'
+import { spoken, lastUtterance, downloads, setClipboardText, voices } from './test/setup'
 
 // The grid renders every phrase, so query the DOM directly — building an
 // accessibility tree over a couple of thousand cells for each lookup is slow.
@@ -966,16 +968,22 @@ describe('leaving a panel', () => {
   const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
   const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
   const back = () => $('.panel-back')
+  const isOpen = () => $('.top-panel.open') !== null
   const PANELS = ['Settings', 'My details', 'Backup & sharing', 'Help']
+  const SCREENS = ['Menu', ...PANELS]
+
+  const show = (screen: string) => {
+    renderApp()
+    openMenu()
+    if (screen !== 'Menu') click(nav(screen))
+  }
 
   // The panels are different heights, and the way out used to sit under their
   // content — so it moved whenever the content did. A target a gaze user has to
   // find again each time is a poor one, so it lives in the row above instead,
-  // which is the same place on every panel.
-  it.each(PANELS)('offers Back in the top right of %s', panel => {
-    renderApp()
-    openMenu()
-    click(nav(panel))
+  // which is the same place on every screen the menu can show.
+  it.each(SCREENS)('offers Back in the top right of %s', screen => {
+    show(screen)
 
     const row = $('.panel-user-row')!
     expect(row.contains(back()!), 'Back is not in the top row').toBe(true)
@@ -983,26 +991,26 @@ describe('leaving a panel', () => {
   })
 
   it.each(PANELS)('returns to the menu from %s', panel => {
-    renderApp()
-    openMenu()
-    click(nav(panel))
+    show(panel)
     click(back())
 
     expect(nav('Settings')).toBeDefined()
-    expect(back()).toBeNull()
+    expect(isOpen()).toBe(true)
   })
 
-  // The menu is not somewhere you go back from — it closes.
-  it('offers no Back on the menu itself', () => {
-    renderApp()
-    openMenu()
-    expect(back()).toBeNull()
+  // One step further out. With the scrim inert this is the only way back to the
+  // phrases that does not need a keyboard.
+  it('closes the menu from the menu itself', () => {
+    show('Menu')
+    expect(isOpen()).toBe(true)
+
+    click(back())
+
+    expect(isOpen()).toBe(false)
   })
 
   it('answers a dwell, a tap and a key like every other control', () => {
-    renderApp()
-    openMenu()
-    click(nav('Settings'))
+    show('Settings')
 
     expect(back()?.getAttribute('role')).toBe('button')
     expect(back()?.getAttribute('tabindex')).toBe('0')
@@ -1010,12 +1018,61 @@ describe('leaving a panel', () => {
     fireEvent.pointerEnter(back()!)
     act(() => void vi.advanceTimersByTime(800))
     settle()
-    expect(back()).toBeNull()
+    expect(nav('Settings'), 'a dwell did not go back').toBeDefined()
 
     click(nav('Settings'))
     fireEvent.keyDown(back()!, { key: 'Enter' })
     settle()
-    expect(back()).toBeNull()
+    expect(nav('Settings'), 'a key did not go back').toBeDefined()
+  })
+})
+
+describe('the scrim behind the menu', () => {
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const isOpen = () => $('.top-panel.open') !== null
+
+  // Moving across the scrim used to close the panel after 600ms, so a pointer
+  // wandering on its way to the menu took the menu away again — and a gaze user
+  // has no way to move without pointing at something.
+  it('stays open however long the pointer rests on it', () => {
+    renderApp()
+    openMenu()
+
+    const scrim = $('.panel-scrim')!
+    fireEvent.pointerMove(scrim)
+    act(() => void vi.advanceTimersByTime(5000))
+    settle()
+
+    expect(isOpen()).toBe(true)
+  })
+
+  it('stays open when the scrim is clicked', () => {
+    renderApp()
+    openMenu()
+
+    click($('.panel-scrim'))
+
+    expect(isOpen()).toBe(true)
+  })
+
+  // It is still in the way on purpose: a phrase behind it must not answer to a
+  // dwell that lands on it. jsdom applies no stylesheet, so the rule itself is
+  // what there is to check.
+  it('keeps the phrases underneath from being reached', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const open = css.slice(css.indexOf('.panel-scrim.open {'))
+    expect(open.slice(0, open.indexOf('}'))).toMatch(/pointer-events:\s*auto/)
+  })
+
+  // Escape is neither a click nor a dwell, and anyone at a keyboard expects it.
+  it('still closes on Escape', () => {
+    renderApp()
+    openMenu()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    settle()
+
+    expect(isOpen()).toBe(false)
   })
 })
 
@@ -1236,6 +1293,119 @@ describe('the emergency bar with a linked account', () => {
   })
 })
 
+describe('choosing a voice', () => {
+  const trigger = () => $('.voice-trigger')
+  const modal = () => $('.voice-modal')
+  const tiles = () => $$('.voice-tile')
+  const tileNamed = (name: string) => tiles().find(el => el.getAttribute('aria-label')?.startsWith(name))
+  const storedVoice = () => JSON.parse(localStorage.getItem('dwellspeak_settings') ?? '{}').voiceURI
+
+  /** Seeded before mounting: the stub never fires `voiceschanged`. */
+  const openSettings = (...names: string[]) => {
+    voices.length = 0
+    voices.push(...names.map(name => ({ voiceURI: `uri-${name}`, name, lang: 'en-GB' }) as SpeechSynthesisVoice))
+    renderApp()
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+  }
+  const openPicker = (...names: string[]) => {
+    openSettings(...names)
+    click(trigger())
+  }
+
+  it('shows the chosen voice in settings without a list beside it', () => {
+    openSettings('Daniel')
+    expect(trigger()?.textContent).toContain('Default')
+    expect(modal()).toBeNull()
+  })
+
+  // Sixty device voices in a 186px dropdown was the one list in this app a gaze
+  // user could not realistically work through.
+  it('opens a full-screen grid, not a dropdown', () => {
+    openPicker('Daniel', 'Karen', 'Moira')
+
+    expect(modal()).not.toBeNull()
+    expect($('.voice-grid')).not.toBeNull()
+    expect(tiles().map(el => el.getAttribute('aria-label'))).toEqual([
+      'Default',
+      'Daniel · en-GB',
+      'Karen · en-GB',
+      'Moira · en-GB',
+    ])
+  })
+
+  // Somebody who went to the trouble of linking an account is looking for those
+  // voices, not scrolling past sixty the device came with.
+  it('puts the account voices first', () => {
+    localStorage.setItem(
+      'peri_elevenlabs',
+      JSON.stringify({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }),
+    )
+    openPicker('Daniel', 'Karen')
+
+    expect(tiles().map(el => el.getAttribute('aria-label'))).toEqual([
+      'Default',
+      'Rachel · ElevenLabs',
+      'Daniel · en-GB',
+      'Karen · en-GB',
+    ])
+  })
+
+  it('marks the one in use', () => {
+    openPicker('Daniel')
+    expect(tileNamed('Default')?.getAttribute('aria-selected')).toBe('true')
+    expect(tileNamed('Daniel')?.getAttribute('aria-selected')).toBe('false')
+  })
+
+  it('chooses one and closes', () => {
+    openPicker('Daniel', 'Karen')
+    click(tileNamed('Karen'))
+
+    expect(modal()).toBeNull()
+    expect(storedVoice()).toBe('uri-Karen')
+    expect(trigger()?.textContent).toContain('Karen')
+  })
+
+  it('leaves the voice alone when cancelled', () => {
+    openPicker('Daniel')
+    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Cancel'))
+
+    expect(modal()).toBeNull()
+    expect(storedVoice()).toBeUndefined()
+  })
+
+  it('closes on Escape', () => {
+    openPicker('Daniel')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    settle()
+
+    expect(modal()).toBeNull()
+  })
+
+  // The panel it opens from is itself a dialog; a picker underneath it would be
+  // unreachable.
+  it('sits above the menu panel', () => {
+    openPicker('Daniel')
+    const scrim = $('.voice-modal-scrim')!
+    const panel = $('.top-panel')!
+    expect(scrim.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+  })
+
+  it('answers a dwell like every other control', () => {
+    openSettings('Daniel', 'Karen')
+
+    fireEvent.pointerEnter(trigger()!)
+    act(() => void vi.advanceTimersByTime(800))
+    settle()
+    expect(modal()).not.toBeNull()
+
+    fireEvent.pointerEnter(tileNamed('Karen')!)
+    act(() => void vi.advanceTimersByTime(800))
+    settle()
+    expect(storedVoice()).toBe('uri-Karen')
+  })
+})
+
 describe('linking an ElevenLabs account', () => {
   const openSettings = () => {
     click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
@@ -1245,7 +1415,7 @@ describe('linking an ElevenLabs account', () => {
   const btn = (label: string) => $$('.panel-btn').find(b => b.getAttribute('aria-label') === label)
   const voiceOptions = () => {
     click($('.voice-trigger'))
-    return $$('.voice-option').map(o => o.textContent)
+    return $$('.voice-tile').map(o => o.getAttribute('aria-label'))
   }
   const respondWith = (voices: unknown[]) =>
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ voices }) })))
@@ -1325,7 +1495,7 @@ describe('linking an ElevenLabs account', () => {
     await flush()
 
     click($('.voice-trigger'))
-    click($$('.voice-option').find(o => o.textContent?.includes('Rachel')))
+    click($$('.voice-tile').find(o => o.getAttribute('aria-label')?.includes('Rachel')))
     expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).voiceURI).toBe('elevenlabs:v1')
 
     click(btn('Unlink'))
