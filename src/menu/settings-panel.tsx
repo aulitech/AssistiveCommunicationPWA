@@ -19,26 +19,78 @@ interface VoiceChoice {
   remote?: boolean
 }
 
-function VoiceDropdownItem({ label, selected, onSelect }: { label: string; selected: boolean; onSelect: () => void }) {
+function voiceLabel(v: VoiceChoice) {
+  if (v.remote) return `${v.name} · ElevenLabs`
+  return v.lang ? `${v.name} · ${v.lang}` : v.name
+}
+
+function VoiceTile({ voice, selected, onSelect }: {
+  voice: VoiceChoice
+  selected: boolean
+  onSelect: () => void
+}) {
   const { settings } = useSettings()
   const { active, props } = useDwellControl(settings.actionDwellMs, onSelect)
   return (
     <div
-      className={cx('voice-option', selected && 'selected', active && 'dwelling')}
+      className={cx('voice-tile', selected && 'is-selected', voice.remote && 'is-remote', active && 'dwelling')}
       style={dwellVar(settings.actionDwellMs)}
       role="option"
       aria-selected={selected}
+      aria-label={voiceLabel(voice)}
       {...props}
     >
-      {label}
+      <span className="voice-tile-name">{voice.name}</span>
+      <span className="voice-tile-source">{voice.remote ? 'ElevenLabs' : (voice.lang ?? '')}</span>
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )
 }
 
-function voiceLabel(v: VoiceChoice) {
-  if (v.remote) return `${v.name} · ElevenLabs`
-  return v.lang ? `${v.name} · ${v.lang}` : v.name
+/**
+ * Choosing a voice, full screen.
+ *
+ * It was a dropdown in a 186px column inside the panel: sixty device voices in a
+ * list two lines high, scrolled by arrows the width of a fingernail. Sixty
+ * targets is the one place in this app that genuinely needs the whole screen, so
+ * it takes it — the same shape the slot picker already uses for the same reason.
+ */
+function VoiceModal({ voices, selected, onPick, onClose }: {
+  voices: VoiceChoice[]
+  selected: string
+  onPick: (voiceURI: string) => void
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="voice-modal-scrim">
+      <div className="voice-modal" role="dialog" aria-modal="true" aria-label="Choose a voice">
+        <div className="voice-modal-head">
+          <span className="voice-modal-title">Choose a voice</span>
+          <PanelButton kind="plain" label="Cancel" onActivate={onClose} />
+        </div>
+        <ScrollPane className="voice-modal-scroller" paneClassName="voice-modal-body" step={160}>
+          <div className="voice-grid" role="listbox" aria-label="Voices">
+            {voices.map((v, i) => (
+              <VoiceTile
+                key={`${v.voiceURI}-${i}`}
+                voice={v}
+                selected={v.voiceURI === selected}
+                onSelect={() => onPick(v.voiceURI)}
+              />
+            ))}
+          </div>
+        </ScrollPane>
+      </div>
+    </div>
+  )
 }
 
 function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account: ElevenLabsAccount | null }) {
@@ -56,43 +108,41 @@ function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account
   )
   const current = items.find(v => v.voiceURI === settings.voiceURI) ?? items[0]
 
-  const { active, props } = useDwellControl(settings.actionDwellMs, () => setOpen(o => !o))
+  const { active, props } = useDwellControl(settings.actionDwellMs, () => setOpen(true))
+
+  const pick = useCallback(
+    (voiceURI: string) => {
+      update({ voiceURI })
+      setOpen(false)
+    },
+    [update],
+  )
 
   return (
     <SettingRow label="Voice">
-      <div className="voice-dropdown">
-        <div
-          className={cx('voice-trigger', active && 'dwelling')}
-          style={dwellVar(settings.actionDwellMs)}
-          role="combobox"
-          aria-expanded={open}
-          aria-label={`Voice: ${voiceLabel(current)}`}
-          {...props}
-        >
-          <span className="voice-trigger-label">{voiceLabel(current)}</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-          <div className="dwell-bar" key={active ? 'a' : 'i'} />
-        </div>
-        {open && (
-          <div className="voice-list" role="listbox" onPointerLeave={() => setOpen(false)}>
-            <ScrollPane className="voice-scroller" paneClassName="voice-list-inner">
-              {items.map((v, i) => (
-                <VoiceDropdownItem
-                  key={`${v.voiceURI}-${i}`}
-                  label={voiceLabel(v)}
-                  selected={v.voiceURI === settings.voiceURI}
-                  onSelect={() => {
-                    update({ voiceURI: v.voiceURI })
-                    setOpen(false)
-                  }}
-                />
-              ))}
-            </ScrollPane>
-          </div>
-        )}
+      <div
+        className={cx('voice-trigger', active && 'dwelling')}
+        style={dwellVar(settings.actionDwellMs)}
+        role="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={`Voice: ${voiceLabel(current)}. Choose another`}
+        {...props}
+      >
+        <span className="voice-trigger-label">{voiceLabel(current)}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+        <div className="dwell-bar" key={active ? 'a' : 'i'} />
       </div>
+      {open && (
+        <VoiceModal
+          voices={items}
+          selected={settings.voiceURI}
+          onPick={pick}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </SettingRow>
   )
 }

@@ -100,12 +100,12 @@ export const HELP_SECTIONS: ProseSection[] = [
   {
     title: 'Settings',
     blocks: [
-      text('Open the menu and choose Settings.'),
+      text('Open the menu and choose Settings. Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.'),
       list(
         'Phrase dwell — how long to rest on a phrase before it is chosen.',
         'Action dwell — how long to rest on buttons and menus.',
         'Volume and Speed — how the voice sounds.',
-        'Voice — which voice speaks, from the voices on this device.',
+        'Voice — opens a full screen of voices to choose from.',
       ),
       text(
         'If phrases are being chosen by accident, make the dwell times longer. If waiting feels slow, make them shorter. There is no wrong setting — only what suits you.',
