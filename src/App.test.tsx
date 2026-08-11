@@ -1357,29 +1357,84 @@ describe('choosing a voice', () => {
     expect(tileNamed('Daniel')?.getAttribute('aria-selected')).toBe('false')
   })
 
-  it('chooses one and closes', () => {
+  const action = (label: string) => $$('.panel-btn').find(b => b.getAttribute('aria-label') === label)
+
+  // Nobody can tell sixty voices apart by name, and a preview button beside
+  // each would put two targets in every tile — the worst thing to give someone
+  // aiming by gaze. The tile is the preview.
+  it('speaks a sample in the voice just chosen', () => {
     openPicker('Daniel', 'Karen')
     click(tileNamed('Karen'))
+
+    expect(spoken).toHaveLength(1)
+    expect(lastUtterance?.voice?.name).toBe('Karen')
+  })
+
+  it('stays open so the next one can be tried', () => {
+    openPicker('Daniel', 'Karen')
+    click(tileNamed('Karen'))
+    expect(modal()).not.toBeNull()
+
+    click(tileNamed('Daniel'))
+    expect(spoken).toHaveLength(2)
+    expect(lastUtterance?.voice?.name).toBe('Daniel')
+  })
+
+  it('previews at the volume and speed the app is set to', () => {
+    voices.length = 0
+    voices.push({ voiceURI: 'uri-Karen', name: 'Karen', lang: 'en-GB' } as SpeechSynthesisVoice)
+    renderApp({ volume: 0.4, rate: 1.8 })
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+    click(trigger())
+    click(tileNamed('Karen'))
+
+    expect(lastUtterance).toMatchObject({ volume: 0.4, rate: 1.8 })
+  })
+
+  it('keeps the last one tried when Done', () => {
+    openPicker('Daniel', 'Karen')
+    click(tileNamed('Karen'))
+    click(action('Done'))
 
     expect(modal()).toBeNull()
     expect(storedVoice()).toBe('uri-Karen')
     expect(trigger()?.textContent).toContain('Karen')
   })
 
-  it('leaves the voice alone when cancelled', () => {
-    openPicker('Daniel')
-    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Cancel'))
+  // Trying voices has to be free, or the preview is a trap.
+  it('puts back the voice it started with when cancelled', () => {
+    openPicker('Daniel', 'Karen')
+    click(tileNamed('Karen'))
+    click(tileNamed('Daniel'))
+    click(action('Cancel'))
 
     expect(modal()).toBeNull()
-    expect(storedVoice()).toBeUndefined()
+    expect(storedVoice()).toBe('')
+    expect(trigger()?.textContent).toContain('Default')
   })
 
-  it('closes on Escape', () => {
+  it('puts it back on Escape too', () => {
     openPicker('Daniel')
+    click(tileNamed('Daniel'))
     fireEvent.keyDown(window, { key: 'Escape' })
     settle()
 
     expect(modal()).toBeNull()
+    expect(storedVoice()).toBe('')
+  })
+
+  // Reopening after keeping one must not offer to revert to something older.
+  it('starts each visit from the voice in use', () => {
+    openPicker('Daniel', 'Karen')
+    click(tileNamed('Karen'))
+    click(action('Done'))
+
+    click(trigger())
+    click(tileNamed('Daniel'))
+    click(action('Cancel'))
+
+    expect(storedVoice()).toBe('uri-Karen')
   })
 
   // The panel it opens from is itself a dialog; a picker underneath it would be
