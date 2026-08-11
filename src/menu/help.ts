@@ -105,7 +105,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Phrase dwell — how long to rest on a phrase before it is chosen.',
         'Action dwell — how long to rest on buttons and menus.',
         'Volume and Speed — how the voice sounds.',
-        'Voice — opens a full screen of voices to choose from.',
+        'Voice — opens a full screen of voices. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
       ),
       text(
         'If phrases are being chosen by accident, make the dwell times longer. If waiting feels slow, make them shorter. There is no wrong setting — only what suits you.',
@@ -139,7 +139,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'If you would rather not sound like a browser, you can link an ElevenLabs account under Settings. Paste the API key from your ElevenLabs account and its voices join the same list.',
       ),
       list(
-        'These voices need an internet connection, and take a moment to arrive the first time.',
+        'These voices need an internet connection, and take a moment to arrive the first time — including when you try one in the voice list.',
         'They use your own ElevenLabs credits. A phrase said again costs nothing — Peri keeps what it already fetched.',
         'If one cannot be fetched, Peri speaks with the device voice instead rather than saying nothing.',
         'The red emergency bar always uses the device voice, so it stays instant and works offline.',

@@ -1305,10 +1305,28 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+.voice-modal-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .voice-modal-title {
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
+}
+
+.voice-modal-hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.voice-modal-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .voice-modal-body { padding: 14px; }

@@ -6,7 +6,7 @@ import { useDwellControl } from '../ui/dwell'
 import { clearAudioCache, linkAccount, remoteVoiceURI } from '../voice/elevenlabs'
 import { type ElevenLabsAccount } from '../core/store'
 import { useSettings } from '../ui/settings'
-import { subscribeVoices } from '../voice/speech'
+import { speak, subscribeVoices } from '../voice/speech'
 import { loadElevenLabs, saveElevenLabs } from '../core/store'
 import { cx, dwellVar } from '../ui/style'
 import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
@@ -47,6 +47,9 @@ function VoiceTile({ voice, selected, onSelect }: {
   )
 }
 
+/** Short, and it says what it is. Cached after the first time on a paid voice. */
+const SAMPLE = 'This is how I sound.'
+
 /**
  * Choosing a voice, full screen.
  *
@@ -54,27 +57,40 @@ function VoiceTile({ voice, selected, onSelect }: {
  * list two lines high, scrolled by arrows the width of a fingernail. Sixty
  * targets is the one place in this app that genuinely needs the whole screen, so
  * it takes it — the same shape the slot picker already uses for the same reason.
+ *
+ * Choosing one speaks it and leaves the grid open. Nobody can tell sixty voices
+ * apart by name, and a preview button beside each would put two targets in every
+ * tile — the worst thing to give someone aiming by gaze. So the tile is the
+ * preview: try them until one sounds right, then Done. Cancel puts back the
+ * voice you arrived with, which is what makes trying them free.
  */
-function VoiceModal({ voices, selected, onPick, onClose }: {
+function VoiceModal({ voices, selected, onPick, onDone, onCancel }: {
   voices: VoiceChoice[]
   selected: string
   onPick: (voiceURI: string) => void
-  onClose: () => void
+  onDone: () => void
+  onCancel: () => void
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') onCancel()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onCancel])
 
   return (
     <div className="voice-modal-scrim">
       <div className="voice-modal" role="dialog" aria-modal="true" aria-label="Choose a voice">
         <div className="voice-modal-head">
-          <span className="voice-modal-title">Choose a voice</span>
-          <PanelButton kind="plain" label="Cancel" onActivate={onClose} />
+          <div className="voice-modal-heading">
+            <span className="voice-modal-title">Choose a voice</span>
+            <span className="voice-modal-hint">Each one speaks as you choose it</span>
+          </div>
+          <div className="voice-modal-actions">
+            <PanelButton kind="plain" label="Cancel" onActivate={onCancel} />
+            <PanelButton kind="primary" label="Done" onActivate={onDone} />
+          </div>
         </div>
         <ScrollPane className="voice-modal-scroller" paneClassName="voice-modal-body" step={160}>
           <div className="voice-grid" role="listbox" aria-label="Voices">
@@ -108,15 +124,30 @@ function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account
   )
   const current = items.find(v => v.voiceURI === settings.voiceURI) ?? items[0]
 
-  const { active, props } = useDwellControl(settings.actionDwellMs, () => setOpen(true))
+  // What to put back if they leave without settling on one.
+  const [before, setBefore] = useState(settings.voiceURI)
 
+  const openPicker = useCallback(() => {
+    setBefore(settings.voiceURI)
+    setOpen(true)
+  }, [settings.voiceURI])
+
+  const { active, props } = useDwellControl(settings.actionDwellMs, openPicker)
+
+  // Applied as it is chosen, and spoken with the voice actually picked rather
+  // than the one in `settings` — that update has not reached this render yet.
   const pick = useCallback(
     (voiceURI: string) => {
       update({ voiceURI })
-      setOpen(false)
+      speak(SAMPLE, { ...settings, voiceURI })
     },
-    [update],
+    [update, settings],
   )
+
+  const cancel = useCallback(() => {
+    update({ voiceURI: before })
+    setOpen(false)
+  }, [update, before])
 
   return (
     <SettingRow label="Voice">
@@ -140,7 +171,8 @@ function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account
           voices={items}
           selected={settings.voiceURI}
           onPick={pick}
-          onClose={() => setOpen(false)}
+          onDone={() => setOpen(false)}
+          onCancel={cancel}
         />
       )}
     </SettingRow>
