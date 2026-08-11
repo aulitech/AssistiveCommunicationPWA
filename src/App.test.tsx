@@ -1294,9 +1294,12 @@ describe('the emergency bar with a linked account', () => {
 })
 
 describe('choosing a voice', () => {
+  // The picker is portalled to the body, so it is not under the render
+  // container the rest of these tests query.
+  const inDocument = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
   const trigger = () => $('.voice-trigger')
-  const modal = () => $('.voice-modal')
-  const tiles = () => $$('.voice-tile')
+  const modal = () => inDocument('.voice-modal')[0] ?? null
+  const tiles = () => inDocument('.voice-tile')
   const tileNamed = (name: string) => tiles().find(el => el.getAttribute('aria-label')?.startsWith(name))
   const storedVoice = () => JSON.parse(localStorage.getItem('dwellspeak_settings') ?? '{}').voiceURI
 
@@ -1325,7 +1328,7 @@ describe('choosing a voice', () => {
     openPicker('Daniel', 'Karen', 'Moira')
 
     expect(modal()).not.toBeNull()
-    expect($('.voice-grid')).not.toBeNull()
+    expect(inDocument('.voice-grid')).toHaveLength(1)
     expect(tiles().map(el => el.getAttribute('aria-label'))).toEqual([
       'Default',
       'Daniel · en-GB',
@@ -1357,7 +1360,7 @@ describe('choosing a voice', () => {
     expect(tileNamed('Daniel')?.getAttribute('aria-selected')).toBe('false')
   })
 
-  const action = (label: string) => $$('.panel-btn').find(b => b.getAttribute('aria-label') === label)
+  const action = (label: string) => inDocument('.panel-btn').find(b => b.getAttribute('aria-label') === label)
 
   // Nobody can tell sixty voices apart by name, and a preview button beside
   // each would put two targets in every tile — the worst thing to give someone
@@ -1437,13 +1440,24 @@ describe('choosing a voice', () => {
     expect(storedVoice()).toBe('uri-Karen')
   })
 
-  // The panel it opens from is itself a dialog; a picker underneath it would be
-  // unreachable.
-  it('sits above the menu panel', () => {
+  // The menu panel is animated with `transform`, and a transformed ancestor
+  // makes `position: fixed` resolve against that ancestor rather than the
+  // viewport — which had the picker coming out a few hundred pixels wide,
+  // squeezed inside the menu. jsdom lays nothing out, so the only part of that
+  // a test can see is where the picker sits in the tree.
+  it('is not inside the panel it opens from', () => {
     openPicker('Daniel')
-    const scrim = $('.voice-modal-scrim')!
-    const panel = $('.top-panel')!
-    expect(scrim.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+
+    const scrim = inDocument('.voice-modal-scrim')[0]
+    expect(scrim).toBeDefined()
+    expect($('.top-panel')!.contains(scrim), 'the picker is inside the transformed panel').toBe(false)
+    expect(scrim.parentElement).toBe(document.body)
+  })
+
+  it('takes itself away again when closed', () => {
+    openPicker('Daniel')
+    click(action('Done'))
+    expect(inDocument('.voice-modal-scrim')).toHaveLength(0)
   })
 
   it('answers a dwell like every other control', () => {
@@ -1468,9 +1482,10 @@ describe('linking an ElevenLabs account', () => {
   }
   const keyField = () => $<HTMLInputElement>('input[aria-label="ElevenLabs API key"]')
   const btn = (label: string) => $$('.panel-btn').find(b => b.getAttribute('aria-label') === label)
+  // Portalled to the body, so not under the render container.
   const voiceOptions = () => {
     click($('.voice-trigger'))
-    return $$('.voice-tile').map(o => o.getAttribute('aria-label'))
+    return [...document.body.querySelectorAll('.voice-tile')].map(o => o.getAttribute('aria-label'))
   }
   const respondWith = (voices: unknown[]) =>
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ voices }) })))
@@ -1550,7 +1565,7 @@ describe('linking an ElevenLabs account', () => {
     await flush()
 
     click($('.voice-trigger'))
-    click($$('.voice-tile').find(o => o.getAttribute('aria-label')?.includes('Rachel')))
+    click([...document.body.querySelectorAll('.voice-tile')].find(o => o.getAttribute('aria-label')?.includes('Rachel')))
     expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).voiceURI).toBe('elevenlabs:v1')
 
     click(btn('Unlink'))
