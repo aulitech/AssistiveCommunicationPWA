@@ -28,6 +28,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `core/phrases.ts` - Parses `core/imports/phrasetable.json` into phrases, including the fill-in-the-blank slots, their `aliases` lookups, the profile that fills `{contact}` and `{name}`, and the fixed emergency phrases
 - `core/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, the linked account, the sent messages, the six `localStorage` keys, and the pure operations that arrange categories
 - `core/backup.ts` - The export/import file format under **Menu → Backup & sharing**: building one, reading one back, and applying it
+- `core/virtual.ts` - How much of the grid to render, and when to render more
 - `core/search.ts` - Narrowing the grid to what is being typed. Ranks a whole-phrase prefix first, then a word prefix, then the letters used as initials — which is what lets "ttyl" find "Talk to you later"
 - `core/prose.ts` - The blocks long-form text is written in
 
@@ -57,7 +58,8 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `talk/use-composer.ts` - The message being built: its text, its history, and the caret
 - `talk/use-sent.ts` - The messages already spoken or copied
 - `talk/use-toast.ts` - The line that appears and fades
-- `talk/topbar.tsx`, `talk/grid.tsx`, `talk/filter-bar.tsx`, `talk/emergency.tsx`, `talk/slots.tsx`, `talk/editors.tsx` - One surface each
+- `talk/grid.tsx` - The grid, the cell, and the rail. **Only the first n cells are rendered** — see `core/virtual.ts`
+- `talk/topbar.tsx`, `talk/filter-bar.tsx`, `talk/emergency.tsx`, `talk/slots.tsx`, `talk/editors.tsx` - One surface each
 
 **signin/**, **legal/** — a screen and the module behind it, twice
 
@@ -98,6 +100,7 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 
 - `core/phrases.test.ts` - Placeholder parsing, alias resolution, and whole-table invariants
 - `core/sent.test.ts` - The list of what was said: newest first, no repeats, and the cap
+- `core/virtual.test.ts` - The windowing arithmetic, including the case where nothing can be measured
 - `core/texting.test.ts` - The acronym behind every phrase in the **Texting** category. The table holds only the expansion, so this is the one place the pairing is written down. The profane ones carry their rude word cut to its first letter, which is also the letter the acronym uses — so `wtf` still finds "What the f"; `CENSORED` there holds that rule
 - `core/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
 - `voice/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
@@ -112,6 +115,8 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 Two things worth knowing when adding to them:
 
 - The app grid renders every phrase in the table, so query it with `container.querySelector` rather than Testing Library's `getByRole` — building an accessibility tree over a couple of thousand cells for each lookup is slow enough to matter.
+- **The grid renders every cell under jsdom**, because windowing needs a measured viewport and jsdom lays nothing out. That is the documented fallback, not an accident — a test that wants the window has to supply the geometry, as `rendering only part of a long grid` does in `App.test.tsx`.
+- **`performance.now()` is faked by `vi.useFakeTimers()`.** A benchmark that reads it measures the fake clock and reports whatever `advanceTimersByTime` was given. Capture the real one at module load.
 - Dwell is timer-driven. Use `vi.useFakeTimers()` and advance inside `act()`; the app also uses a zero-delay timer to place the cursor after inserting a phrase, so advance the clock after any interaction before asserting.
 
 When fixing a bug, add the test that fails without the fix, then confirm it actually fails when the fix is reverted. Several tests here are explicit regression guards and say so in a comment.
@@ -169,6 +174,20 @@ Two consequences worth knowing before changing any of it:
 Audio is cached in memory by voice and text. An AAC board is the same phrases over and over, so the second time is free and instant — which is the difference between a usable feature and a bill.
 
 Sending the words somewhere is a disclosure, so it is stated in three places that must agree: the ElevenLabs row in Settings, the **Better voices** section of the guide, and the Speech section of the privacy policy. Change one and change all three.
+
+## The phrase grid
+
+The grid is the app's heaviest surface — up to two and a half thousand cells, at roughly twenty microseconds each to create. Two things keep it usable, and they solve different halves of the problem:
+
+- **`content-visibility: auto`** on `.phrase-cell` lets the browser skip layout and paint for cells scrolled out of view. That is the browser's half.
+- **`core/virtual.ts`** limits how many cells React creates at all. Switching back to **All** cost ~95ms of pure reconciliation before it and ~12ms after.
+
+The window **grows from the top and is never repositioned by arithmetic**. Rows are not a uniform height — a phrase long enough to wrap three times makes its whole row taller, and about one row in five does — so anything that multiplied a row height by an index would put the grid in the wrong place a fifth of the time. Rendering the first *n* in normal flow cannot.
+
+Two properties hold it together, and both have mutation-tested guards:
+
+- **Unmeasured means all of them.** Before the first paint, and under jsdom, there is no viewport to measure and the grid renders everything — which is exactly what it did before any of this existed.
+- **It cannot strand a phrase.** `needsMore` asks for more within a screen's height of the bottom, and content shorter than the viewport is always within a screen of its own end. So a window too small keeps growing until the grid is scrollable, however far off the measurement was. `rendered >= total` is the only thing stopping that being an infinite loop — removing it hangs the test suite rather than failing it.
 
 ## Code quality
 
