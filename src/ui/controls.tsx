@@ -7,6 +7,7 @@
 // single caller lives with its caller.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useDwellControl } from './dwell'
 import { useSettings } from './settings'
 import type { ProseSection } from '../core/prose'
@@ -319,6 +320,96 @@ export function PanelButton({ label, kind, onActivate, disabled }: {
     >
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
       {label}
+    </div>
+  )
+}
+
+/**
+ * A grid of choices, full screen.
+ *
+ * Some lists in this app are too long for a control inside a panel — sixty
+ * voices in a 186px dropdown was the worst of them. Those take the screen
+ * instead, in the same shape the slot picker uses: big targets, dwell-scrollable,
+ * and one way out that is always in the same place.
+ *
+ * Rendered at the body rather than where it sits in the tree. A panel it opens
+ * from is animated with `transform`, and a transformed ancestor makes
+ * `position: fixed` resolve against that ancestor instead of the viewport — the
+ * modal comes out squeezed inside the panel, a few hundred pixels wide.
+ */
+export function PickerModal({ title, hint, onDone, onCancel, children }: {
+  title: string
+  /** One line under the title saying how the grid behaves. */
+  hint?: string
+  onDone: () => void
+  onCancel: () => void
+  children: React.ReactNode
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
+
+  return createPortal(
+    <div className="picker-modal-scrim">
+      <div className="picker-modal" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="picker-modal-head">
+          <div className="picker-modal-heading">
+            <span className="picker-modal-title">{title}</span>
+            {hint && <span className="picker-modal-hint">{hint}</span>}
+          </div>
+          <div className="picker-modal-actions">
+            <PanelButton kind="plain" label="Cancel" onActivate={onCancel} />
+            <PanelButton kind="primary" label="Done" onActivate={onDone} />
+          </div>
+        </div>
+        <ScrollPane className="picker-modal-scroller" paneClassName="picker-modal-body" step={160}>
+          <div className="picker-grid" role="listbox" aria-label={title}>
+            {children}
+          </div>
+        </ScrollPane>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+/** One choice in a `PickerModal`. */
+export function PickerTile({ name, detail, selected, className, onSelect }: {
+  name: string
+  /** The smaller second line — where a voice came from, what a category holds. */
+  detail?: string
+  selected: boolean
+  className?: string
+  onSelect: () => void
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onSelect)
+  return (
+    <div
+      className={cx('picker-tile', selected && 'is-selected', className, active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="option"
+      aria-selected={selected}
+      aria-label={detail ? `${name} · ${detail}` : name}
+      {...props}
+    >
+      <span className="picker-tile-name">{name}</span>
+      {detail && <span className="picker-tile-detail">{detail}</span>}
+      {/* A mark as well as the colour. Green is the app's "selected" cue
+          everywhere, and in a grid where several can be on at once, colour alone
+          is a poor thing to read a whole screen by. */}
+      {selected && (
+        <span className="picker-tile-check" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </span>
+      )}
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )
 }

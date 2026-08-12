@@ -1116,6 +1116,12 @@ body {
   display: flex;
   flex-direction: column;
   padding: 4px 16px 8px;
+  /* The panel spans the whole viewport, so without this a setting's label sits
+     at one edge of a wide monitor and its control at the other. The same
+     measure the guide and the backup screen use, so the four panels line up. */
+  max-width: 68ch;
+  width: 100%;
+  margin-inline: auto;
 }
 
 .setting-row {
@@ -1270,7 +1276,7 @@ body {
 /* Sixty device voices in a 186px dropdown was the one list in this app that a
    gaze user could not realistically work through. It takes the screen instead,
    in the same shape as the slot picker. */
-.voice-modal-scrim {
+.picker-modal-scrim {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.72);
@@ -1282,7 +1288,7 @@ body {
   padding: 20px;
 }
 
-.voice-modal {
+.picker-modal {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -1296,7 +1302,7 @@ body {
   overflow: hidden;
 }
 
-.voice-modal-head {
+.picker-modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1305,33 +1311,33 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.voice-modal-heading {
+.picker-modal-heading {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.voice-modal-title {
+.picker-modal-title {
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
 }
 
-.voice-modal-hint {
+.picker-modal-hint {
   font-size: 11.5px;
   color: var(--text-muted);
 }
 
-.voice-modal-actions {
+.picker-modal-actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
 }
 
-.voice-modal-body { padding: 14px; }
+.picker-modal-body { padding: 14px; }
 
-.voice-grid {
+.picker-grid {
   display: grid;
   /* Wide enough for a voice name and where it came from, and no narrower on a
      phone than a dwell can comfortably hold. */
@@ -1339,7 +1345,7 @@ body {
   gap: 10px;
 }
 
-.voice-tile {
+.picker-tile {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1355,16 +1361,32 @@ body {
   transition: background 0.1s, border-color 0.1s;
 }
 
-.voice-tile:hover,
-.voice-tile.dwelling { background: var(--cell-hover); border-color: var(--accent); }
-.voice-tile .dwell-bar { background: var(--accent); }
+.picker-tile:hover,
+.picker-tile.dwelling { background: var(--cell-hover); border-color: var(--accent); }
+.picker-tile .dwell-bar { background: var(--accent); }
 
-.voice-tile.is-selected {
+.picker-tile.is-selected {
   border-color: var(--accent);
   background: var(--accent-dim);
+  /* Room for the mark, so a long name does not run under it. */
+  padding-right: 30px;
 }
 
-.voice-tile-name {
+.picker-tile-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #000;
+}
+
+.picker-tile-name {
   font-size: 14px;
   color: var(--text);
   overflow: hidden;
@@ -1372,7 +1394,7 @@ body {
   white-space: nowrap;
 }
 
-.voice-tile-source {
+.picker-tile-detail {
   font-size: 11px;
   color: var(--text-muted);
   overflow: hidden;
@@ -1382,7 +1404,7 @@ body {
 
 /* The account's voices are the reason somebody linked one; they lead the grid
    and say so without having to be read. */
-.voice-tile.is-remote .voice-tile-source { color: var(--brand); }
+.picker-tile.is-remote .picker-tile-detail { color: var(--brand); }
 
 /* Shared scrollable pane with dwell-driven arrows (voice list, help guide). */
 .scroll-pane {
@@ -2028,60 +2050,7 @@ body {
   margin-top: 2px;
 }
 
-.backup-scope {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  overflow: hidden;
-}
-
-.backup-scope-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 11px;
-  font-size: 13px;
-  color: var(--text);
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.backup-scope-row:last-child { border-bottom: none; }
-.backup-scope-row.dwelling { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); }
-.backup-scope-row .dwell-bar { background: var(--accent); }
-.backup-scope-row.is-selected { color: var(--accent); }
-
-/* Ticked state carries a mark as well as the colour: green alone is the app's
-   "selected" cue everywhere else, and this list is read, not glanced at. */
-.backup-check {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 16px;
-  height: 16px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  color: #000;
-}
-
-.backup-scope-row.is-selected .backup-check {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.backup-scope-label { flex: 1; }
-
-.backup-scope-count {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-align: right;
-}
-
-.backup-scope-row.is-selected .backup-scope-count { color: color-mix(in srgb, var(--accent) 70%, var(--text-muted)); }
+.backup-scope-trigger { width: 100%; }
 
 .backup-summary {
   margin: 0;

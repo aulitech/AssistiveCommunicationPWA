@@ -828,7 +828,19 @@ describe('backup & sharing', () => {
     click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Backup & sharing'))
   }
   const btn = (label: string) => $$('.panel-btn').find(b => b.getAttribute('aria-label') === label)
-  const scopeRow = (label: string) => $$('.backup-scope-row').find(r => r.getAttribute('aria-label') === label)
+  // The scope picker is a portalled grid, so it is not under the render container.
+  const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
+  const scopeTrigger = () => $('.backup-scope-trigger')
+  const tile = (name: string) =>
+    inDoc('.picker-tile').find(el => (el.getAttribute('aria-label') ?? '').split(' · ')[0] === name)
+  const modalAction = (label: string) =>
+    inDoc('.panel-btn').find(b => b.getAttribute('aria-label') === label)
+  /** Opens the grid, ticks each name, and closes it. */
+  const chooseScope = (...names: string[]) => {
+    click(scopeTrigger())
+    for (const name of names) click(tile(name))
+    click(modalAction('Done'))
+  }
   /** Dwells "Save a file" and reads back the file that came out. */
   const saved = () => {
     click(btn('Save a file'))
@@ -859,13 +871,68 @@ describe('backup & sharing', () => {
     renderApp()
     openBackup()
 
-    const rows = $$('.backup-scope-row').map(r => r.getAttribute('aria-label'))
-    expect(rows[0]).toBe('Everything')
-    expect(rows).toContain('Kitchen')
+    click(scopeTrigger())
+    const names = inDoc('.picker-tile').map(el => (el.getAttribute('aria-label') ?? '').split(' · ')[0])
+    expect(names[0]).toBe('Everything')
+    expect(names).toContain('Kitchen')
     // The emergency bar has no tab of its own, so nothing else here would let
     // its phrases be exported on their own.
-    expect(rows).toContain('Emergency')
-    expect(scopeRow('Everything')?.getAttribute('aria-checked')).toBe('true')
+    expect(names).toContain('Emergency')
+    expect(tile('Everything')?.getAttribute('aria-selected')).toBe('true')
+  })
+
+  // Several categories at once is the point of a grid rather than a dropdown,
+  // and the whole reason the tiles toggle instead of choosing.
+  it('takes more than one category at a time', () => {
+    seed({ custom: [MINE, { id: 'custom-2', text: 'Time for bed', category: 'Night' }] })
+    renderApp()
+    openBackup()
+
+    chooseScope('Kitchen', 'Night')
+
+    expect(scopeTrigger()?.textContent).toContain('Kitchen, Night')
+    expect(saved().backup.scope).toEqual(['Kitchen', 'Night'])
+  })
+
+  it('unticking the last one goes back to everything', () => {
+    seed({ custom: [MINE] })
+    renderApp()
+    openBackup()
+
+    chooseScope('Kitchen')
+    expect(scopeTrigger()?.textContent).toContain('Kitchen')
+
+    chooseScope('Kitchen') // ticked, then unticked
+    expect(scopeTrigger()?.textContent).toContain('Everything')
+    expect(saved().backup.scope).toBeNull()
+  })
+
+  // Trying a selection has to be free, the same way trying a voice is.
+  it('puts the choice back when the grid is cancelled', () => {
+    seed({ custom: [MINE, { id: 'custom-2', text: 'Time for bed', category: 'Night' }] })
+    renderApp()
+    openBackup()
+
+    chooseScope('Kitchen')
+    click(scopeTrigger())
+    click(tile('Night'))
+    click(modalAction('Cancel'))
+
+    expect(scopeTrigger()?.textContent).toContain('Kitchen')
+    expect(saved().backup.scope).toEqual(['Kitchen'])
+  })
+
+  // Colour alone is a poor thing to read a whole grid by, and here several can
+  // be on at once.
+  it('marks the ticked ones with more than a colour', () => {
+    seed({ custom: [MINE] })
+    renderApp()
+    openBackup()
+    click(scopeTrigger())
+    click(tile('Kitchen'))
+
+    expect(tile('Kitchen')?.querySelector('.picker-tile-check')).not.toBeNull()
+    expect(tile('Emergency')?.querySelector('.picker-tile-check')).toBeNull()
   })
 
   it('saves a file carrying the phrases the user wrote', () => {
@@ -884,7 +951,7 @@ describe('backup & sharing', () => {
     renderApp()
     openBackup()
 
-    click(scopeRow('Kitchen'))
+    chooseScope('Kitchen')
     const { filename, backup } = saved()
     expect(backup.scope).toEqual(['Kitchen'])
     expect(backup.added).toEqual([MINE])
@@ -969,9 +1036,9 @@ describe('backup & sharing', () => {
     seed({ custom: [MINE] })
     renderApp()
     openBackup()
-    click(scopeRow('Kitchen'))
+    chooseScope('Kitchen')
     const { text: partial } = saved()
-    click(scopeRow('Everything'))
+    chooseScope('Everything')
     const { text: whole } = saved()
 
     setClipboardText(partial)
@@ -1457,6 +1524,32 @@ describe('rendering only part of a long grid', () => {
   })
 })
 
+describe('the menu panels on a wide screen', () => {
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
+
+  // The panel spans the whole viewport. Without a column, a setting's label sits
+  // at one edge of a wide monitor and its control at the other, and the guide's
+  // lines run a couple of hundred characters. All four hold the same measure so
+  // they line up as you move between them.
+  it.each([
+    ['Settings', '.settings-panel'],
+    ['My details', '.settings-panel'],
+    ['Backup & sharing', '.backup-body'],
+    ['Help', '.help-measure'],
+  ])('keeps %s in a reading column', (panel, selector) => {
+    renderApp()
+    openMenu()
+    click(nav(panel))
+
+    const measure = $(selector)
+    expect(measure, `${panel} has no column`).not.toBeNull()
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const rule = css.slice(css.indexOf(`${selector} {`))
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/max-width:\s*68ch/)
+  })
+})
+
 describe('the texting category', () => {
   const tabs = () => $$('.filter-tab[role="tab"]')
   const tabNamed = (name: string) => tabs().find(el => el.textContent === name)
@@ -1510,8 +1603,8 @@ describe('choosing a voice', () => {
   // container the rest of these tests query.
   const inDocument = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
   const trigger = () => $('.voice-trigger')
-  const modal = () => inDocument('.voice-modal')[0] ?? null
-  const tiles = () => inDocument('.voice-tile')
+  const modal = () => inDocument('.picker-modal')[0] ?? null
+  const tiles = () => inDocument('.picker-tile')
   const tileNamed = (name: string) => tiles().find(el => el.getAttribute('aria-label')?.startsWith(name))
   const storedVoice = () => JSON.parse(localStorage.getItem('dwellspeak_settings') ?? '{}').voiceURI
 
@@ -1540,7 +1633,7 @@ describe('choosing a voice', () => {
     openPicker('Daniel', 'Karen', 'Moira')
 
     expect(modal()).not.toBeNull()
-    expect(inDocument('.voice-grid')).toHaveLength(1)
+    expect(inDocument('.picker-grid')).toHaveLength(1)
     expect(tiles().map(el => el.getAttribute('aria-label'))).toEqual([
       'Default',
       'Daniel · en-GB',
@@ -1660,7 +1753,7 @@ describe('choosing a voice', () => {
   it('is not inside the panel it opens from', () => {
     openPicker('Daniel')
 
-    const scrim = inDocument('.voice-modal-scrim')[0]
+    const scrim = inDocument('.picker-modal-scrim')[0]
     expect(scrim).toBeDefined()
     expect($('.top-panel')!.contains(scrim), 'the picker is inside the transformed panel').toBe(false)
     expect(scrim.parentElement).toBe(document.body)
@@ -1670,8 +1763,8 @@ describe('choosing a voice', () => {
   // a way to get through it.
   it('offers all four scroll controls once there is somewhere to go', () => {
     openPicker('Daniel', 'Karen', 'Moira')
-    const pane = inDocument('.voice-modal .scroll-pane-inner')[0]
-    const controls = () => inDocument('.voice-modal .pane-scroll-btn').map(b => b.getAttribute('aria-label'))
+    const pane = inDocument('.picker-modal .scroll-pane-inner')[0]
+    const controls = () => inDocument('.picker-modal .pane-scroll-btn').map(b => b.getAttribute('aria-label'))
 
     expect(controls(), 'nothing to scroll yet').toEqual([])
 
@@ -1687,7 +1780,7 @@ describe('choosing a voice', () => {
   it('takes itself away again when closed', () => {
     openPicker('Daniel')
     click(action('Done'))
-    expect(inDocument('.voice-modal-scrim')).toHaveLength(0)
+    expect(inDocument('.picker-modal-scrim')).toHaveLength(0)
   })
 
   it('answers a dwell like every other control', () => {
@@ -1715,7 +1808,7 @@ describe('linking an ElevenLabs account', () => {
   // Portalled to the body, so not under the render container.
   const voiceOptions = () => {
     click($('.voice-trigger'))
-    return [...document.body.querySelectorAll('.voice-tile')].map(o => o.getAttribute('aria-label'))
+    return [...document.body.querySelectorAll('.picker-tile')].map(o => o.getAttribute('aria-label'))
   }
   const respondWith = (voices: unknown[]) =>
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ voices }) })))
@@ -1795,7 +1888,7 @@ describe('linking an ElevenLabs account', () => {
     await flush()
 
     click($('.voice-trigger'))
-    click([...document.body.querySelectorAll('.voice-tile')].find(o => o.getAttribute('aria-label')?.includes('Rachel')))
+    click([...document.body.querySelectorAll('.picker-tile')].find(o => o.getAttribute('aria-label')?.includes('Rachel')))
     expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).voiceURI).toBe('elevenlabs:v1')
 
     click(btn('Unlink'))
