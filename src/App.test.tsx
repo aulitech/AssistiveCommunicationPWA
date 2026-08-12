@@ -1336,6 +1336,132 @@ describe('the emergency bar with a linked account', () => {
   })
 })
 
+describe('rendering only part of a long grid', () => {
+  // jsdom lays nothing out, so the grid renders every cell in every other test
+  // here — which is the documented fallback, and why the windowing needs a
+  // viewport supplied before it does anything at all.
+  // Restored between tests: this is on the prototype, so without it every
+  // element in every test after this block reports a height it does not have.
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight')
+  })
+
+  const layOut = ({ columns = 5, rowHeight = 72, clientHeight = 800 } = {}) => {
+    const wrapper = $('.grid-wrapper')!
+    const grid = $('.phrase-grid')!
+    vi.spyOn(window, 'getComputedStyle').mockImplementation(
+      el => ({ gridTemplateColumns: el === grid ? '1fr '.repeat(columns).trim() : '' }) as CSSStyleDeclaration,
+    )
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { value: rowHeight, configurable: true })
+    setGeometry(wrapper, { clientHeight, scrollHeight: clientHeight * 8 })
+  }
+  const setGeometry = (el: Element, props: Record<string, number>) => {
+    for (const [k, v] of Object.entries(props)) Object.defineProperty(el, k, { value: v, configurable: true })
+  }
+  const rendered = () => cells().length
+
+  it('renders every cell when there is nothing to measure', () => {
+    renderApp()
+    expect(rendered()).toBeGreaterThan(2000)
+  })
+
+  it('renders a few screens of them once there is', () => {
+    renderApp()
+    layOut()
+    act(() => void fireEvent.scroll($('.grid-wrapper')!))
+    settle()
+
+    expect(rendered()).toBeLessThan(500)
+    // 800px of viewport at 72px rows, four screens deep, five across.
+    expect(rendered()).toBe(240)
+  })
+
+  // However far off the measurement is, the grid keeps adding until it is
+  // scrollable — so no phrase can end up out of reach.
+  it('keeps adding while the cells do not fill the screen', () => {
+    renderApp()
+    layOut({ columns: 1, rowHeight: 4000, clientHeight: 100 })
+    setGeometry($('.grid-wrapper')!, { clientHeight: 800, scrollHeight: 100 })
+    act(() => void fireEvent.scroll($('.grid-wrapper')!))
+    settle()
+
+    expect(rendered()).toBeGreaterThan(1)
+  })
+
+  it('adds more when the end comes into view', () => {
+    renderApp()
+    layOut()
+    act(() => void fireEvent.scroll($('.grid-wrapper')!))
+    settle()
+    const first = rendered()
+
+    setGeometry($('.grid-wrapper')!, { scrollTop: 5600, clientHeight: 800, scrollHeight: 6400 })
+    act(() => void fireEvent.scroll($('.grid-wrapper')!))
+    settle()
+
+    expect(rendered()).toBeGreaterThan(first)
+  })
+
+  // The rail's bottom jump would otherwise land on whatever happened to be
+  // rendered rather than on the end of the list.
+  it('renders the rest before jumping to the bottom', () => {
+    renderApp()
+    layOut()
+    act(() => void fireEvent.scroll($('.grid-wrapper')!))
+    settle()
+    expect(rendered()).toBeLessThan(500)
+
+    click($$('.scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll to bottom'))
+
+    expect(rendered()).toBeGreaterThan(2000)
+  })
+
+  // Without this the window stays as wide as it grew, and coming back to All
+  // after scrolling to the end of it renders the whole table again.
+  it('narrows again when a long list comes back', () => {
+    renderApp()
+    layOut()
+    act(() => void fireEvent.scroll($('.grid-wrapper')!))
+    settle()
+
+    click($$('.scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll to bottom'))
+    expect(rendered()).toBeGreaterThan(2000)
+
+    const tab = (name: string) => $$('.filter-tab[role="tab"]').find(el => el.textContent === name)
+    click(tab('Food'))
+    click(tab('All'))
+
+    expect(rendered()).toBe(240)
+  })
+
+  // Columns come from the grid's own computed style rather than a copy of the
+  // breakpoints, so a narrow screen windows to a narrow grid.
+  it('takes the column count from the grid itself', () => {
+    renderApp()
+    layOut({ columns: 3 })
+    act(() => void fireEvent.scroll($('.grid-wrapper')!))
+    settle()
+
+    // 800px of viewport at 72px rows, four screens deep, three across.
+    expect(rendered()).toBe(144)
+  })
+
+  it('starts again from the top when the list changes', () => {
+    renderApp()
+    layOut()
+    act(() => void fireEvent.scroll($('.grid-wrapper')!))
+    settle()
+
+    click($$('.scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll to bottom'))
+    expect(rendered()).toBeGreaterThan(2000)
+
+    fireEvent.change($('.text-display')!, { target: { value: 'help' } })
+    settle()
+
+    expect(rendered()).toBeLessThan(500)
+  })
+})
+
 describe('the texting category', () => {
   const tabs = () => $$('.filter-tab[role="tab"]')
   const tabNamed = (name: string) => tabs().find(el => el.textContent === name)
