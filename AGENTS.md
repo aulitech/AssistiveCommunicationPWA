@@ -98,7 +98,7 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 
 - `core/phrases.test.ts` - Placeholder parsing, alias resolution, and whole-table invariants
 - `core/sent.test.ts` - The list of what was said: newest first, no repeats, and the cap
-- `core/texting.test.ts` - The acronym behind every phrase in the **Texting** category. The table holds only the expansion, so this is the one place the pairing is written down
+- `core/texting.test.ts` - The acronym behind every phrase in the **Texting** category. The table holds only the expansion, so this is the one place the pairing is written down. The profane ones carry their rude word cut to its first letter, which is also the letter the acronym uses — so `wtf` still finds "What the f"; `CENSORED` there holds that rule
 - `core/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
 - `voice/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
 - `voice/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
