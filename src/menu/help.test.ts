@@ -50,6 +50,7 @@ describe('the user guide', () => {
     ['backup and import', /backup/i],
     ['linked voices', /ElevenLabs/],
     ['the sent list', /Sent tab/],
+    ['texting acronyms', /Texting category/],
   ])('covers %s', (_feature, pattern) => {
     expect(allText.some(line => pattern.test(line))).toBe(true)
   })

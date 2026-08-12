@@ -113,6 +113,17 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Texting',
+    blocks: [
+      text(
+        'The Texting category holds what the common texting acronyms stand for — "Be right back", "Talk to you later", "In my opinion" and a couple of hundred more.',
+      ),
+      text(
+        'They are written out in full rather than as BRB or TTYL, because everything here can be spoken aloud and letters cannot. Typing the acronym still finds most of them: type "ttyl" and the grid narrows to "Talk to you later".',
+      ),
+    ],
+  },
+  {
     title: 'Saying something again',
     blocks: [
       text(
