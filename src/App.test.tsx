@@ -102,19 +102,62 @@ describe('reaching the whole sign-in page', () => {
 
   // A dwell user has no wheel and no scrollbar. Content past the fold with no
   // arrows is content that cannot be reached at all — including the only way
-  // into the app.
-  it('offers dwell arrows exactly when there is somewhere to go', () => {
+  // into the app. A jump comes with each nudge: 500 pixels at 80 a time is six
+  // dwells, which is a long way to ask somebody to travel.
+  it('offers dwell controls exactly when there is somewhere to go', () => {
     showSignIn()
     expect(arrows()).toEqual([])
 
     setGeometry(0, 400, 900)
-    expect(arrows()).toEqual(['Scroll down'])
+    expect(arrows()).toEqual(['Scroll down', 'Go to bottom'])
 
     setGeometry(250, 400, 900)
-    expect(arrows()).toEqual(['Scroll up', 'Scroll down'])
+    expect(arrows()).toEqual(['Go to top', 'Scroll up', 'Scroll down', 'Go to bottom'])
 
     setGeometry(500, 400, 900)
-    expect(arrows()).toEqual(['Scroll up'])
+    expect(arrows()).toEqual(['Go to top', 'Scroll up'])
+  })
+
+  // Holding a nudge keeps scrolling; a jump has nowhere further to go, so it
+  // fires once however long the pointer stays.
+  it('repeats the nudges while held, and not the jumps', () => {
+    showSignIn()
+    setGeometry(250, 400, 900)
+
+    const scrollBy = vi.fn()
+    const scrollTo = vi.fn()
+    pane().scrollBy = scrollBy
+    pane().scrollTo = scrollTo
+    const control = (label: string) =>
+      $$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === label)!
+
+    for (const nudge of ['Scroll up', 'Scroll down']) {
+      scrollBy.mockClear()
+      fireEvent.pointerEnter(control(nudge))
+      act(() => void vi.advanceTimersByTime(800 + 180 * 3))
+      fireEvent.pointerLeave(control(nudge))
+      settle()
+      expect(scrollBy.mock.calls.length, `${nudge} did not repeat`).toBeGreaterThan(2)
+    }
+
+    fireEvent.pointerEnter(control('Go to bottom'))
+    act(() => void vi.advanceTimersByTime(800 + 180 * 3))
+    fireEvent.pointerLeave(control('Go to bottom'))
+    settle()
+    expect(scrollTo).toHaveBeenCalledTimes(1)
+  })
+
+  it('jumps the whole way when a jump is dwelled', () => {
+    showSignIn()
+    setGeometry(250, 400, 900)
+
+    const scrollTo = vi.fn()
+    pane().scrollTo = scrollTo
+    click($$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === 'Go to top'))
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
+
+    click($$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === 'Go to bottom'))
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 900, behavior: 'smooth' })
   })
 
   it('scrolls the content when one is dwelled', () => {
@@ -1452,6 +1495,24 @@ describe('choosing a voice', () => {
     expect(scrim).toBeDefined()
     expect($('.top-panel')!.contains(scrim), 'the picker is inside the transformed panel').toBe(false)
     expect(scrim.parentElement).toBe(document.body)
+  })
+
+  // Sixty voices is the longest list in the app, and 80 pixels at a time is not
+  // a way to get through it.
+  it('offers all four scroll controls once there is somewhere to go', () => {
+    openPicker('Daniel', 'Karen', 'Moira')
+    const pane = inDocument('.voice-modal .scroll-pane-inner')[0]
+    const controls = () => inDocument('.voice-modal .pane-scroll-btn').map(b => b.getAttribute('aria-label'))
+
+    expect(controls(), 'nothing to scroll yet').toEqual([])
+
+    for (const [prop, value] of Object.entries({ scrollTop: 300, clientHeight: 400, scrollHeight: 1200 })) {
+      Object.defineProperty(pane, prop, { value, configurable: true })
+    }
+    fireEvent.scroll(pane)
+    settle()
+
+    expect(controls()).toEqual(['Go to top', 'Scroll up', 'Scroll down', 'Go to bottom'])
   })
 
   it('takes itself away again when closed', () => {

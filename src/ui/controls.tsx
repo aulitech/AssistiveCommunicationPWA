@@ -167,34 +167,58 @@ export function SettingSpinner({ value, min, max, step, format, onValue }: {
   )
 }
 
-function ScrollNudge({ direction, onScroll, step = 80 }: {
-  direction: 'up' | 'down'
-  onScroll: (dy: number) => void
-  step?: number
+type ScrollAction = 'top' | 'up' | 'down' | 'bottom'
+
+const SCROLL_LABELS: Record<ScrollAction, string> = {
+  top: 'Go to top',
+  up: 'Scroll up',
+  down: 'Scroll down',
+  bottom: 'Go to bottom',
+}
+
+/** Double-headed for the jumps, single for the nudges, so the pair differ at a glance. */
+function ScrollGlyph({ action }: { action: ScrollAction }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
+      {action === 'top' && <><line x1="5" y1="5" x2="19" y2="5" /><polyline points="18 16 12 10 6 16" /></>}
+      {action === 'bottom' && <><line x1="5" y1="19" x2="19" y2="19" /><polyline points="6 8 12 14 18 8" /></>}
+      {action === 'up' && <polyline points="18 15 12 9 6 15" />}
+      {action === 'down' && <polyline points="6 9 12 15 18 9" />}
+    </svg>
+  )
+}
+
+function ScrollButton({ action, onActivate, repeat }: {
+  action: ScrollAction
+  onActivate: () => void
+  repeat?: boolean
 }) {
   const { settings } = useSettings()
-  const dy = direction === 'up' ? -step : step
-  const handle = useCallback(() => onScroll(dy), [onScroll, dy])
-  const { active, props } = useDwellControl(settings.actionDwellMs, handle, { repeatMs: 180 })
+  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, {
+    repeatMs: repeat ? 180 : undefined,
+  })
   return (
     <div
       className={cx('pane-scroll-btn', active && 'dwelling')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
-      aria-label={direction === 'up' ? 'Scroll up' : 'Scroll down'}
+      aria-label={SCROLL_LABELS[action]}
       {...props}
     >
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
-        {direction === 'up' ? <polyline points="18 15 12 9 6 15" /> : <polyline points="6 9 12 15 18 9" />}
-      </svg>
+      <ScrollGlyph action={action} />
     </div>
   )
 }
 
 /**
- * A scrollable area with dwell-driven arrows, shown only when there is
- * somewhere to scroll. A dwell user cannot reach a scrollbar or a wheel.
+ * A scrollable area with dwell-driven controls, shown only when there is
+ * somewhere to go. A dwell user has neither a scrollbar nor a wheel, so a pane
+ * without these is a pane whose bottom half does not exist.
+ *
+ * Four of them, in the order the phrase grid's rail already uses: jump to the
+ * top, nudge up, nudge down, jump to the bottom. Sixty voices or a screenful of
+ * guide is a long way to travel 80 pixels at a time.
  */
 export function ScrollPane({ className = '', paneClassName = '', step = 80, children }: {
   className?: string
@@ -227,14 +251,25 @@ export function ScrollPane({ className = '', paneClassName = '', step = 80, chil
   }, [update])
 
   const scrollBy = useCallback((dy: number) => listRef.current?.scrollBy({ top: dy, behavior: 'smooth' }), [])
+  const scrollTo = useCallback((top: number) => listRef.current?.scrollTo({ top, behavior: 'smooth' }), [])
 
   return (
     <div className={cx('scroll-pane', className)}>
-      {canUp && <ScrollNudge direction="up" step={step} onScroll={scrollBy} />}
+      {canUp && (
+        <div className="pane-scroll-row">
+          <ScrollButton action="top" onActivate={() => scrollTo(0)} />
+          <ScrollButton action="up" repeat onActivate={() => scrollBy(-step)} />
+        </div>
+      )}
       <div ref={listRef} className={cx('scroll-pane-inner', paneClassName)}>
         {children}
       </div>
-      {canDown && <ScrollNudge direction="down" step={step} onScroll={scrollBy} />}
+      {canDown && (
+        <div className="pane-scroll-row">
+          <ScrollButton action="down" repeat onActivate={() => scrollBy(step)} />
+          <ScrollButton action="bottom" onActivate={() => scrollTo(listRef.current?.scrollHeight ?? 0)} />
+        </div>
+      )}
     </div>
   )
 }
