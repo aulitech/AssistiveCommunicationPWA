@@ -177,5 +177,3 @@ Sending the words somewhere is a disclosure, so it is stated in three places tha
 - `src/App.tsx` has the only default export. Everything else is named, so a rename is a compiler error rather than a silently different component.
 - Export only what another module imports. A component with one caller stays private to its file.
 - The phrase grid is memoised over a couple of thousand cells. A callback reaching it must not depend on a whole hook result — those are a fresh object every render, and the memo would never hold. Depend on the specific function instead; `deliverPhrase` in `src/talk.tsx` shows the shape.
-
-<!-- deploy canary -->
