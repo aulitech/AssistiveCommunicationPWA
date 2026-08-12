@@ -1336,6 +1336,41 @@ describe('the emergency bar with a linked account', () => {
   })
 })
 
+describe('the texting category', () => {
+  const tabs = () => $$('.filter-tab[role="tab"]')
+  const tabNamed = (name: string) => tabs().find(el => el.textContent === name)
+
+  it('has a tab of its own', () => {
+    renderApp()
+    expect(tabNamed('Texting')).toBeDefined()
+  })
+
+  it('fills the grid with expansions rather than acronyms', () => {
+    renderApp()
+    click(tabNamed('Texting'))
+
+    const texts = cells().map(c => c.textContent)
+    expect(texts.length).toBeGreaterThanOrEqual(200)
+    expect(texts).toContain('Be right back')
+    expect(texts).toContain('Talk to you later')
+    // Spoken aloud, "B R B" is not a sentence.
+    expect(texts).not.toContain('BRB')
+  })
+
+  // Typing the acronym narrows the grid to it, which is what makes a category
+  // this size usable at all.
+  it('narrows to a phrase when its acronym is typed', () => {
+    renderApp()
+    click(tabNamed('Texting'))
+
+    fireEvent.change($('.text-display')!, { target: { value: 'ttyl' } })
+    settle()
+
+    expect(cells().map(c => c.textContent)).toContain('Talk to you later')
+    expect(cells().length).toBeLessThan(20)
+  })
+})
+
 describe('choosing a voice', () => {
   // The picker is portalled to the body, so it is not under the render
   // container the rest of these tests query.

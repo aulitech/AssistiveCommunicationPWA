@@ -19749,6 +19749,2130 @@
             "language": "en",
             "audio": {},
             "count": 0
+        },
+        {
+            "txt": "Be right back",
+            "id": 2179,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Be back later",
+            "id": 2180,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Be back soon",
+            "id": 2181,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Be right there",
+            "id": 2182,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Back in a bit",
+            "id": 2183,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Got to go",
+            "id": 2184,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Talk to you later",
+            "id": 2185,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Talk to you soon",
+            "id": 2186,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Ta ta for now",
+            "id": 2187,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "On my way",
+            "id": 2188,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "On the way",
+            "id": 2189,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Away from keyboard",
+            "id": 2190,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "See you",
+            "id": 2191,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "See you later",
+            "id": 2192,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "See you tomorrow",
+            "id": 2193,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Where are you",
+            "id": 2194,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "One moment",
+            "id": 2195,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Just a second",
+            "id": 2196,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Just a minute",
+            "id": 2197,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Right now",
+            "id": 2198,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "At the moment",
+            "id": 2199,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "As soon as possible",
+            "id": 2200,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Estimated time of arrival",
+            "id": 2201,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Later",
+            "id": 2202,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Before",
+            "id": 2203,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Wait",
+            "id": 2204,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "How are you",
+            "id": 2205,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "How about you",
+            "id": 2206,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "What about you",
+            "id": 2207,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "What's up",
+            "id": 2208,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "What are you doing",
+            "id": 2209,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "What are you up to",
+            "id": 2210,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "How have you been",
+            "id": 2211,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "What do you think",
+            "id": 2212,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "What do you mean",
+            "id": 2213,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "What do you mean by that",
+            "id": 2214,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Let me know",
+            "id": 2215,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Hit me up",
+            "id": 2216,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Just so you know",
+            "id": 2217,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "I miss you",
+            "id": 2218,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Take care",
+            "id": 2219,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Have a good day",
+            "id": 2220,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Have a good night",
+            "id": 2221,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Have a nice day",
+            "id": 2222,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "I don't know",
+            "id": 2223,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "I don't really know",
+            "id": 2224,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "I don't care",
+            "id": 2225,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "I don't think so",
+            "id": 2226,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "I know, right",
+            "id": 2227,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Never mind",
+            "id": 2228,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Of course",
+            "id": 2229,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Definitely",
+            "id": 2230,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Probably",
+            "id": 2231,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Obviously",
+            "id": 2232,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Seriously",
+            "id": 2233,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Okay",
+            "id": 2234,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Okay then",
+            "id": 2235,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Not going to lie",
+            "id": 2236,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "To be honest",
+            "id": 2237,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "To be fair",
+            "id": 2238,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "For real",
+            "id": 2239,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "If you know, you know",
+            "id": 2240,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Thank you",
+            "id": 2241,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Thank you very much",
+            "id": 2242,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Thanks",
+            "id": 2243,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Thank you so much",
+            "id": 2244,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "No problem",
+            "id": 2245,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "You're welcome",
+            "id": 2246,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Please",
+            "id": 2247,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Sorry",
+            "id": 2248,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "My bad",
+            "id": 2249,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "No big deal",
+            "id": 2250,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "No worries",
+            "id": 2251,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Good luck",
+            "id": 2252,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Well done",
+            "id": 2253,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Congratulations",
+            "id": 2254,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Happy birthday",
+            "id": 2255,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Good night",
+            "id": 2256,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Good morning",
+            "id": 2257,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Good evening",
+            "id": 2258,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Hugs and kisses",
+            "id": 2259,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "I love you",
+            "id": 2260,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "I love you so much",
+            "id": 2261,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Love you",
+            "id": 2262,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "In my opinion",
+            "id": 2263,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "In my humble opinion",
+            "id": 2264,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "As far as I know",
+            "id": 2265,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "As far as I'm concerned",
+            "id": 2266,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "If I recall correctly",
+            "id": 2267,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "For what it's worth",
+            "id": 2268,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "By the way",
+            "id": 2269,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "For your information",
+            "id": 2270,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "On the other hand",
+            "id": 2271,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Too long, didn't read",
+            "id": 2272,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "In case you missed it",
+            "id": 2273,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Today I learned",
+            "id": 2274,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Your mileage may vary",
+            "id": 2275,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Point of view",
+            "id": 2276,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "With respect to",
+            "id": 2277,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Regarding",
+            "id": 2278,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Versus",
+            "id": 2279,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Also known as",
+            "id": 2280,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "And so on",
+            "id": 2281,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "That is to say",
+            "id": 2282,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "For example",
+            "id": 2283,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Please note",
+            "id": 2284,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "One more thing",
+            "id": 2285,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Note to self",
+            "id": 2286,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Explain it simply",
+            "id": 2287,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Ask me anything",
+            "id": 2288,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Does anyone else",
+            "id": 2289,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "You should know",
+            "id": 2290,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Public service announcement",
+            "id": 2291,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Here's a useful tip",
+            "id": 2292,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Fixed that for you",
+            "id": 2293,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "In this thread",
+            "id": 2294,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Laughing out loud",
+            "id": 2295,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Rolling on the floor laughing",
+            "id": 2296,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Just kidding",
+            "id": 2297,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Oh my goodness",
+            "id": 2298,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Shaking my head",
+            "id": 2299,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Too much information",
+            "id": 2300,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Fear of missing out",
+            "id": 2301,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Joy of missing out",
+            "id": 2302,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "You only live once",
+            "id": 2303,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Greatest of all time",
+            "id": 2304,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "For the win",
+            "id": 2305,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "That feeling when",
+            "id": 2306,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "My face when",
+            "id": 2307,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Significant other",
+            "id": 2308,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Best friends forever",
+            "id": 2309,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Boyfriend",
+            "id": 2310,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Girlfriend",
+            "id": 2311,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Family",
+            "id": 2312,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "In real life",
+            "id": 2313,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Throwback Thursday",
+            "id": 2314,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Outfit of the day",
+            "id": 2315,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Behind the scenes",
+            "id": 2316,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Not safe for work",
+            "id": 2317,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "End of day",
+            "id": 2318,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Close of business",
+            "id": 2319,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "End of week",
+            "id": 2320,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "End of message",
+            "id": 2321,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "To be decided",
+            "id": 2322,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "To be announced",
+            "id": 2323,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "To be confirmed",
+            "id": 2324,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Not applicable",
+            "id": 2325,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "No reply necessary",
+            "id": 2326,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Please let me know if you can come",
+            "id": 2327,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Attention",
+            "id": 2328,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "For the attention of",
+            "id": 2329,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Carbon copy",
+            "id": 2330,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Blind carbon copy",
+            "id": 2331,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Frequently asked questions",
+            "id": 2332,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Do it yourself",
+            "id": 2333,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Do not disturb",
+            "id": 2334,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Out of office",
+            "id": 2335,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Working from home",
+            "id": 2336,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Paid time off",
+            "id": 2337,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Annual leave",
+            "id": 2338,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Meeting",
+            "id": 2339,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Appointment",
+            "id": 2340,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Annual general meeting",
+            "id": 2341,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Time zone",
+            "id": 2342,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Coordinated universal time",
+            "id": 2343,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Date of birth",
+            "id": 2344,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Information",
+            "id": 2345,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Message",
+            "id": 2346,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Text message",
+            "id": 2347,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Picture",
+            "id": 2348,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Pictures",
+            "id": 2349,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Video",
+            "id": 2350,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Human resources",
+            "id": 2351,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Chief executive",
+            "id": 2352,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Chief financial officer",
+            "id": 2353,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Chief technology officer",
+            "id": 2354,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Vice president",
+            "id": 2355,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Managing director",
+            "id": 2356,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Personal assistant",
+            "id": 2357,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Executive assistant",
+            "id": 2358,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Non-disclosure agreement",
+            "id": 2359,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Purchase order",
+            "id": 2360,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Statement of work",
+            "id": 2361,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Request for proposal",
+            "id": 2362,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Service level agreement",
+            "id": 2363,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Minimum viable product",
+            "id": 2364,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Objectives and key results",
+            "id": 2365,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Key performance indicator",
+            "id": 2366,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Return on investment",
+            "id": 2367,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Year to date",
+            "id": 2368,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Year on year",
+            "id": 2369,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Business to business",
+            "id": 2370,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Business to consumer",
+            "id": 2371,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Direct message",
+            "id": 2372,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Private message",
+            "id": 2373,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Original poster",
+            "id": 2374,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Retweet",
+            "id": 2375,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Good game",
+            "id": 2376,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Good game, well played",
+            "id": 2377,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Good luck, have fun",
+            "id": 2378,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Looking for a group",
+            "id": 2379,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Non-player character",
+            "id": 2380,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "In-game name",
+            "id": 2381,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "General practitioner",
+            "id": 2382,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Doctor",
+            "id": 2383,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Occupational therapist",
+            "id": 2384,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Physiotherapist",
+            "id": 2385,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Speech and language therapist",
+            "id": 2386,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Emergency room",
+            "id": 2387,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Intensive care",
+            "id": 2388,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Magnetic resonance scan",
+            "id": 2389,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Blood pressure",
+            "id": 2390,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Prescription",
+            "id": 2391,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Over the counter",
+            "id": 2392,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Because",
+            "id": 2393,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Though",
+            "id": 2394,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "People",
+            "id": 2395,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Great",
+            "id": 2396,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Mate",
+            "id": 2397,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Tomorrow",
+            "id": 2398,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Today",
+            "id": 2399,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Tonight",
+            "id": 2400,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Thank goodness it's Friday",
+            "id": 2401,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Christmas",
+            "id": 2402,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "New year",
+            "id": 2403,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Birthday",
+            "id": 2404,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Anniversary",
+            "id": 2405,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Bring your own",
+            "id": 2406,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Bring your own bottle",
+            "id": 2407,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "About",
+            "id": 2408,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Between",
+            "id": 2409,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "For your attention",
+            "id": 2410,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Hope this helps",
+            "id": 2411,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "With",
+            "id": 2412,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Without",
+            "id": 2413,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
+        },
+        {
+            "txt": "Accident and emergency",
+            "id": 2414,
+            "image": "",
+            "category": "Texting",
+            "language": "en",
+            "audio": {},
+            "count": 0
         }
     ]
 }

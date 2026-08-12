@@ -10,6 +10,7 @@ import { cancelAllDwells, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
 import { hasChoices, type Phrase } from '../core/phrases'
+import { search } from '../core/search'
 import { type User } from '../core/store'
 import { type AppState } from '../core/backup'
 import { speak } from '../voice/speech'
@@ -370,33 +371,4 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   )
 }
 
-/**
- * The phrases to show: the chosen category, narrowed by the word being typed.
- *
- * Ranked rather than filtered, so a near miss still surfaces — a whole-phrase
- * prefix first, then a prefix of any word in it, then the word's letters used as
- * initials ("cyp" finding "can you please").
- */
-function search(phrases: Phrase[], category: string, word: string): Phrase[] {
-  const pool = category === 'all' ? phrases : phrases.filter(p => p.category === category)
-  const q = word.toLowerCase()
-  if (!q) return pool
 
-  const score = (phrase: string): number => {
-    const p = phrase.toLowerCase()
-    if (p.startsWith(q)) return 3
-    const words = p.split(/\s+/)
-    if (words.some(w => w.startsWith(q))) return 2
-    let qi = 0
-    for (const w of words) {
-      if (qi < q.length && w[0] === q[qi]) qi++
-    }
-    return qi === q.length ? 1 : 0
-  }
-
-  return pool
-    .map(p => ({ p, s: score(p.text) }))
-    .filter(x => x.s > 0)
-    .sort((a, b) => b.s - a.s)
-    .map(x => x.p)
-}

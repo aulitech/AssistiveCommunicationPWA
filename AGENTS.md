@@ -28,6 +28,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `core/phrases.ts` - Parses `core/imports/phrasetable.json` into phrases, including the fill-in-the-blank slots, their `aliases` lookups, the profile that fills `{contact}` and `{name}`, and the fixed emergency phrases
 - `core/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, the linked account, the sent messages, the six `localStorage` keys, and the pure operations that arrange categories
 - `core/backup.ts` - The export/import file format under **Menu → Backup & sharing**: building one, reading one back, and applying it
+- `core/search.ts` - Narrowing the grid to what is being typed. Ranks a whole-phrase prefix first, then a word prefix, then the letters used as initials — which is what lets "ttyl" find "Talk to you later"
 - `core/prose.ts` - The blocks long-form text is written in
 
 **ui/** — the shared vocabulary
@@ -97,6 +98,7 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 
 - `core/phrases.test.ts` - Placeholder parsing, alias resolution, and whole-table invariants
 - `core/sent.test.ts` - The list of what was said: newest first, no repeats, and the cap
+- `core/texting.test.ts` - The acronym behind every phrase in the **Texting** category. The table holds only the expansion, so this is the one place the pairing is written down
 - `core/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
 - `voice/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
 - `voice/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
