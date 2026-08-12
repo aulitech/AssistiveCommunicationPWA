@@ -1340,6 +1340,12 @@ describe('rendering only part of a long grid', () => {
   // jsdom lays nothing out, so the grid renders every cell in every other test
   // here — which is the documented fallback, and why the windowing needs a
   // viewport supplied before it does anything at all.
+  // Restored between tests: this is on the prototype, so without it every
+  // element in every test after this block reports a height it does not have.
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight')
+  })
+
   const layOut = ({ columns = 5, rowHeight = 72, clientHeight = 800 } = {}) => {
     const wrapper = $('.grid-wrapper')!
     const grid = $('.phrase-grid')!
