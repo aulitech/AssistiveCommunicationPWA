@@ -2,7 +2,6 @@
 // Menu → Settings. Dwell times, volume, speed and voice.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useDwellControl } from '../ui/dwell'
 import { clearAudioCache, linkAccount, remoteVoiceURI } from '../voice/elevenlabs'
 import { type ElevenLabsAccount } from '../core/store'
@@ -10,7 +9,7 @@ import { useSettings } from '../ui/settings'
 import { speak, subscribeVoices } from '../voice/speech'
 import { loadElevenLabs, saveElevenLabs } from '../core/store'
 import { cx, dwellVar } from '../ui/style'
-import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
+import { PanelButton, PickerModal, PickerTile, SettingRow, SettingSpinner } from '../ui/controls'
 
 /** A voice offered in the picker, wherever it comes from. */
 interface VoiceChoice {
@@ -25,97 +24,8 @@ function voiceLabel(v: VoiceChoice) {
   return v.lang ? `${v.name} · ${v.lang}` : v.name
 }
 
-function VoiceTile({ voice, selected, onSelect }: {
-  voice: VoiceChoice
-  selected: boolean
-  onSelect: () => void
-}) {
-  const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onSelect)
-  return (
-    <div
-      className={cx('voice-tile', selected && 'is-selected', voice.remote && 'is-remote', active && 'dwelling')}
-      style={dwellVar(settings.actionDwellMs)}
-      role="option"
-      aria-selected={selected}
-      aria-label={voiceLabel(voice)}
-      {...props}
-    >
-      <span className="voice-tile-name">{voice.name}</span>
-      <span className="voice-tile-source">{voice.remote ? 'ElevenLabs' : (voice.lang ?? '')}</span>
-      <div className="dwell-bar" key={active ? 'a' : 'i'} />
-    </div>
-  )
-}
-
 /** Short, and it says what it is. Cached after the first time on a paid voice. */
 const SAMPLE = 'This is how I sound.'
-
-/**
- * Choosing a voice, full screen.
- *
- * It was a dropdown in a 186px column inside the panel: sixty device voices in a
- * list two lines high, scrolled by arrows the width of a fingernail. Sixty
- * targets is the one place in this app that genuinely needs the whole screen, so
- * it takes it — the same shape the slot picker already uses for the same reason.
- *
- * Choosing one speaks it and leaves the grid open. Nobody can tell sixty voices
- * apart by name, and a preview button beside each would put two targets in every
- * tile — the worst thing to give someone aiming by gaze. So the tile is the
- * preview: try them until one sounds right, then Done. Cancel puts back the
- * voice you arrived with, which is what makes trying them free.
- */
-function VoiceModal({ voices, selected, onPick, onDone, onCancel }: {
-  voices: VoiceChoice[]
-  selected: string
-  onPick: (voiceURI: string) => void
-  onDone: () => void
-  onCancel: () => void
-}) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel])
-
-  // Rendered at the body rather than where it sits in the tree. The panel it
-  // opens from is animated with `transform`, and a transformed ancestor makes
-  // `position: fixed` resolve against that ancestor instead of the viewport —
-  // so the modal came out squeezed inside the menu panel, a few hundred pixels
-  // wide, instead of taking the screen. Nothing in jsdom lays anything out, so
-  // no test could see it; what a test can see is that it is not in there.
-  return createPortal(
-    <div className="voice-modal-scrim">
-      <div className="voice-modal" role="dialog" aria-modal="true" aria-label="Choose a voice">
-        <div className="voice-modal-head">
-          <div className="voice-modal-heading">
-            <span className="voice-modal-title">Choose a voice</span>
-            <span className="voice-modal-hint">Each one speaks as you choose it</span>
-          </div>
-          <div className="voice-modal-actions">
-            <PanelButton kind="plain" label="Cancel" onActivate={onCancel} />
-            <PanelButton kind="primary" label="Done" onActivate={onDone} />
-          </div>
-        </div>
-        <ScrollPane className="voice-modal-scroller" paneClassName="voice-modal-body" step={160}>
-          <div className="voice-grid" role="listbox" aria-label="Voices">
-            {voices.map((v, i) => (
-              <VoiceTile
-                key={`${v.voiceURI}-${i}`}
-                voice={v}
-                selected={v.voiceURI === selected}
-                onSelect={() => onPick(v.voiceURI)}
-              />
-            ))}
-          </div>
-        </ScrollPane>
-      </div>
-    </div>,
-    document.body,
-  )
-}
 
 function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account: ElevenLabsAccount | null }) {
   const { settings, update } = useSettings()
@@ -152,6 +62,8 @@ function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account
     [update, settings],
   )
 
+  const done = useCallback(() => setOpen(false), [])
+
   const cancel = useCallback(() => {
     update({ voiceURI: before })
     setOpen(false)
@@ -175,13 +87,18 @@ function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account
         <div className="dwell-bar" key={active ? 'a' : 'i'} />
       </div>
       {open && (
-        <VoiceModal
-          voices={items}
-          selected={settings.voiceURI}
-          onPick={pick}
-          onDone={() => setOpen(false)}
-          onCancel={cancel}
-        />
+        <PickerModal title="Choose a voice" hint="Each one speaks as you choose it" onDone={done} onCancel={cancel}>
+          {items.map((v, i) => (
+            <PickerTile
+              key={`${v.voiceURI}-${i}`}
+              name={v.name}
+              detail={v.remote ? 'ElevenLabs' : v.lang}
+              className={v.remote ? 'is-remote' : undefined}
+              selected={v.voiceURI === settings.voiceURI}
+              onSelect={() => pick(v.voiceURI)}
+            />
+          ))}
+        </PickerModal>
       )}
     </SettingRow>
   )

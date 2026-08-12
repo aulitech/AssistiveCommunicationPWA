@@ -172,7 +172,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'Save a file keeps a copy in your downloads. Copy puts the same thing on the clipboard.',
-        'Tick a category instead of Everything to save just that one — useful for passing a set of phrases to someone else.',
+        'What to save opens a full screen of categories. Everything is the default; tick as many single categories as you like instead — useful for passing a set of phrases to someone else.',
         'Choose a file, or Paste a backup, to bring one in.',
       ),
       text(

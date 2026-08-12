@@ -35,7 +35,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 **ui/** — the shared vocabulary
 
 - `ui/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
-- `ui/controls.tsx` - The dwell controls more than one screen uses: `DwellButton`, `NavItem`, `SettingRow`, `SettingSpinner`, `ScrollPane` (four dwell controls — jump to top, nudge up, nudge down, jump to bottom, each shown only when there is somewhere to go), `PanelButton`, `ProseSections`, `DwellCursor`
+- `ui/controls.tsx` - The dwell controls more than one screen uses: `DwellButton`, `NavItem`, `SettingRow`, `SettingSpinner`, `PickerModal` and `PickerTile` (a full-screen grid of choices, portalled to the body — a panel animated with `transform` makes `position: fixed` resolve against the panel rather than the viewport), `ScrollPane` (four dwell controls — jump to top, nudge up, nudge down, jump to bottom, each shown only when there is somewhere to go), `PanelButton`, `ProseSections`, `DwellCursor`
 - `ui/settings.ts`, `ui/edit-mode.ts` - The two React contexts. Separate from the panels that edit them, or `controls.tsx` would have to import the settings screen, which is built out of `controls.tsx`
 - `ui/style.ts` - `cx` and `dwellVar`. Not components, so not in `controls.tsx` — a module mixing the two loses fast refresh for everything importing it
 - `ui/icons.tsx` - Inline SVG. Icons used by exactly one screen stay with that screen
@@ -48,7 +48,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 **menu/**
 
 - `menu/menu.tsx` - The panel itself and the four things it opens. **Back is the only way out that does not need a keyboard** — the scrim behind the panel is inert on purpose, since a pointer wandering across it used to take the menu away
-- `menu/settings-panel.tsx`, `menu/profile-panel.tsx`, `menu/backup-panel.tsx`, `menu/help-panel.tsx` - Those four. The voice picker is a full-screen grid, and choosing a voice speaks a sample in it and leaves the grid open — a preview button beside each of sixty tiles would put two targets in every one. Cancel puts back the voice the picker opened on, which is what makes trying them free. It is portalled to the body: the panel is animated with `transform`, and a transformed ancestor makes `position: fixed` resolve against that ancestor rather than the viewport — any full-screen overlay opened from inside a panel needs the same treatment
+- `menu/settings-panel.tsx`, `menu/profile-panel.tsx`, `menu/backup-panel.tsx`, `menu/help-panel.tsx` - Those four. All four panels hold their content to the same 68ch column: the panel spans the whole viewport, so without it a setting's label sits at one edge of a wide monitor and its control at the other. The voice picker and the backup category picker are both full-screen grids built from `PickerModal` — the first single-select, the second multi-select. The voice picker is a full-screen grid, and choosing a voice speaks a sample in it and leaves the grid open — a preview button beside each of sixty tiles would put two targets in every one. Cancel puts back the voice the picker opened on, which is what makes trying them free. It is portalled to the body: the panel is animated with `transform`, and a transformed ancestor makes `position: fixed` resolve against that ancestor rather than the viewport — any full-screen overlay opened from inside a panel needs the same treatment
 - `menu/help.ts` - The guide, as data
 
 **talk/** — **the usual starting point for UI work**

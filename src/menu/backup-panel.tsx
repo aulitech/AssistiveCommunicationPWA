@@ -21,38 +21,14 @@ import {
   type ImportMode,
 } from '../core/backup'
 import { cx, dwellVar } from '../ui/style'
-import { PanelButton, ScrollPane } from '../ui/controls'
+import { PanelButton, PickerModal, PickerTile, ScrollPane } from '../ui/controls'
 
 
-function BackupScopeRow({ label, sublabel, selected, onSelect }: {
-  label: string
-  sublabel?: string
-  selected: boolean
-  onSelect: () => void
-}) {
-  const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onSelect)
-  return (
-    <div
-      className={cx('backup-scope-row', selected && 'is-selected', active && 'dwelling')}
-      style={dwellVar(settings.actionDwellMs)}
-      role="checkbox"
-      aria-checked={selected}
-      aria-label={label}
-      {...props}
-    >
-      <div className="dwell-bar" key={active ? 'a' : 'i'} />
-      <span className="backup-check" aria-hidden="true">
-        {selected && (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        )}
-      </span>
-      <span className="backup-scope-label">{label}</span>
-      {sublabel && <span className="backup-scope-count">{sublabel}</span>}
-    </div>
-  )
+/** What the trigger says the current choice is. */
+function describeScope(scope: string[] | null): string {
+  if (scope === null) return 'Everything'
+  if (scope.length <= 2) return scope.join(', ')
+  return `${scope.length} categories`
 }
 
 export function BackupPanel({ store, profile, categories, categoryById, onRestore }: {
@@ -68,6 +44,9 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
   // a whole-app backup carries the details and settings, and only a whole-app
   // backup may be restored by replacing.
   const [scope, setScope] = useState<string[] | null>(null)
+  const [picking, setPicking] = useState(false)
+  /** What to put back if they leave the grid without settling on anything. */
+  const [beforePicking, setBeforePicking] = useState<string[] | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [incoming, setIncoming] = useState<{ backup: Backup; summary: BackupSummary } | null>(null)
@@ -84,6 +63,18 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
     () => (scope === null ? summary : summarize(buildBackup({ store, profile, settings, categoryById }))),
     [scope, summary, store, profile, settings, categoryById],
   )
+
+  const openPicker = useCallback(() => {
+    setBeforePicking(scope)
+    setPicking(true)
+  }, [scope])
+
+  const { active: scopeActive, props: scopeProps } = useDwellControl(settings.actionDwellMs, openPicker)
+
+  const cancelPicking = useCallback(() => {
+    setScope(beforePicking)
+    setPicking(false)
+  }, [beforePicking])
 
   const toggleCategory = useCallback((name: string) => {
     setStatus(null)
@@ -184,25 +175,49 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
         </p>
 
         <span className="setting-label backup-heading">What to save</span>
-        <div className="backup-scope" role="group" aria-label="What to save">
-          <BackupScopeRow
-            label="Everything"
-            sublabel={describeBackup(everything)}
-            selected={scope === null}
-            onSelect={() => {
-              setStatus(null)
-              setScope(null)
-            }}
-          />
-          {categories.map(name => (
-            <BackupScopeRow
-              key={name}
-              label={name}
-              selected={scope !== null && scope.includes(name)}
-              onSelect={() => toggleCategory(name)}
-            />
-          ))}
+        <div
+          className={cx('voice-trigger backup-scope-trigger', scopeActive && 'dwelling')}
+          style={dwellVar(settings.actionDwellMs)}
+          role="button"
+          aria-haspopup="dialog"
+          aria-expanded={picking}
+          aria-label={`Saving ${describeScope(scope)}. Choose what to save`}
+          {...scopeProps}
+        >
+          <span className="voice-trigger-label">{describeScope(scope)}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+          <div className="dwell-bar" key={scopeActive ? 'a' : 'i'} />
         </div>
+
+        {picking && (
+          <PickerModal
+            title="What to save"
+            hint="Everything, or pick as many categories as you like"
+            onDone={() => setPicking(false)}
+            onCancel={cancelPicking}
+          >
+            <PickerTile
+              name="Everything"
+              detail={describeBackup(everything)}
+              selected={scope === null}
+              className="is-everything"
+              onSelect={() => {
+                setStatus(null)
+                setScope(null)
+              }}
+            />
+            {categories.map(name => (
+              <PickerTile
+                key={name}
+                name={name}
+                selected={scope !== null && scope.includes(name)}
+                onSelect={() => toggleCategory(name)}
+              />
+            ))}
+          </PickerModal>
+        )}
 
         {scope !== null && <p className="backup-summary">{describeBackup(summary)}</p>}
 
