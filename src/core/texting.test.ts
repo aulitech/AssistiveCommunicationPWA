@@ -248,6 +248,46 @@ const TEXTING: Record<string, string> = {
   "W/": "With",
   "W/O": "Without",
   "A&E": "Accident and emergency",
+
+  // The profane ones, with each profane word cut to its first letter. That is
+  // also the letter its acronym uses, so they stay findable the same way.
+  "WTF": "What the f",
+  "WTAF": "What the actual f",
+  "TF": "The f",
+  "AF": "As f",
+  "MF": "Mother f",
+  "FU": "F you",
+  "FO": "F off",
+  "STFU": "Shut the f up",
+  "GTFO": "Get the f out",
+  "FFS": "For f sake",
+  "OMFG": "Oh my f God",
+  "JFC": "Jesus f Christ",
+  "GDI": "God d it",
+  "HFS": "Holy f s",
+  "FML": "F my life",
+  "TIFU": "Today I f up",
+  "LMAO": "Laughing my a off",
+  "LMFAO": "Laughing my f a off",
+  "ROFLMAO": "Rolling on the floor laughing my a off",
+  "IDGAF": "I don't give a f",
+  "DGAF": "Don't give a f",
+  "IDGAS": "I don't give a s",
+  "CBA": "Can't be a",
+  "BS": "Bull s",
+  "HS": "Horse s",
+  "TS": "Tough s",
+  "POS": "Piece of s",
+  "SOB": "Son of a b",
+  "AH": "A hole",
+  "KMA": "Kiss my a",
+  "PITA": "Pain in the a",
+  "BFD": "Big f deal",
+  "NFW": "No f way",
+  "SOL": "S out of luck",
+  "FUBAR": "F up beyond all recognition",
+  "SNAFU": "Situation normal all f up",
+  "WTH": "What the hell",
 }
 
 const texting = PHRASES.filter(p => p.category === 'Texting')
@@ -266,6 +306,50 @@ const FOUND_BY_INITIALS = [
   'OMG', 'SMH', 'TMI', 'FOMO', 'YOLO', 'GOAT', 'FTW', 'BFF', 'IRL', 'NSFW',
   'EOD', 'COB', 'TBD', 'TBA', 'FAQ', 'DIY', 'DND', 'OOO', 'WFH', 'PTO', 'DM',
   'PM', 'GG', 'GLHF', 'WYD', 'ROI', 'KPI', 'TGIF',
+]
+
+/**
+ * The ones carrying a word cut down to its first letter. WTH is the profane set
+ * without being in here: "hell" is ordinary speech, and censoring it would be
+ * prim rather than careful.
+ */
+const CENSORED = [
+  'WTF',
+  'WTAF',
+  'TF',
+  'AF',
+  'MF',
+  'FU',
+  'FO',
+  'STFU',
+  'GTFO',
+  'FFS',
+  'OMFG',
+  'JFC',
+  'GDI',
+  'HFS',
+  'FML',
+  'TIFU',
+  'LMAO',
+  'LMFAO',
+  'ROFLMAO',
+  'IDGAF',
+  'DGAF',
+  'IDGAS',
+  'CBA',
+  'BS',
+  'HS',
+  'TS',
+  'POS',
+  'SOB',
+  'AH',
+  'KMA',
+  'PITA',
+  'BFD',
+  'NFW',
+  'SOL',
+  'FUBAR',
+  'SNAFU'
 ]
 
 /** How many of the whole set the acronym reaches — a majority, not all. */
@@ -326,6 +410,29 @@ describe('the texting acronyms', () => {
       search(texting, 'Texting', acronym).some(p => p.text === expansion),
     )
     expect(reachable.length).toBeGreaterThanOrEqual(REACHABLE_BY_ACRONYM)
+  })
+
+  // Substituting the first letter rather than a row of asterisks is what keeps
+  // these findable: the letter left behind is the letter the acronym uses, so
+  // "wtf" still reaches "What the f".
+  it('leaves a single letter where a word was cut', () => {
+    const uncut = CENSORED.filter(acronym => {
+      const words = TEXTING[acronym].replace(/[^\w\s']/g, '').split(/\s+/)
+      return !words.some(w => w.length === 1)
+    })
+    expect(uncut).toEqual([])
+  })
+
+  it('still finds the cut ones by their acronym', () => {
+    const missed = CENSORED.filter(
+      acronym => !search(texting, 'Texting', acronym).some(p => p.text === TEXTING[acronym]),
+    )
+    // "F you" is f-y by initials, not f-u; it is reached by typing the words.
+    expect(missed).toEqual(['FU'])
+  })
+
+  it('lists every acronym in CENSORED as one it actually has', () => {
+    expect(CENSORED.filter(a => !(a in TEXTING))).toEqual([])
   })
 
   it('lists every acronym in FOUND_BY_INITIALS as one it actually has', () => {

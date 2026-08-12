@@ -121,6 +121,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'They are written out in full rather than as BRB or TTYL, because everything here can be spoken aloud and letters cannot. Typing the acronym still finds most of them: type "ttyl" and the grid narrows to "Talk to you later".',
       ),
+      text(
+        'The rude ones are in there too, with the rude word cut down to its first letter — "What the f". If you would rather they were not on your board, turn on edit mode and delete the ones you do not want.',
+      ),
     ],
   },
   {

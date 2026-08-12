@@ -1357,6 +1357,19 @@ describe('the texting category', () => {
     expect(texts).not.toContain('BRB')
   })
 
+  // Adults swear, and an AAC board that cannot is a board that puts its user in
+  // a register they did not choose. The word is cut to its first letter, which
+  // is also the letter its acronym uses.
+  it('carries the profane ones cut to a letter', () => {
+    renderApp()
+    click(tabNamed('Texting'))
+
+    fireEvent.change($('.text-display')!, { target: { value: 'wtf' } })
+    settle()
+
+    expect(cells().map(c => c.textContent)).toContain('What the f')
+  })
+
   // Typing the acronym narrows the grid to it, which is what makes a category
   // this size usable at all.
   it('narrows to a phrase when its acronym is typed', () => {
