@@ -31,7 +31,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Rest on any phrase in the grid to add it to the box.',
         'Type in the box to narrow the grid to phrases that match what you are typing.',
         'Use the tabs above the grid to show one category at a time.',
-        'The arrows on the right scroll the grid.',
+        'The buttons on the right scroll the grid: the middle two move a little at a time and keep going while you rest on them, the outer two jump to the very top or bottom.',
       ),
       text(
         'When the message is ready, rest on the speaker button to say it aloud, or the copy button to send it somewhere else.',
@@ -105,7 +105,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Phrase dwell — how long to rest on a phrase before it is chosen.',
         'Action dwell — how long to rest on buttons and menus.',
         'Volume and Speed — how the voice sounds.',
-        'Voice — opens a full screen of voices. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
+        'Voice — opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
       ),
       text(
         'If phrases are being chosen by accident, make the dwell times longer. If waiting feels slow, make them shorter. There is no wrong setting — only what suits you.',

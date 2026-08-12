@@ -1402,20 +1402,33 @@ body {
 
 .scroll-pane-inner::-webkit-scrollbar { display: none; }
 
+/* Jump and nudge sit side by side rather than stacked: two full-width bars top
+   and bottom would cost 56px of a pane that is height-constrained already, and
+   splitting each bar in two costs none. */
+.pane-scroll-row {
+  display: flex;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.scroll-pane > .pane-scroll-row:first-child { border-bottom: 1px solid var(--border); }
+.scroll-pane > .pane-scroll-row:last-child { border-top: 1px solid var(--border); }
+
 .pane-scroll-btn {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 0;
-  flex-shrink: 0;
+  /* Half a bar each, and the whole bar's height, which is the dimension a dwell
+     actually needs. */
+  flex: 1;
+  padding: 6px 0;
   cursor: pointer;
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
 
-.pane-scroll-btn:last-child { border-bottom: none; border-top: 1px solid var(--border); }
+.pane-scroll-btn + .pane-scroll-btn { border-left: 1px solid var(--border); }
 .pane-scroll-btn.dwelling { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); }
 .pane-scroll-btn .dwell-bar { background: var(--accent); }
 
