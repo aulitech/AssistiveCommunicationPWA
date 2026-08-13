@@ -18,10 +18,10 @@ This is the canonical project structure. Start with task-relevant files below. O
 |---|---|---|
 | 1 | `core/` | What Peri knows and keeps. No React, no network, no screens |
 | 2 | `ui/` | The controls and contexts every screen is built from |
-| 2 | `voice/` | Making sound come out |
-| 3 | `menu/` | The panel that slides down, and everything reached from it |
-| 4 | `talk/` `signin/` `legal/` | The three screens |
-| 5 | *(root)* | `App.tsx`, `main.tsx`, and the tests that drive the whole app |
+| 3 | `voice/` | Making sound come out, and the control for choosing which |
+| 4 | `menu/` | The panel that slides down, and everything reached from it |
+| 5 | `talk/` `signin/` `legal/` | The three screens |
+| 6 | *(root)* | `App.tsx`, `main.tsx`, and the tests that drive the whole app |
 
 **core/** — readable on its own; nothing else in `src` is needed to follow it
 
@@ -35,7 +35,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 **ui/** — the shared vocabulary
 
 - `ui/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
-- `ui/controls.tsx` - The dwell controls more than one screen uses: `DwellButton`, `NavItem`, `SettingRow`, `SettingSpinner`, `PickerModal` and `PickerTile` (a full-screen grid of choices, portalled to the body — a panel animated with `transform` makes `position: fixed` resolve against the panel rather than the viewport), `ScrollPane` (four dwell controls — jump to top, nudge up, nudge down, jump to bottom, each shown only when there is somewhere to go), `PanelButton`, `ProseSections`, `DwellCursor`
+- `ui/controls.tsx` - The dwell controls more than one screen uses: `DwellButton`, `NavItem`, `SettingRow`, `SettingSpinner`, `ScrollRow` (a row that scrolls sideways with its own dwell arrows — the filter chips outgrow the screen), `PickerModal` and `PickerTile` (a full-screen grid of choices, portalled to the body — a panel animated with `transform` makes `position: fixed` resolve against the panel rather than the viewport), `ScrollPane` (four dwell controls — jump to top, nudge up, nudge down, jump to bottom, each shown only when there is somewhere to go), `PanelButton`, `ProseSections`, `DwellCursor`
 - `ui/settings.ts`, `ui/edit-mode.ts` - The two React contexts. Separate from the panels that edit them, or `controls.tsx` would have to import the settings screen, which is built out of `controls.tsx`
 - `ui/style.ts` - `cx` and `dwellVar`. Not components, so not in `controls.tsx` — a module mixing the two loses fast refresh for everything importing it
 - `ui/icons.tsx` - Inline SVG. Icons used by exactly one screen stay with that screen
@@ -44,6 +44,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 
 - `voice/speech.ts` - The single place utterances are created, and the routing between the device voice and a linked account
 - `voice/audio-cache.ts` - Audio already fetched, in memory and in IndexedDB. The memory layer is what makes a phrase's own voice usable on the emergency bar
+- `voice/picker.tsx` - Choosing a voice. One control, used by Settings for the app's voice and by the phrase editor for a single phrase's. It sits above `ui/` in the layering for that reason — it is built out of `ui` controls, so `voice` cannot be beside it
 - `voice/groups.ts` - Cutting a long voice list down: device voices by language, an account's by the collection it files them under
 - `voice/elevenlabs.ts` - A linked ElevenLabs account: validating a key, fetching its voices, fetching audio, and the cache in front of it
 

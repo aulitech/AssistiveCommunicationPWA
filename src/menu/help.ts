@@ -172,7 +172,10 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'A different voice for one phrase',
     blocks: [
       text(
-        'In edit mode, the phrase editor has a Voice setting. Leave it as "Same as everything else" for almost everything; set it where a phrase wants a voice of its own — someone you are quoting, a name said the way its owner says it, something that has to cut through a noisy room.',
+        'In edit mode, the phrase editor has a Voice setting. It opens the same full screen of voices as Settings does, and each one you try says the phrase itself rather than a sample — so you hear how that sentence sounds in it.',
+      ),
+      text(
+        'Leave it as "Same as everything else" for almost everything. Set it where a phrase wants a voice of its own: someone you are quoting, a name said the way its owner says it, something that has to cut through a noisy room.',
       ),
       text(
         'Peri fetches that phrase the moment you choose the voice and keeps it, so saying it later is instant. That is also why an emergency phrase can have its own voice: it is already here, with nothing to wait for. If it ever is not, the emergency bar speaks with the device voice straight away rather than pausing.',

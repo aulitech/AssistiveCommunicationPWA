@@ -21,7 +21,8 @@ const SRC = resolve(process.cwd(), 'src')
  */
 const LAYERS: string[][] = [
   ['core'], //            what Peri knows and keeps
-  ['ui', 'voice'], //     the shared controls, and making sound come out
+  ['ui'], //              the shared controls
+  ['voice'], //           making sound come out, and choosing which
   ['menu'], //            the panel that slides down
   ['talk', 'signin', 'legal'], // the three screens
   ['.'], //               App and main, which reach anything

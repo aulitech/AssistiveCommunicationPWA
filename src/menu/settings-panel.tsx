@@ -1,142 +1,31 @@
 
 // Menu → Settings. Dwell times, volume, speed and voice.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useDwellControl } from '../ui/dwell'
-import { linkAccount, remoteVoiceURI } from '../voice/elevenlabs'
-import { inGroup, voiceGroups, voiceLabel, type VoiceChoice } from '../voice/groups'
+import { useCallback, useState } from 'react'
+import { linkAccount } from '../voice/elevenlabs'
+import { VoicePicker } from '../voice/picker'
 import { clearAudioCache } from '../voice/audio-cache'
 import { type ElevenLabsAccount } from '../core/store'
 import { useSettings } from '../ui/settings'
-import { speak, subscribeVoices } from '../voice/speech'
 import { loadElevenLabs, saveElevenLabs } from '../core/store'
-import { cx, dwellVar } from '../ui/style'
-import {
-  PanelButton,
-  PickerFilter,
-  PickerModal,
-  PickerTile,
-  ScrollPane,
-  SettingRow,
-  SettingSpinner,
-} from '../ui/controls'
+import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
 
-/** Short, and it says what it is. Cached after the first time on a paid voice. */
-const SAMPLE = 'This is how I sound.'
-
-function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account: ElevenLabsAccount | null }) {
+function VoiceRow() {
   const { settings, update } = useSettings()
-  const [open, setOpen] = useState(false)
-  // The account's voices come first: someone who went to the trouble of linking
-  // one is looking for those, not scrolling past sixty the device came with.
-  const items = useMemo<VoiceChoice[]>(
-    () => [
-      { voiceURI: '', name: 'Default', lang: '' },
-      ...(account?.voices ?? []).map(v => ({
-        voiceURI: remoteVoiceURI(v.id),
-        name: v.name,
-        remote: true,
-        collection: v.collection,
-      })),
-      ...voices.map(v => ({ voiceURI: v.voiceURI, name: v.name, lang: v.lang })),
-    ],
-    [voices, account],
-  )
-  const current = items.find(v => v.voiceURI === settings.voiceURI) ?? items[0]
-
-  // What to put back if they leave without settling on one.
-  const [before, setBefore] = useState(settings.voiceURI)
-
-  const openPicker = useCallback(() => {
-    setBefore(settings.voiceURI)
-    setOpen(true)
-  }, [settings.voiceURI])
-
-  const { active, props } = useDwellControl(settings.actionDwellMs, openPicker)
-
-  const [group, setGroup] = useState<string | null>(null)
-  const groups = useMemo(() => voiceGroups(items), [items])
-  const shown = useMemo(() => items.filter(v => inGroup(v, group)), [items, group])
-
-  // Applied as it is chosen, and spoken with the voice actually picked rather
-  // than the one in `settings` — that update has not reached this render yet.
-  const pick = useCallback(
-    (voiceURI: string) => {
-      update({ voiceURI })
-      speak(SAMPLE, { ...settings, voiceURI })
-    },
-    [update, settings],
-  )
-
-  const done = useCallback(() => setOpen(false), [])
-
-  const cancel = useCallback(() => {
-    update({ voiceURI: before })
-    setOpen(false)
-  }, [update, before])
-
   return (
     <SettingRow label="Voice">
-      <div
-        className={cx('voice-trigger', active && 'dwelling')}
-        style={dwellVar(settings.actionDwellMs)}
-        role="button"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={`Voice: ${voiceLabel(current)}. Choose another`}
-        {...props}
-      >
-        <span className="voice-trigger-label">{voiceLabel(current)}</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-        <div className="dwell-bar" key={active ? 'a' : 'i'} />
-      </div>
-      {open && (
-        <PickerModal
-          title="Choose a voice"
-          hint="Each one speaks as you choose it"
-          filters={
-            groups.length > 1 && (
-              <>
-                <PickerFilter label="All" count={items.length} active={group === null} onSelect={() => setGroup(null)} />
-                {groups.map(g => (
-                  <PickerFilter
-                    key={g.id}
-                    label={g.label}
-                    count={g.count}
-                    active={group === g.id}
-                    onSelect={() => setGroup(g.id)}
-                  />
-                ))}
-              </>
-            )
-          }
-          onDone={done}
-          onCancel={cancel}
-        >
-          {shown.map((v, i) => (
-            <PickerTile
-              key={`${v.voiceURI}-${i}`}
-              name={v.name}
-              detail={v.remote ? 'ElevenLabs' : v.lang}
-              className={v.remote ? 'is-remote' : undefined}
-              selected={v.voiceURI === settings.voiceURI}
-              onSelect={() => pick(v.voiceURI)}
-            />
-          ))}
-        </PickerModal>
-      )}
+      <VoicePicker
+        value={settings.voiceURI}
+        onChange={voiceURI => update({ voiceURI })}
+        defaultLabel="Default"
+      />
     </SettingRow>
   )
 }
 
 export function SettingsPanel() {
   const { settings, update } = useSettings()
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [account, setLinked] = useState<ElevenLabsAccount | null>(loadElevenLabs)
-
-  useEffect(() => subscribeVoices(setVoices), [])
 
   // Written straight through, and `speak` reads it back per utterance, so there
   // is no second copy to keep in step. The cache goes with it: audio fetched on
@@ -191,7 +80,7 @@ export function SettingsPanel() {
             onValue={v => update({ rate: v / 10 })}
           />
         </SettingRow>
-        {(voices.length > 0 || account) && <VoiceRow voices={voices} account={account} />}
+        <VoiceRow />
         <ElevenLabsRow account={account} onChange={setAccount} />
       </ScrollPane>
     </div>

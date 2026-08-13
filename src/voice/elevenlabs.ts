@@ -89,6 +89,14 @@ export async function linkAccount(apiKey: string): Promise<LinkResult> {
 
 // ── Audio ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Requests already out. Previewing a voice and then assigning it asks for the
+ * same clip twice within a moment, and the cache cannot dedupe what has not come
+ * back yet — so the second caller waits on the first rather than being billed
+ * for its own copy.
+ */
+const inFlight = new Map<string, Promise<Blob>>()
+
 export async function synthesize(
   account: ElevenLabsAccount,
   voiceId: string,
@@ -97,6 +105,25 @@ export async function synthesize(
   const key = audioKey(voiceId, text)
   const hit = cachedAudio(key)
   if (hit) return hit
+
+  const already = inFlight.get(key)
+  if (already) return already
+
+  const request = fetchAudio(account, voiceId, text, key)
+  inFlight.set(key, request)
+  try {
+    return await request
+  } finally {
+    inFlight.delete(key)
+  }
+}
+
+async function fetchAudio(
+  account: ElevenLabsAccount,
+  voiceId: string,
+  text: string,
+  key: string,
+): Promise<Blob> {
 
   const response = await fetch(`${API}/text-to-speech/${encodeURIComponent(voiceId)}`, {
     method: 'POST',
