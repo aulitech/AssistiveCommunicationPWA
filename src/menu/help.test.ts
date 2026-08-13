@@ -51,6 +51,7 @@ describe('the user guide', () => {
     ['linked voices', /ElevenLabs/],
     ['the sent list', /Sent tab/],
     ['texting acronyms', /Texting category/],
+    ['a voice per phrase', /Voice setting/],
   ])('covers %s', (_feature, pattern) => {
     expect(allText.some(line => pattern.test(line))).toBe(true)
   })

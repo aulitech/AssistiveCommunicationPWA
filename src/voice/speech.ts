@@ -9,6 +9,7 @@
 
 import { loadElevenLabs, type ElevenLabsAccount } from '../core/store'
 import { remoteVoiceId, synthesize } from './elevenlabs'
+import { audioKey, cachedAudio } from './audio-cache'
 
 export interface VoiceSettings {
   voiceURI: string // empty = browser default
@@ -17,12 +18,17 @@ export interface VoiceSettings {
 }
 
 export interface SpeakOptions {
+  /** This phrase's own voice, overriding the one in settings. */
+  voiceURI?: string
   /**
-   * Use the device voice whatever is chosen. The emergency bar sets this: those
-   * phrases have to be instant and have to work with the network down, and a
-   * request that has to come back first is neither.
+   * Never wait on the network. The emergency bar sets this: those phrases have
+   * to be instant and have to work with the connection down.
+   *
+   * It does not mean "device voice" — a phrase given its own voice keeps it here
+   * too, provided the audio is already in hand. What it rules out is going and
+   * asking for it, which is the part an emergency cannot afford.
    */
-  local?: boolean
+  instant?: boolean
 }
 
 // Read per utterance rather than mirrored in a variable here. A JSON parse of
@@ -89,22 +95,39 @@ export function speak(text: string, settings: VoiceSettings, options: SpeakOptio
   if (!text.trim()) return
   stopEverything()
 
+  // A phrase's own voice wins over the one in settings. Both are `voiceURI`s, so
+  // everything downstream — the fallback, the device lookup — is unchanged.
+  const chosen = { ...settings, voiceURI: options.voiceURI || settings.voiceURI }
   const linked = currentAccount()
-  const voiceId = options.local ? null : remoteVoiceId(settings.voiceURI)
+  const voiceId = remoteVoiceId(chosen.voiceURI)
+  const mine = generation
+  const fallBack = () => {
+    if (mine === generation) speakOnDevice(text, chosen)
+  }
+
   if (!voiceId || !linked) {
-    speakOnDevice(text, settings)
+    speakOnDevice(text, chosen)
     return
   }
 
-  const mine = generation
-  const fallBack = () => {
-    if (mine === generation) speakOnDevice(text, settings)
+  // Already fetched: play it now, whoever is asking.
+  const inHand = cachedAudio(audioKey(voiceId, text))
+  if (inHand) {
+    playAudio(inHand, chosen, fallBack)
+    return
+  }
+
+  // Not in hand, and this is a phrase that cannot wait. The device says it now
+  // rather than the right voice saying it in a second and a half.
+  if (options.instant) {
+    speakOnDevice(text, chosen)
+    return
   }
 
   synthesize(linked, voiceId, text)
     .then(blob => {
       if (mine !== generation) return
-      playAudio(blob, settings, fallBack)
+      playAudio(blob, chosen, fallBack)
     })
     .catch(fallBack)
 }
@@ -133,4 +156,21 @@ export function subscribeVoices(onChange: (voices: SpeechSynthesisVoice[]) => vo
   read()
   speechSynthesis.addEventListener('voiceschanged', read)
   return () => speechSynthesis.removeEventListener('voiceschanged', read)
+}
+
+/**
+ * Fetches and stores a phrase's audio for the voice it has just been given, so
+ * that saying it costs no wait — including on the emergency bar, which will not
+ * wait. Failing is fine and silent: the phrase falls back like any other.
+ */
+export async function warmVoice(text: string, voiceURI: string): Promise<boolean> {
+  const voiceId = remoteVoiceId(voiceURI)
+  const linked = currentAccount()
+  if (!voiceId || !linked || !text.trim()) return false
+  try {
+    await synthesize(linked, voiceId, text)
+    return true
+  } catch {
+    return false
+  }
 }

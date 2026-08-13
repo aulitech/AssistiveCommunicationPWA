@@ -163,6 +163,20 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Choosing one of these voices means the words you speak are sent to ElevenLabs to be turned into audio. Unlink the account, or pick a device voice, and nothing is sent.',
       ),
       text('Your key is kept on this device and is never put in a backup file, so sharing a backup does not share your account.'),
+      text(
+        'With a lot of voices to choose from, the row of buttons above the grid narrows it — by collection for your ElevenLabs voices, by language for the ones on this device.',
+      ),
+    ],
+  },
+  {
+    title: 'A different voice for one phrase',
+    blocks: [
+      text(
+        'In edit mode, the phrase editor has a Voice setting. Leave it as "Same as everything else" for almost everything; set it where a phrase wants a voice of its own — someone you are quoting, a name said the way its owner says it, something that has to cut through a noisy room.',
+      ),
+      text(
+        'Peri fetches that phrase the moment you choose the voice and keeps it, so saying it later is instant. That is also why an emergency phrase can have its own voice: it is already here, with nothing to wait for. If it ever is not, the emergency bar speaks with the device voice straight away rather than pausing.',
+      ),
     ],
   },
   {

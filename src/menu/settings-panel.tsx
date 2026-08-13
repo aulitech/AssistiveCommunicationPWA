@@ -3,26 +3,23 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
-import { clearAudioCache, linkAccount, remoteVoiceURI } from '../voice/elevenlabs'
+import { linkAccount, remoteVoiceURI } from '../voice/elevenlabs'
+import { inGroup, voiceGroups, voiceLabel, type VoiceChoice } from '../voice/groups'
+import { clearAudioCache } from '../voice/audio-cache'
 import { type ElevenLabsAccount } from '../core/store'
 import { useSettings } from '../ui/settings'
 import { speak, subscribeVoices } from '../voice/speech'
 import { loadElevenLabs, saveElevenLabs } from '../core/store'
 import { cx, dwellVar } from '../ui/style'
-import { PanelButton, PickerModal, PickerTile, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
-
-/** A voice offered in the picker, wherever it comes from. */
-interface VoiceChoice {
-  voiceURI: string
-  name: string
-  lang?: string
-  remote?: boolean
-}
-
-function voiceLabel(v: VoiceChoice) {
-  if (v.remote) return `${v.name} · ElevenLabs`
-  return v.lang ? `${v.name} · ${v.lang}` : v.name
-}
+import {
+  PanelButton,
+  PickerFilter,
+  PickerModal,
+  PickerTile,
+  ScrollPane,
+  SettingRow,
+  SettingSpinner,
+} from '../ui/controls'
 
 /** Short, and it says what it is. Cached after the first time on a paid voice. */
 const SAMPLE = 'This is how I sound.'
@@ -35,7 +32,12 @@ function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account
   const items = useMemo<VoiceChoice[]>(
     () => [
       { voiceURI: '', name: 'Default', lang: '' },
-      ...(account?.voices ?? []).map(v => ({ voiceURI: remoteVoiceURI(v.id), name: v.name, remote: true })),
+      ...(account?.voices ?? []).map(v => ({
+        voiceURI: remoteVoiceURI(v.id),
+        name: v.name,
+        remote: true,
+        collection: v.collection,
+      })),
       ...voices.map(v => ({ voiceURI: v.voiceURI, name: v.name, lang: v.lang })),
     ],
     [voices, account],
@@ -51,6 +53,10 @@ function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account
   }, [settings.voiceURI])
 
   const { active, props } = useDwellControl(settings.actionDwellMs, openPicker)
+
+  const [group, setGroup] = useState<string | null>(null)
+  const groups = useMemo(() => voiceGroups(items), [items])
+  const shown = useMemo(() => items.filter(v => inGroup(v, group)), [items, group])
 
   // Applied as it is chosen, and spoken with the voice actually picked rather
   // than the one in `settings` — that update has not reached this render yet.
@@ -87,8 +93,29 @@ function VoiceRow({ voices, account }: { voices: SpeechSynthesisVoice[]; account
         <div className="dwell-bar" key={active ? 'a' : 'i'} />
       </div>
       {open && (
-        <PickerModal title="Choose a voice" hint="Each one speaks as you choose it" onDone={done} onCancel={cancel}>
-          {items.map((v, i) => (
+        <PickerModal
+          title="Choose a voice"
+          hint="Each one speaks as you choose it"
+          filters={
+            groups.length > 1 && (
+              <>
+                <PickerFilter label="All" count={items.length} active={group === null} onSelect={() => setGroup(null)} />
+                {groups.map(g => (
+                  <PickerFilter
+                    key={g.id}
+                    label={g.label}
+                    count={g.count}
+                    active={group === g.id}
+                    onSelect={() => setGroup(g.id)}
+                  />
+                ))}
+              </>
+            )
+          }
+          onDone={done}
+          onCancel={cancel}
+        >
+          {shown.map((v, i) => (
             <PickerTile
               key={`${v.voiceURI}-${i}`}
               name={v.name}

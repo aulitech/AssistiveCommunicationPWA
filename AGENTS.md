@@ -43,6 +43,8 @@ This is the canonical project structure. Start with task-relevant files below. O
 **voice/**
 
 - `voice/speech.ts` - The single place utterances are created, and the routing between the device voice and a linked account
+- `voice/audio-cache.ts` - Audio already fetched, in memory and in IndexedDB. The memory layer is what makes a phrase's own voice usable on the emergency bar
+- `voice/groups.ts` - Cutting a long voice list down: device voices by language, an account's by the collection it files them under
 - `voice/elevenlabs.ts` - A linked ElevenLabs account: validating a key, fetching its voices, fetching audio, and the cache in front of it
 
 **menu/**
@@ -105,6 +107,7 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 - `core/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
 - `voice/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
 - `voice/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
+- `voice/groups.test.ts` - The voice filters, and that the two kinds never answer to each other's groups
 - `ui/dwell.test.tsx` - The dwell hook: timing, tap, keyboard, disabled, and repeat
 - `src/App.test.tsx` - Whole-app flows driven through the real DOM
 - `src/categories.test.tsx` - Adding, renaming, deleting and ordering category tabs
@@ -168,8 +171,11 @@ Two sources sit behind `speak()`. The device's own synthesiser is instant, free 
 
 Two consequences worth knowing before changing any of it:
 
-- **The emergency bar always speaks on the device**, via `speak(text, settings, { local: true })`. A request that has to go out and come back is not what "I can't breathe" needs, and with the network down it is nothing at all.
+- **The emergency bar never waits on the network**, via `speak(text, settings, { instant: true })`. That is not the same as "device voice": a phrase given its own voice keeps it there too, because assigning one fetches and stores the audio, so it is already in hand. What `instant` rules out is *going and asking* — anything not already fetched is said by the device this moment rather than in the right voice a second and a half later.
+- **A phrase can carry its own voice**, in `voiceOverrides`. It beats the one in settings wherever the phrase is spoken, and it travels in a backup like any other customization.
 - **The API key is never in a backup.** It lives under its own storage key, outside the three things `buildBackup` is built from. A backup is made to be shared, and the key in one hands over the account. `src/backup.test.ts` holds it to that, and `src/legal.ts` says so to the user.
+
+Audio is cached in two layers by `voice/audio-cache.ts`. The memory layer answers synchronously, which is the only kind of answer the emergency bar can use; the IndexedDB layer exists so the memory layer can be full again after a reload, and `useBoard` pulls the assigned phrases back into it at start-up. Where IndexedDB is missing — an old browser, a private window, jsdom — everything still works and simply forgets between sessions.
 
 Audio is cached in memory by voice and text. An AAC board is the same phrases over and over, so the second time is free and instant — which is the difference between a usable feature and a bill.
 

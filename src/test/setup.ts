@@ -2,6 +2,7 @@
 
 import { afterEach, beforeEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import { clearAudioCache } from '../voice/audio-cache'
 
 /** Everything spoken during a test, in order. */
 export const spoken: string[] = []
@@ -78,8 +79,10 @@ beforeEach(() => {
   spoken.length = 0
   lastUtterance = null
   // Mutable and shared, like the rest of these: a test that seeds voices must
-  // not leave them for the next one.
+  // not leave them for the next one. The audio cache is the same — a clip
+  // fetched by one test would answer the next one's request without a fetch.
   voices.length = 0
+  clearAudioCache()
   localStorage.clear()
 
   installSpeechSynthesis()

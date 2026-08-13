@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   REMOTE_PREFIX,
-  clearAudioCache,
-  cachedCount,
   linkAccount,
   remoteVoiceId,
   remoteVoiceURI,
   synthesize,
 } from './elevenlabs'
+import { cachedCount, clearAudioCache } from './audio-cache'
 import { type ElevenLabsAccount } from '../core/store'
 
 const ACCOUNT: ElevenLabsAccount = { apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }

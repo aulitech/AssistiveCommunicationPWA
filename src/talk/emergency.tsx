@@ -11,7 +11,7 @@ import { type Phrase } from '../core/phrases'
 import { PlusIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 
-function EmergencyButton({ phrase }: { phrase: Phrase }) {
+function EmergencyButton({ phrase, voice }: { phrase: Phrase; voice?: string }) {
   const { settings } = useSettings()
   const { editMode, openEdit } = useEdit()
   const [flash, setFlash] = useState(false)
@@ -21,14 +21,15 @@ function EmergencyButton({ phrase }: { phrase: Phrase }) {
       openEdit(phrase, true)
       return
     }
-    // Always the device voice, whatever is chosen elsewhere. A linked account
-    // means a request going out and coming back before anything is heard, and
-    // it means nothing is heard at all with the network down. "I can't breathe"
-    // does not get to depend on the wifi.
-    speak(phrase.text, settings, { local: true })
+    // Never waits on the network. A phrase given its own voice keeps it here,
+    // because assigning one fetches and stores the audio — so it is already in
+    // hand. Anything not in hand is said by the device this instant rather than
+    // in the right voice a second and a half from now: "I can't breathe" does
+    // not get to depend on the wifi.
+    speak(phrase.text, settings, { voiceURI: voice, instant: true })
     setFlash(true)
     setTimeout(() => setFlash(false), 400)
-  }, [phrase, editMode, openEdit, settings])
+  }, [phrase, voice, editMode, openEdit, settings])
 
   // Emergency phrases use the same dwell time as any other phrase. A shorter
   // fixed value would fire early for anyone who lengthened their dwell because
@@ -68,12 +69,15 @@ function EmergencyAddButton() {
   )
 }
 
-export function EmergencyBar({ phrases }: { phrases: Phrase[] }) {
+export function EmergencyBar({ phrases, voiceFor }: {
+  phrases: Phrase[]
+  voiceFor: (id: string) => string | undefined
+}) {
   const { editMode } = useEdit()
   if (phrases.length === 0 && !editMode) return null
   return (
     <div className="emergency-bar" role="group" aria-label="Emergency phrases">
-      {phrases.map(p => <EmergencyButton key={p.id} phrase={p} />)}
+      {phrases.map(p => <EmergencyButton key={p.id} phrase={p} voice={voiceFor(p.id)} />)}
       {editMode && <EmergencyAddButton />}
     </div>
   )

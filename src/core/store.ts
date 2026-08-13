@@ -89,6 +89,12 @@ export interface PhraseStore {
   /** id → category, for a single phrase moved out of the one it came in. */
   categoryOverrides: Record<string, string>
   /**
+   * id → the voice that phrase is said in, overriding the one in settings. A
+   * board can then carry more than one voice: somebody quoting another person,
+   * a child's name in their own voice, a phrase that has to cut through noise.
+   */
+  voiceOverrides: Record<string, string>
+  /**
    * The user's own arrangement of the category tabs. Kept whether or not it is
    * the one on show, so switching to A–Z and back returns the tabs to exactly
    * where they were rather than making the user rebuild it. Names missing from
@@ -107,6 +113,7 @@ export const emptyStore = (): PhraseStore => ({
   categoryRenames: {},
   categories: [],
   categoryOverrides: {},
+  voiceOverrides: {},
   categoryOrder: [],
   categorySort: 'alpha',
 })
@@ -128,6 +135,10 @@ export function loadPhraseStore(): PhraseStore {
         raw.categoryOverrides && typeof raw.categoryOverrides === 'object'
           ? raw.categoryOverrides
           : base.categoryOverrides,
+      voiceOverrides:
+        raw.voiceOverrides && typeof raw.voiceOverrides === 'object'
+          ? raw.voiceOverrides
+          : base.voiceOverrides,
       categoryOrder,
       // Stores written before the two arrangements were told apart have an
       // order and no flag; an order they took the trouble to make is the one
@@ -233,6 +244,8 @@ export function addSent(messages: SentMessage[], text: string): SentMessage[] {
 export interface RemoteVoice {
   id: string
   name: string
+  /** What ElevenLabs files it under — premade, cloned, professional, generated. */
+  collection?: string
 }
 
 export interface ElevenLabsAccount {
@@ -249,7 +262,11 @@ export function loadElevenLabs(): ElevenLabsAccount | null {
       ? raw.voices
           .filter((v: unknown): v is RemoteVoice =>
             typeof v === 'object' && v !== null && typeof (v as RemoteVoice).id === 'string')
-          .map((v: RemoteVoice) => ({ id: v.id, name: String(v.name ?? v.id) }))
+          .map((v: RemoteVoice) => ({
+            id: v.id,
+            name: String(v.name ?? v.id),
+            ...(typeof v.collection === 'string' && v.collection ? { collection: v.collection } : {}),
+          }))
       : []
     return { apiKey: raw.apiKey, voices }
   } catch {

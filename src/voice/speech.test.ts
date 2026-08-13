@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { speak } from './speech'
-import { clearAudioCache, remoteVoiceURI } from './elevenlabs'
+import { speak, warmVoice } from './speech'
+import { remoteVoiceURI } from './elevenlabs'
+import { audioKey, cachedAudio, clearAudioCache, rememberAudio } from './audio-cache'
 import { saveElevenLabs } from '../core/store'
 import { spoken, lastUtterance, played, setAudioPlays } from '../test/setup'
 
@@ -146,17 +147,100 @@ describe('being interrupted', () => {
   })
 })
 
+describe("a phrase's own voice", () => {
+  it('wins over the one in settings', async () => {
+    link()
+    const fetcher = vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) }))
+    vi.stubGlobal('fetch', fetcher)
+    speak('Hello', SETTINGS, { voiceURI: remoteVoiceURI('v1') })
+    await flush()
+
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(String(fetcher.mock.calls[0][0])).toContain('/text-to-speech/v1')
+    expect(played).toHaveLength(1)
+  })
+
+  it('falls back like any other when it cannot be fetched', async () => {
+    link()
+    audioReturns(false)
+    speak('Hello', SETTINGS, { voiceURI: remoteVoiceURI('v1') })
+    await flush()
+
+    expect(spoken).toEqual(['Hello'])
+  })
+})
+
 describe('phrases that must not wait', () => {
   // The emergency bar. A request going out and coming back is not what "I can't
   // breathe" needs, and with the network down it is nothing at all.
-  it('always uses the device voice, whatever is chosen', async () => {
+  it('uses the device rather than waiting for a voice it does not have', async () => {
     link()
     const fetcher = vi.fn()
     vi.stubGlobal('fetch', fetcher)
-    speak('Help me!', REMOTE, { local: true })
+    speak('Help me!', REMOTE, { instant: true })
     await flush()
 
     expect(spoken).toEqual(['Help me!'])
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  // The point of fetching a phrase's audio the moment its voice is assigned:
+  // by the time it is needed it is already here, so there is nothing to wait for
+  // and the emergency bar can use it.
+  it('uses a voice it does have, without asking for anything', async () => {
+    link()
+    rememberAudio(audioKey('v1', 'Help me!'), new Blob(['audio']))
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+
+    speak('Help me!', SETTINGS, { voiceURI: remoteVoiceURI('v1'), instant: true })
+    await flush()
+
+    expect(played).toHaveLength(1)
+    expect(spoken).toEqual([])
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  // Even in hand, the browser can still refuse to play it.
+  it('still falls back to the device if the audio will not play', async () => {
+    link()
+    rememberAudio(audioKey('v1', 'Help me!'), new Blob(['audio']))
+    setAudioPlays(false)
+
+    speak('Help me!', SETTINGS, { voiceURI: remoteVoiceURI('v1'), instant: true })
+    await flush()
+
+    expect(spoken).toEqual(['Help me!'])
+  })
+})
+
+describe('warming a voice', () => {
+  it('fetches once and leaves it in hand', async () => {
+    link()
+    const fetcher = vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) }))
+    vi.stubGlobal('fetch', fetcher)
+
+    expect(await warmVoice('Help me!', remoteVoiceURI('v1'))).toBe(true)
+    expect(cachedAudio(audioKey('v1', 'Help me!'))).toBeInstanceOf(Blob)
+
+    // And now saying it asks for nothing.
+    speak('Help me!', SETTINGS, { voiceURI: remoteVoiceURI('v1'), instant: true })
+    await flush()
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(played).toHaveLength(1)
+  })
+
+  it('says so rather than throwing when it cannot', async () => {
+    link()
+    audioReturns(false)
+    expect(await warmVoice('Help me!', remoteVoiceURI('v1'))).toBe(false)
+  })
+
+  it('does nothing for a device voice, which needs no fetching', async () => {
+    link()
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    expect(await warmVoice('Help me!', 'uri-Daniel')).toBe(false)
     expect(fetcher).not.toHaveBeenCalled()
   })
 })
