@@ -101,6 +101,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Settings',
     blocks: [
       text('Open the menu and choose Settings. Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.'),
+      text('Settings and My details scroll if there is more than fits, using the same arrows as the phrase grid.'),
       list(
         'Phrase dwell — how long to rest on a phrase before it is chosen.',
         'Action dwell — how long to rest on buttons and menus.',

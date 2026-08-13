@@ -2,13 +2,14 @@
 // The panel that slides down from the top, and everything reached from it.
 
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useDwellControl } from '../ui/dwell'
 import { type Profile } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { type PhraseStore, type User } from '../core/store'
 import { type AppState } from '../core/backup'
 import { cx, dwellVar } from '../ui/style'
-import { NavItem } from '../ui/controls'
+import { NavItem, PanelButton } from '../ui/controls'
 import { SettingsPanel } from './settings-panel'
 import { ProfilePanel } from './profile-panel'
 import { BackupPanel } from './backup-panel'
@@ -42,6 +43,48 @@ function PanelBack({ onSelect }: { onSelect: () => void }) {
   )
 }
 
+/**
+ * Signing out is one dwell away from every other thing in this menu, and it is
+ * the one that empties the screen. So it asks first.
+ *
+ * The confirmation is a dialog in the middle of the screen rather than a second
+ * state on the nav item: a pointer rests where it last fired, and a "yes" that
+ * appeared under it would be answered by the pointer already sitting there.
+ *
+ * It also says what signing out does not do. Somebody whose board is how they
+ * speak has every reason to think a button called Sign out might take it away.
+ */
+function ConfirmSignOut({ user, onConfirm, onCancel }: {
+  user: User
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
+
+  return createPortal(
+    <div className="confirm-scrim">
+      <div className="confirm-modal" role="alertdialog" aria-modal="true" aria-label="Sign out">
+        <span className="confirm-title">Sign out{user.email ? ` of ${user.email}` : ''}?</span>
+        <p className="confirm-note">
+          Your phrases, your details and your settings stay on this device. Signing back in brings
+          you straight back to them.
+        </p>
+        <div className="confirm-actions">
+          <PanelButton kind="plain" label="Stay signed in" onActivate={onCancel} />
+          <PanelButton kind="danger" label="Sign out" onActivate={onConfirm} />
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 type PanelView = 'menu' | 'settings' | 'profile' | 'backup' | 'help'
 
 export function TopPanel({ open, user, onClose, onSignOut, profile, onProfileChange, store, categories, categoryById, onRestore }: {
@@ -56,7 +99,10 @@ export function TopPanel({ open, user, onClose, onSignOut, profile, onProfileCha
   categoryById: Map<string, string>
   onRestore: (next: AppState, message: string) => void
 }) {
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false)
+
   const handleSignOut = useCallback(() => {
+    setConfirmingSignOut(false)
     onClose()
     onSignOut()
   }, [onClose, onSignOut])
@@ -154,13 +200,21 @@ export function TopPanel({ open, user, onClose, onSignOut, profile, onProfileCha
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>}
               label="Sign out"
               sublabel={user.email || 'Guest session'}
-              onSelect={handleSignOut}
+              onSelect={() => setConfirmingSignOut(true)}
             />
           </nav>
         )}
 
         <div className="panel-handle" />
       </div>
+
+      {confirmingSignOut && (
+        <ConfirmSignOut
+          user={user}
+          onConfirm={handleSignOut}
+          onCancel={() => setConfirmingSignOut(false)}
+        />
+      )}
     </>
   )
 }

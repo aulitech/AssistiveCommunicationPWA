@@ -1524,6 +1524,134 @@ describe('rendering only part of a long grid', () => {
   })
 })
 
+describe('signing out', () => {
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
+  const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
+  const confirm = () => inDoc('.confirm-modal')[0] ?? null
+  const action = (label: string) => inDoc('.panel-btn').find(b => b.getAttribute('aria-label') === label)
+  const signedIn = () => localStorage.getItem('dwellspeak_user') !== null
+  const start = () => {
+    renderApp()
+    openMenu()
+    click(nav('Sign out'))
+  }
+
+  // One dwell away from every other thing in the menu, and the one that empties
+  // the screen.
+  it('asks before it does anything', () => {
+    start()
+
+    expect(confirm()).not.toBeNull()
+    expect(signedIn()).toBe(true)
+    expect($('.app')).not.toBeNull()
+  })
+
+  // Somebody whose board is how they speak has every reason to think a button
+  // called Sign out might take it away.
+  it('says what it will not do', () => {
+    start()
+    expect(confirm()?.textContent).toMatch(/stay on this device/i)
+  })
+
+  it('signs out when confirmed', () => {
+    start()
+    click(action('Sign out'))
+
+    expect(signedIn()).toBe(false)
+    expect($('.signin-page')).not.toBeNull()
+  })
+
+  it('stays put when declined', () => {
+    start()
+    click(action('Stay signed in'))
+
+    expect(confirm()).toBeNull()
+    expect(signedIn()).toBe(true)
+    expect($('.app')).not.toBeNull()
+  })
+
+  it('stays put on Escape', () => {
+    start()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    settle()
+
+    expect(confirm()).toBeNull()
+    expect(signedIn()).toBe(true)
+  })
+
+  // A pointer rests where it last fired. If the confirmation appeared inside the
+  // panel, under the nav item that opened it, the pointer already sitting there
+  // would answer it.
+  it('puts the confirmation outside the menu panel', () => {
+    start()
+    const scrim = inDoc('.confirm-scrim')[0]
+    expect(scrim).toBeDefined()
+    expect($('.top-panel')!.contains(scrim)).toBe(false)
+    expect(scrim.parentElement).toBe(document.body)
+  })
+
+  it('leaves the phrases and settings alone either way', () => {
+    renderApp()
+    click(plainCell())
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak'))
+    clearMessage()
+    const store = localStorage.getItem('peri_sent')
+
+    openMenu()
+    click(nav('Sign out'))
+    click(action('Sign out'))
+
+    expect(signedIn()).toBe(false)
+    expect(localStorage.getItem('peri_sent')).toBe(store)
+  })
+})
+
+describe('reaching all of a panel that has grown', () => {
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
+  const arrows = () => $$('.pane-scroll-btn').map(b => b.getAttribute('aria-label'))
+
+  /** jsdom lays nothing out, so the overflow the arrows react to is supplied. */
+  const overflow = (pane: Element) => {
+    for (const [k, v] of Object.entries({ scrollTop: 200, clientHeight: 400, scrollHeight: 1200 })) {
+      Object.defineProperty(pane, k, { value: v, configurable: true })
+    }
+    fireEvent.scroll(pane)
+    settle()
+  }
+
+  // My details grows with every contact added, and Settings with the linked
+  // account row. A panel taller than the screen is a panel whose bottom half a
+  // dwell user cannot reach — there is no wheel and no scrollbar.
+  it.each(['My details', 'Settings'])('scrolls %s once there is more than fits', panel => {
+    renderApp()
+    openMenu()
+    click(nav(panel))
+
+    const pane = $('.settings-body')
+    expect(pane, `${panel} has no scrolling pane`).not.toBeNull()
+    expect(arrows()).toEqual([])
+
+    overflow(pane!)
+    expect(arrows()).toEqual(['Go to top', 'Scroll up', 'Scroll down', 'Go to bottom'])
+  })
+
+  it('scrolls the panel when an arrow is dwelled', () => {
+    renderApp()
+    openMenu()
+    click(nav('My details'))
+
+    const pane = $('.settings-body')!
+    overflow(pane)
+    const scrollBy = vi.fn()
+    pane.scrollBy = scrollBy
+
+    click($$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll down'))
+    expect(scrollBy).toHaveBeenCalledWith({ top: 100, behavior: 'smooth' })
+  })
+})
+
 describe('the menu panels on a wide screen', () => {
   const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
   const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
@@ -1533,8 +1661,8 @@ describe('the menu panels on a wide screen', () => {
   // lines run a couple of hundred characters. All four hold the same measure so
   // they line up as you move between them.
   it.each([
-    ['Settings', '.settings-panel'],
-    ['My details', '.settings-panel'],
+    ['Settings', '.settings-body'],
+    ['My details', '.settings-body'],
     ['Backup & sharing', '.backup-body'],
     ['Help', '.help-measure'],
   ])('keeps %s in a reading column', (panel, selector) => {
