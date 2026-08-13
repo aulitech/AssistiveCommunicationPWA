@@ -5,17 +5,15 @@
 // category is showing, whether the app is in edit mode or resting, and what to
 // say when an operation finishes.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { cancelAllDwells, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
 import { hasChoices, type Phrase } from '../core/phrases'
 import { search } from '../core/search'
-import { loadElevenLabs, type User } from '../core/store'
+import { type User } from '../core/store'
 import { type AppState } from '../core/backup'
-import { speak, subscribeVoices, warmVoice } from '../voice/speech'
-import { remoteVoiceURI } from '../voice/elevenlabs'
-import { voiceLabel } from '../voice/groups'
+import { speak, warmVoice } from '../voice/speech'
 import { cx } from '../ui/style'
 import { DwellCursor } from '../ui/controls'
 import { Topbar } from './topbar'
@@ -53,24 +51,6 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const [editing, setEditing] = useState<Editing | null>(null)
   const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
-  const [deviceVoices, setDeviceVoices] = useState<SpeechSynthesisVoice[]>([])
-
-  useEffect(() => subscribeVoices(setDeviceVoices), [])
-
-  // Every voice a phrase could be given, named the way the picker names them.
-  const voiceChoices = useMemo(() => {
-    const account = loadElevenLabs()
-    return [
-      ...(account?.voices ?? []).map(v => ({
-        voiceURI: remoteVoiceURI(v.id),
-        label: voiceLabel({ voiceURI: remoteVoiceURI(v.id), name: v.name, remote: true }),
-      })),
-      ...deviceVoices.map(v => ({
-        voiceURI: v.voiceURI,
-        label: voiceLabel({ voiceURI: v.voiceURI, name: v.name, lang: v.lang }),
-      })),
-    ]
-  }, [deviceVoices])
 
   const { store, allCategories, voiceFor } = board
   // Pulled out rather than reached through `composer`, which is a fresh object
@@ -384,7 +364,6 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
               isEmergency={editing.isEmergency}
               initialText={editing.initialText}
               allCategories={allCategories}
-              voices={voiceChoices}
               voice={editing.phrase ? voiceFor(editing.phrase.id) : undefined}
               onSave={handleSave}
               onDelete={handleDelete}

@@ -1528,7 +1528,20 @@ describe('giving a phrase its own voice', () => {
   const LINKED = { apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel', collection: 'premade' }] }
   const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
   const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
-  const voiceSelect = () => $<HTMLSelectElement>('#edit-voice')
+  const voiceTrigger = () => $('.voice-trigger')
+  /**
+   * The same grid Settings uses. Choosing previews the voice, so what it spoke
+   * is cleared afterwards — the tests below are about what saying the *phrase*
+   * does, not about the preview.
+   */
+  const chooseVoice = async (name: string) => {
+    click(voiceTrigger())
+    click(inDoc('.picker-tile').find(el => (el.getAttribute('aria-label') ?? '').startsWith(name)))
+    click(inDoc('.panel-btn').find(b => b.getAttribute('aria-label') === 'Done'))
+    await flush()
+    played.length = 0
+    spoken.length = 0
+  }
   const enterEditMode = () => click(toggles()[1])
   const stored = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}').voiceOverrides ?? {}
 
@@ -1548,9 +1561,27 @@ describe('giving a phrase its own voice', () => {
     enterEditMode()
     click(plainCell())
 
-    expect(voiceSelect()).not.toBeNull()
-    expect(voiceSelect()!.value).toBe('')
-    expect([...voiceSelect()!.options].map(o => o.textContent)).toContain('Rachel · ElevenLabs')
+    expect(voiceTrigger()?.textContent).toContain('Same as everything else')
+
+    click(voiceTrigger())
+    expect(inDoc('.picker-tile').map(el => el.getAttribute('aria-label'))).toContain('Rachel · ElevenLabs')
+  })
+
+  // Reopening has to show what the phrase already carries, or there is no way
+  // to tell what it is set to without changing it.
+  it('shows the phrase its own voice when the editor is reopened', async () => {
+    linkAccount()
+    audioReplies()
+    renderApp()
+    enterEditMode()
+    const cell = plainCell()
+    click(cell)
+    await chooseVoice('Rachel')
+    click(action('Save'))
+    await flush()
+
+    click(cell)
+    expect(voiceTrigger()?.textContent).toContain('Rachel')
   })
 
   it('remembers the voice against that phrase alone', async () => {
@@ -1562,8 +1593,7 @@ describe('giving a phrase its own voice', () => {
     const text = cell.textContent!
     click(cell)
 
-    fireEvent.change(voiceSelect()!, { target: { value: 'elevenlabs:v1' } })
-    settle()
+    await chooseVoice('Rachel')
     click(action('Save'))
     await flush()
 
@@ -1582,8 +1612,7 @@ describe('giving a phrase its own voice', () => {
     enterEditMode()
     click(plainCell())
 
-    fireEvent.change(voiceSelect()!, { target: { value: 'elevenlabs:v1' } })
-    settle()
+    await chooseVoice('Rachel')
     click(action('Save'))
     await flush()
 
@@ -1599,8 +1628,7 @@ describe('giving a phrase its own voice', () => {
     enterEditMode()
     const cell = plainCell()
     click(cell)
-    fireEvent.change(voiceSelect()!, { target: { value: 'elevenlabs:v1' } })
-    settle()
+    await chooseVoice('Rachel')
     click(action('Save'))
     await flush()
 
@@ -1623,8 +1651,7 @@ describe('giving a phrase its own voice', () => {
 
     enterEditMode()
     click($('.emergency-btn'))
-    fireEvent.change(voiceSelect()!, { target: { value: 'elevenlabs:v1' } })
-    settle()
+    await chooseVoice('Rachel')
     click(action('Save'))
     await flush()
     click(toggles()[1]) // leave edit mode
@@ -1665,8 +1692,7 @@ describe('giving a phrase its own voice', () => {
     renderApp()
     enterEditMode()
     click(plainCell())
-    fireEvent.change(voiceSelect()!, { target: { value: 'elevenlabs:v1' } })
-    settle()
+    await chooseVoice('Rachel')
     click(action('Save'))
     await flush()
 
@@ -1973,6 +1999,50 @@ describe('choosing a voice', () => {
 
     click(inDocument('.picker-filter').find(c => c?.textContent?.startsWith('All')))
     expect(tiles().length).toBeGreaterThan(1)
+  })
+
+  // The chips outgrow the screen as soon as an account has a few collections,
+  // and a row with no arrows is a row whose far end does not exist for anybody
+  // without a wheel.
+  it('scrolls the chip row once it is wider than the screen', () => {
+    localStorage.setItem(
+      'peri_elevenlabs',
+      JSON.stringify({
+        apiKey: 'sk-test',
+        voices: [
+          { id: 'v1', name: 'Rachel', collection: 'premade' },
+          { id: 'v2', name: 'Me', collection: 'cloned' },
+        ],
+      }),
+    )
+    openPicker('Daniel', 'Karen')
+    const row = inDocument('.scroll-row-inner')[0]
+    const arrows = () => inDocument('.scroll-row .pane-scroll-btn').map(b => b.getAttribute('aria-label'))
+
+    expect(arrows(), 'arrows with nowhere to go').toEqual([])
+
+    // jsdom lays nothing out, so the overflow they react to is supplied.
+    const setWidths = (scrollLeft: number, clientWidth: number, scrollWidth: number) => {
+      for (const [k, v] of Object.entries({ scrollLeft, clientWidth, scrollWidth })) {
+        Object.defineProperty(row, k, { value: v, configurable: true })
+      }
+      fireEvent.scroll(row)
+      settle()
+    }
+
+    setWidths(0, 300, 900)
+    expect(arrows()).toEqual(['Scroll right'])
+
+    setWidths(300, 300, 900)
+    expect(arrows()).toEqual(['Scroll left', 'Scroll right'])
+
+    setWidths(600, 300, 900)
+    expect(arrows()).toEqual(['Scroll left'])
+
+    const scrollBy = vi.fn()
+    row.scrollBy = scrollBy
+    click(inDocument('.scroll-row .pane-scroll-btn')[0])
+    expect(scrollBy).toHaveBeenCalledWith({ left: -160, behavior: 'smooth' })
   })
 
   it('offers no chips when there is only one group to choose from', () => {

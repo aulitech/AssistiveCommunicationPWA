@@ -1,5 +1,6 @@
 {
-    "aliases": [{
+    "aliases": [
+        {
             "name": {
                 "given": "",
                 "surname": "",
@@ -16,7 +17,15 @@
         },
         {
             "pronouns": [
-                "he", "she", "him", "her", "they", "them", "his", "hers", "their"
+                "he",
+                "she",
+                "him",
+                "her",
+                "they",
+                "them",
+                "his",
+                "hers",
+                "their"
             ]
         },
         {
@@ -139,7 +148,8 @@
             ]
         }
     ],
-    "phrases": [{
+    "phrases": [
+        {
             "txt": "It's not my cup of tea",
             "id": 0,
             "image": "",
@@ -817,15 +827,6 @@
         {
             "txt": "I need a haircut",
             "id": 75,
-            "image": "",
-            "category": "Appointments",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "I would like to get a manicure/ pedicure",
-            "id": 76,
             "image": "",
             "category": "Appointments",
             "language": "en",
@@ -19688,7 +19689,7 @@
             "count": 0
         },
         {
-            "txt":"Alexa, help.",
+            "txt": "Alexa, help.",
             "id": 2172,
             "image": "",
             "category": "Alexa",
@@ -19697,7 +19698,7 @@
             "count": 0
         },
         {
-            "txt":"Alexa, mute.",
+            "txt": "Alexa, mute.",
             "id": 2173,
             "image": "",
             "category": "Alexa",
@@ -19706,7 +19707,7 @@
             "count": 0
         },
         {
-            "txt":"Alexa, unmute.",
+            "txt": "Alexa, unmute.",
             "id": 2174,
             "image": "",
             "category": "Alexa",
@@ -19715,7 +19716,7 @@
             "count": 0
         },
         {
-            "txt":"Alexa, volume {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']}",
+            "txt": "Alexa, volume {['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']}",
             "id": 2175,
             "image": "",
             "category": "Alexa",
@@ -19724,7 +19725,7 @@
             "count": 0
         },
         {
-            "txt":"Alexa, louder.",
+            "txt": "Alexa, louder.",
             "id": 2176,
             "image": "",
             "category": "Alexa",
@@ -19733,7 +19734,7 @@
             "count": 0
         },
         {
-            "txt":"Alexa, softer.",
+            "txt": "Alexa, softer.",
             "id": 2177,
             "image": "",
             "category": "Alexa",
@@ -19742,7 +19743,7 @@
             "count": 0
         },
         {
-            "txt":"Alexa, lights {['on', 'off', '25%', '50%', '75%', '100%', 'brighter', 'dimmer']}",
+            "txt": "Alexa, lights {['on', 'off', '25%', '50%', '75%', '100%', 'brighter', 'dimmer']}",
             "id": 2178,
             "image": "",
             "category": "Alexa",

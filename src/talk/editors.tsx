@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
 import { type Phrase } from '../core/phrases'
+import { VoicePicker } from '../voice/picker'
 import { cx, dwellVar } from '../ui/style'
 
 function EditAction({ kind, label, onActivate, disabled }: {
@@ -34,14 +35,13 @@ function EditAction({ kind, label, onActivate, disabled }: {
 /** Sentinel <option> value; the leading space cannot occur in a trimmed name. */
 const NEW_CATEGORY = ' __new_category__'
 
-export function EditModal({ phrase, isEmergency, initialText, allCategories, voices, voice, keeping, onSave, onDelete, onClose }: {
+export function EditModal({ phrase, isEmergency, initialText, allCategories, voice, keeping, onSave, onDelete, onClose }: {
   phrase: Phrase | null
   isEmergency: boolean
   /** Seeds a new phrase — the composed message, when adding from the message box. */
   initialText?: string
   allCategories: string[]
-  /** Every voice that can be chosen, and the one this phrase already carries. */
-  voices: { voiceURI: string; label: string }[]
+  /** The voice this phrase already carries, if any. */
   voice?: string
   /**
    * The phrase is a message already said. Saving keeps it as a phrase of the
@@ -152,18 +152,16 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
             quoting a person, a name said the way its owner says it, a phrase
             that has to cut through a noisy room. */}
         <div className="edit-modal-row">
-          <label className="edit-modal-label" htmlFor="edit-voice">Voice</label>
-          <select
-            id="edit-voice"
-            className="edit-modal-select"
+          <span className="edit-modal-label">Voice</span>
+          {/* The same grid Settings uses, and previewing with this phrase's own
+              words rather than a sample: what matters is how *this* sentence
+              sounds in that voice. */}
+          <VoicePicker
             value={chosenVoice}
-            onChange={e => setChosenVoice(e.target.value)}
-          >
-            <option value="">Same as everything else</option>
-            {voices.map(v => (
-              <option key={v.voiceURI} value={v.voiceURI}>{v.label}</option>
-            ))}
-          </select>
+            onChange={setChosenVoice}
+            defaultLabel="Same as everything else"
+            sampleText={text}
+          />
         </div>
 
         <div className="edit-modal-actions">

@@ -1349,16 +1349,36 @@ body {
 /* Chips for cutting a long grid down. They scroll sideways rather than wrapping:
    a filter row that grows to three lines pushes the grid itself off the screen. */
 .picker-filters {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+/* A row that scrolls sideways, with its own dwell arrows. Without them the far
+   end of the row does not exist for anybody without a wheel. */
+.scroll-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.scroll-row-inner {
   display: flex;
   gap: 6px;
   padding: 10px 14px;
   overflow-x: auto;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
+  flex: 1;
   scrollbar-width: none;
 }
 
-.picker-filters::-webkit-scrollbar { display: none; }
+.scroll-row-inner::-webkit-scrollbar { display: none; }
+
+.scroll-row .pane-scroll-btn {
+  flex: 0 0 34px;
+  padding: 0;
+  border-bottom: none;
+}
+
+.scroll-row .pane-scroll-btn:first-child { border-right: 1px solid var(--border); }
+.scroll-row .pane-scroll-btn:last-child { border-left: 1px solid var(--border); }
 
 .picker-filter {
   position: relative;

@@ -152,3 +152,32 @@ describe('fetching audio', () => {
     await expect(synthesize(ACCOUNT, 'v1', 'Hello')).rejects.toThrow(/not accepted/i)
   })
 })
+
+describe('asking for the same clip twice at once', () => {
+  // Previewing a voice and then assigning it asks for the same words within a
+  // moment, and the cache cannot dedupe what has not come back yet.
+  it('shares one request rather than paying for two', async () => {
+    let resolve: (v: unknown) => void = () => {}
+    const fetcher = vi.fn(
+      () => new Promise(r => {
+        resolve = r
+      }),
+    )
+    vi.stubGlobal('fetch', fetcher)
+
+    const first = synthesize(ACCOUNT, 'v1', 'Hello')
+    const second = synthesize(ACCOUNT, 'v1', 'Hello')
+    resolve({ ok: true, status: 200, blob: async () => new Blob(['audio']) })
+
+    expect(await first).toBe(await second)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  it('asks again once the first has finished and failed', async () => {
+    vi.stubGlobal('fetch', respondWith({}, { status: 500 }))
+    await expect(synthesize(ACCOUNT, 'v1', 'Hello')).rejects.toThrow()
+
+    vi.stubGlobal('fetch', respondWith(null))
+    await expect(synthesize(ACCOUNT, 'v1', 'Hello')).resolves.toBeInstanceOf(Blob)
+  })
+})

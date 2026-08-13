@@ -168,13 +168,15 @@ export function SettingSpinner({ value, min, max, step, format, onValue }: {
   )
 }
 
-type ScrollAction = 'top' | 'up' | 'down' | 'bottom'
+type ScrollAction = 'top' | 'up' | 'down' | 'bottom' | 'left' | 'right'
 
 const SCROLL_LABELS: Record<ScrollAction, string> = {
   top: 'Go to top',
   up: 'Scroll up',
   down: 'Scroll down',
   bottom: 'Go to bottom',
+  left: 'Scroll left',
+  right: 'Scroll right',
 }
 
 /** Double-headed for the jumps, single for the nudges, so the pair differ at a glance. */
@@ -185,6 +187,8 @@ function ScrollGlyph({ action }: { action: ScrollAction }) {
       {action === 'bottom' && <><line x1="5" y1="19" x2="19" y2="19" /><polyline points="6 8 12 14 18 8" /></>}
       {action === 'up' && <polyline points="18 15 12 9 6 15" />}
       {action === 'down' && <polyline points="6 9 12 15 18 9" />}
+      {action === 'left' && <polyline points="15 18 9 12 15 6" />}
+      {action === 'right' && <polyline points="9 18 15 12 9 6" />}
     </svg>
   )
 }
@@ -368,7 +372,11 @@ export function PickerModal({ title, hint, filters, onDone, onCancel, children }
             <PanelButton kind="primary" label="Done" onActivate={onDone} />
           </div>
         </div>
-        {filters && <div className="picker-filters">{filters}</div>}
+        {filters && (
+          <div className="picker-filters">
+            <ScrollRow>{filters}</ScrollRow>
+          </div>
+        )}
         <ScrollPane className="picker-modal-scroller" paneClassName="picker-modal-body" step={160}>
           <div className="picker-grid" role="listbox" aria-label={title}>
             {children}
@@ -413,6 +421,55 @@ export function PickerTile({ name, detail, selected, className, onSelect }: {
         </span>
       )}
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
+    </div>
+  )
+}
+
+/**
+ * A row that scrolls sideways, with dwell arrows shown only when it does.
+ *
+ * The filter chips outgrow the screen as soon as an account has a few
+ * collections in it, and a row with no arrows is a row whose far end does not
+ * exist for anybody without a wheel. Two rather than the four a vertical pane
+ * gets: this is a handful of chips, and the modal's header is busy enough.
+ */
+export function ScrollRow({ children }: { children: React.ReactNode }) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  const [canLeft, setCanLeft] = useState(false)
+  const [canRight, setCanRight] = useState(false)
+
+  const update = useCallback(() => {
+    const el = rowRef.current
+    if (!el) return
+    setCanLeft(el.scrollLeft > 0)
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+  }, [])
+
+  useEffect(() => {
+    const el = rowRef.current
+    if (!el) return
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', update)
+      ro.disconnect()
+    }
+  }, [update])
+
+  const scrollBy = useCallback(
+    (dx: number) => rowRef.current?.scrollBy({ left: dx, behavior: 'smooth' }),
+    [],
+  )
+
+  return (
+    <div className="scroll-row">
+      {canLeft && <ScrollButton action="left" repeat onActivate={() => scrollBy(-160)} />}
+      <div ref={rowRef} className="scroll-row-inner">
+        {children}
+      </div>
+      {canRight && <ScrollButton action="right" repeat onActivate={() => scrollBy(160)} />}
     </div>
   )
 }
