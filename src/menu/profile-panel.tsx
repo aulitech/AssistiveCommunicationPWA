@@ -8,7 +8,7 @@ import { useSettings } from '../ui/settings'
 import { type Profile } from '../core/phrases'
 import { PlusIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
-import { SettingRow } from '../ui/controls'
+import { ScrollPane, SettingRow } from '../ui/controls'
 
 function ContactRow({ name, onRemove }: { name: string; onRemove: () => void }) {
   const { settings } = useSettings()
@@ -52,72 +52,74 @@ export function ProfilePanel({ profile, onChange }: { profile: Profile; onChange
 
   return (
     <div className="settings-panel">
-      <p className="profile-hint">
-        Used by phrases that name someone — “This is …”, “I'm going to call …”.
-      </p>
+      <ScrollPane className="settings-scroller" paneClassName="settings-body" step={100}>
+        <p className="profile-hint">
+          Used by phrases that name someone — “This is …”, “I'm going to call …”.
+        </p>
 
-      <SettingRow label="Nickname">
-        <input
-          className="profile-input"
-          value={profile.name.nickname}
-          onChange={e => setName('nickname', e.target.value)}
-          placeholder="What people call you"
-          aria-label="Nickname"
-        />
-      </SettingRow>
-      <SettingRow label="First name">
-        <input
-          className="profile-input"
-          value={profile.name.given}
-          onChange={e => setName('given', e.target.value)}
-          aria-label="First name"
-        />
-      </SettingRow>
-      <SettingRow label="Last name">
-        <input
-          className="profile-input"
-          value={profile.name.surname}
-          onChange={e => setName('surname', e.target.value)}
-          aria-label="Last name"
-        />
-      </SettingRow>
-
-      <div className="contact-list" role="group" aria-label="Contacts">
-        <span className="setting-label">Contacts</span>
-        {profile.contacts.length === 0 && <p className="profile-empty">Nobody added yet.</p>}
-        {profile.contacts.map(name => (
-          <ContactRow
-            key={name}
-            name={name}
-            onRemove={() => onChange({ ...profile, contacts: profile.contacts.filter(c => c !== name) })}
-          />
-        ))}
-        <div className="contact-add">
+        <SettingRow label="Nickname">
           <input
             className="profile-input"
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                addContact()
-              }
-            }}
-            placeholder="Add a name…"
-            aria-label="Add a contact"
+            value={profile.name.nickname}
+            onChange={e => setName('nickname', e.target.value)}
+            placeholder="What people call you"
+            aria-label="Nickname"
           />
-          <div
-            className={cx('contact-add-btn', addActive && 'dwelling', !draft.trim() && 'is-disabled')}
-            style={dwellVar(settings.actionDwellMs)}
-            role="button"
-            aria-label="Add contact"
-            {...addProps}
-          >
-            <div className="dwell-bar" key={addActive ? 'a' : 'i'} />
-            <PlusIcon />
+        </SettingRow>
+        <SettingRow label="First name">
+          <input
+            className="profile-input"
+            value={profile.name.given}
+            onChange={e => setName('given', e.target.value)}
+            aria-label="First name"
+          />
+        </SettingRow>
+        <SettingRow label="Last name">
+          <input
+            className="profile-input"
+            value={profile.name.surname}
+            onChange={e => setName('surname', e.target.value)}
+            aria-label="Last name"
+          />
+        </SettingRow>
+
+        <div className="contact-list" role="group" aria-label="Contacts">
+          <span className="setting-label">Contacts</span>
+          {profile.contacts.length === 0 && <p className="profile-empty">Nobody added yet.</p>}
+          {profile.contacts.map(name => (
+            <ContactRow
+              key={name}
+              name={name}
+              onRemove={() => onChange({ ...profile, contacts: profile.contacts.filter(c => c !== name) })}
+            />
+          ))}
+          <div className="contact-add">
+            <input
+              className="profile-input"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addContact()
+                }
+              }}
+              placeholder="Add a name…"
+              aria-label="Add a contact"
+            />
+            <div
+              className={cx('contact-add-btn', addActive && 'dwelling', !draft.trim() && 'is-disabled')}
+              style={dwellVar(settings.actionDwellMs)}
+              role="button"
+              aria-label="Add contact"
+              {...addProps}
+            >
+              <div className="dwell-bar" key={addActive ? 'a' : 'i'} />
+              <PlusIcon />
+            </div>
           </div>
         </div>
-      </div>
+      </ScrollPane>
     </div>
   )
 }

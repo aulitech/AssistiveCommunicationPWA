@@ -9,7 +9,7 @@ import { useSettings } from '../ui/settings'
 import { speak, subscribeVoices } from '../voice/speech'
 import { loadElevenLabs, saveElevenLabs } from '../core/store'
 import { cx, dwellVar } from '../ui/style'
-import { PanelButton, PickerModal, PickerTile, SettingRow, SettingSpinner } from '../ui/controls'
+import { PanelButton, PickerModal, PickerTile, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
 
 /** A voice offered in the picker, wherever it comes from. */
 interface VoiceChoice {
@@ -123,48 +123,50 @@ export function SettingsPanel() {
 
   return (
     <div className="settings-panel">
-      <SettingRow label="Phrase dwell">
-        <SettingSpinner
-          value={settings.phraseDwellMs}
-          min={500}
-          max={3000}
-          step={100}
-          format={v => `${(v / 1000).toFixed(1)}s`}
-          onValue={v => update({ phraseDwellMs: v })}
-        />
-      </SettingRow>
-      <SettingRow label="Action dwell">
-        <SettingSpinner
-          value={settings.actionDwellMs}
-          min={300}
-          max={2000}
-          step={100}
-          format={v => `${(v / 1000).toFixed(1)}s`}
-          onValue={v => update({ actionDwellMs: v })}
-        />
-      </SettingRow>
-      <SettingRow label="Volume">
-        <SettingSpinner
-          value={Math.round(settings.volume * 100)}
-          min={0}
-          max={100}
-          step={10}
-          format={v => `${v}%`}
-          onValue={v => update({ volume: v / 100 })}
-        />
-      </SettingRow>
-      <SettingRow label="Speed">
-        <SettingSpinner
-          value={Math.round(settings.rate * 10)}
-          min={5}
-          max={20}
-          step={1}
-          format={v => `${(v / 10).toFixed(1)}×`}
-          onValue={v => update({ rate: v / 10 })}
-        />
-      </SettingRow>
-      {(voices.length > 0 || account) && <VoiceRow voices={voices} account={account} />}
-      <ElevenLabsRow account={account} onChange={setAccount} />
+      <ScrollPane className="settings-scroller" paneClassName="settings-body" step={100}>
+        <SettingRow label="Phrase dwell">
+          <SettingSpinner
+            value={settings.phraseDwellMs}
+            min={500}
+            max={3000}
+            step={100}
+            format={v => `${(v / 1000).toFixed(1)}s`}
+            onValue={v => update({ phraseDwellMs: v })}
+          />
+        </SettingRow>
+        <SettingRow label="Action dwell">
+          <SettingSpinner
+            value={settings.actionDwellMs}
+            min={300}
+            max={2000}
+            step={100}
+            format={v => `${(v / 1000).toFixed(1)}s`}
+            onValue={v => update({ actionDwellMs: v })}
+          />
+        </SettingRow>
+        <SettingRow label="Volume">
+          <SettingSpinner
+            value={Math.round(settings.volume * 100)}
+            min={0}
+            max={100}
+            step={10}
+            format={v => `${v}%`}
+            onValue={v => update({ volume: v / 100 })}
+          />
+        </SettingRow>
+        <SettingRow label="Speed">
+          <SettingSpinner
+            value={Math.round(settings.rate * 10)}
+            min={5}
+            max={20}
+            step={1}
+            format={v => `${(v / 10).toFixed(1)}×`}
+            onValue={v => update({ rate: v / 10 })}
+          />
+        </SettingRow>
+        {(voices.length > 0 || account) && <VoiceRow voices={voices} account={account} />}
+        <ElevenLabsRow account={account} onChange={setAccount} />
+      </ScrollPane>
     </div>
   )
 }

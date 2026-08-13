@@ -1115,7 +1115,18 @@ body {
 .settings-panel {
   display: flex;
   flex-direction: column;
-  padding: 4px 16px 8px;
+  min-height: 0;
+  /* Both of these grow with what is in them — the profile with every contact
+     added, the settings with the linked-account row — and a panel taller than
+     the screen is a panel whose bottom half a dwell user cannot reach. Bounded
+     and scrolled, the same way the guide and the backup screen are. */
+  max-height: 52vh;
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 16px 12px;
   /* The panel spans the whole viewport, so without this a setting's label sits
      at one edge of a wide monitor and its control at the other. The same
      measure the guide and the backup screen use, so the four panels line up. */
@@ -2022,7 +2033,8 @@ body {
   max-height: 52vh;
 }
 
-.backup-scroller {
+.backup-scroller,
+.settings-scroller {
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
@@ -2125,6 +2137,57 @@ body {
 
 .backup-error { color: #f87171; }
 .backup-status { color: var(--accent); }
+
+/* ── Confirming something that cannot be undone by dwelling again ── */
+/* Centred rather than under the control that opened it: a pointer rests where it
+   last fired, and a "yes" appearing beneath it would be answered by the pointer
+   already sitting there. */
+.confirm-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(2px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.confirm-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 420px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+
+.confirm-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.confirm-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  /* The safe one first, so it is the one nearer the reading order and the one a
+     hurried dwell lands on. */
+  justify-content: flex-start;
+}
 
 /* ── Legal pages (/privacy, /terms) ── */
 /* Standalone documents rather than app screens: they are handed to Google and
