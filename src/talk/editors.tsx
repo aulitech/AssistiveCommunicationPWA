@@ -34,19 +34,22 @@ function EditAction({ kind, label, onActivate, disabled }: {
 /** Sentinel <option> value; the leading space cannot occur in a trimmed name. */
 const NEW_CATEGORY = ' __new_category__'
 
-export function EditModal({ phrase, isEmergency, initialText, allCategories, keeping, onSave, onDelete, onClose }: {
+export function EditModal({ phrase, isEmergency, initialText, allCategories, voices, voice, keeping, onSave, onDelete, onClose }: {
   phrase: Phrase | null
   isEmergency: boolean
   /** Seeds a new phrase — the composed message, when adding from the message box. */
   initialText?: string
   allCategories: string[]
+  /** Every voice that can be chosen, and the one this phrase already carries. */
+  voices: { voiceURI: string; label: string }[]
+  voice?: string
   /**
    * The phrase is a message already said. Saving keeps it as a phrase of the
    * user's own; deleting forgets having said it. Neither edits anything, so the
    * dialog says what it will do rather than "Edit phrase".
    */
   keeping?: boolean
-  onSave: (text: string, category: string) => void
+  onSave: (text: string, category: string, voice: string | undefined) => void
   onDelete: () => void
   onClose: () => void
 }) {
@@ -61,9 +64,11 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, kee
   // A brand-new category needs a name before the phrase can be filed under it.
   const canSave = text.trim().length > 0 && (isEmergency || category.trim().length > 0)
 
+  const [chosenVoice, setChosenVoice] = useState(voice ?? '')
+
   const save = useCallback(() => {
-    if (canSave) onSave(text.trim(), category.trim())
-  }, [canSave, text, category, onSave])
+    if (canSave) onSave(text.trim(), category.trim(), chosenVoice || undefined)
+  }, [canSave, text, category, chosenVoice, onSave])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -141,6 +146,25 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, kee
             />
           </div>
         )}
+
+        {/* Optional, and off by default: a board with one voice is the ordinary
+            case, and this is for the phrases that want another — somebody
+            quoting a person, a name said the way its owner says it, a phrase
+            that has to cut through a noisy room. */}
+        <div className="edit-modal-row">
+          <label className="edit-modal-label" htmlFor="edit-voice">Voice</label>
+          <select
+            id="edit-voice"
+            className="edit-modal-select"
+            value={chosenVoice}
+            onChange={e => setChosenVoice(e.target.value)}
+          >
+            <option value="">Same as everything else</option>
+            {voices.map(v => (
+              <option key={v.voiceURI} value={v.voiceURI}>{v.label}</option>
+            ))}
+          </select>
+        </div>
 
         <div className="edit-modal-actions">
           {!isNew && (

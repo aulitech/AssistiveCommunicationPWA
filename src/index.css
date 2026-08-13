@@ -1346,6 +1346,54 @@ body {
   flex-shrink: 0;
 }
 
+/* Chips for cutting a long grid down. They scroll sideways rather than wrapping:
+   a filter row that grows to three lines pushes the grid itself off the screen. */
+.picker-filters {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+}
+
+.picker-filters::-webkit-scrollbar { display: none; }
+
+.picker-filter {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.picker-filter.dwelling { border-color: var(--accent); color: var(--text); background: var(--cell-hover); }
+.picker-filter .dwell-bar { border-radius: 20px; background: var(--accent); }
+
+.picker-filter.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+
+.picker-filter-count {
+  font-size: 11px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
 .picker-modal-body { padding: 14px; }
 
 .picker-grid {

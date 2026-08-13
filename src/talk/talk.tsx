@@ -5,15 +5,17 @@
 // category is showing, whether the app is in edit mode or resting, and what to
 // say when an operation finishes.
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { cancelAllDwells, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
 import { hasChoices, type Phrase } from '../core/phrases'
 import { search } from '../core/search'
-import { type User } from '../core/store'
+import { loadElevenLabs, type User } from '../core/store'
 import { type AppState } from '../core/backup'
-import { speak } from '../voice/speech'
+import { speak, subscribeVoices, warmVoice } from '../voice/speech'
+import { remoteVoiceURI } from '../voice/elevenlabs'
+import { voiceLabel } from '../voice/groups'
 import { cx } from '../ui/style'
 import { DwellCursor } from '../ui/controls'
 import { Topbar } from './topbar'
@@ -51,8 +53,26 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const [editing, setEditing] = useState<Editing | null>(null)
   const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
+  const [deviceVoices, setDeviceVoices] = useState<SpeechSynthesisVoice[]>([])
 
-  const { store, allCategories } = board
+  useEffect(() => subscribeVoices(setDeviceVoices), [])
+
+  // Every voice a phrase could be given, named the way the picker names them.
+  const voiceChoices = useMemo(() => {
+    const account = loadElevenLabs()
+    return [
+      ...(account?.voices ?? []).map(v => ({
+        voiceURI: remoteVoiceURI(v.id),
+        label: voiceLabel({ voiceURI: remoteVoiceURI(v.id), name: v.name, remote: true }),
+      })),
+      ...deviceVoices.map(v => ({
+        voiceURI: v.voiceURI,
+        label: voiceLabel({ voiceURI: v.voiceURI, name: v.name, lang: v.lang }),
+      })),
+    ]
+  }, [deviceVoices])
+
+  const { store, allCategories, voiceFor } = board
   // Pulled out rather than reached through `composer`, which is a fresh object
   // every render: a callback depending on the whole of it would change identity
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
@@ -103,11 +123,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * it is composed into the message for the user to send when ready.
    */
   const deliverPhrase = useCallback(
-    (phraseText: string) => {
+    (phraseText: string, voiceURI?: string) => {
       // In auto-speak the phrase is the message — it is spoken and never
       // reaches the box, so this is the moment it counts as said.
       if (settings.autoSpeak) {
-        speak(phraseText, settings)
+        speak(phraseText, settings, { voiceURI })
         sent.record(phraseText)
       } else {
         insertPhrase(phraseText)
@@ -124,9 +144,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
         setFilling(phrase)
         return
       }
-      deliverPhrase(phrase.text)
+      deliverPhrase(phrase.text, voiceFor(phrase.id))
     },
-    [deliverPhrase],
+    [deliverPhrase, voiceFor],
   )
 
   // ── Editing what is on the board ───────────────────────────────────────────
@@ -149,9 +169,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   }, [message])
 
   const handleSave = useCallback(
-    (text: string, category: string) => {
+    (text: string, category: string, voice: string | undefined) => {
       if (!editing) return
       const { phrase, isEmergency } = editing
+      // Fetched and stored the moment it is assigned, so the phrase can be said
+      // in that voice without waiting — including on the emergency bar, which
+      // never waits.
+      if (phrase) board.setVoice(phrase.id, voice)
+      if (voice) void warmVoice(text, voice)
       // Saving a sent message keeps it: it becomes a phrase of the user's own,
       // in a category they pick, rather than editing the record of having said
       // it. The record is left exactly as it was.
@@ -308,7 +333,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             onToggleAutoSpeak={toggleAutoSpeak}
           />
 
-          <EmergencyBar phrases={board.emergencyPhrases} />
+          <EmergencyBar phrases={board.emergencyPhrases} voiceFor={board.voiceFor} />
 
           <TopPanel
             open={menuOpen}
@@ -334,7 +359,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
               phrase={filling}
               onComplete={text => {
                 setFilling(null)
-                deliverPhrase(text)
+                deliverPhrase(text, voiceFor(filling.id))
               }}
               onCancel={() => setFilling(null)}
             />
@@ -359,6 +384,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
               isEmergency={editing.isEmergency}
               initialText={editing.initialText}
               allCategories={allCategories}
+              voices={voiceChoices}
+              voice={editing.phrase ? voiceFor(editing.phrase.id) : undefined}
               onSave={handleSave}
               onDelete={handleDelete}
               onClose={() => setEditing(null)}

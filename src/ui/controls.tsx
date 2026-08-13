@@ -337,10 +337,12 @@ export function PanelButton({ label, kind, onActivate, disabled }: {
  * `position: fixed` resolve against that ancestor instead of the viewport — the
  * modal comes out squeezed inside the panel, a few hundred pixels wide.
  */
-export function PickerModal({ title, hint, onDone, onCancel, children }: {
+export function PickerModal({ title, hint, filters, onDone, onCancel, children }: {
   title: string
   /** One line under the title saying how the grid behaves. */
   hint?: string
+  /** A row of chips above the grid, for narrowing a long one. */
+  filters?: React.ReactNode
   onDone: () => void
   onCancel: () => void
   children: React.ReactNode
@@ -366,6 +368,7 @@ export function PickerModal({ title, hint, onDone, onCancel, children }: {
             <PanelButton kind="primary" label="Done" onActivate={onDone} />
           </div>
         </div>
+        {filters && <div className="picker-filters">{filters}</div>}
         <ScrollPane className="picker-modal-scroller" paneClassName="picker-modal-body" step={160}>
           <div className="picker-grid" role="listbox" aria-label={title}>
             {children}
@@ -410,6 +413,32 @@ export function PickerTile({ name, detail, selected, className, onSelect }: {
         </span>
       )}
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
+    </div>
+  )
+}
+
+/** One chip in a `PickerModal`'s filter row. */
+export function PickerFilter({ label, count, active, onSelect }: {
+  label: string
+  /** How many the chip would leave on screen, so an empty one is visibly empty. */
+  count: number
+  active: boolean
+  onSelect: () => void
+}) {
+  const { settings } = useSettings()
+  const { active: dwelling, props } = useDwellControl(settings.actionDwellMs, onSelect)
+  return (
+    <div
+      className={cx('picker-filter', active && 'is-active', dwelling && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-pressed={active}
+      aria-label={`${label}, ${count} ${count === 1 ? 'voice' : 'voices'}`}
+      {...props}
+    >
+      <div className="dwell-bar" key={dwelling ? 'a' : 'i'} />
+      {label}
+      <span className="picker-filter-count">{count}</span>
     </div>
   )
 }

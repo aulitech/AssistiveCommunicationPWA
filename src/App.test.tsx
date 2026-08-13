@@ -6,7 +6,7 @@ import App from './App'
 import { BLANK } from './core/phrases'
 import { HELP_SECTIONS } from './menu/help'
 import { parseBackup } from './core/backup'
-import { spoken, lastUtterance, downloads, setClipboardText, voices } from './test/setup'
+import { spoken, lastUtterance, downloads, played, setClipboardText, voices } from './test/setup'
 
 // The grid renders every phrase, so query the DOM directly — building an
 // accessibility tree over a couple of thousand cells for each lookup is slow.
@@ -1392,7 +1392,7 @@ describe('the emergency bar with a linked account', () => {
       'peri_elevenlabs',
       JSON.stringify({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }),
     )
-    const fetcher = vi.fn(async () => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) }))
+    const fetcher = vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) }))
     vi.stubGlobal('fetch', fetcher)
     renderApp({ voiceURI: 'elevenlabs:v1', autoSpeak: true })
 
@@ -1521,6 +1521,166 @@ describe('rendering only part of a long grid', () => {
     settle()
 
     expect(rendered()).toBeLessThan(60)
+  })
+})
+
+describe('giving a phrase its own voice', () => {
+  const LINKED = { apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel', collection: 'premade' }] }
+  const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
+  const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
+  const voiceSelect = () => $<HTMLSelectElement>('#edit-voice')
+  const enterEditMode = () => click(toggles()[1])
+  const stored = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}').voiceOverrides ?? {}
+
+  const linkAccount = () => localStorage.setItem('peri_elevenlabs', JSON.stringify(LINKED))
+  const audioReplies = () =>
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) })))
+  const flush = async () => {
+    await act(async () => {
+      await Promise.resolve()
+    })
+    settle()
+  }
+
+  it('offers a voice on the phrase editor, defaulting to none', () => {
+    linkAccount()
+    renderApp()
+    enterEditMode()
+    click(plainCell())
+
+    expect(voiceSelect()).not.toBeNull()
+    expect(voiceSelect()!.value).toBe('')
+    expect([...voiceSelect()!.options].map(o => o.textContent)).toContain('Rachel · ElevenLabs')
+  })
+
+  it('remembers the voice against that phrase alone', async () => {
+    linkAccount()
+    audioReplies()
+    renderApp()
+    enterEditMode()
+    const cell = plainCell()
+    const text = cell.textContent!
+    click(cell)
+
+    fireEvent.change(voiceSelect()!, { target: { value: 'elevenlabs:v1' } })
+    settle()
+    click(action('Save'))
+    await flush()
+
+    const overrides = stored()
+    expect(Object.values(overrides)).toEqual(['elevenlabs:v1'])
+    expect(text).not.toBe('')
+  })
+
+  // The whole reason the voice is assigned rather than merely recorded: it is
+  // fetched there and then, so saying it later costs no wait.
+  it('fetches the audio the moment the voice is assigned', async () => {
+    linkAccount()
+    const fetcher = vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) }))
+    vi.stubGlobal('fetch', fetcher)
+    renderApp()
+    enterEditMode()
+    click(plainCell())
+
+    fireEvent.change(voiceSelect()!, { target: { value: 'elevenlabs:v1' } })
+    settle()
+    click(action('Save'))
+    await flush()
+
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(String(fetcher.mock.calls[0][0])).toContain('/text-to-speech/v1')
+  })
+
+  it('speaks the phrase in its own voice rather than the chosen one', async () => {
+    linkAccount()
+    audioReplies()
+    renderApp({ autoSpeak: true })
+
+    enterEditMode()
+    const cell = plainCell()
+    click(cell)
+    fireEvent.change(voiceSelect()!, { target: { value: 'elevenlabs:v1' } })
+    settle()
+    click(action('Save'))
+    await flush()
+
+    click(toggles()[1]) // leave edit mode
+    click(plainCell())
+    await flush()
+
+    expect(played).toHaveLength(1)
+    expect(spoken).toEqual([])
+  })
+
+  // The point of the whole arrangement. Assigning fetches the audio, so by the
+  // time the bar is pressed it is already here and there is nothing to wait for.
+  // Tested from the button rather than from speak(): the option has to actually
+  // be passed, and the bar is the only caller that passes it.
+  it('keeps its voice on the emergency bar', async () => {
+    linkAccount()
+    audioReplies()
+    renderApp()
+
+    enterEditMode()
+    click($('.emergency-btn'))
+    fireEvent.change(voiceSelect()!, { target: { value: 'elevenlabs:v1' } })
+    settle()
+    click(action('Save'))
+    await flush()
+    click(toggles()[1]) // leave edit mode
+
+    // Nothing may be asked for at this point: the bar never waits.
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    click($('.emergency-btn'))
+    await flush()
+
+    expect(played, 'the emergency phrase did not use its own voice').toHaveLength(1)
+    expect(spoken).toEqual([])
+    expect(fetcher, 'the emergency bar went to the network').not.toHaveBeenCalled()
+  })
+
+  // The safety rule survives the change: a phrase whose audio is not in hand is
+  // said by the device now rather than in the right voice in a second.
+  it('falls straight back to the device when its audio is not in hand', async () => {
+    localStorage.setItem(
+      'dwellspeak_phrase_store_v2',
+      JSON.stringify({ voiceOverrides: { 'em-0': 'elevenlabs:v1' } }),
+    )
+    linkAccount()
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    renderApp()
+
+    click($('.emergency-btn'))
+    await flush()
+
+    expect(spoken).toEqual(['Help me!'])
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('carries the voice into a backup and back out again', async () => {
+    linkAccount()
+    audioReplies()
+    renderApp()
+    enterEditMode()
+    click(plainCell())
+    fireEvent.change(voiceSelect()!, { target: { value: 'elevenlabs:v1' } })
+    settle()
+    click(action('Save'))
+    await flush()
+
+    click(toggles()[1])
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Backup & sharing'))
+    click(inDoc('.panel-btn').find(b => b.getAttribute('aria-label') === 'Save a file'))
+
+    const result = parseBackup(downloads[downloads.length - 1].text)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      const carried = [...result.backup.added, ...result.backup.edited].some(e => e.voice === 'elevenlabs:v1')
+      expect(carried, 'the voice did not travel with the backup').toBe(true)
+    }
   })
 })
 
@@ -1785,6 +1945,39 @@ describe('choosing a voice', () => {
       'Daniel · en-GB',
       'Karen · en-GB',
     ])
+  })
+
+  // Sixty device voices and an account's worth on top is more than a grid can
+  // usefully show at once.
+  it('offers a chip per collection and per language, and narrows to it', () => {
+    localStorage.setItem(
+      'peri_elevenlabs',
+      JSON.stringify({
+        apiKey: 'sk-test',
+        voices: [
+          { id: 'v1', name: 'Rachel', collection: 'premade' },
+          { id: 'v2', name: 'Me', collection: 'cloned' },
+        ],
+      }),
+    )
+    openPicker('Daniel', 'Karen')
+
+    const chips = inDocument('.picker-filter').map(c => c.textContent)
+    expect(chips[0]).toMatch(/^All/)
+    expect(chips.some(c => c?.startsWith('Premade'))).toBe(true)
+    expect(chips.some(c => c?.startsWith('Cloned'))).toBe(true)
+    expect(chips.some(c => /english/i.test(c ?? ''))).toBe(true)
+
+    click(inDocument('.picker-filter').find(c => c?.textContent?.startsWith('Cloned')))
+    expect(tiles().map(el => el.getAttribute('aria-label'))).toEqual(['Me · ElevenLabs'])
+
+    click(inDocument('.picker-filter').find(c => c?.textContent?.startsWith('All')))
+    expect(tiles().length).toBeGreaterThan(1)
+  })
+
+  it('offers no chips when there is only one group to choose from', () => {
+    openPicker('Daniel', 'Karen')
+    expect(inDocument('.picker-filter')).toHaveLength(0)
   })
 
   it('marks the one in use', () => {

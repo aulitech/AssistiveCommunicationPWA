@@ -35,6 +35,8 @@ export interface BackupPhrase {
   id: string
   text: string
   category: string
+  /** The voice it is said in, when it is not the one in settings. */
+  voice?: string
 }
 
 /** A change to a phrase Peri ships. Either half may be absent. */
@@ -44,6 +46,8 @@ export interface BackupEdit {
   text?: string
   /** The category it was moved to. */
   category?: string
+  /** The voice it is said in, when it is not the one in settings. */
+  voice?: string
 }
 
 export interface BackupCategories {
@@ -104,16 +108,22 @@ export function buildBackup(input: BackupInput): Backup {
       id: p.id,
       text: store.overrides[p.id] ?? p.text,
       category: categoryOf(p.id) ?? p.category,
+      ...(store.voiceOverrides[p.id] ? { voice: store.voiceOverrides[p.id] } : {}),
     }))
 
   const edited: BackupEdit[] = [
-    ...new Set([...Object.keys(store.overrides), ...Object.keys(store.categoryOverrides)]),
+    ...new Set([
+      ...Object.keys(store.overrides),
+      ...Object.keys(store.categoryOverrides),
+      ...Object.keys(store.voiceOverrides),
+    ]),
   ]
     .filter(id => !customIds.has(id) && inScope(categoryOf(id)))
     .map(id => {
       const entry: BackupEdit = { id }
       if (store.overrides[id] !== undefined) entry.text = store.overrides[id]
       if (store.categoryOverrides[id] !== undefined) entry.category = store.categoryOverrides[id]
+      if (store.voiceOverrides[id] !== undefined) entry.voice = store.voiceOverrides[id]
       return entry
     })
 
@@ -174,7 +184,12 @@ function readAdded(v: unknown): BackupPhrase[] {
   if (!Array.isArray(v)) return []
   return v
     .filter(isRecord)
-    .map(p => ({ id: str(p.id), text: str(p.text), category: str(p.category) || IMPORTED_CATEGORY }))
+    .map(p => ({
+      id: str(p.id),
+      text: str(p.text),
+      category: str(p.category) || IMPORTED_CATEGORY,
+      ...(typeof p.voice === 'string' && p.voice ? { voice: p.voice } : {}),
+    }))
     .filter(p => p.id !== '' && p.text !== '')
 }
 
@@ -186,9 +201,10 @@ function readEdited(v: unknown): BackupEdit[] {
       const entry: BackupEdit = { id: str(e.id) }
       if (typeof e.text === 'string' && e.text !== '') entry.text = e.text
       if (typeof e.category === 'string' && e.category !== '') entry.category = e.category
+      if (typeof e.voice === 'string' && e.voice !== '') entry.voice = e.voice
       return entry
     })
-    .filter(e => e.id !== '' && (e.text !== undefined || e.category !== undefined))
+    .filter(e => e.id !== '' && (e.text !== undefined || e.category !== undefined || e.voice !== undefined))
 }
 
 function readProfile(v: unknown): Profile | undefined {
@@ -378,6 +394,7 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
   const custom = base.store.custom.map(p => ({ ...p }))
   const overrides = { ...base.store.overrides }
   const categoryOverrides = { ...base.store.categoryOverrides }
+  const voiceOverrides = { ...base.store.voiceOverrides }
 
   // Importing the same file twice, or two files from the same person, should not
   // leave two of everything. An id matches the very same phrase; text and
@@ -402,11 +419,14 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
     // mask the text just imported — the store reads the override first.
     delete overrides[phrase.id]
     delete categoryOverrides[phrase.id]
+    if (phrase.voice) voiceOverrides[phrase.id] = phrase.voice
+    else delete voiceOverrides[phrase.id]
   }
 
   for (const edit of backup.edited) {
     if (edit.text !== undefined) overrides[edit.id] = edit.text
     if (edit.category !== undefined) categoryOverrides[edit.id] = edit.category
+    if (edit.voice !== undefined) voiceOverrides[edit.id] = edit.voice
   }
 
   const order = [...base.store.categoryOrder]
@@ -418,6 +438,7 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
     custom,
     overrides,
     categoryOverrides,
+    voiceOverrides,
     hidden: replacing ? [...new Set(backup.removed)] : base.store.hidden,
     categoryRenames: { ...base.store.categoryRenames, ...backup.categories.renamed },
     categories: [...new Set([...base.store.categories, ...backup.categories.created])],

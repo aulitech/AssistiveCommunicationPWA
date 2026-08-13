@@ -9,7 +9,7 @@
 // screen decides what to say, so the same operation can be silent when the
 // screen already shows the result.
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   EMERGENCY_PHRASES,
   buildPhrases,
@@ -18,6 +18,8 @@ import {
   type Phrase,
   type Profile,
 } from '../core/phrases'
+import { audioKey, warmAudio } from '../voice/audio-cache'
+import { remoteVoiceId } from '../voice/elevenlabs'
 import {
   displayCategory,
   loadPhraseStore,
@@ -118,6 +120,28 @@ export function useBoard() {
     return map
   }, [tablePhrases, store.custom, shownCategory])
 
+  /** The voice a phrase is said in, when it has one of its own. */
+  const voiceFor = useCallback((id: string) => store.voiceOverrides[id], [store.voiceOverrides])
+
+  // Audio for those phrases is pulled back out of storage and into memory, so
+  // that after a reload they can still be said in their own voice with no wait —
+  // which is the whole of what lets the emergency bar use one. Assigning a voice
+  // fetches it; this is what survives closing the tab.
+  //
+  // Already-loaded clips are skipped, so re-running on an unrelated edit costs
+  // nothing.
+  useEffect(() => {
+    const assigned = Object.entries(store.voiceOverrides)
+    if (assigned.length === 0) return
+    const textById = new Map([...mainPhrases, ...emergencyPhrases].map(p => [p.id, p.text]))
+    const keys = assigned.flatMap(([id, voiceURI]) => {
+      const voiceId = remoteVoiceId(voiceURI)
+      const text = textById.get(id)
+      return voiceId && text ? [audioKey(voiceId, text)] : []
+    })
+    if (keys.length > 0) void warmAudio(keys)
+  }, [store.voiceOverrides, mainPhrases, emergencyPhrases])
+
   const phraseCountByCategory = useMemo(() => {
     const counts = new Map<string, number>()
     for (const p of mainPhrases) counts.set(p.category, (counts.get(p.category) ?? 0) + 1)
@@ -133,6 +157,16 @@ export function useBoard() {
         categories: isEmergency ? store.categories : [...new Set([...store.categories, category])],
       }),
     [store, updateStore],
+  )
+
+  const setVoice = useCallback(
+    (id: string, voiceURI: string | undefined) => {
+      const next = { ...store.voiceOverrides }
+      if (voiceURI) next[id] = voiceURI
+      else delete next[id]
+      updateStore({ voiceOverrides: next })
+    },
+    [store.voiceOverrides, updateStore],
   )
 
   const editPhrase = useCallback(
@@ -220,6 +254,8 @@ export function useBoard() {
     allCategories,
     categoryById,
     phraseCountByCategory,
+    voiceFor,
+    setVoice,
     addPhrase,
     editPhrase,
     removePhrase,
