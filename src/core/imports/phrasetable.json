@@ -2013,7 +2013,7 @@
             "count": 0
         },
         {
-            "txt": "I'll let her/him know that you called",
+            "txt": "I'll let {['her', 'him']} know that you called",
             "id": 208,
             "image": "",
             "category": "Phone Conversation",
@@ -2058,7 +2058,7 @@
             "count": 0
         },
         {
-            "txt": "I'm sorry he/she is not here at the moment; may I ask who's calling?",
+            "txt": "I'm sorry {['he', 'she']} is not here at the moment; may I ask who's calling?",
             "id": 213,
             "image": "",
             "category": "Phone Conversation",
@@ -17484,7 +17484,7 @@
             "count": 0
         },
         {
-            "txt": "Can I have a spritz of perfume/cologne?",
+            "txt": "Can I have a spritz of {['perfume', 'cologne']}?",
             "id": 1927,
             "image": "",
             "category": "Personal Care",
