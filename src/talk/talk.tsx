@@ -11,7 +11,7 @@ import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
 import { hasChoices, type Phrase } from '../core/phrases'
 import { search } from '../core/search'
-import { type User } from '../core/store'
+import { loadRecent, saveRecent, type User } from '../core/store'
 import { type AppState } from '../core/backup'
 import { speak, warmVoice } from '../voice/speech'
 import { cx } from '../ui/style'
@@ -51,6 +51,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const [editing, setEditing] = useState<Editing | null>(null)
   const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
+  const [recent, setRecent] = useState(loadRecent)
 
   const { store, allCategories, voiceFor } = board
   // Pulled out rather than reached through `composer`, which is a fresh object
@@ -157,6 +158,12 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // never waits.
       if (phrase) board.setVoice(phrase.id, voice)
       if (voice) void warmVoice(text, voice)
+      // Where the next one starts from.
+      setRecent(current => {
+        const next = { category: isEmergency ? current.category : category, voice }
+        saveRecent(next)
+        return next
+      })
       // Saving a sent message keeps it: it becomes a phrase of the user's own,
       // in a category they pick, rather than editing the record of having said
       // it. The record is left exactly as it was.
@@ -365,6 +372,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
               initialText={editing.initialText}
               allCategories={allCategories}
               voice={editing.phrase ? voiceFor(editing.phrase.id) : undefined}
+              recent={recent}
               onSave={handleSave}
               onDelete={handleDelete}
               onClose={() => setEditing(null)}

@@ -1524,6 +1524,146 @@ describe('rendering only part of a long grid', () => {
   })
 })
 
+describe('starting from the last choice made', () => {
+  const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
+  const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
+  const enterEditMode = () => click(toggles()[1])
+  const categorySelect = () => $<HTMLSelectElement>('#edit-category')
+  const voiceTrigger = () => $('.voice-trigger')
+  const flush = async () => {
+    await act(async () => {
+      await Promise.resolve()
+    })
+    settle()
+  }
+  const openAdd = () => click($('.text-display'))
+  /** A category that is not the one the editor opens on. */
+  const someOtherCategory = () => {
+    openAdd()
+    const opening = categorySelect()!.value
+    const other = [...categorySelect()!.options]
+      .map(o => o.value)
+      .find(v => v !== opening && v.trim() !== '')!
+    click(action('Cancel'))
+    return other
+  }
+  const addPhrase = (text: string, category?: string) => {
+    openAdd()
+    fireEvent.change($('.edit-modal-text')!, { target: { value: text } })
+    settle()
+    if (category) {
+      fireEvent.change(categorySelect()!, { target: { value: category } })
+      settle()
+    }
+    click(action('Save'))
+  }
+
+  // Filing phrases is done in runs. Starting each one from the alphabetically
+  // first category means making the same choice over and over.
+  it('files the next new phrase where the last one went', () => {
+    renderApp()
+    enterEditMode()
+
+    const elsewhere = someOtherCategory()
+    addPhrase('One for over there', elsewhere)
+    openAdd()
+
+    expect(categorySelect()!.value).toBe(elsewhere)
+  })
+
+  it('remembers it across a reload', () => {
+    renderApp()
+    enterEditMode()
+    const elsewhere = someOtherCategory()
+    addPhrase('One for over there', elsewhere)
+
+    cleanup()
+    renderApp()
+    enterEditMode()
+    openAdd()
+
+    expect(categorySelect()!.value).toBe(elsewhere)
+  })
+
+  // Opening a phrase to fix a typo must not quietly refile it or change how it
+  // sounds, so a phrase that already has either shows its own.
+  it('leaves an existing phrase showing its own category', () => {
+    renderApp()
+    enterEditMode()
+    const elsewhere = someOtherCategory()
+    addPhrase('One for over there', elsewhere)
+
+    const other = cells().find(c => c.textContent !== 'One for over there')!
+    const ownCategory = () => {
+      click(other)
+      const value = categorySelect()!.value
+      click(action('Cancel'))
+      return value
+    }
+    expect(ownCategory()).not.toBe(elsewhere)
+  })
+
+  // A category can be renamed or emptied away between one phrase and the next,
+  // and a select whose value is not among its options shows nothing at all.
+  it('ignores a remembered category that no longer exists', () => {
+    localStorage.setItem('peri_recent', JSON.stringify({ category: 'Somewhere Deleted' }))
+    renderApp()
+    enterEditMode()
+    openAdd()
+
+    const options = [...categorySelect()!.options].map(o => o.value)
+    expect(options).not.toContain('Somewhere Deleted')
+    expect(categorySelect()!.value, 'the editor opened on nothing').not.toBe('')
+    expect(options).toContain(categorySelect()!.value)
+  })
+
+  it('starts a new phrase from the last voice, and an existing one from its own', async () => {
+    localStorage.setItem(
+      'peri_elevenlabs',
+      JSON.stringify({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }),
+    )
+    vi.stubGlobal('fetch', vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['a']) })))
+    renderApp()
+    enterEditMode()
+
+    // Give one phrase a voice.
+    click($('.text-display'))
+    fireEvent.change($('.edit-modal-text')!, { target: { value: 'In her voice' } })
+    settle()
+    click(voiceTrigger())
+    click(inDoc('.picker-tile').find(el => (el.getAttribute('aria-label') ?? '').startsWith('Rachel')))
+    click(inDoc('.panel-btn').find(b => b.getAttribute('aria-label') === 'Done'))
+    click(action('Save'))
+    await flush()
+
+    // The next new one starts there.
+    click($('.text-display'))
+    expect(voiceTrigger()?.textContent).toContain('Rachel')
+    click(action('Cancel'))
+
+    // A phrase that has none of its own still shows none.
+    click(cells().find(c => c.textContent !== 'In her voice')!)
+    expect(voiceTrigger()?.textContent).toContain('Same as everything else')
+  })
+
+  // Unlinking takes the voice with it; seeding the next phrase with one that no
+  // longer exists would be worse than seeding it with nothing.
+  it('forgets a remembered voice when its account goes', async () => {
+    localStorage.setItem('peri_recent', JSON.stringify({ voice: 'elevenlabs:v1' }))
+    localStorage.setItem(
+      'peri_elevenlabs',
+      JSON.stringify({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }),
+    )
+    renderApp()
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+    click(inDoc('.panel-btn').find(b => b.getAttribute('aria-label') === 'Unlink'))
+    settle()
+
+    expect(JSON.parse(localStorage.getItem('peri_recent')!).voice).toBeUndefined()
+  })
+})
+
 describe('giving a phrase its own voice', () => {
   const LINKED = { apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel', collection: 'premade' }] }
   const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
