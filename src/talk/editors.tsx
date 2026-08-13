@@ -35,7 +35,7 @@ function EditAction({ kind, label, onActivate, disabled }: {
 /** Sentinel <option> value; the leading space cannot occur in a trimmed name. */
 const NEW_CATEGORY = ' __new_category__'
 
-export function EditModal({ phrase, isEmergency, initialText, allCategories, voice, keeping, onSave, onDelete, onClose }: {
+export function EditModal({ phrase, isEmergency, initialText, allCategories, voice, recent, keeping, onSave, onDelete, onClose }: {
   phrase: Phrase | null
   isEmergency: boolean
   /** Seeds a new phrase — the composed message, when adding from the message box. */
@@ -43,6 +43,12 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
   allCategories: string[]
   /** The voice this phrase already carries, if any. */
   voice?: string
+  /**
+   * Where a new phrase starts, from the last one filed. Only ever a starting
+   * point: a phrase that already has a category or a voice shows its own, so
+   * opening one to fix a typo cannot quietly refile it or change how it sounds.
+   */
+  recent?: { category?: string; voice?: string }
   /**
    * The phrase is a message already said. Saving keeps it as a phrase of the
    * user's own; deleting forgets having said it. Neither edits anything, so the
@@ -55,16 +61,19 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
 }) {
   const [text, setText] = useState(phrase?.text ?? initialText ?? '')
   // A phrase whose category is not one of the real ones — a sent message — has
-  // to land somewhere the user actually keeps things.
-  const [category, setCategory] = useState(
-    phrase && allCategories.includes(phrase.category) ? phrase.category : (allCategories[0] ?? ''),
-  )
+  // to land somewhere the user actually keeps things, and the likeliest
+  // somewhere is wherever the last one went.
+  const [category, setCategory] = useState(() => {
+    if (phrase && allCategories.includes(phrase.category)) return phrase.category
+    if (recent?.category && allCategories.includes(recent.category)) return recent.category
+    return allCategories[0] ?? ''
+  })
   const [creatingCategory, setCreatingCategory] = useState(false)
   const isNew = phrase === null
   // A brand-new category needs a name before the phrase can be filed under it.
   const canSave = text.trim().length > 0 && (isEmergency || category.trim().length > 0)
 
-  const [chosenVoice, setChosenVoice] = useState(voice ?? '')
+  const [chosenVoice, setChosenVoice] = useState(voice ?? (phrase ? '' : (recent?.voice ?? '')))
 
   const save = useCallback(() => {
     if (canSave) onSave(text.trim(), category.trim(), chosenVoice || undefined)

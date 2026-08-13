@@ -2,12 +2,12 @@
 // Menu → Settings. Dwell times, volume, speed and voice.
 
 import { useCallback, useState } from 'react'
-import { linkAccount } from '../voice/elevenlabs'
+import { linkAccount, REMOTE_PREFIX } from '../voice/elevenlabs'
 import { VoicePicker } from '../voice/picker'
 import { clearAudioCache } from '../voice/audio-cache'
 import { type ElevenLabsAccount } from '../core/store'
 import { useSettings } from '../ui/settings'
-import { loadElevenLabs, saveElevenLabs } from '../core/store'
+import { loadElevenLabs, loadRecent, saveElevenLabs, saveRecent } from '../core/store'
 import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
 
 function VoiceRow() {
@@ -34,6 +34,12 @@ export function SettingsPanel() {
   const setAccount = useCallback((next: ElevenLabsAccount | null) => {
     saveElevenLabs(next)
     clearAudioCache()
+    // A remembered voice from the account that has just gone would seed the next
+    // new phrase with one that no longer exists.
+    if (next === null) {
+      const recent = loadRecent()
+      if (recent.voice?.startsWith(REMOTE_PREFIX)) saveRecent({ ...recent, voice: undefined })
+    }
     setLinked(next)
   }, [])
 

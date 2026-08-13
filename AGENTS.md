@@ -26,7 +26,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 **core/** — readable on its own; nothing else in `src` is needed to follow it
 
 - `core/phrases.ts` - Parses `core/imports/phrasetable.json` into phrases, including the fill-in-the-blank slots, their `aliases` lookups, the profile that fills `{contact}` and `{name}`, and the fixed emergency phrases
-- `core/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, the linked account, the sent messages, the six `localStorage` keys, and the pure operations that arrange categories
+- `core/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, the linked account, the sent messages, the last category and voice used, the `localStorage` keys, and the pure operations that arrange categories
 - `core/backup.ts` - The export/import file format under **Menu → Backup & sharing**: building one, reading one back, and applying it
 - `core/virtual.ts` - How much of the grid to render, and when to render more
 - `core/search.ts` - Narrowing the grid to what is being typed. Ranks a whole-phrase prefix first, then a word prefix, then the letters used as initials — which is what lets "ttyl" find "Talk to you later"
@@ -173,6 +173,7 @@ Two sources sit behind `speak()`. The device's own synthesiser is instant, free 
 Two consequences worth knowing before changing any of it:
 
 - **The emergency bar never waits on the network**, via `speak(text, settings, { instant: true })`. That is not the same as "device voice": a phrase given its own voice keeps it there too, because assigning one fetches and stores the audio, so it is already in hand. What `instant` rules out is *going and asking* — anything not already fetched is said by the device this moment rather than in the right voice a second and a half later.
+- **A new phrase starts from the last category and voice used**, kept under `peri_recent` and out of backups — it is where somebody had got to, not anything they made. Only a *starting point*: a phrase that already has a category or a voice shows its own, so opening one to fix a typo cannot quietly refile it or change how it sounds. A remembered category that has since gone is ignored, and unlinking an account forgets a remembered voice from it.
 - **A phrase can carry its own voice**, in `voiceOverrides`. It beats the one in settings wherever the phrase is spoken, and it travels in a backup like any other customization.
 - **The API key is never in a backup.** It lives under its own storage key, outside the three things `buildBackup` is built from. A backup is made to be shared, and the key in one hands over the account. `src/backup.test.ts` holds it to that, and `src/legal.ts` says so to the user.
 

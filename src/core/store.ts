@@ -18,6 +18,7 @@ const PROFILE_KEY = 'dwellspeak_profile'
 const USER_KEY = 'dwellspeak_user'
 const ELEVENLABS_KEY = 'peri_elevenlabs'
 const SENT_KEY = 'peri_sent'
+const RECENT_KEY = 'peri_recent'
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
@@ -232,6 +233,33 @@ export function addSent(messages: SentMessage[], text: string): SentMessage[] {
   const existing = messages.find(m => m.text === trimmed)
   return [existing ?? { id: `sent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: trimmed }, ...rest]
     .slice(0, SENT_LIMIT)
+}
+
+// ── The last choices made ─────────────────────────────────────────────────────
+// Filing phrases is done in runs — several into one category, several in one
+// voice — and starting each from the alphabetically first category, or from no
+// voice, means making the same choice over and over.
+//
+// Its own key, and not in a backup: it is where somebody had got to, not
+// anything they made.
+
+export interface RecentChoices {
+  category?: string
+  voice?: string
+}
+
+export function loadRecent(): RecentChoices {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '{}')
+    const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
+    return { category: str(raw?.category), voice: str(raw?.voice) }
+  } catch {
+    return {}
+  }
+}
+
+export function saveRecent(recent: RecentChoices) {
+  localStorage.setItem(RECENT_KEY, JSON.stringify(recent))
 }
 
 // ── A linked ElevenLabs account ───────────────────────────────────────────────
