@@ -105,6 +105,16 @@ export interface PhraseStore {
   categoryOrder: string[]
   /** Which of the two arrangements is in effect. */
   categorySort: 'alpha' | 'custom'
+  /**
+   * The user's own arrangement of the emergency bar, by phrase id. Empty means
+   * the order the phrases come in, which is the one Peri ships. Unlike the
+   * categories there is no second arrangement to switch to: the shipped order is
+   * the order they happen to be written in, and nobody is looking for it back.
+   *
+   * Ids rather than text, so rewording an emergency phrase leaves it where it
+   * is — which for a bar somebody reaches for without looking is the point.
+   */
+  emergencyOrder: string[]
 }
 
 export const emptyStore = (): PhraseStore => ({
@@ -117,6 +127,7 @@ export const emptyStore = (): PhraseStore => ({
   voiceOverrides: {},
   categoryOrder: [],
   categorySort: 'alpha',
+  emergencyOrder: [],
 })
 
 export function loadPhraseStore(): PhraseStore {
@@ -150,6 +161,7 @@ export function loadPhraseStore(): PhraseStore {
           : categoryOrder.length > 0
             ? 'custom'
             : 'alpha',
+      emergencyOrder: strings(raw.emergencyOrder) ?? base.emergencyOrder,
     }
   } catch {
     return emptyStore()
@@ -334,9 +346,9 @@ export function clearUser() {
   localStorage.removeItem(USER_KEY)
 }
 
-// ── Arranging the categories ─────────────────────────────────────────────────
+// ── Arranging things ─────────────────────────────────────────────────────────
 // Pure operations over the store above: what a category is called, and what
-// order the tabs come in.
+// order the tabs and the emergency bar come in.
 
 /** The name a category is shown under, after any rename. */
 export function displayCategory(source: string, renames: Record<string, string>): string {
@@ -382,11 +394,29 @@ export function orderCategories(names: string[], order: string[]): string[] {
 }
 
 /**
+ * Arrange the emergency phrases. An empty `order` leaves them exactly as they
+ * come, which is the order Peri ships them in — unlike the categories, whose
+ * natural order is alphabetical. Ids the order has never heard of keep their
+ * place at the end, so an emergency phrase added later lands after the ones
+ * already arranged rather than somewhere in the middle of them.
+ */
+export function orderEmergency<T extends { id: string }>(phrases: T[], order: string[]): T[] {
+  if (order.length === 0) return phrases
+  const rank = new Map(order.map((id, i) => [id, i]))
+  const ranked = phrases.filter(p => rank.has(p.id)).sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
+  const rest = phrases.filter(p => !rank.has(p.id))
+  return [...ranked, ...rest]
+}
+
+/**
  * The full order after moving `from` to where `to` sits. Landing after the
  * target when moving rightwards and before it when moving leftwards is what
- * puts the category where the pointer actually is, either way.
+ * puts the thing being moved where the pointer actually is, either way.
+ *
+ * Serves the category tabs and the emergency bar alike: the first arranges
+ * names, the second ids, and the arithmetic never cared which.
  */
-export function moveCategory(shown: string[], from: string, to: string): string[] {
+export function moveInOrder(shown: string[], from: string, to: string): string[] {
   const fromIndex = shown.indexOf(from)
   const toIndex = shown.indexOf(to)
   if (fromIndex < 0 || toIndex < 0 || from === to) return shown

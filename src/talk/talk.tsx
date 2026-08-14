@@ -46,7 +46,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState('all')
   const [editMode, setEditMode] = useState(false)
+  // Two reorder modes, one for each bar. Sharing a flag would mean arming the
+  // emergency bar every time somebody set about tidying their category tabs.
   const [reordering, setReordering] = useState(false)
+  const [reorderingEmergency, setReorderingEmergency] = useState(false)
   const [resting, setResting] = useState(false)
   const [editing, setEditing] = useState<Editing | null>(null)
   const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
@@ -224,8 +227,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const toggleEditMode = useCallback(() => {
     setEditMode(m => !m)
     // Reordering is a mode within edit mode; leaving the outer one should not
-    // leave it armed for next time.
+    // leave either of them armed for next time.
     setReordering(false)
+    setReorderingEmergency(false)
   }, [])
 
   const toggleAutoSpeak = useCallback(() => {
@@ -320,7 +324,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             onToggleAutoSpeak={toggleAutoSpeak}
           />
 
-          <EmergencyBar phrases={board.emergencyPhrases} voiceFor={board.voiceFor} />
+          <EmergencyBar
+            phrases={board.emergencyPhrases}
+            voiceFor={board.voiceFor}
+            reordering={editMode && reorderingEmergency}
+            onToggleReorder={editMode ? () => setReorderingEmergency(r => !r) : undefined}
+            onReorder={editMode ? board.reorderEmergency : undefined}
+            onLift={text => flashToast(`Holding ${text} — dwell where it should go`)}
+          />
 
           <TopPanel
             open={menuOpen}

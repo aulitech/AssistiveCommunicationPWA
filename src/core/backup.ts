@@ -70,6 +70,12 @@ export interface Backup {
   /** Ids of phrases the user removed. */
   removed: string[]
   categories: BackupCategories
+  /**
+   * The user's own order for the emergency bar, by phrase id. Carried only when
+   * the file covers Emergency — it is a rearrangement, which is as much a thing
+   * somebody did as a rewording is.
+   */
+  emergencyOrder?: string[]
   /** Whole-app backups only. */
   profile?: Profile
   settings?: Settings
@@ -143,6 +149,12 @@ export function buildBackup(input: BackupInput): Backup {
       order: store.categoryOrder.filter(inScope),
       ...(scope ? {} : { sort: store.categorySort }),
     },
+    // The bar is one category's worth of phrases, so its order goes when that
+    // category does — and an arrangement is all-or-nothing, so it is not
+    // filtered down the way the lists above are.
+    ...(inScope('Emergency') && store.emergencyOrder.length > 0
+      ? { emergencyOrder: [...store.emergencyOrder] }
+      : {}),
     // An untouched profile is left out rather than written as a block of empty
     // strings, so the panel does not offer someone "your details" when they have
     // never entered any — and so replacing from a file does not quietly clear
@@ -276,6 +288,7 @@ export function parseBackup(text: string): ParseResult {
         order: strings(categories.order),
         ...(categories.sort === 'alpha' || categories.sort === 'custom' ? { sort: categories.sort } : {}),
       },
+      ...(strings(raw.emergencyOrder).length > 0 ? { emergencyOrder: strings(raw.emergencyOrder) } : {}),
       ...(profile ? { profile } : {}),
       ...(settings ? { settings } : {}),
     },
@@ -324,6 +337,7 @@ export function summarize(backup: Backup): BackupSummary {
       backup.categories.created.length === 0 &&
       Object.keys(backup.categories.renamed).length === 0 &&
       backup.categories.order.length === 0 &&
+      (backup.emergencyOrder?.length ?? 0) === 0 &&
       !summary.profile &&
       !summary.settings,
   }
@@ -434,6 +448,14 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
     if (!order.includes(name)) order.push(name)
   }
 
+  // Same rule as the categories above: what the file arranged is appended, so a
+  // device with no arrangement of its own takes the file's exactly, and one that
+  // has arranged its bar already does not have it rearranged underneath them.
+  const emergencyOrder = [...base.store.emergencyOrder]
+  for (const id of backup.emergencyOrder ?? []) {
+    if (!emergencyOrder.includes(id)) emergencyOrder.push(id)
+  }
+
   const store: PhraseStore = {
     custom,
     overrides,
@@ -444,6 +466,7 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
     categories: [...new Set([...base.store.categories, ...backup.categories.created])],
     categoryOrder: order,
     categorySort: backup.categories.sort ?? base.store.categorySort,
+    emergencyOrder,
   }
 
   return {

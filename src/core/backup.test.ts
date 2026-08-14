@@ -34,6 +34,7 @@ function fixture(): { state: AppState; categoryById: Map<string, string> } {
     categoryOverrides: { 'built-3': 'Home' },
     categoryOrder: ['Home', 'Food', 'Moods'],
     categorySort: 'custom',
+    emergencyOrder: ['em-2', 'em-0'],
   }
   const profile: Profile = {
     name: { given: 'Ada', surname: 'Lovelace', nickname: 'Ada' },
@@ -91,6 +92,40 @@ describe('building a backup', () => {
     const backup = exportAll()
     expect(backup.added.find(p => p.id === 'custom-2')?.text).toBe('The dog needs walking')
     expect(backup.edited.map(e => e.id)).not.toContain('custom-2')
+  })
+
+  // Rearranging the emergency bar is as much a thing somebody did as rewording
+  // a phrase is, and it is the one bar they reach for without reading it.
+  it('carries the order of the emergency bar', () => {
+    expect(exportAll().emergencyOrder).toEqual(['em-2', 'em-0'])
+  })
+
+  // The bar is one category's worth of phrases, so its arrangement travels with
+  // that category and with nothing else.
+  it('takes the emergency order only where Emergency is in scope', () => {
+    expect(exportOf(['Emergency']).emergencyOrder).toEqual(['em-2', 'em-0'])
+    expect(exportOf(['Home']).emergencyOrder).toBeUndefined()
+  })
+
+  it('leaves the field out entirely when the bar was never rearranged', () => {
+    const { state, categoryById } = fixture()
+    const backup = buildBackup({
+      ...state,
+      store: { ...state.store, emergencyOrder: [] },
+      categoryById,
+    })
+    expect(backup.emergencyOrder).toBeUndefined()
+  })
+
+  // A file holding only a rearranged bar still has something in it to restore.
+  it('counts a rearranged bar as something worth exporting', () => {
+    const backup = buildBackup({
+      ...fresh(),
+      store: { ...emptyStore(), emergencyOrder: ['em-1', 'em-0'] },
+      categoryById: new Map(),
+      scope: ['Emergency'],
+    })
+    expect(summarize(backup).empty).toBe(false)
   })
 
   it('keeps only the chosen categories', () => {
@@ -187,6 +222,7 @@ describe('reading a backup back', () => {
         edited: [{ id: 'c', text: 'Kept too' }, { id: '' }],
         removed: ['d', 7, null],
         categories: { created: ['Food', 3], renamed: { Old: 'New', Bad: 5 }, order: 'not a list', sort: 'sideways' },
+        emergencyOrder: ['em-1', 4, '', null],
       }),
     )
     expect(result.ok).toBe(true)
@@ -198,6 +234,7 @@ describe('reading a backup back', () => {
     expect(result.backup.categories.renamed).toEqual({ Old: 'New' })
     expect(result.backup.categories.order).toEqual([])
     expect(result.backup.categories.sort).toBeUndefined()
+    expect(result.backup.emergencyOrder).toEqual(['em-1'])
   })
 
   it('files a phrase with no category rather than dropping it', () => {
@@ -280,6 +317,7 @@ describe('restoring onto a fresh device', () => {
     expect(next.store.categoryRenames).toEqual({ Feelings: 'Moods' })
     expect(next.store.categoryOrder).toEqual(['Home', 'Food', 'Moods'])
     expect(next.store.categorySort).toBe('custom')
+    expect(next.store.emergencyOrder).toEqual(['em-2', 'em-0'])
     expect(next.profile.contacts).toEqual(['Mum', 'Charles'])
     expect(next.settings.phraseDwellMs).toBe(2200)
   })
@@ -299,6 +337,7 @@ describe('merging into a device that is already in use', () => {
       overrides: { 'built-9': 'Local wording' },
       hidden: ['built-7'],
       categoryOrder: ['Food'],
+      emergencyOrder: ['em-4'],
     },
     profile: { name: { given: '', surname: '', nickname: 'Bee' }, contacts: ['Sam'] },
     settings: { ...DEFAULT_SETTINGS, rate: 1.6 },
@@ -309,6 +348,15 @@ describe('merging into a device that is already in use', () => {
     expect(next.store.custom.map(p => p.id)).toEqual(['custom-local', 'custom-1', 'custom-2'])
     expect(next.store.overrides).toEqual({ 'built-9': 'Local wording', 'built-1': "I'm knackered" })
     expect(next.store.categoryOrder).toEqual(['Food', 'Home', 'Moods'])
+  })
+
+  // Same rule as the categories: what somebody arranged on this device stays
+  // where they put it, and the file's arrangement fills in behind it. A device
+  // with no arrangement of its own takes the file's exactly.
+  it('leaves an emergency bar this device already arranged where it was', () => {
+    const next = applyBackup(exportAll(), local(), 'merge')
+    expect(next.store.emergencyOrder).toEqual(['em-4', 'em-2', 'em-0'])
+    expect(applyBackup(exportAll(), fresh(), 'merge').store.emergencyOrder).toEqual(['em-2', 'em-0'])
   })
 
   // Removing a phrase is the one change the app offers no way back from, so a
