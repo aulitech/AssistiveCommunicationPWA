@@ -24,8 +24,9 @@ import {
   displayCategory,
   loadPhraseStore,
   loadProfile,
-  moveCategory,
+  moveInOrder,
   orderCategories,
+  orderEmergency,
   renameCategory,
   saveProfile,
   savePhraseStore,
@@ -92,7 +93,10 @@ export function useBoard() {
     const custom = store.custom
       .filter(c => c.category === 'Emergency' && !store.hidden.includes(c.id))
       .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, 'Emergency'))
-    return [...base, ...custom]
+    // Which button is where matters more here than anywhere else in the app —
+    // this is the bar somebody reaches for without reading it — so the user's
+    // own arrangement wins over the one Peri ships.
+    return orderEmergency([...base, ...custom], store.emergencyOrder)
   }, [store, buildPhrase])
 
   const allCategories = useMemo(
@@ -186,11 +190,15 @@ export function useBoard() {
   /** Deletes one the user wrote; hides one that came with the app. */
   const removePhrase = useCallback(
     (id: string) =>
-      updateStore(
-        id.startsWith('custom-')
+      updateStore({
+        ...(id.startsWith('custom-')
           ? { custom: store.custom.filter(p => p.id !== id) }
-          : { hidden: [...store.hidden, id] },
-      ),
+          : { hidden: [...store.hidden, id] }),
+        // Harmless to leave — an id naming nothing is skipped when the bar is
+        // arranged — but a store that only ever accumulates is one nobody can
+        // read later. A non-emergency id was never in here anyway.
+        emergencyOrder: store.emergencyOrder.filter(i => i !== id),
+      }),
     [store, updateStore],
   )
 
@@ -218,8 +226,16 @@ export function useBoard() {
   // whatever they had arranged before, which is what building a new one means.
   const reorderCategories = useCallback(
     (from: string, to: string) =>
-      updateStore({ categoryOrder: moveCategory(allCategories, from, to), categorySort: 'custom' }),
+      updateStore({ categoryOrder: moveInOrder(allCategories, from, to), categorySort: 'custom' }),
     [allCategories, updateStore],
+  )
+
+  // The whole arrangement again rather than a step of one, so an order built
+  // before a phrase was added still names every button on the bar afterwards.
+  const reorderEmergency = useCallback(
+    (from: string, to: string) =>
+      updateStore({ emergencyOrder: moveInOrder(emergencyPhrases.map(p => p.id), from, to) }),
+    [emergencyPhrases, updateStore],
   )
 
   /**
@@ -263,6 +279,7 @@ export function useBoard() {
     renameCategoryTo,
     removeCategory,
     reorderCategories,
+    reorderEmergency,
     toggleSort,
     restore,
   }

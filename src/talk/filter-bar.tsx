@@ -3,33 +3,15 @@
 //
 // The tabs can be reordered by dragging with a mouse or, for a dwell user, by
 // holding one tab and then dwelling where it should go. Both write the same
-// whole arrangement.
+// whole arrangement, and both come from `ui/reorder` — the emergency bar
+// arranges by identical rules, so the rules are written once there.
 
 import { useCallback, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
+import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
-import { PlusIcon } from '../ui/icons'
+import { PlusIcon, ReorderIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
-
-/**
- * Reordering by pointer-drag needs a button held down while the pointer moves,
- * which is exactly the gesture a dwell user cannot make. So a tab can also be
- * *lifted* — one dwell picks it up, a second dwell on another tab drops it
- * there. `held` is the lifted tab; `heldLabel` is what is currently in the air,
- * which every other tab needs in order to say what dropping would do.
- */
-interface ReorderProps {
-  held: boolean
-  heldLabel: string | null
-  /** True while a native drag is in flight, which suspends the dwell. */
-  dragging: boolean
-  dropTarget: boolean
-  onLiftOrDrop: () => void
-  onDragStart: () => void
-  onDragOver: () => void
-  onDragEnd: () => void
-  onDrop: () => void
-}
 
 function FilterTab({ label, active, onSelect, onEdit, reorder }: {
   label: string
@@ -63,14 +45,6 @@ function FilterTab({ label, active, onSelect, onEdit, reorder }: {
     disabled: reorder ? reorder.dragging : active && !onEdit,
   })
 
-  const reorderLabel = reorder
-    ? reorder.held
-      ? `Holding ${label}. Dwell another category to drop it there, or here to put it back`
-      : reorder.heldLabel
-        ? `Drop ${reorder.heldLabel} here`
-        : `Move ${label}`
-    : null
-
   return (
     <div
       className={cx(
@@ -89,7 +63,9 @@ function FilterTab({ label, active, onSelect, onEdit, reorder }: {
       style={dwellVar(settings.actionDwellMs)}
       role="tab"
       aria-selected={active}
-      aria-label={reorderLabel ?? (onEdit ? `Rename category: ${label}` : label)}
+      aria-label={
+        reorder ? reorderLabel(reorder, label, 'category') : onEdit ? `Rename category: ${label}` : label
+      }
       draggable={reorder ? true : undefined}
       onDragStart={reorder?.onDragStart}
       onDragOver={reorder && (e => {
@@ -134,15 +110,6 @@ function FilterBarButton({ className, label, pressed, disabled, onActivate, chil
       {children}
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>
-  )
-}
-
-function ReorderIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="7 8 4 5 1 8" /><line x1="4" y1="5" x2="4" y2="19" />
-      <polyline points="17 16 20 19 23 16" /><line x1="20" y1="19" x2="20" y2="5" />
-    </svg>
   )
 }
 
@@ -229,11 +196,8 @@ export function FilterBar({
   onLift?: (name: string) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  // Which tab is in the air, whether picked up by dwell or by drag. Transient,
-  // so it lives here rather than in the store.
-  const [held, setHeld] = useState<string | null>(null)
-  const [dragging, setDragging] = useState<string | null>(null)
-  const [dropTarget, setDropTarget] = useState<string | null>(null)
+  // A category is named by itself, so a key here is already something to say.
+  const { propsFor, release } = useReorder({ onReorder, onLift })
 
   const scrollTo = useCallback((pos: number) => scrollRef.current?.scrollTo({ left: pos, behavior: 'smooth' }), [])
   const scrollBy = useCallback((dx: number) => scrollRef.current?.scrollBy({ left: dx, behavior: 'smooth' }), [])
@@ -242,47 +206,9 @@ export function FilterBar({
   // tab stays held across the round trip, and the next dwell drops the
   // forgotten one instead of lifting the tab under the pointer.
   const toggleReorder = useCallback(() => {
-    setHeld(null)
+    release()
     onToggleReorder?.()
-  }, [onToggleReorder])
-
-  const liftOrDrop = useCallback(
-    (name: string) => {
-      // Dwelling the tab already in hand puts it back where it was, which is
-      // the only way out of a lift for someone with no other button to press.
-      if (held === null) {
-        setHeld(name)
-        onLift?.(name)
-      } else {
-        if (held !== name) onReorder?.(held, name)
-        setHeld(null)
-      }
-    },
-    [held, onReorder, onLift],
-  )
-
-  const reorderPropsFor = (name: string): ReorderProps => ({
-    held: held === name,
-    heldLabel: held !== name ? held : null,
-    dragging: dragging !== null,
-    dropTarget: dropTarget === name && dragging !== name,
-    onLiftOrDrop: () => liftOrDrop(name),
-    onDragStart: () => {
-      // Starting a drag abandons any dwell-lift, so only one is ever in flight.
-      setHeld(null)
-      setDragging(name)
-    },
-    onDragOver: () => setDropTarget(name),
-    onDragEnd: () => {
-      setDragging(null)
-      setDropTarget(null)
-    },
-    onDrop: () => {
-      if (dragging && dragging !== name) onReorder?.(dragging, name)
-      setDragging(null)
-      setDropTarget(null)
-    },
-  })
+  }, [release, onToggleReorder])
 
   return (
     <div className="filter-bar-wrap" role="tablist" aria-label="Filter phrases by category">
@@ -306,7 +232,7 @@ export function FilterBar({
             active={activeFilter === c.id}
             onSelect={() => onSelect(c.id)}
             onEdit={onEditCategory && !c.fixed ? () => onEditCategory(c.id) : undefined}
-            reorder={reordering && !c.fixed ? reorderPropsFor(c.id) : undefined}
+            reorder={reordering && !c.fixed ? propsFor(c.id) : undefined}
           />
         ))}
       </div>

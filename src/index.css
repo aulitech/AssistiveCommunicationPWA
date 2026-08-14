@@ -1792,15 +1792,10 @@ body {
 .slot-cancel.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
 
 /* ── Add-emergency tile (edit mode) ── */
-.emergency-add {
-  flex: 0 0 84px;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  border-style: dashed;
-}
-
-.emergency-add.dwelling { color: var(--accent); }
+/* Dashed, which is how this app draws "nothing here yet". Everything else about
+   it — the width, the muted colour — it shares with the reorder control beside
+   it, and comes from `.emergency-tool`. */
+.emergency-add { border-style: dashed; }
 
 /* ── Sign-in dwell control ── */
 /* Dwell time is adjustable before sign-in — otherwise anyone who needs a slow
@@ -1870,9 +1865,10 @@ body {
 
   .dwell-cursor-dot { animation: none !important; }
 
-  /* The held category stops bobbing but stays raised, filled and ringed —
-     none of which moves. */
-  .filter-tab.is-held { animation: none !important; }
+  /* The held category — or emergency phrase — stops bobbing but stays raised,
+     filled and ringed, none of which moves. */
+  .filter-tab.is-held,
+  .emergency-btn.is-held { animation: none !important; }
 
   /* The resting lozenge stops pulsing; it stays lit, and the app is still
      dimmed behind it. */
@@ -2446,6 +2442,62 @@ body {
 
 /* Where a dragged tab would land. */
 .filter-tab.is-drop-target {
+  border-color: var(--accent);
+  box-shadow: -3px 0 0 var(--accent);
+}
+
+/* ── Reordering the emergency bar ── */
+
+/* The tools at the end of the bar. Sized like the add tile they sit beside, so
+   the pair keeps a constant width and the reorder control does not move as the
+   mode is switched. */
+.emergency-tool {
+  flex: 0 0 84px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.emergency-tool svg { width: 20px; height: 20px; }
+.emergency-tool.dwelling { color: var(--accent); }
+.emergency-tool.is-on { color: var(--accent); border-color: var(--accent); }
+.emergency-tool[aria-disabled] { opacity: 0.4; }
+
+/* The same three cues the tabs use, in the bar's own colour. Solid rather than
+   the dashed edit outline: in this mode a button is a thing to pick up, not a
+   thing to open. */
+.emergency-btn.reorderable {
+  cursor: grab;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* The phrase in the air — the loudest thing on the bar, because it is what the
+   user is holding. Blue on a red bar, so it cannot be read as one of the
+   emergency buttons it is sitting among. */
+.emergency-btn.is-held {
+  cursor: grabbing;
+  background: var(--held);
+  border-color: var(--held);
+  box-shadow:
+    inset 0 0 0 2px var(--surface),
+    inset 0 0 0 4px var(--held),
+    0 4px 10px rgba(0, 0, 0, 0.5);
+  transform: translateY(-4px);
+  animation: heldBob 1.1s ease-in-out infinite;
+}
+
+.emergency-btn.is-held .emergency-label { color: #000; }
+
+/* Every other phrase, while one is in the air. Colour alone must not carry the
+   message, so the whole bar changes state and reads from the corner of an eye. */
+.emergency-btn.is-drop-zone {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--held) 70%, transparent);
+}
+
+/* Where a dragged phrase would land. */
+.emergency-btn.is-drop-target {
   border-color: var(--accent);
   box-shadow: -3px 0 0 var(--accent);
 }

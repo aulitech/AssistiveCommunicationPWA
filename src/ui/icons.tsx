@@ -112,6 +112,17 @@ export function EditIcon() {
   )
 }
 
+// Two arrows passing each other: the control that turns reordering on, on the
+// category tabs and on the emergency bar alike.
+export function ReorderIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="7 8 4 5 1 8" /><line x1="4" y1="5" x2="4" y2="19" />
+      <polyline points="17 16 20 19 23 16" /><line x1="20" y1="19" x2="20" y2="5" />
+    </svg>
+  )
+}
+
 export function PlusIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="20" height="20" aria-hidden="true">
