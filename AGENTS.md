@@ -26,7 +26,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 **core/** — readable on its own; nothing else in `src` is needed to follow it
 
 - `core/phrases.ts` - Parses `core/imports/phrasetable.json` into phrases, including the fill-in-the-blank slots, their `aliases` lookups, the profile that fills `{contact}` and `{name}`, and the fixed emergency phrases
-- `core/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, the linked account, the sent messages, the last category and voice used, the `localStorage` keys, and the pure operations that arrange categories
+- `core/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, the linked account, the sent messages, the last category and voice used, the `localStorage` keys, and the pure operations that arrange the category tabs and the emergency bar
 - `core/backup.ts` - The export/import file format under **Menu → Backup & sharing**: building one, reading one back, and applying it
 - `core/virtual.ts` - How much of the grid to render, and when to render more
 - `core/search.ts` - Narrowing the grid to what is being typed. Ranks a whole-phrase prefix first, then a word prefix, then the letters used as initials — which is what lets "ttyl" find "Talk to you later"
@@ -35,10 +35,11 @@ This is the canonical project structure. Start with task-relevant files below. O
 **ui/** — the shared vocabulary
 
 - `ui/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
+- `ui/reorder.ts` - `useReorder`, the pick-up-and-put-down primitive behind both bars that can be arranged. A pointer-drag needs a button held down while the pointer moves, which is the one gesture a dwell user cannot make — so anything arrangeable can also be *lifted*: one dwell picks it up, a second on another drops it there. The category tabs and the emergency bar arrange by identical rules, so the rules are written once here
 - `ui/controls.tsx` - The dwell controls more than one screen uses: `DwellButton`, `NavItem`, `SettingRow`, `SettingSpinner`, `ScrollRow` (a row that scrolls sideways with its own dwell arrows — the filter chips outgrow the screen), `PickerModal` and `PickerTile` (a full-screen grid of choices, portalled to the body — a panel animated with `transform` makes `position: fixed` resolve against the panel rather than the viewport), `ScrollPane` (four dwell controls — jump to top, nudge up, nudge down, jump to bottom, each shown only when there is somewhere to go), `PanelButton`, `ProseSections`, `DwellCursor`
 - `ui/settings.ts`, `ui/edit-mode.ts` - The two React contexts. Separate from the panels that edit them, or `controls.tsx` would have to import the settings screen, which is built out of `controls.tsx`
 - `ui/style.ts` - `cx` and `dwellVar`. Not components, so not in `controls.tsx` — a module mixing the two loses fast refresh for everything importing it
-- `ui/icons.tsx` - Inline SVG. Icons used by exactly one screen stay with that screen
+- `ui/icons.tsx` - Inline SVG. Icons used by exactly one screen stay with that screen — `ReorderIcon` is here because both bars that can be arranged draw it
 
 **voice/**
 
@@ -62,7 +63,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `talk/use-sent.ts` - The messages already spoken or copied
 - `talk/use-toast.ts` - The line that appears and fades
 - `talk/grid.tsx` - The grid, the cell, and the rail. **Only the first n cells are rendered** — see `core/virtual.ts`
-- `talk/topbar.tsx`, `talk/filter-bar.tsx`, `talk/emergency.tsx`, `talk/slots.tsx`, `talk/editors.tsx` - One surface each
+- `talk/topbar.tsx`, `talk/filter-bar.tsx`, `talk/emergency.tsx`, `talk/slots.tsx`, `talk/editors.tsx` - One surface each. The filter bar and the emergency bar can both be arranged by hand, both out of `ui/reorder`, and each keeps its own mode — tidying the category tabs must not arm the bar somebody speaks with
 
 **signin/**, **legal/** — a screen and the module behind it, twice
 
@@ -106,12 +107,14 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 - `core/virtual.test.ts` - The windowing arithmetic, including the case where nothing can be measured
 - `core/texting.test.ts` - The acronym behind every phrase in the **Texting** category. The table holds only the expansion, so this is the one place the pairing is written down. The profane ones carry their rude word cut to its first letter, which is also the letter the acronym uses — so `wtf` still finds "What the f"; `CENSORED` there holds that rule
 - `core/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
+- `core/store.test.ts` - The arithmetic behind arranging things by hand: where a lifted thing lands, and what happens to something the order has never heard of
 - `voice/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
 - `voice/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
 - `voice/groups.test.ts` - The voice filters, and that the two kinds never answer to each other's groups
 - `ui/dwell.test.tsx` - The dwell hook: timing, tap, keyboard, disabled, and repeat
 - `src/App.test.tsx` - Whole-app flows driven through the real DOM
 - `src/categories.test.tsx` - Adding, renaming, deleting and ordering category tabs
+- `src/emergency.test.tsx` - Arranging the emergency bar, and the two things that must not follow from it: a phrase moved out of reach of the order it was stored under, and a bar left in reorder mode when somebody needs to speak
 - `src/shell.test.ts` - `index.html` and the manifest: the parts of the app no component renders
 - `src/structure.test.ts` - The layering above, plus the two ways it quietly rots: a module dropped at the root, and Tailwind widening its scan back to the whole project
 - `src/test/setup.ts` - Stubs for the platform APIs jsdom lacks (speech synthesis, `ResizeObserver`, scrolling, clipboard, audio playback)
@@ -155,6 +158,16 @@ Two things in `src/backup.ts` are deliberate and easy to "fix" by mistake:
 
 - **Merging never removes a phrase.** Deleting a phrase is the one change the app offers no way back from, so a file someone else made cannot make one on your device. Only *replace* applies removals, and `canReplace` refuses it for a file covering a few categories — everything the file said nothing about would go.
 - **Imported settings are clamped to `SETTING_LIMITS`.** A dwell time of zero fires every control the instant a pointer crosses it, leaving a gaze user no working control to undo it with. A file does not get to set a value the settings panel could not.
+- **`emergencyOrder` travels with the Emergency category and is never filtered down.** The other lists in a file are trimmed to the categories in scope; an arrangement trimmed to a few of its own ids is not a smaller arrangement, it is a wrong one. Merging appends what the file arranged behind what this device already had, exactly as `categoryOrder` does, so a file cannot rearrange a bar underneath the person using it.
+
+## The emergency bar
+
+The red bar is the one surface somebody reaches for without reading it, so which button sits where is theirs to set. **Menu → edit mode → the arrows at the end of the bar** turns reordering on; from there it behaves exactly like the category tabs, and both come out of `ui/reorder`.
+
+- **The order is by phrase id, and empty means the order Peri ships.** Ids, so rewording a phrase leaves it exactly where it was put — the whole point of arranging a bar is reaching it without looking. Unlike the categories there is no second arrangement to switch back to: the shipped order is the order they happen to be written in, and nobody is looking for it back.
+- **A phrase added later lands at the end.** `orderEmergency` ranks the ids it knows and leaves the rest as they came, so adding an emergency phrase does not rewrite an arrangement, and an id naming a deleted phrase is skipped rather than leaving a hole.
+- **Reordering is its own mode, separate from the category tabs'.** One flag for both would arm the bar somebody speaks with every time they set about tidying their tabs. Both are modes *within* edit mode, and leaving edit mode disarms both.
+- **The add control goes quiet rather than away while reordering.** Adding a phrase mid-reorder would drop whatever is in the air, and moving a control a user has learnt to find is worse than disabling it — so the two tools keep a constant width either way.
 
 ## Sent messages
 

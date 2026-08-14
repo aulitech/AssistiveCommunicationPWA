@@ -83,6 +83,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Choose any phrase to change its wording.',
         'Choose the message box to add a new phrase of your own. It starts in the category and voice you last used, so adding several in a row takes one choice rather than one each.',
         'Use the + at the end of the red bar to add an emergency phrase.',
+        'The arrows beside it rearrange the red bar: choose a phrase to pick it up, then choose where it should go. Choosing it again puts it back.',
         'Delete removes a phrase you added, and hides one that came with the app.',
       ),
       text('Turn edit mode off again to go back to speaking.'),
