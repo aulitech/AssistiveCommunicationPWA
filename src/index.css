@@ -2460,8 +2460,23 @@ body {
 
 .emergency-tool svg { width: 20px; height: 20px; }
 .emergency-tool.dwelling { color: var(--accent); }
-.emergency-tool.is-on { color: var(--accent); border-color: var(--accent); }
 .emergency-tool[aria-disabled] { opacity: 0.4; }
+
+/* Filled while reordering is on, the same way the category tools are: the mode
+   is the loud part, and the two bars should not say it in different voices. */
+.emergency-tool.is-on {
+  color: #000;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Two fixed-width tools and six phrases is a lot of bar on a narrow screen, so
+   the tools give back half their width there. They are icons; the phrases are
+   words, and it is the words that need the room. */
+@media (max-width: 700px) {
+  .emergency-tool { flex: 0 0 48px; }
+  .emergency-tool svg { width: 16px; height: 16px; }
+}
 
 /* The same three cues the tabs use, in the bar's own colour. Solid rather than
    the dashed edit outline: in this mode a button is a thing to pick up, not a
