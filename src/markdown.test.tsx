@@ -243,6 +243,33 @@ describe('pasting and dropping a link', () => {
     expect(box().value).toBe('Have a look at [cafe.example](https://cafe.example/menu)')
   })
 
+  // The two routes land in different places on purpose, and the pair below is
+  // what tells them apart: with the caret left at the end — which is where
+  // typing leaves it — both answers look the same.
+
+  it('drops at the end even when the caret is somewhere else', () => {
+    renderApp([])
+    fireEvent.change($('.text-display')!, { target: { value: 'Have a look at' } })
+    settle()
+    box().selectionStart = box().selectionEnd = 0
+
+    drop(box(), { 'text/uri-list': MENU })
+
+    // A drop comes from outside the box and carries no caret of its own.
+    expect(box().value).toBe('Have a look at [cafe.example](https://cafe.example/menu)')
+  })
+
+  it('pastes at the caret, which is somewhere the user put it', () => {
+    renderApp([])
+    fireEvent.change($('.text-display')!, { target: { value: 'Have a look' } })
+    settle()
+    box().selectionStart = box().selectionEnd = 4 // just after "Have"
+
+    paste(box(), { 'text/plain': MENU })
+
+    expect(box().value).toBe('Have [cafe.example](https://cafe.example/menu) a look')
+  })
+
   // The point of the label. What is said is the name, and the address stays in
   // the message for whoever it is being sent to.
   it('speaks the label and copies the address', () => {
