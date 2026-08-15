@@ -150,7 +150,17 @@ Phrases in `phrasetable.json` can carry fill-in-the-blank slots — `Please turn
 2. The user's profile, for `{contact}` and `{name...}`. The table ships these empty; the profile is edited under **Menu → My details** and stored separately from the phrase store.
 3. The table's own `aliases` block, for `{pronouns}`, `{direction}`, `{bodyparts}` and friends.
 
-How many options a slot ends up with decides the interaction, so mind the boundaries: **none** renders as `___` and the cursor lands on it for typing, **exactly one** is substituted straight into the text with no picker, and **two or more** opens the slot picker. `hasChoices` and `choosableSlots` both key off `options.length > 1` for that reason.
+How many options a slot ends up with decides the interaction, so mind the boundaries: **none** is a blank the caret lands in for typing, **exactly one** is substituted straight into the text with no picker, and **two or more** opens the slot picker. `hasChoices` and `choosableSlots` both key off `options.length > 1` for that reason.
+
+**`BLANK` is the empty string.** A blank puts no characters into what gets said, copied or typed over — the gap is the placeholder. Two things carry it, and both are needed, because a blank nobody can see is a blank nobody fills:
+
+- On the board, `.phrase-slot.is-blank` keeps a `min-width`, so the dashed underline is still drawn across an empty gap.
+- In the message box, `composeWithBlank` reports where the gap landed and the caret is put there. It has to *report* it, because there is nothing left in the text to search for — and `indexOf('')` answers with the position you asked about, which would land the caret at the start of every phrase inserted, blank or not.
+
+Two consequences worth knowing:
+
+- **Ask `hasBlank(segments)`, never `text.includes(BLANK)`.** The second is true of every phrase on the board. It emptied three tests silently when `BLANK` changed, rather than failing them.
+- **`composeWithBlank` tracks the gap with a private-use character, not with `BLANK`.** Composing collapses spaces and trims ends, which moves every offset after the point it changes, so the only way to know where a blank *ended up* is to leave something there while that happens. It is not whitespace, so a blank spaces exactly as the old `___` did — and a word typed into the gap needs no spacing of its own, including before punctuation.
 
 Slot options are baked in at parse time, so `buildPhrases(profile)` re-parses the table when the profile changes. Phrase ids hash the *source* text rather than the rendered text, so saved edits survive a profile change.
 
@@ -162,7 +172,7 @@ A phrase may carry markdown: `**bold**`, `*italic*`, `~~struck~~`, `` `code` ``,
 
 - **Stripping happens once, inside `speak()`.** Every route to the synthesiser can arrive with asterisks in hand, because the message box keeps them. Doing it at the single place utterances are created is what makes "the app never says *asterisk asterisk*" a property rather than a habit. `warmVoice` and the warm-up in `useBoard` strip the same way **or the audio cache silently misses**: a clip stored under the marked-up text is one the phrase asking for it never finds, and on the emergency bar that reads as a phrase quietly losing the voice it was given.
 - **The markup is kept in the message box and on the clipboard.** That is deliberate — the box is where a message is assembled and edited, and a copied message may be going somewhere that renders it. Speech and search are the things that strip.
-- **Emphasis is asterisks only.** `_underscores_` stay literal, because `BLANK` — the placeholder for a slot with nothing behind it — is `___`, and a parser that ate underscores would swallow the one affordance a fill-in-the-blank phrase has. It keeps `snake_case` intact as a side effect.
+- **Underscores emphasise between words, never inside one.** `_like this_` is italic and `snake_case_name` is a name — the rule every markdown supporting both delimiters settles on. Asterisks carry no such restriction, because nobody writes `snake*case*name` by accident. It is **two** guards, opening and closing, and a phrase with underscores only inside words exercises just the closing one: with nothing able to close, nothing opens either way. `snake_case here_ and` is what shows the opening guard doing anything.
 - **Nothing is markup until it closes.** A lone `*` is a character somebody typed; "2 * 3" is arithmetic. A phrase must not lose characters while it is being written.
 - **Markup never crosses a slot.** Slots are parsed out before any of this runs. The shipped table has slots and no markdown, and a phrase somebody writes has the reverse, so the two rarely meet — but the limit is real and tested rather than pretended away.
 - **A heading is a style, not an `<h2>`.** These sit inside a `role="button"`; real document structure there would be a lie to a screen reader, which reads the plain text off the button's own label.
