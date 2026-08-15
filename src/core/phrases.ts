@@ -176,9 +176,16 @@ function resolveSlot(body: string, overlay?: AliasIndex): { label: string; optio
   return { label: BLANK, options: [] }
 }
 
-/** Trailing periods/ellipses in the source table are inconsistent; drop them. */
+/**
+ * Trailing periods/ellipses in the source table are inconsistent; drop them.
+ *
+ * Runs of spaces collapse, newlines do not: a phrase somebody wrote can be more
+ * than one line, and a line break is the only thing carrying that. Nothing in
+ * the shipped table has ever held one, so this narrows what is collapsed rather
+ * than changing any phrase Peri comes with.
+ */
 function tidy(text: string): string {
-  return text.replace(/\.{2,}/g, '').replace(/\s+/g, ' ')
+  return text.replace(/\.{2,}/g, '').replace(/[^\S\n]+/g, ' ')
 }
 
 export function parseSegments(raw: string, overlay?: AliasIndex): Segment[] {
@@ -217,7 +224,13 @@ export function compose(segments: Segment[], choices?: (string | null)[]): strin
       return choices?.[slot] ?? slotDefault(s)
     })
     .join('')
-  return out.replace(/\s+/g, ' ').replace(/\s+([,.?!])/g, '$1').replace(/[.\s]+$/, '').trim()
+  // Spaces collapse, newlines survive — see `tidy`. The trailing sweep still
+  // takes newlines, since a phrase ending in a blank line is not two lines.
+  return out
+    .replace(/[^\S\n]+/g, ' ')
+    .replace(/[^\S\n]+([,.?!])/g, '$1')
+    .replace(/[.\s]+$/, '')
+    .trim()
 }
 
 /**

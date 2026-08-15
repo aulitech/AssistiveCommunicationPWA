@@ -2516,3 +2516,47 @@ body {
   border-color: var(--accent);
   box-shadow: -3px 0 0 var(--accent);
 }
+
+/* ── Markdown in a phrase ── */
+
+/* A phrase can carry inline emphasis, headings and bullets — see
+   `core/markdown.ts` for what is understood and what stays literal. Everything
+   here is drawn relative to the cell's own type rather than at fixed sizes, so
+   the same rules work on a 15px grid cell and on the 13px emergency label. */
+
+.md-strong { font-weight: 800; }
+.md-em { font-style: italic; }
+.md-strike { text-decoration: line-through; opacity: 0.75; }
+
+.md-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+  padding: 0 0.28em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+/* Lines are blocks so they stack, and the cell's row grows to fit them. Row
+   heights already vary — about one row in five wraps — and the grid window
+   grows from the top rather than multiplying a row height by an index, so a
+   taller cell costs nothing but its own space. */
+.md-line { display: block; }
+.md-line + .md-line { margin-top: 0.2em; }
+
+.md-heading { font-weight: 800; }
+.md-h1 { font-size: 1.2em; }
+.md-h2 { font-size: 1.1em; }
+.md-h3 { font-size: 1.03em; }
+
+/* The bullet is drawn, not typed: it is not part of what the phrase says, so it
+   must not be selectable, searchable or speakable. */
+.md-item { display: flex; gap: 0.45em; align-items: baseline; text-align: left; }
+
+.md-bullet {
+  flex: 0 0 auto;
+  width: 0.32em;
+  height: 0.32em;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}

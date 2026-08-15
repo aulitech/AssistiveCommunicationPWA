@@ -18,6 +18,7 @@ import {
   type Phrase,
   type Profile,
 } from '../core/phrases'
+import { stripMarkdown } from '../core/markdown'
 import { audioKey, warmAudio } from '../voice/audio-cache'
 import { remoteVoiceId } from '../voice/elevenlabs'
 import {
@@ -141,7 +142,9 @@ export function useBoard() {
     const keys = assigned.flatMap(([id, voiceURI]) => {
       const voiceId = remoteVoiceId(voiceURI)
       const text = textById.get(id)
-      return voiceId && text ? [audioKey(voiceId, text)] : []
+      // Keyed by the words, exactly as `speak` keys them — a clip stored under
+      // the marked-up text is a clip the phrase asking for it never finds.
+      return voiceId && text ? [audioKey(voiceId, stripMarkdown(text))] : []
     })
     if (keys.length > 0) void warmAudio(keys)
   }, [store.voiceOverrides, mainPhrases, emergencyPhrases])

@@ -29,7 +29,8 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `core/store.ts` - Everything the app persists and the shapes it persists it in: settings, the phrase store, the profile, the signed-in user, the linked account, the sent messages, the last category and voice used, the `localStorage` keys, and the pure operations that arrange the category tabs and the emergency bar
 - `core/backup.ts` - The export/import file format under **Menu → Backup & sharing**: building one, reading one back, and applying it
 - `core/virtual.ts` - How much of the grid to render, and when to render more
-- `core/search.ts` - Narrowing the grid to what is being typed. Ranks a whole-phrase prefix first, then a word prefix, then the letters used as initials — which is what lets "ttyl" find "Talk to you later"
+- `core/search.ts` - Narrowing the grid to what is being typed. Ranks a whole-phrase prefix first, then a word prefix, then the letters used as initials — which is what lets "ttyl" find "Talk to you later". Matched against the words rather than the markup, so `**Help** me` is found by typing "help"
+- `core/markdown.ts` - The markup a phrase may carry, and taking it back off. `layout` for drawing, `stripMarkdown` for everything a phrase is *not* drawn into — spoken, searched, announced
 - `core/prose.ts` - The blocks long-form text is written in
 
 **ui/** — the shared vocabulary
@@ -63,6 +64,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `talk/use-sent.ts` - The messages already spoken or copied
 - `talk/use-toast.ts` - The line that appears and fades
 - `talk/grid.tsx` - The grid, the cell, and the rail. **Only the first n cells are rendered** — see `core/virtual.ts`
+- `talk/phrase-text.tsx` - `PhraseText`, which draws a phrase's slots and any markdown in it. Used by the grid cell and the emergency bar, so a phrase looks the same wherever it is shown
 - `talk/topbar.tsx`, `talk/filter-bar.tsx`, `talk/emergency.tsx`, `talk/slots.tsx`, `talk/editors.tsx` - One surface each. The filter bar and the emergency bar can both be arranged by hand, both out of `ui/reorder`, and each keeps its own mode — tidying the category tabs must not arm the bar somebody speaks with
 
 **signin/**, **legal/** — a screen and the module behind it, twice
@@ -108,6 +110,7 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 - `core/texting.test.ts` - The acronym behind every phrase in the **Texting** category. The table holds only the expansion, so this is the one place the pairing is written down. The profane ones carry their rude word cut to its first letter, which is also the letter the acronym uses — so `wtf` still finds "What the f"; `CENSORED` there holds that rule
 - `core/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
 - `core/store.test.ts` - The arithmetic behind arranging things by hand: where a lifted thing lands, and what happens to something the order has never heard of
+- `core/markdown.test.ts` - What the markup means, what stays literal, and the one invariant holding it together: `stripMarkdown` reads exactly what `layout` draws
 - `voice/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
 - `voice/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
 - `voice/groups.test.ts` - The voice filters, and that the two kinds never answer to each other's groups
@@ -115,6 +118,7 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 - `src/App.test.tsx` - Whole-app flows driven through the real DOM
 - `src/categories.test.tsx` - Adding, renaming, deleting and ordering category tabs
 - `src/emergency.test.tsx` - Arranging the emergency bar, and the two things that must not follow from it: a phrase moved out of reach of the order it was stored under, and a bar left in reorder mode when somebody needs to speak
+- `src/markdown.test.tsx` - Where the markup ends up once a phrase is used: drawn on the board, gone from what is spoken and searched, kept in the message box and on the clipboard. **Scope the grid to the seeded category first** — the board also holds the two and a half thousand phrases Peri ships, several of which begin with "Help"
 - `src/shell.test.ts` - `index.html` and the manifest: the parts of the app no component renders
 - `src/structure.test.ts` - The layering above, plus the two ways it quietly rots: a module dropped at the root, and Tailwind widening its scan back to the whole project
 - `src/test/setup.ts` - Stubs for the platform APIs jsdom lacks (speech synthesis, `ResizeObserver`, scrolling, clipboard, audio playback)
@@ -149,6 +153,20 @@ Phrases in `phrasetable.json` can carry fill-in-the-blank slots — `Please turn
 How many options a slot ends up with decides the interaction, so mind the boundaries: **none** renders as `___` and the cursor lands on it for typing, **exactly one** is substituted straight into the text with no picker, and **two or more** opens the slot picker. `hasChoices` and `choosableSlots` both key off `options.length > 1` for that reason.
 
 Slot options are baked in at parse time, so `buildPhrases(profile)` re-parses the table when the profile changes. Phrase ids hash the *source* text rather than the rendered text, so saved edits survive a profile change.
+
+## Markdown in a phrase
+
+A phrase may carry markdown: `**bold**`, `*italic*`, `~~struck~~`, `` `code` ``, `# headings` and `- bullets`. It is a way of making a button readable at a glance and nothing more. `core/markdown.ts` holds all of it.
+
+**The rule everything else follows from: what the eye sees is styled, what the ear hears is the words.** `stripMarkdown` and `layout` walk the same parse, and `core/markdown.test.ts` asserts they agree on every case — if they ever come apart, a phrase becomes unfindable or gets spoken wrong.
+
+- **Stripping happens once, inside `speak()`.** Every route to the synthesiser can arrive with asterisks in hand, because the message box keeps them. Doing it at the single place utterances are created is what makes "the app never says *asterisk asterisk*" a property rather than a habit. `warmVoice` and the warm-up in `useBoard` strip the same way **or the audio cache silently misses**: a clip stored under the marked-up text is one the phrase asking for it never finds, and on the emergency bar that reads as a phrase quietly losing the voice it was given.
+- **The markup is kept in the message box and on the clipboard.** That is deliberate — the box is where a message is assembled and edited, and a copied message may be going somewhere that renders it. Speech and search are the things that strip.
+- **Emphasis is asterisks only.** `_underscores_` stay literal, because `BLANK` — the placeholder for a slot with nothing behind it — is `___`, and a parser that ate underscores would swallow the one affordance a fill-in-the-blank phrase has. It keeps `snake_case` intact as a side effect.
+- **Nothing is markup until it closes.** A lone `*` is a character somebody typed; "2 * 3" is arithmetic. A phrase must not lose characters while it is being written.
+- **Markup never crosses a slot.** Slots are parsed out before any of this runs. The shipped table has slots and no markdown, and a phrase somebody writes has the reverse, so the two rarely meet — but the limit is real and tested rather than pretended away.
+- **A heading is a style, not an `<h2>`.** These sit inside a `role="button"`; real document structure there would be a lie to a screen reader, which reads the plain text off the button's own label.
+- **`tidy` and `compose` collapse spaces but not newlines.** They used to collapse every run of whitespace, which made a multi-line phrase impossible. Nothing in the shipped table has ever held a newline, so this narrowed what is collapsed rather than changing any phrase Peri comes with.
 
 ## Backups
 

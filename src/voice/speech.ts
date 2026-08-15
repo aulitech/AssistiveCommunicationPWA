@@ -7,6 +7,7 @@
 // failing is never heard as silence: any path that cannot produce audio ends in
 // the device saying the words instead.
 
+import { stripMarkdown } from '../core/markdown'
 import { loadElevenLabs, type ElevenLabsAccount } from '../core/store'
 import { remoteVoiceId, synthesize } from './elevenlabs'
 import { audioKey, cachedAudio } from './audio-cache'
@@ -91,7 +92,14 @@ function playAudio(blob: Blob, settings: VoiceSettings, onFailure: () => void) {
   })
 }
 
-export function speak(text: string, settings: VoiceSettings, options: SpeakOptions = {}) {
+export function speak(source: string, settings: VoiceSettings, options: SpeakOptions = {}) {
+  // Markup is taken off here, once, rather than at each of the places that ask
+  // for speech. A phrase can carry markdown and the message box keeps it, so
+  // every route into this function can arrive with asterisks in hand — and an
+  // app that says "asterisk asterisk help" out loud has failed at its only job.
+  // Doing it here also means the cache is keyed by the words, so `**Help**` and
+  // `Help` are the same clip rather than two.
+  const text = stripMarkdown(source)
   if (!text.trim()) return
   stopEverything()
 
@@ -163,7 +171,10 @@ export function subscribeVoices(onChange: (voices: SpeechSynthesisVoice[]) => vo
  * that saying it costs no wait — including on the emergency bar, which will not
  * wait. Failing is fine and silent: the phrase falls back like any other.
  */
-export async function warmVoice(text: string, voiceURI: string): Promise<boolean> {
+export async function warmVoice(source: string, voiceURI: string): Promise<boolean> {
+  // Stripped the same way `speak` strips it, or the clip would be stored under
+  // the marked-up text and never found again by the phrase that asked for it.
+  const text = stripMarkdown(source)
   const voiceId = remoteVoiceId(voiceURI)
   const linked = currentAccount()
   if (!voiceId || !linked || !text.trim()) return false
