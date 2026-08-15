@@ -31,9 +31,17 @@ export function useComposer() {
     return before.match(/\S+$/)?.[0] ?? ''
   }, [text, cursorPos])
 
-  /** Replace the partial word left of the cursor with `phraseText`. */
+  /**
+   * Replace the partial word left of the cursor with `phraseText`.
+   *
+   * `blankAt` is where that phrase's first unfilled blank sits within it, or -1.
+   * It has to be handed in rather than searched for: a blank is empty text now,
+   * and searching a string for an empty one matches at the first position asked
+   * about — which would land the caret at the start of every phrase inserted,
+   * blank or not. `composeWithBlank` is what knows.
+   */
   const insert = useCallback(
-    (phraseText: string) => {
+    (phraseText: string, blankAt = -1) => {
       const el = textareaRef.current
       const pos = el?.selectionStart ?? text.length
       const before = text.slice(0, pos)
@@ -46,20 +54,23 @@ export function useComposer() {
       setHistory(h => [...h, text])
       setText(newText)
 
-      // Land the cursor on the first unfilled blank if there is one, so it can be
-      // typed over; otherwise sit at the end of what was just inserted.
-      const blankAt = inserted.indexOf(BLANK, stripped.length)
+      // Land the cursor in the first unfilled blank if there is one, so the word
+      // can be typed straight into the gap; otherwise sit at the end of what was
+      // just inserted.
+      const at = blankAt >= 0 ? stripped.length + separator.length + blankAt : -1
       setTimeout(() => {
         if (el) {
-          if (blankAt >= 0) {
-            el.selectionStart = blankAt
-            el.selectionEnd = blankAt + BLANK.length
+          if (at >= 0) {
+            el.selectionStart = at
+            // Empty selects nothing and simply places the caret, which is the
+            // whole of what a blank offers once it has no characters of its own.
+            el.selectionEnd = at + BLANK.length
             el.focus()
           } else {
             el.selectionStart = el.selectionEnd = inserted.length
           }
         }
-        setCursorPos(blankAt >= 0 ? blankAt : inserted.length)
+        setCursorPos(at >= 0 ? at : inserted.length)
       }, 0)
     },
     [text],

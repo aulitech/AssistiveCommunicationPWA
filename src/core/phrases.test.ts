@@ -6,6 +6,7 @@ import {
   buildPhrases,
   choosableSlots,
   compose,
+  hasBlank,
   hasChoices,
   makePhrase,
   parseSegments,
@@ -279,13 +280,16 @@ describe('buildPhrases', () => {
     const texts = filled.map(p => p.text)
 
     expect(texts).toContain('This is Ada')
-    expect(texts.some(t => /going to call/.test(t) && !t.includes(BLANK))).toBe(true)
+    // Asked of the segments: a blank puts no characters in the text, so there
+    // is nothing there to search for — and `''.includes('')` answers yes about
+    // every phrase on the board.
+    expect(filled.some(p => /going to call/.test(p.text) && !hasBlank(p.segments))).toBe(true)
   })
 
   it('still leaves genuinely anonymous blanks alone', () => {
     // "Did you see {}" names no alias, so there is nothing to fill it with.
     const filled = buildPhrases({ name: { given: 'Ada', surname: '', nickname: 'Ada' }, contacts: ['Mum'] })
-    expect(filled.some(p => p.text.includes(BLANK))).toBe(true)
+    expect(filled.some(p => hasBlank(p.segments))).toBe(true)
   })
 })
 

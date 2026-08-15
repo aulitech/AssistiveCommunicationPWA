@@ -137,8 +137,30 @@ const ALIAS_LABELS: Record<string, string> = {
   'name.nickname': 'name',
 }
 
-/** Placeholder text shown (and inserted) for a slot with no options behind it. */
-export const BLANK = '___'
+/**
+ * Placeholder text shown (and inserted) for a slot with no options behind it.
+ *
+ * Empty, so a blank puts no characters into what gets said, copied or typed
+ * over — the gap is the placeholder. Two things carry it instead, because a
+ * blank nobody can see is a blank nobody fills:
+ *
+ *  * On the board, `.phrase-slot.is-blank` keeps a minimum width, so the dashed
+ *    underline is still drawn across an empty gap.
+ *  * In the message box, `composeWithBlank` reports where the gap fell and the
+ *    caret is put there — which is what the selected `___` used to be for.
+ */
+export const BLANK = ''
+
+/**
+ * Stands in for a blank while the composed text is being tidied, then goes.
+ *
+ * `compose` collapses spaces and trims ends, which moves every offset after the
+ * point it changes — so the only way to know where a blank *ended up* is to
+ * leave something there while that happens and look for it afterwards. A
+ * private-use character, so no phrase can contain one and be mistaken for it.
+ * It is not whitespace, so it spaces exactly as the old `___` did.
+ */
+const MARK = '\uE000'
 
 function aliasLabel(name: string): string {
   const key = name.toLowerCase()
@@ -208,14 +230,30 @@ export function parseSegments(raw: string, overlay?: AliasIndex): Segment[] {
 
 export type Slot = Extract<Segment, { kind: 'slot' }>
 
-/** What a slot reads as when the user has not picked for it. */
+/**
+ * What a slot reads as when the user has not picked for it. A slot with nothing
+ * behind it reads as `MARK` rather than as `BLANK`, so `composeWithBlank` can
+ * still find it after the tidying below has moved everything around it.
+ */
 function slotDefault(segment: Slot): string {
   if (segment.options.length === 1) return segment.options[0]
-  return segment.options.length ? segment.label : BLANK
+  return segment.options.length ? segment.label : MARK
 }
 
 /** Render segments, substituting `choices` for slots (index-aligned to slots). */
 export function compose(segments: Segment[], choices?: (string | null)[]): string {
+  return composeWithBlank(segments, choices).text
+}
+
+/**
+ * The same text, and where its first unfilled blank ended up — `-1` when it has
+ * none. That offset is the whole of what puts the caret in the right place: a
+ * blank is empty now, so there is nothing left in the text to search for.
+ */
+export function composeWithBlank(
+  segments: Segment[],
+  choices?: (string | null)[],
+): { text: string; blankAt: number } {
   let slot = -1
   const out = segments
     .map(s => {
@@ -226,11 +264,16 @@ export function compose(segments: Segment[], choices?: (string | null)[]): strin
     .join('')
   // Spaces collapse, newlines survive — see `tidy`. The trailing sweep still
   // takes newlines, since a phrase ending in a blank line is not two lines.
-  return out
+  // `MARK` is neither, so a blank spaces exactly as the old `___` did and the
+  // offset found afterwards is the offset in the finished text.
+  const tidied = out
     .replace(/[^\S\n]+/g, ' ')
     .replace(/[^\S\n]+([,.?!])/g, '$1')
     .replace(/[.\s]+$/, '')
     .trim()
+
+  const blankAt = tidied.indexOf(MARK)
+  return { text: tidied.split(MARK).join(BLANK), blankAt }
 }
 
 /**
@@ -243,6 +286,15 @@ export function choosableSlots(segments: Segment[]): Slot[] {
 
 export function hasChoices(segments: Segment[]): boolean {
   return segments.some(s => s.kind === 'slot' && s.options.length > 1)
+}
+
+/**
+ * Whether a phrase still has a gap to type into. Asked of the segments rather
+ * than of the text, because a blank leaves no characters behind to look for —
+ * and searching text for an empty string answers yes every time.
+ */
+export function hasBlank(segments: Segment[]): boolean {
+  return segments.some(s => s.kind === 'slot' && s.options.length === 0)
 }
 
 // ── Stable ids ────────────────────────────────────────────────────────────────

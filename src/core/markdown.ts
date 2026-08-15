@@ -10,10 +10,10 @@
 // Three deliberate narrowings, each of which costs nothing and avoids a whole
 // class of surprise on a board somebody speaks with:
 //
-//  * **Emphasis is asterisks only.** `_like this_` stays literal, because the
-//    placeholder for a slot with nothing behind it is `___` — see `BLANK` — and
-//    a parser that ate underscores would swallow the one affordance a
-//    fill-in-the-blank phrase has. It keeps `snake_case` intact too.
+//  * **Underscores emphasise between words, never inside one.** `_like this_`
+//    is italic and `snake_case_name` is a name, which is the rule every
+//    markdown that supports both delimiters settles on. Asterisks carry no such
+//    restriction, because nobody writes `snake*case*name` by accident.
 //  * **Markup never crosses a slot.** Slots are parsed out before any of this
 //    runs, so `**Please turn {control} on**` emphasises the two halves rather
 //    than the whole. The shipped table has slots and no markdown; a phrase
@@ -48,24 +48,47 @@ export interface Line {
  */
 const DELIMITERS: { marker: string; style: Style }[] = [
   { marker: '***', style: { strong: true, em: true } },
+  { marker: '___', style: { strong: true, em: true } },
   { marker: '**', style: { strong: true } },
+  { marker: '__', style: { strong: true } },
   { marker: '~~', style: { strike: true } },
   { marker: '*', style: { em: true } },
+  { marker: '_', style: { em: true } },
 ]
+
+/**
+ * Whether an underscore run here is between words rather than inside one, which
+ * is the only place it may open or close emphasis. Without this, `snake_case`
+ * and a phrase like "the file_name field" come apart in the middle.
+ */
+const WORD = /[\p{L}\p{N}]/u
+const betweenWords = (text: string, at: number) => at < 0 || at >= text.length || !WORD.test(text[at])
 
 /**
  * Whether a string is worth parsing at all. The shipped table is two and a half
  * thousand phrases with none of this in them, and search runs over all of them
  * on every keystroke — so the common answer has to be cheap.
  */
-const MARKERS = /[*~`\n]|^[ \t]*(?:#{1,3}|-) /m
+const MARKERS = /[*~`_\n]|^[ \t]*(?:#{1,3}|-) /m
 
 export const hasMarkdown = (raw: string) => MARKERS.test(raw)
 
-/** Where `marker` next closes, or -1. Empty content does not count as a pair. */
+/**
+ * Where `marker` next closes, or -1. Empty content does not count as a pair —
+ * read as one it would delete itself and leave nothing behind, when what was
+ * typed was some characters.
+ *
+ * An underscore run has to close between words as well as open between them, so
+ * candidates that fall inside a word are stepped over rather than given up on:
+ * `_a_b_` closes on the last one, not the middle.
+ */
 function findClose(text: string, from: number, marker: string): number {
-  const at = text.indexOf(marker, from)
-  return at > from ? at : -1
+  const wordSafe = marker[0] === '_'
+  for (let at = text.indexOf(marker, from); at !== -1; at = text.indexOf(marker, at + 1)) {
+    if (at <= from) continue
+    if (!wordSafe || betweenWords(text, at + marker.length)) return at
+  }
+  return -1
 }
 
 const applied = (style: Style, wanted: Style) =>
@@ -93,7 +116,13 @@ function parseInline(text: string, style: Style = {}, out: Piece[] = []): Piece[
       }
     }
 
-    const delimiter = DELIMITERS.find(d => text.startsWith(d.marker, i) && !applied(style, d.style))
+    const delimiter = DELIMITERS.find(
+      d =>
+        text.startsWith(d.marker, i) &&
+        !applied(style, d.style) &&
+        // An underscore only opens where a word is not already running.
+        (d.marker[0] !== '_' || betweenWords(text, i - 1)),
+    )
     if (delimiter) {
       const end = findClose(text, i + delimiter.marker.length, delimiter.marker)
       if (end !== -1) {

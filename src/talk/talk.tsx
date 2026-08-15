@@ -9,7 +9,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { cancelAllDwells, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
-import { hasChoices, type Phrase } from '../core/phrases'
+import { composeWithBlank, hasChoices, type Phrase } from '../core/phrases'
 import { search } from '../core/search'
 import { loadRecent, saveRecent, type User } from '../core/store'
 import { type AppState } from '../core/backup'
@@ -107,14 +107,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * it is composed into the message for the user to send when ready.
    */
   const deliverPhrase = useCallback(
-    (phraseText: string, voiceURI?: string) => {
+    (phraseText: string, voiceURI?: string, blankAt = -1) => {
       // In auto-speak the phrase is the message — it is spoken and never
       // reaches the box, so this is the moment it counts as said.
       if (settings.autoSpeak) {
         speak(phraseText, settings, { voiceURI })
         sent.record(phraseText)
       } else {
-        insertPhrase(phraseText)
+        insertPhrase(phraseText, blankAt)
       }
     },
     [settings, insertPhrase, sent],
@@ -128,7 +128,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
         setFilling(phrase)
         return
       }
-      deliverPhrase(phrase.text, voiceFor(phrase.id))
+      // Recomposed rather than read off the phrase, for the offset alone — a
+      // blank has no characters to find in `phrase.text` any more.
+      const { blankAt } = composeWithBlank(phrase.segments)
+      deliverPhrase(phrase.text, voiceFor(phrase.id), blankAt)
     },
     [deliverPhrase, voiceFor],
   )
@@ -355,9 +358,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
           {filling && (
             <SlotPicker
               phrase={filling}
-              onComplete={text => {
+              onComplete={(text, blankAt) => {
                 setFilling(null)
-                deliverPhrase(text, voiceFor(filling.id))
+                // A phrase can have both kinds: options to pick from, and a
+                // blank to type into. The caret goes to whatever is left.
+                deliverPhrase(text, voiceFor(filling.id), blankAt)
               }}
               onCancel={() => setFilling(null)}
             />

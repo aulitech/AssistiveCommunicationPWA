@@ -1692,10 +1692,17 @@ body {
   padding-bottom: 1px;
 }
 
+/* A blank holds no characters — see `BLANK` — so the gap has to be drawn rather
+   than typed. The minimum width is what keeps the dashed underline visible; an
+   empty inline span is nothing at all, and a blank nobody can see is a blank
+   nobody fills. */
 .phrase-slot.is-blank {
   color: var(--text-muted);
   border-bottom-color: var(--text-muted);
   letter-spacing: 0.05em;
+  display: inline-block;
+  min-width: 2.5ch;
+  vertical-align: baseline;
 }
 
 /* ── SlotPicker ── */

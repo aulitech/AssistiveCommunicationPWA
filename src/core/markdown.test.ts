@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { hasMarkdown, layout, stripMarkdown, type Line } from './markdown'
-import { BLANK, parseSegments, type Segment } from './phrases'
+import { parseSegments, type Segment } from './phrases'
 
 // What a phrase's markup means. The two things built on it — what the cell draws
 // and what gets spoken or searched — walk the same parse, so the tests below
@@ -59,13 +59,26 @@ describe('emphasis', () => {
     expect(runs('****')).toEqual([['****', '']])
   })
 
-  // Underscores are not emphasis here, and the reason is load-bearing: `___` is
-  // the placeholder for a slot with nothing behind it. A parser that ate them
-  // would swallow the only affordance a fill-in-the-blank phrase has.
-  it('never treats underscores as markup', () => {
-    expect(runs('_not italic_')).toEqual([['_not italic_', '']])
+  it('reads underscores as emphasis too', () => {
+    expect(runs('_really_ tired')).toEqual([['really', 'em'], [' tired', '']])
+    expect(runs('__Help__ me')).toEqual([['Help', 'strong'], [' me', '']])
+    expect(runs('___now___')).toEqual([['now', 'strong+em']])
+  })
+
+  // The rule every markdown supporting both delimiters settles on, and the
+  // reason underscores need it and asterisks do not: people write `file_name`
+  // and `snake_case` without meaning anything by it, and nobody writes
+  // `snake*case` by accident.
+  it('leaves an underscore inside a word alone', () => {
     expect(runs('snake_case_name')).toEqual([['snake_case_name', '']])
-    expect(stripMarkdown(`Please turn ${BLANK} on`)).toBe('Please turn ___ on')
+    expect(runs('the file_name field')).toEqual([['the file_name field', '']])
+  })
+
+  // Opening between words is not enough on its own — the closing run has to be
+  // between words as well, or `_a_b_` would emphasise "a" and leave "b_"
+  // hanging off the end of it.
+  it('closes on a run between words rather than the first one it meets', () => {
+    expect(runs('_a_b_')).toEqual([['a_b', 'em']])
   })
 })
 
@@ -154,7 +167,9 @@ describe('taking the markup back off', () => {
       '# Drinks\n- water\n- juice',
       'press `OK`',
       '2 * 3 = 6',
-      '_not italic_',
+      '_really_ tired',
+      'snake_case_name',
+      '_a_b_',
     ]) {
       const drawn = layout(text(source))
         .map(line => line.pieces.map(p => (p.kind === 'text' ? p.text : '')).join(''))
