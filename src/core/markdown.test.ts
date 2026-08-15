@@ -48,7 +48,14 @@ describe('emphasis', () => {
     expect(runs('a `backtick')).toEqual([['a `backtick', '']])
   })
 
+  // A marker that closes immediately wraps nothing at all. Read as a pair it
+  // would delete itself and leave an empty run behind; these have to survive as
+  // the characters they are. `****` is here for company rather than for proof —
+  // the three-asterisk branch is tried first and fails on its own, so it never
+  // reaches the guard that the other two do.
   it('leaves an empty pair alone rather than reading it as nothing', () => {
+    expect(runs('~~~~')).toEqual([['~~~~', '']])
+    expect(runs('``')).toEqual([['``', '']])
     expect(runs('****')).toEqual([['****', '']])
   })
 
@@ -90,6 +97,17 @@ describe('line structure', () => {
     expect(kinds(layout(text('well - maybe')))).toEqual(['para'])
     expect(runs('well - maybe')).toEqual([['well - maybe', '']])
     expect(kinds(layout(text('#### Deep')))).toEqual(['para'])
+  })
+
+  // The line above cannot show this on its own: with one piece on the line, the
+  // first piece and every piece are the same thing. A slot ahead of the hyphen
+  // is what tells "the start of the line" from "the start of a run of text".
+  it('does not read a marker that only starts a later piece of the line', () => {
+    const lines = layout(parseSegments("{['red', 'blue']} - or another"))
+    expect(kinds(lines)).toEqual(['para'])
+    expect(lines[0].pieces.filter(p => p.kind === 'text')).toEqual([
+      { kind: 'text', text: ' - or another' },
+    ])
   })
 })
 
