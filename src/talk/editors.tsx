@@ -1,10 +1,17 @@
 
 // The two dialogs that change what is in the grid: one for a phrase, one for a
-// category. Typed rather than dwelled — they are set-up work, usually done by
-// whoever configures the device.
+// category. Mostly typed rather than dwelled — they are set-up work, usually
+// done by whoever configures the device.
+//
+// The one part that is not is the caret. Somebody driving this by gaze already
+// has a keyboard of their own; what no keyboard supplies is a way to say
+// *where* in the phrase to type, because that has always taken a click. So the
+// phrase text answers to a dwell of its own, which puts the caret under the
+// pointer — see `ui/caret`.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
+import { caretIndexAt, movedAway } from '../ui/caret'
 import { useLinkInput } from '../ui/link-input'
 import { useSettings } from '../ui/settings'
 import { compose, parseSegments, type Phrase } from '../core/phrases'
@@ -62,8 +69,41 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
 }) {
   // The source, not the display text. `text` has had its slots resolved into
   // labels — "red/blue" — and saving that back flattens the slot for good.
+  const { settings } = useSettings()
   const [text, setText] = useState(phrase?.source ?? initialText ?? '')
   const textRef = useRef<HTMLTextAreaElement>(null)
+
+  // Where the pointer was when the dwell fired. A ref rather than state: it
+  // changes with every movement and nothing on screen depends on it until the
+  // moment the caret is placed.
+  const aim = useRef({ x: 0, y: 0 })
+
+  const placeCaret = useCallback(() => {
+    const el = textRef.current
+    if (!el) return
+    const index = caretIndexAt(el, aim.current.x, aim.current.y)
+    el.focus()
+    // Focus alone is worth having even where the browser will not say which
+    // character was meant — it is the difference between a box that can be
+    // typed into and one that cannot.
+    if (index !== null) el.setSelectionRange(index, index)
+  }, [])
+
+  const caret = useDwellControl(settings.actionDwellMs, placeCaret)
+
+  const trackAim = useCallback(
+    (e: React.PointerEvent<HTMLTextAreaElement>) => {
+      const moved = movedAway(aim.current, e.clientX, e.clientY)
+      aim.current = { x: e.clientX, y: e.clientY }
+      // Aiming somewhere new starts the wait again, so the caret lands where
+      // the pointer settled rather than where it first arrived.
+      if (moved) {
+        caret.cancel()
+        caret.start()
+      }
+    },
+    [caret],
+  )
   // A link pasted or dropped into the phrase becomes `[label](url)`, so the
   // button reads as the page's name rather than as forty characters of address.
   const linkInput = useLinkInput(
@@ -132,7 +172,17 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
 
         <textarea
           ref={textRef}
-          className="edit-modal-text"
+          className={cx('edit-modal-text', caret.active && 'dwelling')}
+          style={dwellVar(settings.actionDwellMs)}
+          // Only the pointer handlers. Spreading the whole set would put the
+          // hook's Enter/Space handling on a box people type into, and the
+          // first space typed would be swallowed.
+          onPointerEnter={e => {
+            aim.current = { x: e.clientX, y: e.clientY }
+            caret.props.onPointerEnter?.()
+          }}
+          onPointerMove={trackAim}
+          onPointerLeave={caret.props.onPointerLeave}
           value={text}
           onChange={e => setText(e.target.value)}
           onPaste={linkInput.onPaste}

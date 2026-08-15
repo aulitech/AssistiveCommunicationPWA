@@ -1632,6 +1632,17 @@ body {
 
 .edit-modal-text:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
 
+/* The phrase text answers to a dwell of its own, which puts the caret under the
+   pointer. A textarea cannot hold a progress bar as a child, so the fill is
+   painted as a background layer — the same treatment, and the same keyframes,
+   as the message box in the topbar. */
+.edit-modal-text.dwelling {
+  background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  animation: composerDwellFill var(--dwell-duration, 800ms) linear forwards;
+}
+
 .edit-modal-row {
   display: flex;
   align-items: center;

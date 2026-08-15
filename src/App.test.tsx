@@ -433,6 +433,93 @@ describe('editing a phrase that has choices behind it', () => {
   })
 })
 
+// A text box was the one control dwell alone could not drive: hovering could
+// focus it, but the caret only moved when something was clicked — and a click is
+// the input a gaze user does not have. Typing comes from whatever keyboard they
+// already use; saying *where* to type is the part no keyboard supplies.
+describe('placing the caret in a phrase by dwell', () => {
+  const enterEditMode = () => click(toggles()[1])
+  const field = () => $<HTMLTextAreaElement>('.edit-modal-text')!
+  /** jsdom implements neither caret API, so the browser's answer is stubbed. */
+  const answers = (offset: number) =>
+    Object.assign(document, { caretPositionFromPoint: () => ({ offsetNode: field(), offset }) })
+  const aimAt = (x: number, y: number) => {
+    fireEvent.pointerEnter(field(), { clientX: x, clientY: y })
+    fireEvent.pointerMove(field(), { clientX: x, clientY: y })
+    act(() => void vi.advanceTimersByTime(900))
+    settle()
+  }
+
+  afterEach(() => {
+    delete (document as unknown as Record<string, unknown>).caretPositionFromPoint
+  })
+
+  const openEditor = () => {
+    renderApp()
+    enterEditMode()
+    click(plainCell())
+  }
+
+  it('puts the caret where the pointer settled', () => {
+    openEditor()
+    answers(5)
+    aimAt(200, 100)
+
+    expect(field().selectionStart).toBe(5)
+    expect(field().selectionEnd).toBe(5)
+    expect(document.activeElement).toBe(field())
+  })
+
+  // A dwell fires once on arrival, so without this the caret could be placed
+  // only by leaving the box and coming back.
+  it('follows the pointer to somewhere else in the phrase', () => {
+    openEditor()
+    answers(5)
+    aimAt(200, 100)
+
+    answers(2)
+    aimAt(260, 100)
+    expect(field().selectionStart).toBe(2)
+  })
+
+  // Gaze never holds perfectly still. Re-arming on every pixel of drift would
+  // mean the dwell never completed at all.
+  it('is not restarted by the wobble of holding still', () => {
+    openEditor()
+    answers(7)
+    fireEvent.pointerEnter(field(), { clientX: 200, clientY: 100 })
+    // Most of the wait, a small wobble, then the rest of it.
+    act(() => void vi.advanceTimersByTime(600))
+    fireEvent.pointerMove(field(), { clientX: 204, clientY: 97 })
+    act(() => void vi.advanceTimersByTime(300))
+    settle()
+
+    expect(field().selectionStart).toBe(7)
+  })
+
+  // Focus is worth having even where the browser will not say which character
+  // was meant: it is the difference between a box that can be typed into at all
+  // and one that cannot.
+  it('still focuses the box where the browser will not say', () => {
+    openEditor()
+    aimAt(200, 100)
+
+    expect(document.activeElement).toBe(field())
+    expect($('.edit-modal')).not.toBeNull()
+  })
+
+  // The hook's own key handling cancels Space so it cannot scroll the grid.
+  // Spread onto a box people type into, the first space typed would vanish.
+  it('does not swallow a space typed into the phrase', () => {
+    openEditor()
+    fireEvent.keyDown(field(), { key: ' ' })
+    fireEvent.change(field(), { target: { value: 'two words' } })
+    settle()
+
+    expect(field().value).toBe('two words')
+  })
+})
+
 describe('edit mode', () => {
   // Regression guard: visiblePhrases omitted mainPhrases from its dependency
   // array, so the grid kept showing the old text until the filter moved.
