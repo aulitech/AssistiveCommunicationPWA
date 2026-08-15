@@ -20,7 +20,13 @@
 //    somebody writes has markdown and, in practice, no slots.
 //  * **A heading is a style, not a heading element.** The cell is a button. A
 //    real `<h2>` inside one is a lie to a screen reader, which is reading the
-//    plain text off the button's own label anyway.
+//    plain text off the button's own label anyway. A link is drawn the same
+//    way and for the same reason — and because a phrase's job is to be spoken,
+//    not to take somebody away from the board they are speaking with.
+//
+// A link's URL rides in `Style` while its label is the run's own text, so
+// everything that reads a phrase's words gets the label and never the URL
+// without having to know that links exist.
 
 import { type Segment, type Slot } from './phrases'
 
@@ -29,6 +35,12 @@ export interface Style {
   em?: boolean
   strike?: boolean
   code?: boolean
+  /**
+   * Where this run points, when it is a link. The label is the run's own text,
+   * so everything that reads a phrase's words — speech, search, the button's
+   * label — gets the label and never the URL, without knowing links exist.
+   */
+  link?: string
 }
 
 export type Piece =
@@ -69,7 +81,7 @@ const betweenWords = (text: string, at: number) => at < 0 || at >= text.length |
  * thousand phrases with none of this in them, and search runs over all of them
  * on every keystroke — so the common answer has to be cheap.
  */
-const MARKERS = /[*~`_\n]|^[ \t]*(?:#{1,3}|-) /m
+const MARKERS = /[*~`_[\n]|^[ \t]*(?:#{1,3}|-) /m
 
 export const hasMarkdown = (raw: string) => MARKERS.test(raw)
 
@@ -94,6 +106,23 @@ function findClose(text: string, from: number, marker: string): number {
 const applied = (style: Style, wanted: Style) =>
   Object.keys(wanted).every(key => style[key as keyof Style])
 
+/**
+ * A `[label](url)` starting at `at`, or null. Both halves must be there and
+ * neither may be empty — `[see this]` on its own is a pair of brackets somebody
+ * typed, the same way a lone `*` is an asterisk.
+ *
+ * The first `]` closes the label and the first `)` closes the URL, so neither
+ * may contain one. `linkMarkdown` is what puts them in that shape; a URL with a
+ * bracket in it arrives percent-encoded.
+ */
+function readLink(text: string, at: number): { label: string; url: string; end: number } | null {
+  const close = text.indexOf(']', at + 1)
+  if (close === -1 || close === at + 1 || text[close + 1] !== '(') return null
+  const end = text.indexOf(')', close + 2)
+  if (end === -1 || end === close + 2) return null
+  return { label: text.slice(at + 1, close), url: text.slice(close + 2, end), end: end + 1 }
+}
+
 /** The styled runs inside one line of text. */
 function parseInline(text: string, style: Style = {}, out: Piece[] = []): Piece[] {
   let plain = ''
@@ -112,6 +141,18 @@ function parseInline(text: string, style: Style = {}, out: Piece[] = []): Piece[
         flush()
         out.push({ kind: 'text', text: text.slice(i + 1, end), ...style, code: true })
         i = end + 1
+        continue
+      }
+    }
+
+    // A link before the delimiters, so `[**bold**](url)` reads as a link with
+    // bold inside it rather than the other way round.
+    if (text[i] === '[' && !style.link) {
+      const link = readLink(text, i)
+      if (link) {
+        flush()
+        parseInline(link.label, { ...style, link: link.url }, out)
+        i = link.end
         continue
       }
     }

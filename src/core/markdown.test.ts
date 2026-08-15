@@ -91,6 +91,53 @@ describe('emphasis', () => {
   })
 })
 
+describe('links', () => {
+  /** The runs of a one-line phrase as [text, styles, url] triples. */
+  const linked = (source: string) =>
+    layout(text(source))[0].pieces.map(p =>
+      p.kind === 'slot' ? ['{slot}', '', ''] : [p.text, [p.strong && 'strong', p.em && 'em'].filter(Boolean).join('+'), p.link ?? ''],
+    )
+
+  it('reads a label and a URL', () => {
+    expect(linked('See [the menu](https://cafe.example)')).toEqual([
+      ['See ', '', ''],
+      ['the menu', '', 'https://cafe.example'],
+    ])
+  })
+
+  it('styles what is inside the label', () => {
+    expect(linked('[**the menu**](https://cafe.example)')).toEqual([
+      ['the menu', 'strong', 'https://cafe.example'],
+    ])
+  })
+
+  // Same rule as every other marker: nothing is markup until it is complete, or
+  // a phrase loses characters as it is being written.
+  it('leaves an incomplete one as the characters somebody typed', () => {
+    expect(linked('[see this]')).toEqual([['[see this]', '', '']])
+    expect(linked('[see this](')).toEqual([['[see this](', '', '']])
+    expect(linked('a [b] (c)')).toEqual([['a [b] (c)', '', '']])
+  })
+
+  it('refuses a link with no label or no URL to speak of', () => {
+    expect(linked('[](https://cafe.example)')).toEqual([['[](https://cafe.example)', '', '']])
+    expect(linked('[the menu]()')).toEqual([['[the menu]()', '', '']])
+  })
+
+  // The whole reason the URL rides in the style rather than in the text: a URL
+  // read aloud is forty seconds of punctuation, and a search for "menu" has to
+  // find this phrase without matching every https:// on the board.
+  it('says the label and never the URL', () => {
+    expect(stripMarkdown('See [the menu](https://cafe.example) first')).toBe('See the menu first')
+  })
+
+  it('draws a link on a bullet like anything else', () => {
+    const [line] = layout(text('- [the menu](https://cafe.example)'))
+    expect(line.kind).toBe('item')
+    expect(line.pieces).toEqual([{ kind: 'text', text: 'the menu', link: 'https://cafe.example' }])
+  })
+})
+
 describe('line structure', () => {
   it('reads headings and bullets', () => {
     expect(kinds(layout(text('# Drinks\n- water\n- juice')))).toEqual(['h1', 'item', 'item'])
@@ -179,6 +226,8 @@ describe('taking the markup back off', () => {
       '_really_ tired',
       'snake_case_name',
       '_a_b_',
+      'See [the menu](https://cafe.example)',
+      '[see this]',
     ]) {
       const drawn = layout(text(source))
         .map(line => line.pieces.map(p => (p.kind === 'text' ? p.text : '')).join(''))

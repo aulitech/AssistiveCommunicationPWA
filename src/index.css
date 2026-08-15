@@ -2567,3 +2567,13 @@ body {
   background: currentColor;
   opacity: 0.55;
 }
+
+/* A link inside a phrase. Drawn as a link, not built as one — the cell around
+   it is a dwell button whose job is to speak, and a real anchor inside would
+   give a gaze user two targets in one place. */
+.md-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}

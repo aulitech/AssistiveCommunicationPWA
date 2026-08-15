@@ -6,6 +6,7 @@
 import { useCallback, useState } from 'react'
 import { useSettings } from '../ui/settings'
 import { useDwellControl } from '../ui/dwell'
+import { useLinkInput } from '../ui/link-input'
 import { ClearIcon, CopyIcon, MenuIcon, SpeakIcon, UndoIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import type { Composer } from './use-composer'
@@ -106,6 +107,26 @@ export function Topbar({ composer, editMode, menuOpen, onToggleMenu, resting, on
     disabled: !editMode && focused,
   })
 
+  // A link pasted or dropped here becomes `[label](url)`, so the message reads
+  // as the page's name and still carries the address when it is copied out.
+  const linkInput = useLinkInput(
+    textareaRef,
+    useCallback(
+      (next: string, caret: number) => {
+        setText(next)
+        const el = textareaRef.current
+        if (!el) return
+        // After the value React is about to render, or the caret is placed in
+        // the old one and jumps to the end.
+        setTimeout(() => {
+          el.selectionStart = el.selectionEnd = caret
+          el.focus()
+        }, 0)
+      },
+      [setText, textareaRef],
+    ),
+  )
+
   return (
     <header className="topbar">
       {/* Straddling the top edge of the message box — the middle of the
@@ -145,6 +166,9 @@ export function Topbar({ composer, editMode, menuOpen, onToggleMenu, resting, on
         onSelect={trackCursor}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
+        onPaste={linkInput.onPaste}
+        onDrop={linkInput.onDrop}
+        onDragOver={linkInput.onDragOver}
         onPointerEnter={dwell.props.onPointerEnter}
         onPointerLeave={dwell.props.onPointerLeave}
         onClick={e => {
