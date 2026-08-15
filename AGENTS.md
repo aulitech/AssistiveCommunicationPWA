@@ -167,6 +167,14 @@ Two consequences worth knowing:
 
 Slot options are baked in at parse time, so `buildPhrases(profile)` re-parses the table when the profile changes. Phrase ids hash the *source* text rather than the rendered text, so saved edits survive a profile change.
 
+**A phrase carries both what it reads as and what it was written as.** `text` is the display form, with every slot resolved into a label; `source` is the raw `I want the {['red', 'blue']} one`. The second cannot be rebuilt from the first — "red/blue" is a label, and `{pronouns}` has become a list of words that would no longer follow the alias table or the user's own details.
+
+Which one to use is not a matter of taste:
+
+- **The editor opens on `source`.** It opened on `text` for most of this app's life, so opening a fill-in-the-blank phrase showed "I want the red/blue one" and saving stored exactly that — flattening the slot for good, silently, on a phrase somebody had only opened to look at. `src/App.test.tsx` guards both halves: what the editor shows, and that a phrase opened and saved unchanged still offers its choices.
+- **Anything that speaks, fetches or previews composes first.** The editor hands back `source`, so the voice preview and `warmVoice` both run it through `compose(parseSegments(…))`. Sent raw, ElevenLabs reads the brackets aloud and stores the clip under text nothing ever asks for again — and the phrase drops back to the device voice, having been paid for twice.
+- **Everything else — speech, search, the grid, a phrase's accessible label — uses `text`.**
+
 ## Markdown in a phrase
 
 A phrase may carry markdown: `**bold**`, `*italic*`, `~~struck~~`, `` `code` ``, `# headings` and `- bullets`. It is a way of making a button readable at a glance and nothing more. `core/markdown.ts` holds all of it.
