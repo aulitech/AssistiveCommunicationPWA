@@ -60,7 +60,9 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
   onDelete: () => void
   onClose: () => void
 }) {
-  const [text, setText] = useState(phrase?.text ?? initialText ?? '')
+  // The source, not the display text. `text` has had its slots resolved into
+  // labels — "red/blue" — and saving that back flattens the slot for good.
+  const [text, setText] = useState(phrase?.source ?? initialText ?? '')
   const textRef = useRef<HTMLTextAreaElement>(null)
   // A link pasted or dropped into the phrase becomes `[label](url)`, so the
   // button reads as the page's name rather than as forty characters of address.

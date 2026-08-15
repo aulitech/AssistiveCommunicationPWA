@@ -9,7 +9,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { cancelAllDwells, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
-import { composeWithBlank, hasChoices, type Phrase } from '../core/phrases'
+import { compose, composeWithBlank, hasChoices, parseSegments, type Phrase } from '../core/phrases'
 import { soleLink } from '../core/markdown'
 import { openLink } from '../core/links'
 import { search } from '../core/search'
@@ -132,9 +132,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       if (url) {
         cancelAllDwells()
         // A browser only allows this off the back of a press, and a dwell has
-        // none in it, so being refused is a real outcome rather than a rare
-        // one. Saying nothing would leave the choice looking simply broken.
-        if (!openLink(url)) flashToast('Your browser would not open that link')
+        // none in it — so for the users this app is for, being refused is the
+        // ordinary outcome rather than a rare one. Allowing pop-ups for the
+        // site is the one thing that actually fixes it, so the message names
+        // that rather than merely reporting the failure.
+        if (!openLink(url)) flashToast('Blocked. Allow pop-ups for Peri to open links by dwelling')
         return
       }
       // Fill-in-the-blank phrases ask for their wording first.
@@ -178,7 +180,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // in that voice without waiting — including on the emergency bar, which
       // never waits.
       if (phrase) board.setVoice(phrase.id, voice)
-      if (voice) void warmVoice(text, voice)
+      // Warmed against what the phrase reads as, not what it is written as: the
+      // editor now hands back the source, and nobody wants a clip of somebody
+      // reading "open curly bracket, quote, red, quote" aloud.
+      if (voice) void warmVoice(compose(parseSegments(text)), voice)
       // Where the next one starts from.
       setRecent(current => {
         const next = { category: isEmergency ? current.category : category, voice }

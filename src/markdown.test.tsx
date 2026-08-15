@@ -379,7 +379,7 @@ describe('choosing a phrase that is a link', () => {
     showMarkedAnd([LINK])
     click(cells()[0])
 
-    expect($('.toast')?.textContent).toMatch(/would not open/i)
+    expect($('.toast')?.textContent).toMatch(/allow pop-ups/i)
     expect(spoken).toEqual([])
   })
 })

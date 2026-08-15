@@ -386,6 +386,53 @@ describe('emergency bar', () => {
   })
 })
 
+// Regression guard, and the destructive kind: the editor used to open on
+// `phrase.text`, which has had its slots resolved into labels. Opening a
+// fill-in-the-blank phrase showed "I want the red/blue one" and saving it stored
+// exactly that — flattening the slot, with no way back and nothing said about it.
+describe('editing a phrase that has choices behind it', () => {
+  const enterEditMode = () => click(toggles()[1])
+  const save = () => click($$('.edit-action-btn').find(b => b.textContent?.includes('Save')))
+
+  it('opens on what the phrase was written as, brackets and all', () => {
+    renderApp()
+    enterEditMode()
+    const cell = slotCell()
+    const shown = cell.textContent!
+    click(cell)
+
+    const source = $<HTMLTextAreaElement>('.edit-modal-text')!.value
+    expect(source).toMatch(/\{.*\}/)
+    expect(source).not.toBe(shown)
+  })
+
+  // The property that actually matters. Opening a phrase to look at it and
+  // saving it unchanged must leave it exactly as capable as it was.
+  //
+  // Pinned to the one phrase that was edited, by the text it shows: flattening
+  // leaves that text identical — it is what the editor was showing — so asking
+  // `slotCell()` again just finds the next phrase that still has its slot, and
+  // answers about the wrong one.
+  it('still offers the choices after being opened and saved unchanged', () => {
+    renderApp()
+    enterEditMode()
+    const shown = slotCell().textContent!
+    click(slotCell())
+    save()
+
+    const after = cells().find(c => c.textContent === shown)!
+    expect(after, 'the edited phrase is no longer on the board').toBeDefined()
+    expect(
+      after.querySelector('.phrase-slot'),
+      'the slot was flattened by opening the editor and saving',
+    ).not.toBeNull()
+
+    click(toggles()[1]) // leave edit mode
+    click(cells().find(c => c.textContent === shown))
+    expect($('.slot-picker')).not.toBeNull()
+  })
+})
+
 describe('edit mode', () => {
   // Regression guard: visiblePhrases omitted mainPhrases from its dependency
   // array, so the grid kept showing the old text until the filter moved.
