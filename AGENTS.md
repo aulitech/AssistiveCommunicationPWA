@@ -31,11 +31,13 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `core/virtual.ts` - How much of the grid to render, and when to render more
 - `core/search.ts` - Narrowing the grid to what is being typed. Ranks a whole-phrase prefix first, then a word prefix, then the letters used as initials — which is what lets "ttyl" find "Talk to you later". Matched against the words rather than the markup, so `**Help** me` is found by typing "help"
 - `core/markdown.ts` - The markup a phrase may carry, and taking it back off. `layout` for drawing, `stripMarkdown` for everything a phrase is *not* drawn into — spoken, searched, announced
+- `core/links.ts` - Reading a URL and a label out of a paste or a drop, and writing them as `[label](url)`. A clipboard and a drag carry the same shape, so one reader serves both
 - `core/prose.ts` - The blocks long-form text is written in
 
 **ui/** — the shared vocabulary
 
 - `ui/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
+- `ui/link-input.ts` - `useLinkInput`, the paste and drop handlers a text box needs to turn a link into markdown. Used by the message box and by the phrase editor
 - `ui/reorder.ts` - `useReorder`, the pick-up-and-put-down primitive behind both bars that can be arranged. A pointer-drag needs a button held down while the pointer moves, which is the one gesture a dwell user cannot make — so anything arrangeable can also be *lifted*: one dwell picks it up, a second on another drops it there. The category tabs and the emergency bar arrange by identical rules, so the rules are written once here
 - `ui/controls.tsx` - The dwell controls more than one screen uses: `DwellButton`, `NavItem`, `SettingRow`, `SettingSpinner`, `ScrollRow` (a row that scrolls sideways with its own dwell arrows — the filter chips outgrow the screen), `PickerModal` and `PickerTile` (a full-screen grid of choices, portalled to the body — a panel animated with `transform` makes `position: fixed` resolve against the panel rather than the viewport), `ScrollPane` (four dwell controls — jump to top, nudge up, nudge down, jump to bottom, each shown only when there is somewhere to go), `PanelButton`, `ProseSections`, `DwellCursor`
 - `ui/settings.ts`, `ui/edit-mode.ts` - The two React contexts. Separate from the panels that edit them, or `controls.tsx` would have to import the settings screen, which is built out of `controls.tsx`
@@ -111,6 +113,7 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 - `core/backup.test.ts` - The backup format: round trips, exporting a few categories, merge vs replace, and what a damaged file is allowed to do
 - `core/store.test.ts` - The arithmetic behind arranging things by hand: where a lifted thing lands, and what happens to something the order has never heard of
 - `core/markdown.test.ts` - What the markup means, what stays literal, and the one invariant holding it together: `stripMarkdown` reads exactly what `layout` draws
+- `core/links.test.ts` - What a paste or a drop is carrying: which URL, which label, and the schemes that are refused
 - `voice/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
 - `voice/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
 - `voice/groups.test.ts` - The voice filters, and that the two kinds never answer to each other's groups
@@ -175,7 +178,17 @@ A phrase may carry markdown: `**bold**`, `*italic*`, `~~struck~~`, `` `code` ``,
 - **Underscores emphasise between words, never inside one.** `_like this_` is italic and `snake_case_name` is a name — the rule every markdown supporting both delimiters settles on. Asterisks carry no such restriction, because nobody writes `snake*case*name` by accident. It is **two** guards, opening and closing, and a phrase with underscores only inside words exercises just the closing one: with nothing able to close, nothing opens either way. `snake_case here_ and` is what shows the opening guard doing anything.
 - **Nothing is markup until it closes.** A lone `*` is a character somebody typed; "2 * 3" is arithmetic. A phrase must not lose characters while it is being written.
 - **Markup never crosses a slot.** Slots are parsed out before any of this runs. The shipped table has slots and no markdown, and a phrase somebody writes has the reverse, so the two rarely meet — but the limit is real and tested rather than pretended away.
-- **A heading is a style, not an `<h2>`.** These sit inside a `role="button"`; real document structure there would be a lie to a screen reader, which reads the plain text off the button's own label.
+- **A heading is a style, not an `<h2>`, and a link is a style, not an `<a>`.** These sit inside a `role="button"`; real document structure there would be a lie to a screen reader, which reads the plain text off the button's own label. A real anchor would also give a gaze user two targets in one place, and the one they did not mean takes the board away mid-sentence.
+
+### Links
+
+`[label](url)`, added by **pasting or dropping a link** into the message box or the phrase editor. A URL is the worst thing a board can hold as text — long, wrapping a whole row, and forty seconds of punctuation read aloud — so what goes on the button is its name.
+
+- **The URL rides in `Style`; the label is the run's own text.** So everything that reads a phrase's words — speech, search, the button's label — gets the label and never the URL, without having to know links exist.
+- **The label is the best thing on offer:** the text of a dragged link, then the page title a dragged tab carries (`text/x-moz-url`), then the site's own name with the `www.` off. It is flattened to one line, because a phrase reads newlines as new lines now, and it is deliberately *not* shortened — it sits in a box the user can edit, and quietly cutting somebody's words down is worse than showing all of them.
+- **Only `http`, `https` and `mailto`.** Nothing renders a real anchor today, but this text is copied to a clipboard and pasted into things that will, and a board is a file people hand to each other. `javascript:` above all.
+- **A paste goes to the caret; a drop goes to the end.** A drop comes from outside the box and carries no caret of its own, and browsers disagree about where one would be — appending is at least the same answer every time. Telling the two apart in a test needs a caret that is *not* at the end, since typing leaves it there and both answers then look alike.
+- **The parser has no escapes.** The first `]` closes the label and the first `)` closes the URL, so `linkMarkdown` strips brackets out of the label and percent-encodes a closing one in the URL. Only the closing bracket: an opening one ends nothing.
 - **`tidy` and `compose` collapse spaces but not newlines.** They used to collapse every run of whitespace, which made a multi-line phrase impossible. Nothing in the shipped table has ever held a newline, so this narrowed what is collapsed rather than changing any phrase Peri comes with.
 
 ## Backups
