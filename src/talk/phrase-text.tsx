@@ -27,6 +27,11 @@ function PieceEl({ piece }: { piece: Piece }) {
     piece.em && 'md-em',
     piece.strike && 'md-strike',
     piece.code && 'md-code',
+    // Drawn as a link, not built as one. The cell around it is a dwell button
+    // whose job is to speak; a real anchor inside it would give a gaze user two
+    // targets in one place, and the one they did not mean takes the board away
+    // mid-sentence.
+    piece.link && 'md-link',
   )
   // No wrapper for a piece with nothing to say about itself, so a phrase without
   // markdown draws exactly what it drew before any of this existed.

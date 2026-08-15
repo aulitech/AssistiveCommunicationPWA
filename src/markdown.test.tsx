@@ -193,6 +193,86 @@ describe('the emergency bar', () => {
   })
 })
 
+// A URL is the worst thing an AAC board can hold as text: long, wrapping a whole
+// row, and forty seconds of punctuation read aloud. Dropping or pasting one puts
+// its name on the button and keeps the address behind it.
+describe('pasting and dropping a link', () => {
+  const MENU = 'https://cafe.example/menu'
+  const transfer = (types: Record<string, string>) => ({
+    getData: (type: string) => types[type] ?? '',
+    types: Object.keys(types),
+  })
+  const box = () => $<HTMLTextAreaElement>('.text-display')!
+  const paste = (el: Element, types: Record<string, string>) => {
+    fireEvent.paste(el, { clipboardData: transfer(types) })
+    settle()
+  }
+  const drop = (el: Element, types: Record<string, string>) => {
+    fireEvent.drop(el, { dataTransfer: transfer(types) })
+    settle()
+  }
+
+  it('turns a pasted URL into a link named after the site', () => {
+    renderApp([])
+    paste(box(), { 'text/plain': MENU })
+    expect(box().value).toBe('[cafe.example](https://cafe.example/menu)')
+  })
+
+  it('uses the name of a dragged link', () => {
+    renderApp([])
+    drop(box(), {
+      'text/uri-list': MENU,
+      'text/html': `<a href="${MENU}">Today's menu</a>`,
+    })
+    expect(box().value).toBe(`[Today's menu](${MENU})`)
+  })
+
+  it('leaves an ordinary paste to the browser', () => {
+    renderApp([])
+    paste(box(), { 'text/plain': 'I would like a cup of tea' })
+    // Nothing was inserted by us; the browser's own paste is what fills it in,
+    // and jsdom does not do that.
+    expect(box().value).toBe('')
+  })
+
+  it('adds it after what is already there rather than on top of it', () => {
+    renderApp([])
+    fireEvent.change($('.text-display')!, { target: { value: 'Have a look at' } })
+    settle()
+    drop(box(), { 'text/uri-list': MENU })
+    expect(box().value).toBe('Have a look at [cafe.example](https://cafe.example/menu)')
+  })
+
+  // The point of the label. What is said is the name, and the address stays in
+  // the message for whoever it is being sent to.
+  it('speaks the label and copies the address', () => {
+    renderApp([])
+    paste(box(), { 'text/plain': MENU })
+    click(speakBtn())
+    expect(spoken).toEqual(['cafe.example'])
+
+    click(copyBtn())
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      '[cafe.example](https://cafe.example/menu)',
+    )
+  })
+
+  it('takes one in the phrase editor too, where a phrase is written', () => {
+    renderApp()
+    click($$('.toggle-btn')[1]) // edit mode
+    click(marked())
+    const field = $<HTMLTextAreaElement>('.edit-modal-text')!
+    // A paste goes to the caret. Put it where somebody who had just typed
+    // would leave it — jsdom autofocuses without placing one, so the default
+    // here is the very start of the field rather than the end.
+    field.selectionStart = field.selectionEnd = field.value.length
+    paste(field, { 'text/plain': MENU })
+    expect($<HTMLTextAreaElement>('.edit-modal-text')!.value).toBe(
+      '**Help** me up [cafe.example](https://cafe.example/menu)',
+    )
+  })
+})
+
 describe('editing a marked-up phrase', () => {
   // The editor is where markdown gets written, so it has to show the source
   // rather than the rendering — there is nowhere else to reach the markers.

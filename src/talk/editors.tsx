@@ -3,8 +3,9 @@
 // category. Typed rather than dwelled — they are set-up work, usually done by
 // whoever configures the device.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
+import { useLinkInput } from '../ui/link-input'
 import { useSettings } from '../ui/settings'
 import { type Phrase } from '../core/phrases'
 import { VoicePicker } from '../voice/picker'
@@ -60,6 +61,23 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
   onClose: () => void
 }) {
   const [text, setText] = useState(phrase?.text ?? initialText ?? '')
+  const textRef = useRef<HTMLTextAreaElement>(null)
+  // A link pasted or dropped into the phrase becomes `[label](url)`, so the
+  // button reads as the page's name rather than as forty characters of address.
+  const linkInput = useLinkInput(
+    textRef,
+    useCallback((next: string, caret: number) => {
+      setText(next)
+      const el = textRef.current
+      if (!el) return
+      // After the value React is about to render, or the caret lands in the old
+      // one and jumps to the end.
+      setTimeout(() => {
+        el.selectionStart = el.selectionEnd = caret
+        el.focus()
+      }, 0)
+    }, []),
+  )
   // A phrase whose category is not one of the real ones — a sent message — has
   // to land somewhere the user actually keeps things, and the likeliest
   // somewhere is wherever the last one went.
@@ -106,9 +124,13 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
         </div>
 
         <textarea
+          ref={textRef}
           className="edit-modal-text"
           value={text}
           onChange={e => setText(e.target.value)}
+          onPaste={linkInput.onPaste}
+          onDrop={linkInput.onDrop}
+          onDragOver={linkInput.onDragOver}
           placeholder="Phrase text…"
           aria-label="Phrase text"
           autoFocus
