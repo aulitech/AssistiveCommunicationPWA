@@ -248,6 +248,32 @@ export function layout(segments: Segment[]): Line[] {
 }
 
 /**
+ * The URL of a phrase that is nothing but a link, or null.
+ *
+ * Choosing one of these opens it instead of speaking it, so the line has to be
+ * drawn somewhere — and it is drawn here, at "the link is the whole phrase".
+ * `[Today's menu](…)` is a button for going somewhere and reads as nothing said
+ * aloud; "Have a look at [the menu](…) later" is a sentence somebody built, and
+ * a sentence must never lose its voice to a browser tab.
+ *
+ * Styling inside the label is fine — `[**Menu**](…)` is several runs of the
+ * same link — but a slot, a second line or a word outside the link is not.
+ */
+export function soleLink(segments: Segment[]): string | null {
+  const lines = layout(segments)
+  if (lines.length !== 1) return null
+
+  const urls = new Set<string>()
+  for (const piece of lines[0].pieces) {
+    if (piece.kind === 'slot') return null
+    if (piece.link) urls.add(piece.link)
+    // Whitespace either side of the link is not a word.
+    else if (piece.text.trim() !== '') return null
+  }
+  return urls.size === 1 ? [...urls][0] : null
+}
+
+/**
  * The words, with the markup taken out — what gets spoken, what a search
  * matches, and what a screen reader is told. Built from the same parse the
  * renderer uses, so it says exactly what the cell shows.
