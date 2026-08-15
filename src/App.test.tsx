@@ -1928,6 +1928,33 @@ describe('giving a phrase its own voice', () => {
     expect(fetcher, 'it went back to the network for a clip already in hand').not.toHaveBeenCalled()
   })
 
+  // The editor hands back what a phrase was *written* as, brackets and all, so
+  // the warm-up has to compose it first. Fetched raw, the clip is stored under
+  // text nothing ever asks for again — and the phrase quietly falls back to the
+  // device voice, having been paid for twice.
+  it('fetches what a phrase with choices reads as, not its brackets', async () => {
+    linkAccount()
+    const fetcher = vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['a']) }))
+    vi.stubGlobal('fetch', fetcher)
+    renderApp()
+
+    enterEditMode()
+    click(slotCell())
+    await chooseVoice('Rachel')
+    click(action('Save'))
+    await flush()
+
+    // The text field of each request, not the whole body — the JSON wrapper has
+    // braces of its own, and matching those would fail whatever was sent.
+    const said = (fetcher.mock.calls as unknown as [string, { body?: string }?][]).map(
+      call => JSON.parse(String(call[1]?.body ?? '{}')).text as string,
+    )
+    expect(said.length, 'nothing was fetched at all').toBeGreaterThan(0)
+    for (const text of said) {
+      expect(text, 'the placeholder syntax was sent to be read aloud').not.toMatch(/[{}[\]]/)
+    }
+  })
+
   // The safety rule survives the change: a phrase whose audio is not in hand is
   // said by the device now rather than in the right voice in a second.
   it('falls straight back to the device when its audio is not in hand', async () => {
