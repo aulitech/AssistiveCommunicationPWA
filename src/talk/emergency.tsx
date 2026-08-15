@@ -14,9 +14,11 @@ import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
 import { useEdit } from '../ui/edit-mode'
 import { speak } from '../voice/speech'
+import { stripMarkdown } from '../core/markdown'
 import { type Phrase } from '../core/phrases'
 import { PlusIcon, ReorderIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
+import { PhraseText } from './phrase-text'
 
 function EmergencyButton({ phrase, voice, reorder }: {
   phrase: Phrase
@@ -52,6 +54,9 @@ function EmergencyButton({ phrase, voice, reorder }: {
   // Emergency phrases use the same dwell time as any other phrase. A shorter
   // fixed value would fire early for anyone who lengthened their dwell because
   // of tremor — exactly the users most likely to need this bar.
+  // The words, not the markup — see the grid cell for why.
+  const spoken = stripMarkdown(phrase.text)
+
   const { active, props } = useDwellControl(settings.phraseDwellMs, handleActivate, {
     // A dwell landing mid-drag would lift a second button out from under the
     // one already in the pointer's hand.
@@ -76,10 +81,10 @@ function EmergencyButton({ phrase, voice, reorder }: {
       role="button"
       aria-label={
         reorder
-          ? reorderLabel(reorder, phrase.text, 'phrase')
+          ? reorderLabel(reorder, spoken, 'phrase')
           : editMode
-            ? `Edit emergency phrase: ${phrase.text}`
-            : phrase.text
+            ? `Edit emergency phrase: ${spoken}`
+            : spoken
       }
       draggable={reorder ? true : undefined}
       onDragStart={reorder?.onDragStart}
@@ -95,7 +100,7 @@ function EmergencyButton({ phrase, voice, reorder }: {
       })}
       {...props}
     >
-      <span className="emergency-label">{phrase.text}</span>
+      <span className="emergency-label"><PhraseText segments={phrase.segments} /></span>
       <div className="emergency-dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )

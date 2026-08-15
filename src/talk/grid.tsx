@@ -8,10 +8,12 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
 import { useEdit } from '../ui/edit-mode'
+import { stripMarkdown } from '../core/markdown'
 import { hasChoices, type Phrase } from '../core/phrases'
 import { needsMore, windowSize } from '../core/virtual'
 import { AutoSpeakIcon, EditIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
+import { PhraseText } from './phrase-text'
 
 const PhraseCell = memo(function PhraseCell({
   phrase,
@@ -36,25 +38,20 @@ const PhraseCell = memo(function PhraseCell({
 
   const { active, props } = useDwellControl(settings.phraseDwellMs, handleActivate)
   const fillable = hasChoices(phrase.segments)
+  // What the cell says, not how it is marked up: a screen reader announcing
+  // "asterisk asterisk help" is the same failure as the app speaking it.
+  const spoken = stripMarkdown(phrase.text)
 
   return (
     <div
       className={cx('phrase-cell', active && 'dwelling', flash && 'selected', editMode && 'edit-mode')}
       style={dwellVar(settings.phraseDwellMs)}
       role="button"
-      aria-label={editMode ? `Edit phrase: ${phrase.text}` : fillable ? `${phrase.text} — choose wording` : phrase.text}
+      aria-label={editMode ? `Edit phrase: ${spoken}` : fillable ? `${spoken} — choose wording` : spoken}
       {...props}
     >
       <span className="phrase-cell-text">
-        {phrase.segments.map((segment, i) =>
-          segment.kind === 'text' ? (
-            <span key={i}>{segment.text}</span>
-          ) : (
-            <span key={i} className={cx('phrase-slot', segment.options.length === 0 && 'is-blank')}>
-              {segment.label}
-            </span>
-          ),
-        )}
+        <PhraseText segments={phrase.segments} />
       </span>
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>

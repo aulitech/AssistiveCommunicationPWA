@@ -1807,6 +1807,39 @@ describe('giving a phrase its own voice', () => {
     expect(fetcher, 'the emergency bar went to the network').not.toHaveBeenCalled()
   })
 
+  // A phrase carrying markdown is fetched and stored under the words it speaks,
+  // because those are the words that will be asked for when it is spoken. Keyed
+  // by the marked-up text instead, the clip is stored once and never found
+  // again — and the emergency bar, which never waits, quietly drops back to the
+  // device voice for a phrase somebody deliberately gave another.
+  it('stores a marked-up phrase under the words it speaks, not its markup', async () => {
+    localStorage.setItem(
+      'dwellspeak_phrase_store_v2',
+      JSON.stringify({ custom: [{ id: 'custom-md-em', text: '**Stop** now', category: 'Emergency' }] }),
+    )
+    linkAccount()
+    audioReplies()
+    renderApp()
+    const button = () => $$('.emergency-btn').find(b => b.textContent === 'Stop now')
+
+    enterEditMode()
+    click(button())
+    await chooseVoice('Rachel')
+    click(action('Save'))
+    await flush()
+    click(toggles()[1]) // leave edit mode
+
+    // Nothing may be asked for now: it was fetched when the voice was assigned.
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    click(button())
+    await flush()
+
+    expect(played, 'the marked-up phrase did not use its own voice').toHaveLength(1)
+    expect(spoken).toEqual([])
+    expect(fetcher, 'it went back to the network for a clip already in hand').not.toHaveBeenCalled()
+  })
+
   // The safety rule survives the change: a phrase whose audio is not in hand is
   // said by the device now rather than in the right voice in a second.
   it('falls straight back to the device when its audio is not in hand', async () => {
