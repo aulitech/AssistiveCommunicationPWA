@@ -443,8 +443,20 @@ describe('placing the caret in a phrase by dwell', () => {
   /** jsdom implements neither caret API, so the browser's answer is stubbed. */
   const answers = (offset: number) =>
     Object.assign(document, { caretPositionFromPoint: () => ({ offsetNode: field(), offset }) })
+  /** Arriving over the box — the pointer was somewhere else entirely. */
   const aimAt = (x: number, y: number) => {
     fireEvent.pointerEnter(field(), { clientX: x, clientY: y })
+    fireEvent.pointerMove(field(), { clientX: x, clientY: y })
+    act(() => void vi.advanceTimersByTime(900))
+    settle()
+  }
+  /**
+   * Moving to another part of the same box. Deliberately no `pointerEnter`:
+   * a pointer travelling within an element only ever fires `pointermove`, and
+   * re-entering would re-arm the dwell all by itself — which is what made an
+   * earlier version of the test below pass with the re-arming taken out.
+   */
+  const moveTo = (x: number, y: number) => {
     fireEvent.pointerMove(field(), { clientX: x, clientY: y })
     act(() => void vi.advanceTimersByTime(900))
     settle()
@@ -478,7 +490,7 @@ describe('placing the caret in a phrase by dwell', () => {
     aimAt(200, 100)
 
     answers(2)
-    aimAt(260, 100)
+    moveTo(260, 100)
     expect(field().selectionStart).toBe(2)
   })
 

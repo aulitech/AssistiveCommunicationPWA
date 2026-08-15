@@ -37,6 +37,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 **ui/** — the shared vocabulary
 
 - `ui/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
+- `ui/caret.ts` - `caretIndexAt`, which asks the browser what character sits under the pointer. A text box was the one control dwell alone could not drive: hovering can focus it, but the caret only ever moved on a click
 - `ui/link-input.ts` - `useLinkInput`, the paste and drop handlers a text box needs to turn a link into markdown. Used by the message box and by the phrase editor
 - `ui/reorder.ts` - `useReorder`, the pick-up-and-put-down primitive behind both bars that can be arranged. A pointer-drag needs a button held down while the pointer moves, which is the one gesture a dwell user cannot make — so anything arrangeable can also be *lifted*: one dwell picks it up, a second on another drops it there. The category tabs and the emergency bar arrange by identical rules, so the rules are written once here
 - `ui/controls.tsx` - The dwell controls more than one screen uses: `DwellButton`, `NavItem`, `SettingRow`, `SettingSpinner`, `ScrollRow` (a row that scrolls sideways with its own dwell arrows — the filter chips outgrow the screen), `PickerModal` and `PickerTile` (a full-screen grid of choices, portalled to the body — a panel animated with `transform` makes `position: fixed` resolve against the panel rather than the viewport), `ScrollPane` (four dwell controls — jump to top, nudge up, nudge down, jump to bottom, each shown only when there is somewhere to go), `PanelButton`, `ProseSections`, `DwellCursor`
@@ -118,6 +119,7 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 - `voice/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
 - `voice/groups.test.ts` - The voice filters, and that the two kinds never answer to each other's groups
 - `ui/dwell.test.tsx` - The dwell hook: timing, tap, keyboard, disabled, and repeat
+- `ui/caret.test.ts` - Which of the two caret APIs is trusted, and when neither is
 - `src/App.test.tsx` - Whole-app flows driven through the real DOM
 - `src/categories.test.tsx` - Adding, renaming, deleting and ordering category tabs
 - `src/emergency.test.tsx` - Arranging the emergency bar, and the two things that must not follow from it: a phrase moved out of reach of the order it was stored under, and a bar left in reorder mode when somebody needs to speak
@@ -174,6 +176,15 @@ Which one to use is not a matter of taste:
 - **The editor opens on `source`.** It opened on `text` for most of this app's life, so opening a fill-in-the-blank phrase showed "I want the red/blue one" and saving stored exactly that — flattening the slot for good, silently, on a phrase somebody had only opened to look at. `src/App.test.tsx` guards both halves: what the editor shows, and that a phrase opened and saved unchanged still offers its choices.
 - **Anything that speaks, fetches or previews composes first.** The editor hands back `source`, so the voice preview and `warmVoice` both run it through `compose(parseSegments(…))`. Sent raw, ElevenLabs reads the brackets aloud and stores the clip under text nothing ever asks for again — and the phrase drops back to the device voice, having been paid for twice.
 - **Everything else — speech, search, the grid, a phrase's accessible label — uses `text`.**
+
+## Placing the caret
+
+A text box is the one control dwell alone could not drive. Hovering can focus it, but the caret only ever moved when something was clicked — and a click is the input a gaze user does not have. Typing itself comes from whatever keyboard they already use; saying *where* to type is the part no keyboard supplies. So **the phrase editor's text answers to a dwell of its own**, which puts the caret under the pointer.
+
+- **Two APIs answer the question and they are not equally trustworthy.** `caretPositionFromPoint` answers about a form control *as* a form control — the field itself and a character index into its value — and is taken whatever the value looks like. `caretRangeFromPoint` reaches inside and answers about the run of text it found there, which is the whole value only while the value is one line; on a phrase written over several it would land the caret nowhere near the pointer, so it is **declined rather than guessed at**. Null means leave the caret alone; putting it at nought would jump to the front of the phrase on every dwell.
+- **Where neither exists the box is still focused.** That is the difference between a box that can be typed into and one that cannot.
+- **Aiming somewhere new re-arms the dwell.** It fires once on arrival, so without that the caret could be placed only by leaving the box and coming back — but gaze never holds perfectly still, so `AIM_TOLERANCE` has to sit above the jitter. **Testing this needs a `pointermove` without a `pointerenter`**: a pointer travelling within an element only fires the first, and firing the second re-arms the dwell by itself and makes the test pass with the re-arming taken out.
+- **Only the pointer handlers go on the textarea.** Spreading the whole set from `useDwellControl` would put its Enter/Space handling on a box people type into, and the first space typed would be swallowed.
 
 ## Markdown in a phrase
 
