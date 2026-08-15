@@ -3,11 +3,11 @@
 // category. Typed rather than dwelled — they are set-up work, usually done by
 // whoever configures the device.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useLinkInput } from '../ui/link-input'
 import { useSettings } from '../ui/settings'
-import { type Phrase } from '../core/phrases'
+import { compose, parseSegments, type Phrase } from '../core/phrases'
 import { VoicePicker } from '../voice/picker'
 import { cx, dwellVar } from '../ui/style'
 
@@ -94,6 +94,11 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
   const canSave = text.trim().length > 0 && (isEmergency || category.trim().length > 0)
 
   const [chosenVoice, setChosenVoice] = useState(voice ?? (phrase ? '' : (recent?.voice ?? '')))
+  // What the phrase reads as. `text` is what it is *written* as, brackets and
+  // all, and the picker speaks a sample of it the moment a voice is chosen —
+  // nobody wants to hear "open curly bracket, quote, right, quote" read out,
+  // least of all charged to an account by the character.
+  const spokenText = useMemo(() => compose(parseSegments(text)), [text])
 
   const save = useCallback(() => {
     if (canSave) onSave(text.trim(), category.trim(), chosenVoice || undefined)
@@ -193,7 +198,7 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
             value={chosenVoice}
             onChange={setChosenVoice}
             defaultLabel="Same as everything else"
-            sampleText={text}
+            sampleText={spokenText}
           />
         </div>
 
