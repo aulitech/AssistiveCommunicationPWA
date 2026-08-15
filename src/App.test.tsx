@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import App from './App'
-import { BLANK } from './core/phrases'
+import { BLANK, PHRASES, composeWithBlank, hasBlank } from './core/phrases'
 import { HELP_SECTIONS } from './menu/help'
 import { parseBackup } from './core/backup'
 import { spoken, lastUtterance, downloads, played, setClipboardText, voices } from './test/setup'
@@ -619,6 +619,8 @@ describe('my details', () => {
 
   it('fills in a name phrase that was previously a blank', () => {
     renderApp()
+    // `BLANK` is empty, so the unfilled phrase is its words and the gap after
+    // them — the trailing space is where the name goes.
     expect(cellTexts()).toContain(`This is ${BLANK}`)
 
     openProfile()
@@ -793,17 +795,47 @@ describe('the scroll rail', () => {
 })
 
 describe('a phrase with a blank', () => {
-  // The blank is there to be typed over, and a dwell user cannot place a caret
-  // by clicking — so putting it on the blank is the whole of that feature.
-  it('lands the caret on the blank, selected, ready to type over', () => {
+  // The blank is there to be typed into, and a dwell user cannot place a caret
+  // by clicking — so putting it in the gap is the whole of that feature.
+  //
+  // Found by the drawn gap rather than by looking for `BLANK` in the text: a
+  // blank leaves no characters behind, and a text search for an empty string
+  // matches the first cell on the board whether it has one or not.
+  it('lands the caret in the gap, ready to type into', () => {
+    // A shipped phrase whose gap has words after it in the *composed* text, so
+    // "the caret went to the end" is a different answer from "it went to the
+    // gap". Picked from the table rather than the DOM: a cell draws the segments
+    // it was given, and composing tidies them — one ending "for {}." draws a
+    // full stop after the gap that the text it produces does not have.
+    const midBlank = PHRASES.find(p => {
+      const { text, blankAt } = composeWithBlank(p.segments)
+      return hasBlank(p.segments) && blankAt >= 0 && blankAt < text.length
+    })!
+    expect(midBlank, 'no phrase on the board has a gap with words after it').toBeDefined()
+
     renderApp()
-    const blankCell = cells().find(c => (c.textContent ?? '').includes(BLANK))!
+    const blankCell = cells().find(c => c.getAttribute('aria-label') === midBlank.text)!
     click(blankCell)
     settle()
 
     const box = $<HTMLTextAreaElement>('.text-display')!
-    expect(box.value).toContain(BLANK)
-    expect(box.value.slice(box.selectionStart, box.selectionEnd)).toBe(BLANK)
+    const before = box.value.slice(0, box.selectionStart)
+    const after = box.value.slice(box.selectionEnd)
+
+    // Nothing is selected: there are no characters to type over, only a place.
+    expect(box.selectionStart).toBe(box.selectionEnd)
+    expect(after, 'the caret went to the end rather than the gap').not.toBe('')
+
+    // The property that matters, and the one the old selected `___` gave for
+    // free: a word typed here needs no spacing of its own. Asserted as tidiness
+    // rather than as "a space either side", because a gap before punctuation
+    // correctly has no space after it — "Did you see ?" takes the name straight
+    // in front of the question mark.
+    const typed = before + 'Mum' + after
+    expect(typed).toContain('Mum')
+    expect(typed, 'a word typed into the gap did not sit cleanly').toBe(
+      typed.replace(/ {2,}/g, ' ').replace(/ +([,.?!])/g, '$1'),
+    )
   })
 
   it('sits at the end when there is no blank to land on', () => {

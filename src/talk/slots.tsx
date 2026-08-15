@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
-import { BLANK, compose, type Phrase } from '../core/phrases'
+import { BLANK, composeWithBlank, type Phrase } from '../core/phrases'
 import { cx, dwellVar } from '../ui/style'
 
 function SlotOption({ value, onPick }: { value: string; onPick: (v: string) => void }) {
@@ -28,7 +28,7 @@ function SlotOption({ value, onPick }: { value: string; onPick: (v: string) => v
 
 export function SlotPicker({ phrase, onComplete, onCancel }: {
   phrase: Phrase
-  onComplete: (text: string) => void
+  onComplete: (text: string, blankAt: number) => void
   onCancel: () => void
 }) {
   const { settings } = useSettings()
@@ -67,7 +67,10 @@ export function SlotPicker({ phrase, onComplete, onCancel }: {
       next[slotIndex] = value
       setChoices(next)
       if (step + 1 < steps.length) setStep(step + 1)
-      else onComplete(compose(phrase.segments, next))
+      else {
+        const { text, blankAt } = composeWithBlank(phrase.segments, next)
+        onComplete(text, blankAt)
+      }
     },
     [choices, slotIndex, step, steps.length, phrase, onComplete],
   )
