@@ -74,6 +74,15 @@ describe('emphasis', () => {
     expect(runs('the file_name field')).toEqual([['the file_name field', '']])
   })
 
+  // The two halves of that rule are separate guards, and the pair above only
+  // exercises one: with every underscore inside a word, nothing can close, so
+  // nothing opens either way. It takes a closing run that *is* between words to
+  // show that an opening one inside a word was refused — otherwise this reads
+  // as emphasis running from the middle of "snake" to the end of "here".
+  it('will not open an underscore inside a word even when one could close it', () => {
+    expect(runs('snake_case here_ and')).toEqual([['snake_case here_ and', '']])
+  })
+
   // Opening between words is not enough on its own — the closing run has to be
   // between words as well, or `_a_b_` would emphasise "a" and leave "b_"
   // hanging off the end of it.
