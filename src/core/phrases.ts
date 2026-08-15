@@ -23,6 +23,18 @@ export type Segment =
 export interface Phrase {
   id: string
   text: string // display text — slots rendered as their label
+  /**
+   * What the phrase was written as, before any of it was resolved: the raw
+   * `I want the {['red', 'blue']} one`, brackets and all.
+   *
+   * `text` is what the phrase *reads* as, and it cannot be turned back into
+   * this — "red/blue" is a label, and `{pronouns}` has become a list of words
+   * that would no longer follow the alias table or the user's own details. So
+   * the source is kept rather than reconstructed, and **the editor opens on
+   * this**. Editing `text` and saving it flattens every slot in the phrase, for
+   * good.
+   */
+  source: string
   segments: Segment[]
   category: string
 }
@@ -327,12 +339,12 @@ export function makePhrase(
     seen.set(id, n + 1)
     if (n > 0) id = `${id}-${n}`
   }
-  return { id, text: compose(segments), segments, category }
+  return { id, text: compose(segments), source: raw, segments, category }
 }
 
 /** Plain phrase with no slots — user-authored text and emergency entries. */
 export function plainPhrase(id: string, text: string, category: string): Phrase {
-  return { id, text, segments: [{ kind: 'text', text }], category }
+  return { id, text, source: text, segments: [{ kind: 'text', text }], category }
 }
 
 const PHRASE_ROWS = ((phraseTable.phrases as { txt: string; category: string }[]) ?? []).filter(p =>

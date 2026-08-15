@@ -86,6 +86,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The arrows beside it rearrange the red bar: choose a phrase to pick it up, then choose where it should go. Choosing it again puts it back.',
         'Paste or drag a web link into the message box or a phrase and it becomes the name of the page. The address is still there when you copy the message, but it is not read aloud.',
         'A phrase that is only a link opens it in a new tab instead of speaking. A phrase with words around a link is still spoken as usual.',
+        'If a link does not open, allow pop-ups for Peri in your browser settings. Browsers only open new tabs off the back of a tap or a key press, and dwelling is neither.',
         'Delete removes a phrase you added, and hides one that came with the app.',
       ),
       text('Turn edit mode off again to go back to speaking.'),

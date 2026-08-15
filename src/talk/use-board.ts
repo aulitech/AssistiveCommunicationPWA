@@ -58,7 +58,7 @@ export function useBoard() {
   // other phrase — and keep their stored id, which is what delete matches on.
   const buildPhrase = useCallback((id: string, raw: string, category: string): Phrase => {
     const segments = parseSegments(raw)
-    return { id, text: compose(segments), segments, category }
+    return { id, text: compose(segments), source: raw, segments, category }
   }, [])
 
   // Slot options are resolved at parse time, so the table is rebuilt when the
