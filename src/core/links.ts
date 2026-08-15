@@ -118,3 +118,26 @@ function tidyLabel(label: string): string {
 export function linkMarkdown({ url, label }: Link): string {
   return `[${tidyLabel(label)}](${url.replace(/\)/g, '%29')})`
 }
+
+/**
+ * Opens a link in a new tab, and says whether it managed to.
+ *
+ * A new tab rather than this one, always: the board is how somebody is talking,
+ * and navigating it away mid-conversation takes their voice rather than lending
+ * them a browser. `noopener` because the page opened must not be able to reach
+ * back and drive the tab the board is in.
+ *
+ * **It can be refused.** A browser only allows this off the back of a recent
+ * click, tap or key press, and a dwell is a timer firing after a pointer has
+ * rested — no press anywhere in it. So a gaze user may well be blocked, which
+ * is exactly the wrong way round; the caller is expected to say so out loud
+ * rather than let the choice do nothing at all.
+ */
+export function openLink(url: string): boolean {
+  if (!readUrl(url)) return false
+  try {
+    return window.open(url, '_blank', 'noopener,noreferrer') !== null
+  } catch {
+    return false
+  }
+}

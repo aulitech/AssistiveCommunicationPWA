@@ -300,6 +300,90 @@ describe('pasting and dropping a link', () => {
   })
 })
 
+// A phrase that is nothing but a link is a button for going somewhere. Saying
+// "cafe.example" out loud is no use to anybody.
+describe('choosing a phrase that is a link', () => {
+  const MENU = 'https://cafe.example/menu'
+  const LINK = { id: 'custom-link', text: `[the menu](${MENU})`, category: 'Marked' }
+  const SENTENCE = { id: 'custom-sentence', text: `Have a look at [the menu](${MENU})`, category: 'Marked' }
+  let opened: [string, string][]
+  // Put back by hand rather than with `unstubAllGlobals`, which would also take
+  // away the speech-synthesis stub the shared setup installs — and then every
+  // unmount after this block throws.
+  const realOpen = window.open
+  const stubOpen = (result: Window | null) => {
+    window.open = vi.fn((url?: string | URL, target?: string) => {
+      opened.push([String(url), String(target)])
+      return result
+    }) as typeof window.open
+  }
+
+  beforeEach(() => {
+    opened = []
+    stubOpen({} as Window)
+  })
+  afterEach(() => {
+    window.open = realOpen
+  })
+
+  const showMarkedAnd = (custom: { id: string; text: string; category: string }[]) => {
+    renderApp(custom)
+    showMarked()
+  }
+
+  it('opens it in a new tab instead of speaking it', () => {
+    showMarkedAnd([LINK])
+    click(cells()[0])
+
+    expect(opened).toEqual([[MENU, '_blank']])
+    expect(spoken).toEqual([])
+    expect(message()).toBe('')
+  })
+
+  // The half that protects everything else. A sentence somebody built must not
+  // lose its voice because there is a link somewhere in it.
+  it('still speaks a sentence that merely contains one', () => {
+    showMarkedAnd([SENTENCE])
+    click(cells()[0])
+
+    expect(opened).toEqual([])
+    expect(message()).toBe(`Have a look at [the menu](${MENU})`)
+  })
+
+  it('opens rather than speaks in auto-speak too', () => {
+    showMarkedAnd([LINK])
+    click($$('.toggle-btn')[0]) // auto-speak
+    click(cells()[0])
+
+    expect(opened).toEqual([[MENU, '_blank']])
+    expect(spoken).toEqual([])
+  })
+
+  // Edit mode has to keep winning, or a link is a phrase nobody can ever
+  // reword — every attempt to open the editor would leave the app instead.
+  it('opens the editor in edit mode rather than the link', () => {
+    showMarkedAnd([LINK])
+    click($$('.toggle-btn')[1]) // edit mode
+    click(cells()[0])
+
+    expect(opened).toEqual([])
+    expect($<HTMLTextAreaElement>('.edit-modal-text')?.value).toBe(`[the menu](${MENU})`)
+  })
+
+  // A browser only allows this off the back of a press, and a dwell is a timer
+  // firing after a pointer has rested — no press anywhere in it. Being refused
+  // is a real outcome for the very users this is for, so it has to be audible
+  // rather than look like a choice that simply did nothing.
+  it('says so when the browser refuses', () => {
+    stubOpen(null)
+    showMarkedAnd([LINK])
+    click(cells()[0])
+
+    expect($('.toast')?.textContent).toMatch(/would not open/i)
+    expect(spoken).toEqual([])
+  })
+})
+
 describe('editing a marked-up phrase', () => {
   // The editor is where markdown gets written, so it has to show the source
   // rather than the rendering — there is nowhere else to reach the markers.

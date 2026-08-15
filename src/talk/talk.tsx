@@ -10,6 +10,8 @@ import { cancelAllDwells, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
 import { composeWithBlank, hasChoices, type Phrase } from '../core/phrases'
+import { soleLink } from '../core/markdown'
+import { openLink } from '../core/links'
 import { search } from '../core/search'
 import { loadRecent, saveRecent, type User } from '../core/store'
 import { type AppState } from '../core/backup'
@@ -122,6 +124,19 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
   const handleSelectPhrase = useCallback(
     (phrase: Phrase) => {
+      // A phrase that is nothing but a link is a button for going somewhere, so
+      // it goes there instead of saying its own label out loud. A phrase with
+      // words around a link is still a sentence and still speaks — see
+      // `soleLink` for where that line is drawn.
+      const url = soleLink(phrase.segments)
+      if (url) {
+        cancelAllDwells()
+        // A browser only allows this off the back of a press, and a dwell has
+        // none in it, so being refused is a real outcome rather than a rare
+        // one. Saying nothing would leave the choice looking simply broken.
+        if (!openLink(url)) flashToast('Your browser would not open that link')
+        return
+      }
       // Fill-in-the-blank phrases ask for their wording first.
       if (hasChoices(phrase.segments)) {
         cancelAllDwells()
@@ -133,7 +148,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       const { blankAt } = composeWithBlank(phrase.segments)
       deliverPhrase(phrase.text, voiceFor(phrase.id), blankAt)
     },
-    [deliverPhrase, voiceFor],
+    [deliverPhrase, voiceFor, flashToast],
   )
 
   // ── Editing what is on the board ───────────────────────────────────────────

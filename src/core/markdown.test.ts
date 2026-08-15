@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hasMarkdown, layout, stripMarkdown, type Line } from './markdown'
+import { hasMarkdown, layout, soleLink, stripMarkdown, type Line } from './markdown'
 import { parseSegments, type Segment } from './phrases'
 
 // What a phrase's markup means. The two things built on it — what the cell draws
@@ -129,6 +129,42 @@ describe('links', () => {
   // find this phrase without matching every https:// on the board.
   it('says the label and never the URL', () => {
     expect(stripMarkdown('See [the menu](https://cafe.example) first')).toBe('See the menu first')
+  })
+
+  // Choosing one of these opens it rather than speaking it, so where the line
+  // falls decides whether a sentence can still be said out loud.
+  describe('a phrase that is nothing but a link', () => {
+    const url = 'https://cafe.example/menu'
+
+    it('is one', () => {
+      expect(soleLink(text(`[the menu](${url})`))).toBe(url)
+    })
+
+    it('is still one with styling in the label, or a bullet in front of it', () => {
+      expect(soleLink(text(`[**the menu**](${url})`))).toBe(url)
+      expect(soleLink(text(`- [the menu](${url})`))).toBe(url)
+    })
+
+    it('is still one with space around it', () => {
+      expect(soleLink(text(`  [the menu](${url})  `))).toBe(url)
+    })
+
+    // The important half. A sentence somebody built must not lose its voice to
+    // a browser tab because there is a link somewhere in it.
+    it('is not one when there are words either side', () => {
+      expect(soleLink(text(`Have a look at [the menu](${url})`))).toBeNull()
+      expect(soleLink(text(`[the menu](${url}) is here`))).toBeNull()
+    })
+
+    it('is not one when there are two links, or another line', () => {
+      expect(soleLink(text(`[a](${url}) [b](https://other.example)`))).toBeNull()
+      expect(soleLink(text(`[the menu](${url})\nand more`))).toBeNull()
+    })
+
+    it('is not one when there is no link at all', () => {
+      expect(soleLink(text('I would like a cup of tea'))).toBeNull()
+      expect(soleLink(parseSegments('{pronouns}'))).toBeNull()
+    })
   })
 
   it('draws a link on a bullet like anything else', () => {
