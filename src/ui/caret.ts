@@ -64,5 +64,15 @@ export function caretIndexAt(field: HTMLTextAreaElement, x: number, y: number): 
  */
 export const AIM_TOLERANCE = 12
 
+/**
+ * Whether the pointer is now far enough from `from` to count as aiming
+ * somewhere new.
+ *
+ * `from` is **where the current wait began**, never the previous movement. A
+ * pointer does not jump: it crosses a phrase as a stream of small steps, and
+ * comparing each step against the one before it means no amount of travel ever
+ * adds up to a move. That is not a smaller version of the right answer, it is
+ * the wrong one — the caller that did it re-armed on nothing at all.
+ */
 export const movedAway = (from: { x: number; y: number }, x: number, y: number) =>
   Math.abs(from.x - x) > AIM_TOLERANCE || Math.abs(from.y - y) > AIM_TOLERANCE
