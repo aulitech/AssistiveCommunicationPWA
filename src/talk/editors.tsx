@@ -43,6 +43,25 @@ function EditAction({ kind, label, onActivate, disabled }: {
 /** Sentinel <option> value; the leading space cannot occur in a trimmed name. */
 const NEW_CATEGORY = ' __new_category__'
 
+/**
+ * Start the fill on the phrase box over again.
+ *
+ * Every other dwell control restarts its bar by remounting it — `key={active
+ * ? 'a' : 'i'}` in `EditAction`. A textarea can hold no children, so its fill
+ * is a CSS animation on the box itself, and re-arming does not change the
+ * class: cancelling and starting land in one render, so React writes nothing
+ * to the DOM and the animation carries on from wherever it had got to,
+ * promising a firing that is no longer coming. Taking the animation off,
+ * reading a layout property so the removal takes effect, and putting it back
+ * is what starts it again.
+ */
+function restartFill(el: HTMLTextAreaElement | null) {
+  if (!el) return
+  el.style.animationName = 'none'
+  void el.offsetHeight
+  el.style.animationName = ''
+}
+
 export function EditModal({ phrase, isEmergency, initialText, allCategories, voice, recent, keeping, onSave, onDelete, onClose }: {
   phrase: Phrase | null
   isEmergency: boolean
@@ -73,10 +92,19 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
   const [text, setText] = useState(phrase?.source ?? initialText ?? '')
   const textRef = useRef<HTMLTextAreaElement>(null)
 
-  // Where the pointer was when the dwell fired. A ref rather than state: it
-  // changes with every movement and nothing on screen depends on it until the
-  // moment the caret is placed.
+  // Where the pointer is now, and where it was when the current wait began.
+  // Two positions rather than one, because a pointer does not jump: it crosses
+  // the box as a stream of small movements, and measuring each against the one
+  // before it means the distance never adds up. A pointer can travel the whole
+  // phrase in three-pixel steps without a single step counting as aiming
+  // somewhere new — which is exactly what it did, so the dwell never re-armed
+  // and leaving the box and coming back was the only way to place the caret
+  // twice. Measured against where the wait began, the steps accumulate.
+  //
+  // Refs rather than state: they change with every movement, and nothing on
+  // screen depends on either until the moment the caret is placed.
   const aim = useRef({ x: 0, y: 0 })
+  const armedAt = useRef({ x: 0, y: 0 })
 
   const placeCaret = useCallback(() => {
     const el = textRef.current
@@ -93,14 +121,15 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
 
   const trackAim = useCallback(
     (e: React.PointerEvent<HTMLTextAreaElement>) => {
-      const moved = movedAway(aim.current, e.clientX, e.clientY)
-      aim.current = { x: e.clientX, y: e.clientY }
+      const at = { x: e.clientX, y: e.clientY }
+      aim.current = at
+      if (!movedAway(armedAt.current, at.x, at.y)) return
       // Aiming somewhere new starts the wait again, so the caret lands where
       // the pointer settled rather than where it first arrived.
-      if (moved) {
-        caret.cancel()
-        caret.start()
-      }
+      armedAt.current = at
+      restartFill(textRef.current)
+      caret.cancel()
+      caret.start()
     },
     [caret],
   )
@@ -178,7 +207,9 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
           // hook's Enter/Space handling on a box people type into, and the
           // first space typed would be swallowed.
           onPointerEnter={e => {
-            aim.current = { x: e.clientX, y: e.clientY }
+            const at = { x: e.clientX, y: e.clientY }
+            aim.current = at
+            armedAt.current = at
             caret.props.onPointerEnter?.()
           }}
           onPointerMove={trackAim}
