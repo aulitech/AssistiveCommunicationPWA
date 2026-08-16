@@ -461,6 +461,15 @@ describe('placing the caret in a phrase by dwell', () => {
     act(() => void vi.advanceTimersByTime(900))
     settle()
   }
+  /**
+   * The same journey as `moveTo`, but taken the way a pointer actually takes
+   * it: in steps too small to count as aiming somewhere new on their own.
+   */
+  const driftTo = (x: number, y: number) => {
+    for (let at = 200 + 4; at <= x; at += 4) fireEvent.pointerMove(field(), { clientX: at, clientY: y })
+    act(() => void vi.advanceTimersByTime(900))
+    settle()
+  }
 
   afterEach(() => {
     delete (document as unknown as Record<string, unknown>).caretPositionFromPoint
@@ -492,6 +501,21 @@ describe('placing the caret in a phrase by dwell', () => {
     answers(2)
     moveTo(260, 100)
     expect(field().selectionStart).toBe(2)
+  })
+
+  // Regression: the threshold was measured against the previous movement rather
+  // than against where the wait began. A pointer does not jump — it crosses the
+  // box in small steps, none of them far enough on its own — so the distance
+  // never added up, the dwell never re-armed, and leaving the box and coming
+  // back was the only way to place the caret a second time.
+  it('follows a pointer that crosses the phrase in small steps', () => {
+    openEditor()
+    answers(5)
+    aimAt(200, 100)
+
+    answers(2)
+    driftTo(260, 100)
+    expect(field().selectionStart, 'the caret stayed where it first landed').toBe(2)
   })
 
   // Gaze never holds perfectly still. Re-arming on every pixel of drift would
