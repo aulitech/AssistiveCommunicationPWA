@@ -1,5 +1,7 @@
-import { describe, it, expect, afterEach } from 'vitest'
-import { caretIndexAt, movedAway } from './caret'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { fireEvent, render, act } from '@testing-library/react'
+import { useRef } from 'react'
+import { caretIndexAt, movedAway, useCaretDwell } from './caret'
 
 // Which character sits under the pointer. jsdom implements neither of the two
 // APIs that answer this, so each is stubbed here — what is under test is which
@@ -98,5 +100,76 @@ describe('aiming somewhere new', () => {
   it('notices a move to another part of the phrase', () => {
     expect(movedAway({ x: 100, y: 100 }, 160, 100)).toBe(true)
     expect(movedAway({ x: 100, y: 100 }, 100, 160)).toBe(true)
+  })
+})
+
+// The hook the two text boxes share. The app tests drive it through the real
+// boxes; what is left for here is the part they cannot see, because jsdom
+// reaches the same end by a second route — see `onPlace` below.
+describe('the caret dwell', () => {
+  function Probe({ value, onPlace, disabled }: {
+    value: string
+    onPlace?: (index: number) => void
+    disabled?: boolean
+  }) {
+    const ref = useRef<HTMLTextAreaElement>(null)
+    const caret = useCaretDwell(ref, 500, { onPlace, disabled })
+    return <textarea ref={ref} defaultValue={value} aria-label="probe" {...caret.props} />
+  }
+
+  let box: HTMLTextAreaElement
+  const show = (props: { onPlace?: (index: number) => void; disabled?: boolean } = {}) => {
+    const { container } = render(<Probe value="I am cold" {...props} />)
+    box = container.querySelector('textarea')!
+  }
+  const answers = (offset: number) =>
+    Object.assign(document, { caretPositionFromPoint: () => ({ offsetNode: box, offset }) })
+  const dwell = () => {
+    fireEvent.pointerEnter(box, { clientX: 100, clientY: 100 })
+    act(() => void vi.advanceTimersByTime(500))
+  }
+
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => {
+    vi.useRealTimers()
+    delete (document as unknown as Record<string, unknown>).caretPositionFromPoint
+  })
+
+  /**
+   * The one claim the app tests cannot make. The message box tracks the caret
+   * in state, and under jsdom `setSelectionRange` also fires a `selectionchange`
+   * that React turns into `onSelect` — which reaches the very same state by the
+   * very same setter. So through the app the two paths are indistinguishable,
+   * and pulling `onPlace` out changes nothing there.
+   *
+   * It is worth having anyway: `selectionchange` on a form control is a late
+   * addition that older browsers do not fire at all, and a caret whose position
+   * is not reported leaves the grid completing a word the caret has left —
+   * silently, and looking for all the world like the search is broken.
+   */
+  it('reports where it put the caret', () => {
+    const onPlace = vi.fn()
+    show({ onPlace })
+    answers(4)
+    dwell()
+    expect(onPlace).toHaveBeenCalledWith(4)
+  })
+
+  // Null is "leave the caret alone", so there is nothing to report either.
+  it('reports nothing where the browser will not say', () => {
+    const onPlace = vi.fn()
+    show({ onPlace })
+    dwell()
+    expect(onPlace).not.toHaveBeenCalled()
+    expect(document.activeElement, 'the box was left unfocusable').toBe(box)
+  })
+
+  it('does nothing at all while disabled', () => {
+    const onPlace = vi.fn()
+    show({ onPlace, disabled: true })
+    answers(4)
+    dwell()
+    expect(onPlace).not.toHaveBeenCalled()
+    expect(document.activeElement).not.toBe(box)
   })
 })
