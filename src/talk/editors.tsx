@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
-import { caretIndexAt, movedAway } from '../ui/caret'
+import { useCaretDwell } from '../ui/caret'
 import { useLinkInput } from '../ui/link-input'
 import { useSettings } from '../ui/settings'
 import { compose, parseSegments, type Phrase } from '../core/phrases'
@@ -43,25 +43,6 @@ function EditAction({ kind, label, onActivate, disabled }: {
 /** Sentinel <option> value; the leading space cannot occur in a trimmed name. */
 const NEW_CATEGORY = ' __new_category__'
 
-/**
- * Start the fill on the phrase box over again.
- *
- * Every other dwell control restarts its bar by remounting it — `key={active
- * ? 'a' : 'i'}` in `EditAction`. A textarea can hold no children, so its fill
- * is a CSS animation on the box itself, and re-arming does not change the
- * class: cancelling and starting land in one render, so React writes nothing
- * to the DOM and the animation carries on from wherever it had got to,
- * promising a firing that is no longer coming. Taking the animation off,
- * reading a layout property so the removal takes effect, and putting it back
- * is what starts it again.
- */
-function restartFill(el: HTMLTextAreaElement | null) {
-  if (!el) return
-  el.style.animationName = 'none'
-  void el.offsetHeight
-  el.style.animationName = ''
-}
-
 export function EditModal({ phrase, isEmergency, initialText, allCategories, voice, recent, keeping, onSave, onDelete, onClose }: {
   phrase: Phrase | null
   isEmergency: boolean
@@ -92,47 +73,10 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
   const [text, setText] = useState(phrase?.source ?? initialText ?? '')
   const textRef = useRef<HTMLTextAreaElement>(null)
 
-  // Where the pointer is now, and where it was when the current wait began.
-  // Two positions rather than one, because a pointer does not jump: it crosses
-  // the box as a stream of small movements, and measuring each against the one
-  // before it means the distance never adds up. A pointer can travel the whole
-  // phrase in three-pixel steps without a single step counting as aiming
-  // somewhere new — which is exactly what it did, so the dwell never re-armed
-  // and leaving the box and coming back was the only way to place the caret
-  // twice. Measured against where the wait began, the steps accumulate.
-  //
-  // Refs rather than state: they change with every movement, and nothing on
-  // screen depends on either until the moment the caret is placed.
-  const aim = useRef({ x: 0, y: 0 })
-  const armedAt = useRef({ x: 0, y: 0 })
+  // The same dwell the message box uses. Both boxes need the caret placed the
+  // same way, so how it is done lives in `ui/caret` rather than here.
+  const caret = useCaretDwell(textRef, settings.actionDwellMs)
 
-  const placeCaret = useCallback(() => {
-    const el = textRef.current
-    if (!el) return
-    const index = caretIndexAt(el, aim.current.x, aim.current.y)
-    el.focus()
-    // Focus alone is worth having even where the browser will not say which
-    // character was meant — it is the difference between a box that can be
-    // typed into and one that cannot.
-    if (index !== null) el.setSelectionRange(index, index)
-  }, [])
-
-  const caret = useDwellControl(settings.actionDwellMs, placeCaret)
-
-  const trackAim = useCallback(
-    (e: React.PointerEvent<HTMLTextAreaElement>) => {
-      const at = { x: e.clientX, y: e.clientY }
-      aim.current = at
-      if (!movedAway(armedAt.current, at.x, at.y)) return
-      // Aiming somewhere new starts the wait again, so the caret lands where
-      // the pointer settled rather than where it first arrived.
-      armedAt.current = at
-      restartFill(textRef.current)
-      caret.cancel()
-      caret.start()
-    },
-    [caret],
-  )
   // A link pasted or dropped into the phrase becomes `[label](url)`, so the
   // button reads as the page's name rather than as forty characters of address.
   const linkInput = useLinkInput(
@@ -203,17 +147,10 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
           ref={textRef}
           className={cx('edit-modal-text', caret.active && 'dwelling')}
           style={dwellVar(settings.actionDwellMs)}
-          // Only the pointer handlers. Spreading the whole set would put the
-          // hook's Enter/Space handling on a box people type into, and the
-          // first space typed would be swallowed.
-          onPointerEnter={e => {
-            const at = { x: e.clientX, y: e.clientY }
-            aim.current = at
-            armedAt.current = at
-            caret.props.onPointerEnter?.()
-          }}
-          onPointerMove={trackAim}
-          onPointerLeave={caret.props.onPointerLeave}
+          // Pointer handlers only — the hook hands back no others, since the
+          // dwell primitive's Enter/Space handling on a box people type into
+          // would swallow the first space typed.
+          {...caret.props}
           value={text}
           onChange={e => setText(e.target.value)}
           onPaste={linkInput.onPaste}
