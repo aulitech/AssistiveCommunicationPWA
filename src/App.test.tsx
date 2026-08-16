@@ -772,9 +772,14 @@ describe('placing the caret in the message box by dwell', () => {
   })
 
   // The caret decides which word the grid narrows itself to, and it is tracked
-  // in state rather than read off the box. A caret the user moved by dwell
-  // rather than by typing has to reach that state too, or the grid goes on
-  // completing a word the caret has left.
+  // in state rather than read off the box, so a caret moved by dwell rather
+  // than by typing has to reach that state as well.
+  //
+  // This asserts the outcome and cannot isolate how it is reached: jsdom
+  // answers `setSelectionRange` with a `selectionchange` that React turns into
+  // `onSelect`, which is already wired to the same setter, so the hook's own
+  // `onPlace` can be pulled out and this still passes. `ui/caret.test.tsx` is
+  // what holds that, and says why it is worth holding.
   it('narrows the grid to the word the caret was moved into', () => {
     renderApp()
     fireEvent.change(composer(), { target: { value: 'zzzz help' } })
