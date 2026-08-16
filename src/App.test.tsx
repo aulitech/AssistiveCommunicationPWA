@@ -686,13 +686,26 @@ describe('adding a phrase from the message box', () => {
   })
 })
 
-describe('focusing the message box by dwell', () => {
+describe('placing the caret in the message box by dwell', () => {
   const composer = () => $<HTMLTextAreaElement>('.text-display')!
   const dwell = (el: Element) => {
     fireEvent.pointerEnter(el)
     act(() => void vi.advanceTimersByTime(800))
     settle()
   }
+  /** jsdom implements neither caret API, so the browser's answer is stubbed. */
+  const answers = (offset: number) =>
+    Object.assign(document, { caretPositionFromPoint: () => ({ offsetNode: composer(), offset }) })
+  /** Aiming somewhere else in the same box: a move, never a re-entry. */
+  const moveTo = (x: number) => {
+    fireEvent.pointerMove(composer(), { clientX: x, clientY: 100 })
+    act(() => void vi.advanceTimersByTime(900))
+    settle()
+  }
+
+  afterEach(() => {
+    delete (document as unknown as Record<string, unknown>).caretPositionFromPoint
+  })
 
   // Placing the caret to type meant clicking the box, which a dwell-only user
   // cannot do — the message was theirs to build but not to correct.
@@ -703,6 +716,16 @@ describe('focusing the message box by dwell', () => {
     expect(document.activeElement).toBe(composer())
   })
 
+  it('puts the caret where the pointer settled', () => {
+    renderApp()
+    fireEvent.change(composer(), { target: { value: 'I am cold' } })
+    answers(4)
+    dwell(composer())
+
+    expect(composer().selectionStart).toBe(4)
+    expect(composer().selectionEnd).toBe(4)
+  })
+
   it('shows the hold progressing', () => {
     renderApp()
     fireEvent.pointerEnter(composer())
@@ -710,16 +733,34 @@ describe('focusing the message box by dwell', () => {
     expect(composer().classList.contains('dwelling')).toBe(true)
   })
 
-  // A pointer left resting on the box while its owner types should not sit
-  // there re-arming and flashing a progress bar at them.
-  it('stops arming once the box already holds focus', () => {
+  // The box used to stop arming altogether once it held focus, which made the
+  // caret placeable exactly once — on the way in — and never again. Aiming is
+  // what settles that instead, so the dwell stays live while the box is in use.
+  it('still places the caret once the box holds focus', () => {
     renderApp()
+    fireEvent.change(composer(), { target: { value: 'I am cold' } })
+    answers(4)
     dwell(composer())
-    fireEvent.pointerLeave(composer())
+    expect(composer().selectionStart).toBe(4)
 
-    fireEvent.pointerEnter(composer())
-    act(() => void vi.advanceTimersByTime(400))
-    expect(composer().classList.contains('dwelling')).toBe(false)
+    answers(7)
+    moveTo(260)
+    expect(composer().selectionStart, 'the box stopped arming once focused').toBe(7)
+  })
+
+  // What the focus gate was really protecting: a pointer parked on the box
+  // while its owner types must not sit there firing and dragging the caret
+  // away from where they are working.
+  it('leaves the caret alone while the pointer rests', () => {
+    renderApp()
+    fireEvent.change(composer(), { target: { value: 'I am cold' } })
+    answers(4)
+    dwell(composer())
+
+    answers(1)
+    act(() => void vi.advanceTimersByTime(3000))
+    settle()
+    expect(composer().selectionStart).toBe(4)
   })
 
   // The bar is a CSS animation timed off this variable. Without it the
@@ -730,15 +771,19 @@ describe('focusing the message box by dwell', () => {
     expect(composer().style.getPropertyValue('--dwell-duration')).toBe('2000ms')
   })
 
-  it('arms again once focus has moved away', () => {
+  // The caret decides which word the grid narrows itself to, and it is tracked
+  // in state rather than read off the box. A caret the user moved by dwell
+  // rather than by typing has to reach that state too, or the grid goes on
+  // completing a word the caret has left.
+  it('narrows the grid to the word the caret was moved into', () => {
     renderApp()
-    dwell(composer())
-    act(() => void composer().blur())
-    fireEvent.pointerLeave(composer())
+    fireEvent.change(composer(), { target: { value: 'zzzz help' } })
+    settle()
+    const onHelp = cells().length
 
-    fireEvent.pointerEnter(composer())
-    act(() => void vi.advanceTimersByTime(400))
-    expect(composer().classList.contains('dwelling')).toBe(true)
+    answers(2) // inside "zzzz", which nothing completes
+    dwell(composer())
+    expect(cells().length, 'the grid stayed on the word the caret left').toBeLessThan(onHelp)
   })
 })
 

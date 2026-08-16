@@ -5,6 +5,7 @@
 
 import { useCallback, useState } from 'react'
 import { useSettings } from '../ui/settings'
+import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
 import { useLinkInput } from '../ui/link-input'
 import { ClearIcon, CopyIcon, MenuIcon, SpeakIcon, UndoIcon } from '../ui/icons'
@@ -84,27 +85,29 @@ export function Topbar({ composer, editMode, menuOpen, onToggleMenu, resting, on
   onCopy: () => void
 }) {
   const { settings } = useSettings()
-  const { text, setText, showUndo, canClear, clearOrUndo, focus, focused, setFocused, textareaRef, trackCursor } =
-    composer
+  const { text, setText, showUndo, canClear, clearOrUndo, textareaRef, trackCursor, setCursor } = composer
 
-  // Hover-and-hold on the message box, doing whichever of its two jobs applies.
-  // Both were previously reachable only by clicking — the one input a
-  // dwell-only user cannot produce.
+  // The box is two different things, so a hold on it is two different dwells,
+  // each switched off in the other's mode. Both were reachable only by clicking
+  // before — the one input a dwell-only user cannot produce.
   //
-  //  * In edit mode it opens the editor; adding an ordinary phrase has no other
-  //    entry point.
-  //  * Otherwise it moves focus there, so the caret can be placed and typed at
-  //    without a click.
-  const handleDwell = useCallback(() => {
-    if (editMode) onAddPhrase()
-    else focus()
-  }, [editMode, onAddPhrase, focus])
+  //  * **In edit mode the box is a button.** It is `readOnly`, holds no caret
+  //    to place, and holding it opens the editor — the only entry point there
+  //    is for adding an ordinary phrase.
+  //  * **Otherwise it is a box being written in**, and holding it puts the
+  //    caret where the pointer is. Which matters more here than in the phrase
+  //    editor: the caret decides which word the grid narrows itself to, so
+  //    placing it is how a gaze user says which word to finish.
+  const dwell = useDwellControl(settings.actionDwellMs, onAddPhrase, { disabled: !editMode })
 
-  // Once the box holds focus there is nothing left for a hold to do, so it
-  // stops arming — a pointer resting there while the user types should not keep
-  // lighting up a progress bar.
-  const dwell = useDwellControl(settings.actionDwellMs, handleDwell, {
-    disabled: !editMode && focused,
+  // The gate here used to be `focused` — the box stopped arming altogether once
+  // it held focus, so a pointer resting on it while its owner typed would not
+  // flash a progress bar at them. That also made the caret placeable exactly
+  // once, on the way in, and never again. Aiming is what actually settles it: a
+  // pointer that has not moved does not re-arm, whether the box has focus or not.
+  const caret = useCaretDwell(textareaRef, settings.actionDwellMs, {
+    disabled: editMode,
+    onPlace: setCursor,
   })
 
   // A link pasted or dropped here becomes `[label](url)`, so the message reads
@@ -149,7 +152,7 @@ export function Topbar({ composer, editMode, menuOpen, onToggleMenu, resting, on
 
       <textarea
         ref={textareaRef}
-        className={cx('text-display', dwell.active && 'dwelling')}
+        className={cx('text-display', (dwell.active || caret.active) && 'dwelling')}
         style={dwellVar(settings.actionDwellMs)}
         aria-label={
           editMode
@@ -164,13 +167,20 @@ export function Topbar({ composer, editMode, menuOpen, onToggleMenu, resting, on
           trackCursor(e)
         }}
         onSelect={trackCursor}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
         onPaste={linkInput.onPaste}
         onDrop={linkInput.onDrop}
         onDragOver={linkInput.onDragOver}
-        onPointerEnter={dwell.props.onPointerEnter}
-        onPointerLeave={dwell.props.onPointerLeave}
+        // Both dwells get every pointer event; each is disabled in the other's
+        // mode, so only one of them is ever armed by them.
+        onPointerEnter={e => {
+          dwell.props.onPointerEnter?.()
+          caret.props.onPointerEnter(e)
+        }}
+        onPointerMove={caret.props.onPointerMove}
+        onPointerLeave={() => {
+          dwell.props.onPointerLeave()
+          caret.props.onPointerLeave()
+        }}
         onClick={e => {
           trackCursor(e)
           if (editMode) dwell.props.onClick()

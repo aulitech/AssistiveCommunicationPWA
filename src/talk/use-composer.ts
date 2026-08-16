@@ -15,7 +15,6 @@ export function useComposer() {
   const [text, setText] = useState('')
   const [history, setHistory] = useState<string[]>([])
   const [cursorPos, setCursorPos] = useState(0)
-  const [focused, setFocused] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   /** Clear when there is something to clear; otherwise put the last one back. */
@@ -24,6 +23,14 @@ export function useComposer() {
   const trackCursor = useCallback((e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     setCursorPos(e.currentTarget.selectionStart ?? 0)
   }, [])
+
+  /**
+   * The caret was moved by something other than the user's own typing — the
+   * dwell that places it under the pointer. Told rather than read back,
+   * because the events a box fires for a caret it moved itself are not the
+   * ones it fires for a caret moved by `setSelectionRange`.
+   */
+  const setCursor = useCallback((index: number) => setCursorPos(index), [])
 
   /** The partial word left of the cursor, which the grid narrows itself to. */
   const currentWord = useMemo(() => {
@@ -96,8 +103,6 @@ export function useComposer() {
 
   const speakIt = useCallback(() => speak(text, settings), [text, settings])
 
-  const focus = useCallback(() => textareaRef.current?.focus(), [])
-
   return {
     text,
     setText,
@@ -105,15 +110,13 @@ export function useComposer() {
     currentWord,
     showUndo,
     canClear: Boolean(text) || history.length > 0,
-    focused,
-    setFocused,
     textareaRef,
     trackCursor,
+    setCursor,
     insert,
     clearOrUndo,
     copy,
     speak: speakIt,
-    focus,
   }
 }
 
