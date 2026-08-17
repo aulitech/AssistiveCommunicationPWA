@@ -2212,6 +2212,12 @@ body {
    word "Overview" is a poor one to aim at, and these are the only way in. */
 .help-section.is-collapsible {
   border-bottom: 1px solid var(--border);
+  /* No gap between them: folded up these are a list, and the border under each
+     is what keeps one off the next. Scoped rather than taken off `.help-section`
+     itself, which also draws the privacy policy and the terms — those have no
+     borders and would run together without the margin. Two classes beats the
+     `:first-of-type` rule above as well, so the first heading sits flush too. */
+  margin-top: 0;
 }
 
 /* No padding: folded up, the guide is a list of headings, and the tighter that
