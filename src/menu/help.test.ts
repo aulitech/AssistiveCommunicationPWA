@@ -52,8 +52,31 @@ describe('the user guide', () => {
     ['the sent list', /Sent tab/],
     ['texting acronyms', /Texting category/],
     ['a voice per phrase', /Voice setting/],
+    ['the choice syntax, for whoever writes the phrases', /\{'red', 'blue'\}/],
+    ['an empty pair leaving a blank', /\{\} ?—|brackets with nothing in them/i],
+    ['the lists Peri knows itself', /\{pronouns\}/],
+    ['bold and italic', /\*\*two stars\*\*/],
+    ['a line through', /~~two tildes~~/],
+    ['headings and bullets in a phrase', /at the start of a line/i],
+    ['formatting being seen and not heard', /spoken and searched exactly as they read/i],
   ])('covers %s', (_feature, pattern) => {
     expect(allText.some(line => pattern.test(line))).toBe(true)
+  })
+
+  // Somebody opening the guide is usually looking for one thing. The first
+  // section says what the screen is made of, so they know which heading to open.
+  it('opens with an overview of the whole screen', () => {
+    expect(HELP_SECTIONS[0].title).toBe('Overview')
+    const overview = HELP_SECTIONS[0].blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items))
+    for (const part of [/message/i, /Rest/, /categor/i, /red bar/i]) {
+      expect(overview.some(l => part.test(l)), `the overview does not mention ${part}`).toBe(true)
+    }
+  })
+
+  // Both moved to the strip across the top of the message box; the guide said
+  // "the right-hand column" for a while after they left it.
+  it('does not send anyone to the rail for the edit or auto-speak buttons', () => {
+    expect(allText.filter(l => /right-hand column/i.test(l))).toEqual([])
   })
 
   it('states plainly that nothing is uploaded', () => {

@@ -311,24 +311,100 @@ export function ScrollPane({ className = '', paneClassName = '', step = 80, chil
   )
 }
 
-export function ProseSections({ sections }: { sections: ProseSection[] }) {
+function ProseBlocks({ blocks }: { blocks: ProseSection['blocks'] }) {
+  return (
+    <>
+      {blocks.map((block, i) =>
+        block.kind === 'text' ? (
+          <p key={i} className="help-text">{block.text}</p>
+        ) : (
+          <ul key={i} className="help-list">
+            {block.items.map(item => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ),
+      )}
+    </>
+  )
+}
+
+/**
+ * One section of the guide, with a heading that opens and closes it.
+ *
+ * The heading is a dwell control like everything else, so it carries its own
+ * fill — a heading that answered to a rest without showing the rest happening
+ * would look like the guide moving on its own.
+ */
+function CollapsibleSection({ section, open, onToggle }: {
+  section: ProseSection
+  open: boolean
+  onToggle: () => void
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onToggle)
+  return (
+    <section className={cx('help-section', 'is-collapsible', open && 'is-open')}>
+      <h3
+        className={cx('help-section-title', active && 'dwelling')}
+        style={dwellVar(settings.actionDwellMs)}
+        role="button"
+        aria-expanded={open}
+        {...props}
+      >
+        <span className="help-section-caret" aria-hidden="true" />
+        {section.title}
+        <div className="dwell-bar" key={active ? 'a' : 'i'} />
+      </h3>
+      {/* Unmounted rather than hidden: the whole guide left in the tree would
+          have a screen reader read out fifteen sections the user has closed. */}
+      {open && <ProseBlocks blocks={section.blocks} />}
+    </section>
+  )
+}
+
+/**
+ * The guide and the legal pages are the same shape of text, so they are drawn by
+ * the same thing. Only the guide collapses.
+ *
+ * The legal pages are documents — served at their own URLs, indexed, and read by
+ * people checking one clause. Folding them up would hide most of what they exist
+ * to say behind fifteen dwells. The guide is the opposite: somebody opens it
+ * looking for one thing, and a screenful of headings is how they find which.
+ */
+export function ProseSections({ sections, collapsible = false }: {
+  sections: ProseSection[]
+  collapsible?: boolean
+}) {
+  // The first is open, the rest are closed. Somebody arriving reads the overview
+  // and sees the titles of everything else without scrolling past it.
+  const [openTitle, setOpenTitle] = useState<string | null>(sections[0]?.title ?? null)
+
+  if (!collapsible) {
+    return (
+      <>
+        {sections.map(section => (
+          <section key={section.title} className="help-section">
+            <h3 className="help-section-title">{section.title}</h3>
+            <ProseBlocks blocks={section.blocks} />
+          </section>
+        ))}
+      </>
+    )
+  }
+
   return (
     <>
       {sections.map(section => (
-        <section key={section.title} className="help-section">
-          <h3 className="help-section-title">{section.title}</h3>
-          {section.blocks.map((block, i) =>
-            block.kind === 'text' ? (
-              <p key={i} className="help-text">{block.text}</p>
-            ) : (
-              <ul key={i} className="help-list">
-                {block.items.map(item => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            ),
-          )}
-        </section>
+        <CollapsibleSection
+          key={section.title}
+          section={section}
+          open={openTitle === section.title}
+          // One at a time. Fifteen sections all open is the uncollapsed guide
+          // with extra steps, and closing the last one by hand is a dwell spent
+          // on tidying rather than on reading.
+          onToggle={() => setOpenTitle(current => (current === section.title ? null : section.title))}
+        />
       ))}
     </>
   )
