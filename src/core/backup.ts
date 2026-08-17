@@ -241,6 +241,7 @@ function readSettings(v: unknown): Settings | undefined {
   return {
     phraseDwellMs: num(v.phraseDwellMs, SETTING_LIMITS.phraseDwellMs, DEFAULT_SETTINGS.phraseDwellMs),
     actionDwellMs: num(v.actionDwellMs, SETTING_LIMITS.actionDwellMs, DEFAULT_SETTINGS.actionDwellMs),
+    repeatDelayMs: num(v.repeatDelayMs, SETTING_LIMITS.repeatDelayMs, DEFAULT_SETTINGS.repeatDelayMs),
     voiceURI: str(v.voiceURI),
     volume: num(v.volume, SETTING_LIMITS.volume, DEFAULT_SETTINGS.volume),
     rate: num(v.rate, SETTING_LIMITS.rate, DEFAULT_SETTINGS.rate),
@@ -415,7 +416,12 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
   // category together catch the same phrase written again on another device,
   // where it was given an id of its own.
   const byId = new Map(custom.map(p => [p.id, p]))
-  const key = (text: string, category: string) => `${category} ${text}`
+  // The separator is a NUL, the one character neither a category name nor a
+  // phrase can contain — a space or a colon would let one pair collide with
+  // another. Written as an escape rather than as the byte itself: a raw NUL in
+  // the source makes this whole file binary to grep, and a search over it then
+  // answers nothing rather than saying it cannot.
+  const key = (text: string, category: string) => `${category}\u0000${text}`
   const seen = new Set(custom.map(p => key(p.text, p.category)))
 
   for (const phrase of backup.added) {

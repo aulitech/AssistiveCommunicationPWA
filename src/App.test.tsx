@@ -801,6 +801,61 @@ describe('placing the caret in the message box by dwell', () => {
   })
 })
 
+// How fast a held control fires again — the scroll nudges, the filter arrows, the
+// settings spinners. The wait before the *first* fire is the action dwell, the
+// same as any other control; this is only the gap between that one and the next.
+// It was two hardcoded numbers, 180 and 200, until it became a setting.
+describe('the auto-repeat delay', () => {
+  const railBtn = (label: string) =>
+    $$('.grid-scrollbar .scroll-btn').find(b => b.getAttribute('aria-label') === label)!
+  const settingRow = (label: string) =>
+    $$('.setting-row').find(r => r.querySelector('.setting-label')?.textContent === label)!
+
+  it('paces the repeats of a held control', () => {
+    renderApp({ actionDwellMs: 300, repeatDelayMs: 500 })
+    const scrollBy = vi.fn()
+    $<HTMLElement>('.grid-wrapper')!.scrollBy = scrollBy
+
+    fireEvent.pointerEnter(railBtn('Scroll down'))
+    act(() => void vi.advanceTimersByTime(300)) // the dwell itself, not a repeat
+    expect(scrollBy).toHaveBeenCalledTimes(1)
+
+    act(() => void vi.advanceTimersByTime(499))
+    expect(scrollBy, 'repeated before the delay was up').toHaveBeenCalledTimes(1)
+
+    act(() => void vi.advanceTimersByTime(1))
+    expect(scrollBy).toHaveBeenCalledTimes(2)
+  })
+
+  // Separate from the dwell time because they answer different questions: the
+  // dwell is how long somebody needs to settle on a target, this is how fast they
+  // travel once they have. A long dwell with quick repeats is a real combination.
+  it('is set independently of the action dwell', () => {
+    renderApp({ actionDwellMs: 2000, repeatDelayMs: 100 })
+    const scrollBy = vi.fn()
+    $<HTMLElement>('.grid-wrapper')!.scrollBy = scrollBy
+
+    fireEvent.pointerEnter(railBtn('Scroll down'))
+    act(() => void vi.advanceTimersByTime(1999))
+    expect(scrollBy, 'fired before the long dwell was up').not.toHaveBeenCalled()
+
+    act(() => void vi.advanceTimersByTime(1 + 300))
+    expect(scrollBy.mock.calls.length, 'the quick repeats did not follow').toBeGreaterThan(3)
+  })
+
+  it('is offered in Settings and kept', () => {
+    renderApp()
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Open menu'))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+
+    const row = settingRow('Auto-repeat')
+    expect(row, 'no Auto-repeat row in Settings').toBeDefined()
+    click([...row.querySelectorAll('.step-btn')].find(b => b.getAttribute('aria-label') === 'Increase'))
+
+    expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).repeatDelayMs).toBe(250)
+  })
+})
+
 describe('composing', () => {
   it('undoes back to the previous message', () => {
     renderApp()

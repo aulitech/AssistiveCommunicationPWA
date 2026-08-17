@@ -127,6 +127,19 @@ describe('the shape of the source tree', () => {
     expect(css).toMatch(/@source not ["']\.\/\*\*\/\*\.test\.tsx["']/)
   })
 
+  // A NUL byte makes a file *binary* to grep, ripgrep and most review tools —
+  // and a search over a binary file answers nothing rather than saying it cannot.
+  // `core/backup.ts` carried one for a long time, as the separator in a composite
+  // map key, and every search across the tree quietly skipped it. The character
+  // is the right separator, being the one thing no category or phrase can hold;
+  // it just has to be written as an escape rather than as the byte itself.
+  it('keeps every source file searchable', () => {
+    const binary = sources()
+      .filter(p => readFileSync(p).includes(0))
+      .map(p => relative(SRC, p))
+    expect(binary).toEqual([])
+  })
+
   it('keeps App as the only default export', () => {
     const defaults = sources()
       .filter(p => /^export default/m.test(readFileSync(p, 'utf8')))

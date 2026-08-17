@@ -253,7 +253,17 @@ describe('reading a backup back', () => {
       JSON.stringify({
         format: BACKUP_FORMAT,
         version: 1,
-        settings: { phraseDwellMs: 0, actionDwellMs: -5, volume: 99, rate: 40, voiceURI: 7, autoSpeak: 'yes' },
+        settings: {
+          phraseDwellMs: 0,
+          actionDwellMs: -5,
+          // A repeat this fast empties a list in the time it takes to notice —
+          // and the control to slow it back down repeats at the same rate.
+          repeatDelayMs: 1,
+          volume: 99,
+          rate: 40,
+          voiceURI: 7,
+          autoSpeak: 'yes',
+        },
       }),
     )
     expect(result.ok).toBe(true)
@@ -261,6 +271,7 @@ describe('reading a backup back', () => {
     expect(result.backup.settings).toEqual({
       phraseDwellMs: 500,
       actionDwellMs: 300,
+      repeatDelayMs: 100,
       voiceURI: '',
       volume: 1,
       rate: 2,

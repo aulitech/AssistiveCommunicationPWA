@@ -117,7 +117,9 @@ export function SettingRow({ label, children }: { label: string; children: React
 
 function StepBtn({ onAction, children, label }: { onAction: () => void; children: React.ReactNode; label: string }) {
   const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onAction, { repeatMs: 200 })
+  const { active, props } = useDwellControl(settings.actionDwellMs, onAction, {
+    repeatMs: settings.repeatDelayMs,
+  })
   return (
     <div
       className={cx('step-btn', active && 'dwelling')}
@@ -200,7 +202,7 @@ function ScrollButton({ action, onActivate, repeat }: {
 }) {
   const { settings } = useSettings()
   const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, {
-    repeatMs: repeat ? 180 : undefined,
+    repeatMs: repeat ? settings.repeatDelayMs : undefined,
   })
   return (
     <div

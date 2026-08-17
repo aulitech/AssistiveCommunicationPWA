@@ -25,6 +25,19 @@ const RECENT_KEY = 'peri_recent'
 export interface Settings {
   phraseDwellMs: number
   actionDwellMs: number
+  /**
+   * How long between repeats while a repeating control is held — the scroll
+   * nudges, the filter arrows, the settings spinners.
+   *
+   * The wait before the *first* fire is `actionDwellMs`, the same as any other
+   * control; this is only the gap between that one and the next. Held apart from
+   * the dwell time because they answer different questions: the dwell is how long
+   * somebody needs to settle on a target, and this is how fast they want to
+   * travel once they have. Somebody with a slow, deliberate gaze may want a long
+   * dwell and quick repeats, and the two were a single hardcoded pair of numbers
+   * until this existed.
+   */
+  repeatDelayMs: number
   voiceURI: string // empty = default
   volume: number // 0–1
   rate: number // 0.5–2
@@ -35,6 +48,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   phraseDwellMs: 1500,
   actionDwellMs: 800,
+  repeatDelayMs: 200,
   voiceURI: '',
   volume: 1,
   rate: 1,
@@ -49,6 +63,10 @@ export const DEFAULT_SETTINGS: Settings = {
 export const SETTING_LIMITS = {
   phraseDwellMs: { min: 500, max: 3000 },
   actionDwellMs: { min: 300, max: 2000 },
+  // The floor is not a taste: a repeat fast enough to outrun a gaze user's
+  // reaction takes a nudge control and turns it into a jump to the end of the
+  // list, and the control they would use to slow it back down repeats too.
+  repeatDelayMs: { min: 100, max: 1000 },
   volume: { min: 0, max: 1 },
   rate: { min: 0.5, max: 2 },
 } as const

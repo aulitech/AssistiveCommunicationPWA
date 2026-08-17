@@ -36,7 +36,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 
 **ui/** — the shared vocabulary
 
-- `ui/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on
+- `ui/dwell.ts` - `useDwellControl`, the hover-and-hold primitive every control is built on. `repeatMs` is what makes a control repeat while it is held; every caller passes `settings.repeatDelayMs` rather than a number of its own
 - `ui/caret.ts` - `useCaretDwell`, the hold that puts the caret under the pointer, and `caretIndexAt`, which asks the browser what character sits there. A text box was the one control dwell alone could not drive: hovering can focus it, but the caret only ever moved on a click. Both boxes in the app use the hook — the message box and the phrase editor — so the awkward parts are settled once
 - `ui/link-input.ts` - `useLinkInput`, the paste and drop handlers a text box needs to turn a link into markdown. Used by the message box and by the phrase editor
 - `ui/reorder.ts` - `useReorder`, the pick-up-and-put-down primitive behind both bars that can be arranged. A pointer-drag needs a button held down while the pointer moves, which is the one gesture a dwell user cannot make — so anything arrangeable can also be *lifted*: one dwell picks it up, a second on another drops it there. The category tabs and the emergency bar arrange by identical rules, so the rules are written once here
@@ -125,7 +125,7 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 - `src/emergency.test.tsx` - Arranging the emergency bar, and the two things that must not follow from it: a phrase moved out of reach of the order it was stored under, and a bar left in reorder mode when somebody needs to speak
 - `src/markdown.test.tsx` - Where the markup ends up once a phrase is used: drawn on the board, gone from what is spoken and searched, kept in the message box and on the clipboard. **Scope the grid to the seeded category first** — the board also holds the two and a half thousand phrases Peri ships, several of which begin with "Help"
 - `src/shell.test.ts` - `index.html` and the manifest: the parts of the app no component renders
-- `src/structure.test.ts` - The layering above, plus the two ways it quietly rots: a module dropped at the root, and Tailwind widening its scan back to the whole project
+- `src/structure.test.ts` - The layering above, plus the three ways it quietly rots: a module dropped at the root, Tailwind widening its scan back to the whole project, and **a NUL byte making a file binary to grep** — `core/backup.ts` used one as a map-key separator, and every search across the tree skipped that file without saying so. The character is right for the job; it has to be written as an escape
 - `src/test/setup.ts` - Stubs for the platform APIs jsdom lacks (speech synthesis, `ResizeObserver`, scrolling, clipboard, audio playback)
 
 Two things worth knowing when adding to them:
@@ -226,7 +226,7 @@ A backup is a **diff against the phrase table, not a copy of it**. The table shi
 Two things in `src/backup.ts` are deliberate and easy to "fix" by mistake:
 
 - **Merging never removes a phrase.** Deleting a phrase is the one change the app offers no way back from, so a file someone else made cannot make one on your device. Only *replace* applies removals, and `canReplace` refuses it for a file covering a few categories — everything the file said nothing about would go.
-- **Imported settings are clamped to `SETTING_LIMITS`.** A dwell time of zero fires every control the instant a pointer crosses it, leaving a gaze user no working control to undo it with. A file does not get to set a value the settings panel could not.
+- **Imported settings are clamped to `SETTING_LIMITS`.** A dwell time of zero fires every control the instant a pointer crosses it, leaving a gaze user no working control to undo it with — and a `repeatDelayMs` of nought empties a list before it can be read, with the control that would slow it down repeating just as fast. A file does not get to set a value the settings panel could not. `readSettings` builds the object field by field, so a new setting is a compiler error here rather than a silently dropped one.
 - **`emergencyOrder` travels with the Emergency category and is never filtered down.** The other lists in a file are trimmed to the categories in scope; an arrangement trimmed to a few of its own ids is not a smaller arrangement, it is a wrong one. Merging appends what the file arranged behind what this device already had, exactly as `categoryOrder` does, so a file cannot rearrange a bar underneath the person using it.
 
 ## The emergency bar
