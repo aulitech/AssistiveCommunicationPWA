@@ -2525,10 +2525,21 @@ body {
    mode is switched. */
 /* Bare glyphs, for the same reason as the category tools: these sit in a row of
    red phrase tiles, and a tool drawn as another tile reads as another phrase —
-   on the one bar where being read wrongly matters most. The width stays fixed
-   so the pair holds still as the mode is switched. */
+   on the one bar where being read wrongly matters most.
+ *
+ * The same box as the category tools, to the pixel, because they are the same
+ * four glyphs and this bar has six phrases to fit besides. It was 84px wide and
+ * stretched to whatever height the phrases came to, which was a tile's worth of
+ * room spent on something with no words in it — and made the rising dwell wash a
+ * tall column here and a small lozenge there, off the same two icons.
+ *
+ * Centred rather than stretched, so a phrase long enough to wrap does not drag
+ * the tools taller with it. Fixed either way, so the pair holds still as the
+ * mode is switched. */
 .emergency-tool {
-  flex: 0 0 84px;
+  flex: 0 0 46px;
+  height: 36px;
+  align-self: center;
   align-items: center;
   justify-content: center;
   padding: 0;
@@ -2536,6 +2547,14 @@ body {
   border-color: transparent;
   color: var(--text-muted);
 }
+
+/* The two tools sit closer to each other than to anything else, the way the
+   category pair does at 6px. They are direct children of the bar and take its
+   1.5rem gap like the phrases do, and there is no wrapper to give them a gap of
+   their own — so the second one pulls itself back by the difference. Only the
+   second: the space between the phrases and the pair is the bar's rhythm and
+   stays. */
+.emergency-tool + .emergency-tool { margin-left: calc(6px - 1.5rem); }
 
 /* The same size as the category tools — see `.filter-bar-btn svg`. The two sets
    sit at opposite ends of the screen and are the same four glyphs, so they are
@@ -2576,11 +2595,11 @@ body {
   border-color: transparent;
 }
 
-/* Two fixed-width tools and six phrases is a lot of bar on a narrow screen, so
-   the tools give back half their width there. They are icons; the phrases are
-   words, and it is the words that need the room. */
+/* Only the glyph shrinks on a narrow screen now. The tools used to give back
+   half their width here, from 84px to 48px, because two of them beside six
+   phrases was a lot of bar to spend on icons — but 46px at every width is
+   narrower than the concession was, so there is nothing left to give back. */
 @media (max-width: 700px) {
-  .emergency-tool { flex: 0 0 48px; }
   .emergency-tool svg { width: 1rem; height: 1rem; }
 }
 
