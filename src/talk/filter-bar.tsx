@@ -10,7 +10,7 @@ import { useCallback, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
-import { PlusIcon, ReorderIcon } from '../ui/icons'
+import { PageIcon, PlusIcon, ReorderIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 
 function FilterTab({ label, active, onSelect, onEdit, reorder }: {
@@ -141,6 +141,9 @@ function CustomOrderIcon() {
   )
 }
 
+/** How far a nudge moves the tabs, and the overlap a page leaves behind it. */
+const SCROLL_STEP = 200
+
 function FilterArrow({ onAction, repeat, label, children }: {
   onAction: () => void
   repeat?: boolean
@@ -203,6 +206,17 @@ export function FilterBar({
 
   const scrollTo = useCallback((pos: number) => scrollRef.current?.scrollTo({ left: pos, behavior: 'smooth' }), [])
   const scrollBy = useCallback((dx: number) => scrollRef.current?.scrollBy({ left: dx, behavior: 'smooth' }), [])
+  // A screenful of tabs, less one nudge's worth. Tabs are pills of every
+  // different width, so a jump of exactly one screen can leave one cut in half at
+  // the edge — and half a category is a target a gaze user can hit meaning the
+  // one beside it. The floor is for a bar narrower than the overlap.
+  const scrollPage = useCallback(
+    (direction: 1 | -1) => {
+      const extent = scrollRef.current?.clientWidth ?? 0
+      scrollBy(direction * Math.max(extent - SCROLL_STEP, SCROLL_STEP))
+    },
+    [scrollBy],
+  )
 
   // Switching the mode off puts down whatever was in the air. Without this the
   // tab stays held across the round trip, and the next dwell drops the
@@ -220,7 +234,11 @@ export function FilterBar({
         </svg>
       </FilterArrow>
 
-      <FilterArrow onAction={() => scrollBy(-200)} repeat label="Scroll categories left">
+      <FilterArrow onAction={() => scrollPage(-1)} label="Previous page of categories">
+        <PageIcon direction="left" />
+      </FilterArrow>
+
+      <FilterArrow onAction={() => scrollBy(-SCROLL_STEP)} repeat label="Scroll categories left">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
@@ -239,10 +257,14 @@ export function FilterBar({
         ))}
       </div>
 
-      <FilterArrow onAction={() => scrollBy(200)} repeat label="Scroll categories right">
+      <FilterArrow onAction={() => scrollBy(SCROLL_STEP)} repeat label="Scroll categories right">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="9 18 15 12 9 6"/>
         </svg>
+      </FilterArrow>
+
+      <FilterArrow onAction={() => scrollPage(1)} label="Next page of categories">
+        <PageIcon direction="right" />
       </FilterArrow>
 
       <FilterArrow onAction={() => scrollTo(999999)} label="Go to last category">

@@ -1076,6 +1076,58 @@ describe('the scroll rail', () => {
     click(railBtn('Scroll to top'))
     expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
   })
+
+  // Three sizes of jump on one rail: a nudge, a page, and the end. The page is
+  // the one that was missing — nudging 120px at a time down two thousand phrases
+  // is a long way, and jumping to the bottom overshoots everything in between.
+  describe('a page at a time', () => {
+    /** jsdom lays nothing out, so the height a page is measured from is supplied. */
+    const withHeight = (h: number) => {
+      const grid = $<HTMLElement>('.grid-wrapper')!
+      Object.defineProperty(grid, 'clientHeight', { value: h, configurable: true })
+      const scrollBy = vi.fn()
+      grid.scrollBy = scrollBy
+      return scrollBy
+    }
+
+    // One nudge's worth stays on screen. Rows are not a uniform height here, so
+    // a jump of exactly one screen can leave a row split across the fold — and a
+    // phrase half off the top of the page is one somebody may not know is there.
+    it('moves a screenful less one nudge, in both directions', () => {
+      renderApp()
+      const scrollBy = withHeight(600)
+
+      click(railBtn('Next page'))
+      expect(scrollBy).toHaveBeenCalledWith({ top: 480, behavior: 'smooth' })
+
+      click(railBtn('Previous page'))
+      expect(scrollBy).toHaveBeenLastCalledWith({ top: -480, behavior: 'smooth' })
+    })
+
+    // A grid shorter than the overlap would otherwise page by nothing at all.
+    it('still moves when the grid is shorter than the overlap', () => {
+      renderApp()
+      const scrollBy = withHeight(80)
+
+      click(railBtn('Next page'))
+      expect(scrollBy).toHaveBeenCalledWith({ top: 120, behavior: 'smooth' })
+    })
+
+    // The nudges repeat while held; a page does not. A page is a place to read
+    // from, and repeats of a whole screen queue their smooth scrolls into a blur
+    // that leaves a gaze user with no idea where in the list they have landed.
+    it('does not repeat while the pointer stays', () => {
+      renderApp()
+      const scrollBy = withHeight(600)
+
+      fireEvent.pointerEnter(railBtn('Next page')!)
+      act(() => void vi.advanceTimersByTime(800))
+      expect(scrollBy).toHaveBeenCalledTimes(1)
+
+      act(() => void vi.advanceTimersByTime(5000))
+      expect(scrollBy, 'the page control repeated').toHaveBeenCalledTimes(1)
+    })
+  })
 })
 
 describe('a phrase with a blank', () => {
