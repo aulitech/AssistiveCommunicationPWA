@@ -13,8 +13,8 @@ import { useCallback, useState } from 'react'
 import { useSettings } from '../ui/settings'
 import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
-import { useLinkInput } from '../ui/link-input'
-import { AutoSpeakIcon, ClearIcon, CopyIcon, EditIcon, MenuIcon, SpeakIcon, UndoIcon } from '../ui/icons'
+import { useLinkInput, type PasteResult } from '../ui/link-input'
+import { AutoSpeakIcon, ClearIcon, CopyIcon, EditIcon, MenuIcon, PasteIcon, SpeakIcon, UndoIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import type { Composer } from './use-composer'
 
@@ -111,7 +111,7 @@ function RestButton({ resting, onToggle }: { resting: boolean; onToggle: () => v
   )
 }
 
-export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak, menuOpen, onToggleMenu, resting, onToggleRest, onAddPhrase, onSpeak, onCopy }: {
+export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak, menuOpen, onToggleMenu, resting, onToggleRest, onAddPhrase, onSpeak, onCopy, onPasted }: {
   composer: Composer
   editMode: boolean
   onToggleEdit: () => void
@@ -126,6 +126,8 @@ export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAu
   /** Both of these are how a message leaves, which the screen keeps a record of. */
   onSpeak: () => void
   onCopy: () => void
+  /** Says what came of asking, so the screen can report a refusal out loud. */
+  onPasted: (result: PasteResult) => void
 }) {
   const { settings } = useSettings()
   const { text, setText, showUndo, canClear, clearOrUndo, textareaRef, trackCursor, setCursor } = composer
@@ -172,6 +174,12 @@ export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAu
       [setText, textareaRef],
     ),
   )
+
+  // Asking is asynchronous and can be refused, so what came of it goes back to
+  // the screen to be said out loud rather than being swallowed here.
+  const paste = useCallback(() => {
+    void linkInput.pasteFromClipboard().then(onPasted)
+  }, [linkInput, onPasted])
 
   return (
     <header className="topbar">
@@ -278,6 +286,15 @@ export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAu
 
       <ActionButton className="right" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
         <CopyIcon />
+      </ActionButton>
+
+      {/* Beside copy, because they are the pair. The keyboard route into this box
+          is Ctrl-V, which a dwell user does not have — so a control asks on their
+          behalf. Never disabled: what is on the clipboard is not this app's to
+          know until it asks, so a paste that turns out to have nothing behind it
+          says so rather than being greyed out on a guess. */}
+      <ActionButton className="right" onSelect={paste} label="Paste from clipboard">
+        <PasteIcon />
       </ActionButton>
     </header>
   )

@@ -52,6 +52,8 @@ describe('the user guide', () => {
     ['the sent list', /Sent tab/],
     ['texting acronyms', /Texting category/],
     ['a voice per phrase', /Voice setting/],
+    ['the paste button, and what to do when it is refused', /paste button/i],
+    ['clipboard access having to be allowed', /allow clipboard access/i],
     ['the choice syntax, for whoever writes the phrases', /\{'red', 'blue'\}/],
     ['an empty pair leaving a blank', /\{\} ?—|brackets with nothing in them/i],
     ['the lists Peri knows itself', /\{pronouns\}/],

@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useCaretDwell } from '../ui/caret'
-import { useLinkInput } from '../ui/link-input'
+import { useLinkInput, type PasteResult } from '../ui/link-input'
 import { useSettings } from '../ui/settings'
 import { compose, parseSegments, type Phrase } from '../core/phrases'
 import { VoicePicker } from '../voice/picker'
@@ -43,7 +43,7 @@ function EditAction({ kind, label, onActivate, disabled }: {
 /** Sentinel <option> value; the leading space cannot occur in a trimmed name. */
 const NEW_CATEGORY = ' __new_category__'
 
-export function EditModal({ phrase, isEmergency, initialText, allCategories, voice, recent, keeping, onSave, onDelete, onClose }: {
+export function EditModal({ phrase, isEmergency, initialText, allCategories, voice, recent, keeping, onSave, onDelete, onClose, onPasted }: {
   phrase: Phrase | null
   isEmergency: boolean
   /** Seeds a new phrase — the composed message, when adding from the message box. */
@@ -66,6 +66,8 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
   onSave: (text: string, category: string, voice: string | undefined) => void
   onDelete: () => void
   onClose: () => void
+  /** Says what came of asking the clipboard, so the screen can report a refusal. */
+  onPasted: (result: PasteResult) => void
 }) {
   // The source, not the display text. `text` has had its slots resolved into
   // labels — "red/blue" — and saving that back flattens the slot for good.
@@ -93,6 +95,10 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
       }, 0)
     }, []),
   )
+  const paste = useCallback(() => {
+    void linkInput.pasteFromClipboard().then(onPasted)
+  }, [linkInput, onPasted])
+
   // A phrase whose category is not one of the real ones — a sent message — has
   // to land somewhere the user actually keeps things, and the likeliest
   // somewhere is wherever the last one went.
@@ -161,6 +167,14 @@ export function EditModal({ phrase, isEmergency, initialText, allCategories, voi
           autoFocus
           rows={3}
         />
+
+        {/* Under the box rather than beside the Save row: it acts on the text,
+            not on the dialog, and a pointer travelling to it should not cross
+            Delete on the way. The keyboard route in here is Ctrl-V, which is
+            the input this whole app exists without. */}
+        <div className="edit-modal-tools">
+          <EditAction kind="cancel" label="Paste" onActivate={paste} />
+        </div>
 
         {!isEmergency && (
           <div className="edit-modal-row">

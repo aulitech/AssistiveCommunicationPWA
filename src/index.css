@@ -1790,6 +1790,16 @@ body {
   justify-content: flex-end;
 }
 
+/* What acts on the text, directly under the box it acts on — and at the other
+   end of the dialog from Save and Delete, so a pointer travelling to it crosses
+   neither. */
+.edit-modal-tools {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  margin-top: -4px;
+}
+
 .edit-action-btn {
   position: relative;
   padding: 8px 18px;
