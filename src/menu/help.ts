@@ -13,6 +13,27 @@ export type HelpBlock = ProseBlock
 export type HelpSection = ProseSection
 
 export const HELP_SECTIONS: ProseSection[] = [
+  // First, and the one the guide opens on. Somebody arriving here is usually
+  // looking for one thing; this says what the screen is made of so they know
+  // which heading below to open.
+  {
+    title: 'Overview',
+    blocks: [
+      text(
+        'Peri is a board of phrases you speak with. Rest the pointer on a phrase to add it to the message at the top, then rest on the speaker button to say it aloud. Nothing needs a click.',
+      ),
+      text('The screen has four parts:'),
+      list(
+        'The message box across the top, with the buttons that clear, speak and copy it.',
+        'A strip on the top edge of that box holding the three modes: edit on the left, Rest in the middle, auto-speak on the right.',
+        'The category tabs, and below them the grid of phrases, with arrows down the right for moving through it.',
+        'The red bar at the bottom, for the things that cannot wait.',
+      ),
+      text(
+        'Everything you change stays on this device. The menu button opens your details, your settings, a guide, and a way to save it all to a file.',
+      ),
+    ],
+  },
   {
     title: 'How selecting works',
     blocks: [
@@ -53,11 +74,60 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
     ],
   },
+  // The syntax, kept apart from the section above: that one is for the person
+  // speaking, this one is for whoever writes the phrases. Somebody who never
+  // opens the editor never needs it.
+  {
+    title: 'Writing a phrase with choices',
+    blocks: [
+      text(
+        'When you write or reword a phrase in edit mode, you can leave a word open for later. Put the choices in curly brackets, each in quotes, separated by commas:',
+      ),
+      list(
+        "I want the {'red', 'blue'} one",
+        "Please turn {'on', 'off'} the lights",
+      ),
+      text(
+        'The phrase then shows "red/blue" on the button, and choosing it asks which one you meant before putting the sentence in your message.',
+      ),
+      text(
+        'Curly brackets with nothing in them — {} — leave a blank instead. The phrase goes into the message as it stands, with the space ready to type into.',
+      ),
+      text(
+        'Peri also knows some lists of its own, such as {pronouns} and {bodyparts}, and fills {contact} and {name} from My details. Those need no quotes.',
+      ),
+      text(
+        'A phrase keeps what you wrote, not what it shows. Opening one to fix a typo will not flatten its choices.',
+      ),
+    ],
+  },
+  {
+    title: 'Making a phrase stand out',
+    blocks: [
+      text(
+        'A phrase can carry a little formatting, so a button can be read at a glance. It changes how the phrase looks and nothing else — the words are spoken and searched exactly as they read.',
+      ),
+      list(
+        '**two stars** for bold, *one star* for italic',
+        '~~two tildes~~ for a line through',
+        '`backticks` for a typed look',
+        '# at the start of a line for a heading',
+        '- at the start of a line for a bullet',
+        '_underscores_ work for italic too, but only between words, so a_name_like_this is left alone',
+      ),
+      text(
+        'A star on its own stays a star, so "2 * 3" is safe to write. Nothing becomes formatting until it is closed.',
+      ),
+      text(
+        'Formatting is kept when you copy a message, and dropped when it is spoken or searched. Typing "help" still finds a phrase written as **Help** me.',
+      ),
+    ],
+  },
   {
     title: 'Speaking straight away',
     blocks: [
       text(
-        'The speaker button at the top of the right-hand column turns on auto-speak. It lights up when it is on.',
+        'The speaker button to the right of the Rest bar, along the top edge of the message box, turns on auto-speak. It lights up when it is on.',
       ),
       text(
         'With auto-speak on, every phrase you choose is spoken the moment you choose it, and nothing is collected in the message box.',
@@ -78,7 +148,7 @@ export const HELP_SECTIONS: ProseSection[] = [
   {
     title: 'Changing the phrases',
     blocks: [
-      text('The pencil button in the right-hand column turns on edit mode.'),
+      text('The pencil button to the left of the Rest bar, along the top edge of the message box, turns on edit mode.'),
       list(
         'Choose any phrase to change its wording.',
         'Choose the message box to add a new phrase of your own. It starts in the category and voice you last used, so adding several in a row takes one choice rather than one each.',

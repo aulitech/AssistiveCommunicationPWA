@@ -135,7 +135,16 @@ export function TopPanel({ open, user, onClose, onSignOut, profile, onProfileCha
           which is in the same corner of every panel including this one. */}
       <div className={cx('panel-scrim', open && 'open')} />
 
-      <div className={cx('top-panel', open && 'open')} role="dialog" aria-label="Menu" aria-hidden={!open}>
+      {/* Settings and the guide take the whole screen; the menu itself and the
+          shorter panels hang down only as far as their content. Both of those two
+          are scrolled whatever height they get, and a taller pane is fewer dwells
+          on the scroll arrows. */}
+      <div
+        className={cx('top-panel', open && 'open', (view === 'settings' || view === 'help') && 'is-tall')}
+        role="dialog"
+        aria-label="Menu"
+        aria-hidden={!open}
+      >
         {/* User row */}
         <div className="panel-user-row">
           <div className="panel-avatar" aria-hidden="true">

@@ -1025,14 +1025,98 @@ describe('help', () => {
     }
   })
 
-  it('renders every section heading and its body', () => {
+  // Every heading is always there — folded up, the guide is a list of what it
+  // can tell you, which is how somebody finds the one thing they came for.
+  it('renders every section heading', () => {
     renderApp()
     openMenu()
     click(nav('Help'))
 
     const headings = $$('.help-section-title').map(h => h.textContent)
     expect(headings).toEqual(HELP_SECTIONS.map(s => s.title))
-    expect($$('.help-text').length + $$('.help-list li').length).toBeGreaterThan(20)
+  })
+
+  describe('folding up', () => {
+    const showHelp = () => {
+      renderApp()
+      openMenu()
+      click(nav('Help'))
+    }
+    const heading = (title: string) =>
+      $$('.help-section-title').find(h => h.textContent === title)!
+    const openTitles = () =>
+      $$('.help-section.is-open .help-section-title').map(h => h.textContent)
+    const bodyCount = () => $$('.help-text').length + $$('.help-list').length
+
+    // Open on arrival, so the guide says something rather than only listing what
+    // it could say — and the titles of everything else are visible below it.
+    it('opens on the first section and no other', () => {
+      showHelp()
+      expect(openTitles()).toEqual([HELP_SECTIONS[0].title])
+      expect(HELP_SECTIONS[0].title).toBe('Overview')
+    })
+
+    it('opens the one chosen and closes the one that was open', () => {
+      showHelp()
+      click(heading('Settings'))
+
+      expect(openTitles()).toEqual(['Settings'])
+      expect($$('.help-section.is-open .help-text').length).toBeGreaterThan(0)
+    })
+
+    it('closes the open one when it is chosen again', () => {
+      showHelp()
+      click(heading('Overview'))
+
+      expect(openTitles()).toEqual([])
+      expect(bodyCount(), 'a closed guide still had prose in it').toBe(0)
+    })
+
+    // Unmounted rather than hidden. Left in the tree, a screen reader would read
+    // out fifteen sections the user has closed.
+    it("keeps only the open section's prose in the page", () => {
+      showHelp()
+      const all = HELP_SECTIONS.reduce((n, s) => n + s.blocks.length, 0)
+      expect(bodyCount()).toBeLessThan(all)
+      expect(bodyCount()).toBe(HELP_SECTIONS[0].blocks.length)
+    })
+
+    // The legal pages are the same shape of text drawn by the same component,
+    // and they are documents: served at their own URLs, indexed, read by people
+    // checking one clause. Folding them would hide most of what they exist to say.
+    it('leaves the legal pages open', () => {
+      // Restored in `finally`: leaving the URL at /privacy makes every test
+      // after this one render the privacy policy instead of the app.
+      try {
+        window.history.pushState({}, '', '/privacy')
+        container = render(<App />).container
+        settle()
+
+        expect($('.help-section.is-collapsible')).toBeNull()
+        expect($$('.help-section-title').length).toBeGreaterThan(1)
+        expect($$('.help-text').length).toBeGreaterThan(5)
+      } finally {
+        window.history.pushState({}, '', '/')
+      }
+    })
+  })
+
+  // Settings and the guide take the whole screen; the menu and the shorter
+  // panels hang down only as far as their content. jsdom lays nothing out, so
+  // the class is what can be checked — the height it carries is the preview's
+  // question.
+  it.each([
+    ['Settings', true],
+    ['Help', true],
+    ['My details', false],
+    ['Backup & sharing', false],
+  ])('gives %s the full viewport: %s', (panel, tall) => {
+    renderApp()
+    openMenu()
+    expect($('.top-panel')?.classList.contains('is-tall'), 'the menu itself is not tall').toBe(false)
+
+    click(nav(panel))
+    expect($('.top-panel')?.classList.contains('is-tall')).toBe(tall)
   })
 
   it('goes back to the menu', () => {

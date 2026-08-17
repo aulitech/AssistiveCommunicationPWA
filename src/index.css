@@ -81,15 +81,16 @@ body {
      side are not quite symmetric — which is not a difference anyone can see.
 
      The top padding is where the message box begins, and the mode strip is
-     centred on that line — so the padding has to be at least half a toggle or the
-     strip would overflow the top of the bar. Half of 1.5rem is 12px, which is why
-     it is 12px: the strip rides on the box rather than sitting in a band above
-     it, and the grid gives up 2px rather than the 18px a band cost. */
+     centred on that line — so the padding has to be at least half the strip or it
+     would overflow the top of the bar. The strip is a 1.5rem toggle in 0.25rem of
+     padding, which is 32px, so this is 16px. **It has to equal `.topbar-modes`
+     `top`**: equal is what puts the strip on the border, and half the strip is
+     what keeps it inside the bar. */
   position: relative;
   display: flex;
   align-items: stretch;
   gap: 0;
-  padding: 12px 10px 10px;
+  padding: 16px 10px 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
@@ -335,14 +336,27 @@ body {
  * than to the caret. */
 .topbar-modes {
   position: absolute;
-  top: 12px;
+  /* Matches `.topbar` padding-top — see the note there. */
+  top: 16px;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 5;
+  /* Above everything in the app, and below the panel and the dialogs, which are
+     meant to cover it. `.topbar` is `position: relative` with no z-index of its
+     own, so it opens no stacking context and this number is read against the
+     page rather than against the bar. */
+  z-index: 90;
 
   display: flex;
   align-items: center;
   gap: 0.75rem;
+
+  /* Opaque, because it sits *on* the message box: with nothing behind them the
+     three controls had the box's border and whatever had been typed showing
+     through the gaps between them. Black rather than `--surface` so the strip
+     reads as its own thing rather than as part of the box it covers. */
+  background: #000;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
 }
 
 /* The mode toggles either side of Rest. Painted small to sit on a strip Rest is
@@ -642,6 +656,21 @@ body {
 }
 .top-panel.open {
   transform: translateY(0);
+}
+
+/* Settings and the guide fill the screen; the menu and the shorter panels hang
+   down only as far as they need to. Both of those two are long enough to be
+   scrolled whatever height they get, and a taller pane is fewer dwells on the
+   scroll arrows — which is the whole cost of reading anything here.
+
+   `dvh` rather than `vh`: on a phone `vh` is the viewport with the browser's
+   chrome *hidden*, so a panel sized in it runs under the address bar and the
+   last row of it cannot be reached. The `vh` line before is for anything that
+   does not know `dvh` yet. */
+.top-panel.is-tall {
+  height: 100vh;
+  height: 100dvh;
+  border-radius: 0;
 }
 
 /* User row */
@@ -1199,15 +1228,15 @@ body {
 }
 
 /* ── Settings panel ── */
+/* Fills whatever the panel gives it, which for this view is the viewport — see
+   `.top-panel.is-tall`. It grows with the linked-account row and the reset at the
+   foot of it, and a panel taller than the screen is one whose bottom a dwell user
+   cannot reach, so it is bounded and scrolled either way. */
 .settings-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  /* Both of these grow with what is in them — the profile with every contact
-     added, the settings with the linked-account row — and a panel taller than
-     the screen is a panel whose bottom half a dwell user cannot reach. Bounded
-     and scrolled, the same way the guide and the backup screen are. */
-  max-height: 52vh;
+  flex: 1;
 }
 
 .settings-body {
@@ -2122,9 +2151,9 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  /* Keeps the panel on screen on a short viewport rather than running past the
-     bottom of it. */
-  max-height: 52vh;
+  /* The whole viewport — see `.top-panel.is-tall`. The guide is the longest thing
+     in the app to read, and every screenful of it costs a dwell on an arrow. */
+  flex: 1;
 }
 
 .help-scroller {
@@ -2166,6 +2195,48 @@ body {
   font-weight: 600;
   color: var(--accent);
 }
+
+/* ── A guide that folds up ── */
+/* Only the guide does this; the legal pages are documents and stay open. Each
+   heading is a dwell control, so it is sized like one — a target the width of the
+   word "Overview" is a poor one to aim at, and these are the only way in. */
+.help-section.is-collapsible {
+  border-bottom: 1px solid var(--border);
+}
+
+.help-section.is-collapsible .help-section-title {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 13px 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.help-section.is-collapsible.is-open .help-section-title { margin-bottom: 4px; }
+.help-section.is-collapsible .help-section-title.dwelling { color: var(--text); }
+
+/* A triangle rather than a plus or a chevron: it points at the heading while
+   closed and at the text while open, so the direction is the state. */
+.help-section-caret {
+  flex-shrink: 0;
+  width: 0;
+  height: 0;
+  border-left: 6px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transition: transform 0.15s ease;
+}
+
+.help-section.is-open .help-section-caret {
+  transform: rotate(90deg);
+}
+
+/* The last blocks of an open section want room before the next heading. */
+.help-section.is-collapsible > :last-child { margin-bottom: 12px; }
 
 .help-text {
   margin: 0 0 10px;
