@@ -3,10 +3,11 @@
 // in a strip straddling the top edge of the message box, in the middle of the
 // screen's top where a gaze on its way anywhere passes.
 //
-// Rest held that strip alone for a long time and cost the grid nothing, being
-// half a rem tall. Edit and auto-speak came up from the grid rail to join it,
-// and two icons need more than half a rem, so the strip is 18px taller than it
-// was and the grid is 18px shorter. That is the price of the arrangement.
+// The strip is centred on the box's top border and overlaps the box, rather than
+// sitting in a band above it — a band wide enough for two icons cost the grid
+// 18px, and riding on the border costs 2px. What it costs instead is the
+// top-centre of the message box, which now answers to a mode rather than to the
+// caret. Rest was already there, so that surface was never entirely the box's.
 
 import { useCallback, useState } from 'react'
 import { useSettings } from '../ui/settings'

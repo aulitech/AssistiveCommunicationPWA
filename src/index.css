@@ -80,14 +80,16 @@ body {
      box itself puts it 4px off the box's true centre — the button rails either
      side are not quite symmetric — which is not a difference anyone can see.
 
-     The top padding is the strip: Rest used to be the only thing up there and
-     needed almost none, but it has two icons beside it now and they need room to
-     be seen. That room is the grid's, which is why it is as little as it is. */
+     The top padding is where the message box begins, and the mode strip is
+     centred on that line — so the padding has to be at least half a toggle or the
+     strip would overflow the top of the bar. Half of 1.5rem is 12px, which is why
+     it is 12px: the strip rides on the box rather than sitting in a band above
+     it, and the grid gives up 2px rather than the 18px a band cost. */
   position: relative;
   display: flex;
   align-items: stretch;
   gap: 0;
-  padding: 28px 10px 10px;
+  padding: 12px 10px 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
@@ -297,15 +299,26 @@ body {
    no icon and no word. Amber, because green already means selected and blue
    means held, and this is the control someone has to find when nothing else
    on screen will answer. Its name lives in `aria-label` alone. */
-/* The three modes as one centred strip: edit, Rest, auto-speak. Rest holds the
-   middle — it is the one control that has to be findable without looking, and
-   the middle of the screen's top is where it was found. The row is what is
-   positioned now; the lozenge inside it no longer places itself. */
+/* The three modes as one strip: edit, Rest, auto-speak. Rest holds the middle —
+   it is the one control that has to be findable without looking, and the middle
+   of the screen's top is where it was found. The row is what is positioned now;
+   the lozenge inside it no longer places itself.
+ *
+ * Centred on the message box's top border in both directions, so it sits *on*
+ * the box rather than above it — `top` matches the topbar's padding, which is
+ * where that border is, and the translate takes back half the strip's own height.
+ * `align-items: center` is what puts the 0.5rem lozenge on the same line as the
+ * 1.5rem toggles either side of it.
+ *
+ * The consequence is that these three overlap the box, and their invisible hit
+ * areas overlap more of it than they appear to. That is the arrangement asked
+ * for, but it means the top-centre of the message box answers to a mode rather
+ * than to the caret. */
 .topbar-modes {
   position: absolute;
-  top: 4px;
+  top: 12px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: 5;
 
   display: flex;
