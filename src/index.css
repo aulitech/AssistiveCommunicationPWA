@@ -1810,10 +1810,11 @@ body {
 .slot-cancel.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
 
 /* ── Add-emergency tile (edit mode) ── */
-/* Dashed, which is how this app draws "nothing here yet". Everything else about
-   it — the width, the muted colour — it shares with the reorder control beside
-   it, and comes from `.emergency-tool`. */
-.emergency-add { border-style: dashed; }
+/* Nothing of its own any more. It was a dashed outline, which is how this app
+   draws "nothing here yet", but the tools at the end of this bar are bare glyphs
+   now and an outline is the thing they do not have — see `.emergency-tool`,
+   which is where the width, the colour and the icon come from. The class stays
+   because the tests reach for it by name. */
 
 /* ── Sign-in dwell control ── */
 /* Dwell time is adjustable before sign-in — otherwise anyone who needs a slow
@@ -2384,27 +2385,52 @@ body {
   border-left: 1px solid var(--border);
 }
 
-.filter-bar-tools .filter-bar-btn { padding: 9px 14px; }
-.filter-bar-tools .filter-bar-btn svg { width: 17px; height: 17px; }
-
-/* The add / sort / reorder controls at the end of the bar. */
+/* The add / sort / reorder controls at the end of the bar.
+ *
+ * Bare glyphs: no border, no padding, no pill. They sit at the end of a row of
+ * pills, and a tool drawn as one more pill reads as one more category — while
+ * these are the controls a user has to pick out of the row without reading it.
+ * So what makes them findable is the icon itself, drawn heavier and larger than
+ * anything else in the bar, rather than a box drawn around it.
+ *
+ * The box stays as a hit area, sized rather than padded, which is also what the
+ * fill has to paint when the mode is on. The size is what the padding used to
+ * come to, so the bar is exactly as tall as it was. The border stays too and is
+ * merely transparent: `is-on` gives it a colour, and a border appearing from
+ * nothing would shift the icon by a pixel every time the mode was switched. */
 .filter-bar-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 7px 12px;
-  border-style: dashed;
+  padding: 0;
+  width: 46px;
+  height: 36px;
+  border-color: transparent;
+  background: transparent;
   color: var(--text-muted);
 }
 
-.filter-bar-btn svg { width: 14px; height: 14px; }
-.filter-bar-btn.dwelling { color: var(--accent); border-color: var(--accent); }
+/* Heavier here than the icons carry themselves, in CSS rather than in the
+   markup: `PlusIcon` is also the add control in the profile panel, where it sits
+   in an ordinary button and wants an ordinary weight. */
+.filter-bar-btn svg { width: 24px; height: 24px; stroke-width: 3; }
 
+/* The pill is gone, so a dwell says so with the glyph and the fill beneath it
+   rather than by lighting up an outline. */
+.filter-bar-btn.dwelling {
+  color: var(--accent);
+  border-color: transparent;
+  background: transparent;
+}
+
+/* The one state that does draw a box. Reordering is a mode, and a mode has to be
+   loud — this is the only thing on either bar saying the tabs have stopped being
+   things to open and become things to pick up. It paints the hit area the bare
+   glyph was already occupying, so nothing moves as it comes and goes. */
 .filter-bar-btn.is-on {
   color: #000;
   background: var(--accent);
   border-color: var(--accent);
-  border-style: solid;
 }
 
 .filter-bar-btn[aria-disabled] {
@@ -2469,15 +2495,30 @@ body {
 /* The tools at the end of the bar. Sized like the add tile they sit beside, so
    the pair keeps a constant width and the reorder control does not move as the
    mode is switched. */
+/* Bare glyphs, for the same reason as the category tools: these sit in a row of
+   red phrase tiles, and a tool drawn as another tile reads as another phrase —
+   on the one bar where being read wrongly matters most. The width stays fixed
+   so the pair holds still as the mode is switched. */
 .emergency-tool {
   flex: 0 0 84px;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
   color: var(--text-muted);
 }
 
-.emergency-tool svg { width: 20px; height: 20px; }
-.emergency-tool.dwelling { color: var(--accent); }
+.emergency-tool svg { width: 26px; height: 26px; stroke-width: 3; }
+
+/* Not the red wash the phrases use — these are the tools beside the bar, not
+   something to say out loud, and the tint would be the one cue claiming
+   otherwise. The glyph and the fill under it carry the dwell instead. */
+.emergency-tool.dwelling {
+  color: var(--accent);
+  background: transparent;
+}
+
 .emergency-tool[aria-disabled] { opacity: 0.4; }
 
 /* Filled while reordering is on, the same way the category tools are: the mode
@@ -2493,7 +2534,7 @@ body {
    words, and it is the words that need the room. */
 @media (max-width: 700px) {
   .emergency-tool { flex: 0 0 48px; }
-  .emergency-tool svg { width: 16px; height: 16px; }
+  .emergency-tool svg { width: 21px; height: 21px; }
 }
 
 /* The same three cues the tabs use, in the bar's own colour. Solid rather than
