@@ -3,6 +3,7 @@ import { fireEvent, render, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import App from './App'
+import { DEFAULT_SETTINGS } from './core/store'
 
 // Category editing spans the filter bar, a modal and the phrase editor, so it
 // gets its own file rather than swelling App.test.tsx further.
@@ -739,8 +740,8 @@ describe('paging the category bar', () => {
     act(() => void vi.advanceTimersByTime(800))
     expect(scrollBy).toHaveBeenCalledTimes(1)
 
-    // The default 200ms repeat: three more in 700ms.
-    act(() => void vi.advanceTimersByTime(700))
+    // Three more, at whatever the default pace is.
+    act(() => void vi.advanceTimersByTime(DEFAULT_SETTINGS.repeatDelayMs * 3))
     expect(scrollBy.mock.calls.length, 'the page control did not repeat').toBe(4)
   })
 })

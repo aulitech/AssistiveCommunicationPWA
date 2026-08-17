@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDwellControl } from './dwell'
 import { useSettings } from './settings'
+import { ResetIcon } from './icons'
 import type { ProseSection } from '../core/prose'
 import { cx, dwellVar } from './style'
 
@@ -115,14 +116,22 @@ export function SettingRow({ label, children }: { label: string; children: React
   )
 }
 
-function StepBtn({ onAction, children, label }: { onAction: () => void; children: React.ReactNode; label: string }) {
+function StepBtn({ onAction, children, label, repeat = true, disabled }: {
+  onAction: () => void
+  children: React.ReactNode
+  label: string
+  /** Off for the revert, which has one place to go and arrives on the first fire. */
+  repeat?: boolean
+  disabled?: boolean
+}) {
   const { settings } = useSettings()
   const { active, props } = useDwellControl(settings.actionDwellMs, onAction, {
-    repeatMs: settings.repeatDelayMs,
+    repeatMs: repeat ? settings.repeatDelayMs : undefined,
+    disabled,
   })
   return (
     <div
-      className={cx('step-btn', active && 'dwelling')}
+      className={cx('step-btn', active && 'dwelling', disabled && 'is-disabled')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
       aria-label={label}
@@ -134,13 +143,21 @@ function StepBtn({ onAction, children, label }: { onAction: () => void; children
   )
 }
 
-export function SettingSpinner({ value, min, max, step, format, onValue }: {
+export function SettingSpinner({ value, min, max, step, format, onValue, defaultValue, name }: {
   value: number
   min: number
   max: number
   step: number
   format: (v: number) => string
   onValue: (v: number) => void
+  /**
+   * What this setting shipped as, **in the units the spinner shows** — Volume
+   * counts in percent and Speed in tenths, so the caller scales it the same way
+   * it scales `value`.
+   */
+  defaultValue: number
+  /** Names the setting in the revert's label, since the icon says nothing aloud. */
+  name: string
 }) {
   const clamp = useCallback(
     (v: number) => Math.min(max, Math.max(min, Math.round(v / step) * step)),
@@ -148,6 +165,7 @@ export function SettingSpinner({ value, min, max, step, format, onValue }: {
   )
   const dec = useCallback(() => onValue(clamp(value - step)), [value, step, onValue, clamp])
   const inc = useCallback(() => onValue(clamp(value + step)), [value, step, onValue, clamp])
+  const revert = useCallback(() => onValue(clamp(defaultValue)), [defaultValue, onValue, clamp])
 
   return (
     <div className="setting-spinner">
@@ -166,6 +184,18 @@ export function SettingSpinner({ value, min, max, step, format, onValue }: {
       />
       <span className="setting-formatted">{format(value)}</span>
       <StepBtn onAction={inc} label="Increase">+</StepBtn>
+      {/* Always here, going quiet at the default rather than away. Somebody who
+          has learnt where a control is should find it in the same place, and a
+          row that changes width as a value crosses its default moves the two
+          buttons beside it. The same bargain the emergency bar's add tool makes. */}
+      <StepBtn
+        onAction={revert}
+        repeat={false}
+        disabled={value === clamp(defaultValue)}
+        label={`Reset ${name} to ${format(clamp(defaultValue))}`}
+      >
+        <ResetIcon />
+      </StepBtn>
     </div>
   )
 }

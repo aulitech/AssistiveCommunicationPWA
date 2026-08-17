@@ -149,6 +149,24 @@ export function PageIcon({ direction }: { direction: 'up' | 'down' | 'left' | 'r
   )
 }
 
+/**
+ * Put this back the way it came. Beside every settable value, and on the control
+ * that puts all of them back at once.
+ *
+ * A full circle with an arrowhead, not the open hook `UndoIcon` draws. Undo sits
+ * in the topbar and means "the last thing I did to this message"; this means
+ * "back to the value it shipped with", and the two must not be learnt as one
+ * control. The closed loop is the difference: it returns to where it started.
+ */
+export function ResetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+      <polyline points="20 4 20 9 15 9" />
+    </svg>
+  )
+}
+
 export function PlusIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="20" height="20" aria-hidden="true">

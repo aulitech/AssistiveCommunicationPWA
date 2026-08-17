@@ -153,7 +153,9 @@ export function TopPanel({ open, user, onClose, onSignOut, profile, onProfileCha
 
         {view !== 'menu' ? (
           <>
-            {view === 'settings' && <SettingsPanel />}
+            {view === 'settings' && (
+              <SettingsPanel store={store} profile={profile} categoryById={categoryById} />
+            )}
             {view === 'profile' && <ProfilePanel profile={profile} onChange={onProfileChange} />}
             {view === 'backup' && (
               <BackupPanel

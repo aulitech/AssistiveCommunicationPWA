@@ -8,7 +8,6 @@ import { type Profile } from '../core/phrases'
 import { type PhraseStore } from '../core/store'
 import {
   applyBackup,
-  backupFilename,
   buildBackup,
   canReplace,
   describeBackup,
@@ -20,6 +19,7 @@ import {
   type BackupSummary,
   type ImportMode,
 } from '../core/backup'
+import { downloadBackup } from './backup-file'
 import { cx, dwellVar } from '../ui/style'
 import { PanelButton, PickerModal, PickerTile, ScrollPane } from '../ui/controls'
 
@@ -88,18 +88,11 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
   }, [])
 
   const download = useCallback(() => {
-    const json = serializeBackup(backup)
-    const name = backupFilename(backup)
-    try {
-      const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
-      const link = document.createElement('a')
-      link.href = url
-      link.download = name
-      link.click()
-      URL.revokeObjectURL(url)
+    const saved = downloadBackup(backup)
+    if (saved.ok) {
       setError(null)
-      setStatus(`Saved as ${name}`)
-    } catch {
+      setStatus(`Saved as ${saved.name}`)
+    } else {
       setError('Peri could not save the file. Copy the backup instead.')
     }
   }, [backup])
