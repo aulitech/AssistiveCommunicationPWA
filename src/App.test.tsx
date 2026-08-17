@@ -7,7 +7,7 @@ import { BLANK, PHRASES, composeWithBlank, hasBlank } from './core/phrases'
 import { DEFAULT_SETTINGS } from './core/store'
 import { HELP_SECTIONS } from './menu/help'
 import { parseBackup } from './core/backup'
-import { spoken, lastUtterance, downloads, played, setClipboardText, voices } from './test/setup'
+import { spoken, lastUtterance, downloads, played, scrolledIntoView, setClipboardText, voices } from './test/setup'
 
 // The grid renders every phrase, so query the DOM directly — building an
 // accessibility tree over a couple of thousand cells for each lookup is slow.
@@ -1062,6 +1062,30 @@ describe('help', () => {
 
       expect(openTitles()).toEqual(['Settings'])
       expect($$('.help-section.is-open .help-text').length).toBeGreaterThan(0)
+    })
+
+    // Opening a section low in the list used to leave its heading where it was,
+    // with the text it just revealed below the fold — so the reader had to go
+    // and find the scroll arrows to see what they had asked for.
+    it('brings a newly opened section to the top of the pane', () => {
+      showHelp()
+      scrolledIntoView.length = 0
+
+      click(heading('Backup and sharing'))
+
+      const section = $$('.help-section').find(s => s.classList.contains('is-open'))
+      expect(scrolledIntoView.at(-1), 'the opened section was not scrolled to').toBe(section)
+    })
+
+    // Closing is not going anywhere. Scrolling on the way out would move the page
+    // under somebody who had just finished reading it.
+    it('does not scroll when a section is closed', () => {
+      showHelp()
+      click(heading('Backup and sharing'))
+      scrolledIntoView.length = 0
+
+      click(heading('Backup and sharing'))
+      expect(scrolledIntoView).toEqual([])
     })
 
     it('closes the open one when it is chosen again', () => {

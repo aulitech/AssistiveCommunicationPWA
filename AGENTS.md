@@ -60,7 +60,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `menu/backup-file.ts` - Turning a backup into a file the browser saves. Out of `core/backup.ts`, which touches nothing, and out of the panel, because two places offer to save one: **Backup & sharing**, and the confirmation in front of a factory reset
 **Settings and the guide fill the viewport**; the menu itself and the shorter panels hang down only as far as their content. `.top-panel.is-tall`, set from `view` in `menu.tsx`, sized in `dvh` — on a phone `vh` is the viewport with the browser chrome *hidden*, so a panel sized in it runs under the address bar and its last row cannot be reached.
 
-- `menu/help.ts` - The guide, as data. **Its headings fold up**, one open at a time, first open on arrival — fifteen sections is a lot to scroll past by dwell to reach the one you came for. The legal pages are the same shape of text drawn by the same `ProseSections`, and deliberately do *not* fold: they are documents, served at their own URLs and indexed
+- `menu/help.ts` - The guide, as data. **Its headings fold up**, one open at a time, first open on arrival — fifteen sections is a lot to scroll past by dwell to reach the one you came for. Folded, it is a list, so the headings carry no padding: the tighter the list the more of it is on screen, which is the point of folding it. **Opening one scrolls it to the top of the pane**, in an effect after the render that opened it, so what was just chosen is the first thing on screen; closing does not scroll, since closing is not going anywhere. The legal pages are the same shape of text drawn by the same `ProseSections`, and deliberately do *not* fold: they are documents, served at their own URLs and indexed
 
 **talk/** — **the usual starting point for UI work**
 
@@ -136,7 +136,7 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 - `src/markdown.test.tsx` - Where the markup ends up once a phrase is used: drawn on the board, gone from what is spoken and searched, kept in the message box and on the clipboard. **Scope the grid to the seeded category first** — the board also holds the two and a half thousand phrases Peri ships, several of which begin with "Help"
 - `src/shell.test.ts` - `index.html` and the manifest: the parts of the app no component renders
 - `src/structure.test.ts` - The layering above, plus the three ways it quietly rots: a module dropped at the root, Tailwind widening its scan back to the whole project, and **a NUL byte making a file binary to grep** — `core/backup.ts` used one as a map-key separator, and every search across the tree skipped that file without saying so. The character is right for the job; it has to be written as an escape
-- `src/test/setup.ts` - Stubs for the platform APIs jsdom lacks (speech synthesis, `ResizeObserver`, scrolling, clipboard, audio playback)
+- `src/test/setup.ts` - Stubs for the platform APIs jsdom lacks (speech synthesis, `ResizeObserver`, scrolling, clipboard, audio playback). `scrolledIntoView` records what asked to be brought into view — jsdom has no layout and so no `scrollIntoView` at all, which is a missing function rather than one that quietly does nothing
 
 Two things worth knowing when adding to them:
 

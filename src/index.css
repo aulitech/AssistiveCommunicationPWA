@@ -2204,6 +2204,10 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+/* No padding: folded up, the guide is a list of headings, and the tighter that
+   list is the more of it is on screen at once — which is the point of folding it.
+   The row is still full width, so what shrinks is the height of the target and
+   not its area. The border below each is what separates one from the next. */
 .help-section.is-collapsible .help-section-title {
   position: relative;
   overflow: hidden;
@@ -2211,12 +2215,13 @@ body {
   align-items: center;
   gap: 10px;
   margin: 0;
-  padding: 13px 4px;
+  padding: 0;
+  line-height: 1.9;
   cursor: pointer;
   user-select: none;
 }
 
-.help-section.is-collapsible.is-open .help-section-title { margin-bottom: 4px; }
+.help-section.is-collapsible.is-open .help-section-title { margin-bottom: 6px; }
 .help-section.is-collapsible .help-section-title.dwelling { color: var(--text); }
 
 /* A triangle rather than a plus or a chevron: it points at the heading while
