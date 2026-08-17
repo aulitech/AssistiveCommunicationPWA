@@ -1113,19 +1113,20 @@ describe('the scroll rail', () => {
       expect(scrollBy).toHaveBeenCalledWith({ top: 120, behavior: 'smooth' })
     })
 
-    // The nudges repeat while held; a page does not. A page is a place to read
-    // from, and repeats of a whole screen queue their smooth scrolls into a blur
-    // that leaves a gaze user with no idea where in the list they have landed.
-    it('does not repeat while the pointer stays', () => {
-      renderApp()
+    // Repeats while held, like the nudges, and paced by the same auto-repeat
+    // setting — so a screenful a second is a choice the user can make rather than
+    // one this file makes for them.
+    it('keeps paging while the pointer stays', () => {
+      renderApp({ actionDwellMs: 800, repeatDelayMs: 500 })
       const scrollBy = withHeight(600)
 
       fireEvent.pointerEnter(railBtn('Next page')!)
       act(() => void vi.advanceTimersByTime(800))
       expect(scrollBy).toHaveBeenCalledTimes(1)
 
-      act(() => void vi.advanceTimersByTime(5000))
-      expect(scrollBy, 'the page control repeated').toHaveBeenCalledTimes(1)
+      act(() => void vi.advanceTimersByTime(1500))
+      expect(scrollBy.mock.calls.length, 'the page control did not repeat').toBe(4)
+      expect(scrollBy).toHaveBeenLastCalledWith({ top: 480, behavior: 'smooth' })
     })
   })
 })
