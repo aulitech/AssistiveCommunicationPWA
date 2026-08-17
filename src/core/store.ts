@@ -48,7 +48,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   phraseDwellMs: 1500,
   actionDwellMs: 800,
-  repeatDelayMs: 200,
+  repeatDelayMs: 1000,
   voiceURI: '',
   volume: 1,
   rate: 1,
@@ -66,7 +66,11 @@ export const SETTING_LIMITS = {
   // The floor is not a taste: a repeat fast enough to outrun a gaze user's
   // reaction takes a nudge control and turns it into a jump to the end of the
   // list, and the control they would use to slow it back down repeats too.
-  repeatDelayMs: { min: 100, max: 1000 },
+  //
+  // The ceiling is above the default rather than equal to it. A default sitting
+  // on its own limit leaves half the spinner inert, which reads as broken — and
+  // somebody who wants a whole second between repeats may well want more.
+  repeatDelayMs: { min: 100, max: 2000 },
   volume: { min: 0, max: 1 },
   rate: { min: 0.5, max: 2 },
 } as const
@@ -363,6 +367,49 @@ export function saveUser(u: User) {
 export function clearUser() {
   localStorage.removeItem(USER_KEY)
 }
+
+// ── Factory reset ────────────────────────────────────────────────────────────
+
+/**
+ * Everything this app has ever written down, except who is signed in.
+ *
+ * Listed rather than reached for with `localStorage.clear()`: this app is served
+ * from an origin that may hold something it did not put there, and a reset is no
+ * licence to remove somebody else's key. The list is right here beside the
+ * constants it names, so a new key added above and forgotten here is a key a
+ * reset leaves behind — which is the failure to watch for.
+ */
+const RESETTABLE_KEYS = [
+  SETTINGS_KEY,
+  PHRASE_STORE_KEY,
+  PROFILE_KEY,
+  ELEVENLABS_KEY,
+  SENT_KEY,
+  RECENT_KEY,
+] as const
+
+/**
+ * Put the device back to what it shipped with.
+ *
+ * **The signed-in user stays.** Signing out is its own item with its own
+ * confirmation, and dropping somebody at the sign-in page is not what they asked
+ * for when they asked for their settings back.
+ *
+ * Storage only — nothing here can reach the React state holding the same values,
+ * and a screen still showing phrases that no longer exist is worse than no reset
+ * at all. The caller reloads, which is the one way to be sure every module has
+ * read the empty shelf rather than most of them.
+ */
+export function factoryReset() {
+  for (const key of RESETTABLE_KEYS) localStorage.removeItem(key)
+}
+
+/** What the app holds immediately after one, for anything that wants to assert it. */
+export const factoryState = () => ({
+  store: emptyStore(),
+  profile: EMPTY_PROFILE,
+  settings: DEFAULT_SETTINGS,
+})
 
 // ── Arranging things ─────────────────────────────────────────────────────────
 // Pure operations over the store above: what a category is called, and what

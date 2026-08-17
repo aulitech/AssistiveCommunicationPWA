@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import App from './App'
 import { BLANK, PHRASES, composeWithBlank, hasBlank } from './core/phrases'
+import { DEFAULT_SETTINGS } from './core/store'
 import { HELP_SECTIONS } from './menu/help'
 import { parseBackup } from './core/backup'
 import { spoken, lastUtterance, downloads, played, setClipboardText, voices } from './test/setup'
@@ -136,14 +137,14 @@ describe('reaching the whole sign-in page', () => {
     for (const nudge of ['Scroll up', 'Scroll down']) {
       scrollBy.mockClear()
       fireEvent.pointerEnter(control(nudge))
-      act(() => void vi.advanceTimersByTime(800 + 180 * 3))
+      act(() => void vi.advanceTimersByTime(800 + DEFAULT_SETTINGS.repeatDelayMs * 3))
       fireEvent.pointerLeave(control(nudge))
       settle()
       expect(scrollBy.mock.calls.length, `${nudge} did not repeat`).toBeGreaterThan(2)
     }
 
     fireEvent.pointerEnter(control('Go to bottom'))
-    act(() => void vi.advanceTimersByTime(800 + 180 * 3))
+    act(() => void vi.advanceTimersByTime(800 + DEFAULT_SETTINGS.repeatDelayMs * 3))
     fireEvent.pointerLeave(control('Go to bottom'))
     settle()
     expect(scrollTo).toHaveBeenCalledTimes(1)
@@ -852,7 +853,9 @@ describe('the auto-repeat delay', () => {
     expect(row, 'no Auto-repeat row in Settings').toBeDefined()
     click([...row.querySelectorAll('.step-btn')].find(b => b.getAttribute('aria-label') === 'Increase'))
 
-    expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).repeatDelayMs).toBe(250)
+    expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).repeatDelayMs).toBe(
+      DEFAULT_SETTINGS.repeatDelayMs + 50,
+    )
   })
 })
 
@@ -2953,5 +2956,155 @@ describe('legal pages', () => {
     at('/')
     const hrefs = $$<HTMLAnchorElement>('.signin-legal a').map(a => a.getAttribute('href'))
     expect(hrefs).toEqual(['/terms', '/privacy'])
+  })
+})
+
+// Every settable value carries a revert, and Settings carries one control that
+// reverts the lot. The second is the only thing in this app that can take away
+// everything somebody wrote, so it asks first — and offers a file before it does.
+describe('putting settings back', () => {
+  const openSettings = () => {
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Open menu'))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+  }
+  const row = (label: string) =>
+    $$('.setting-row').find(r => r.querySelector('.setting-label')?.textContent === label)!
+  const stepBtn = (label: string, within: Element) =>
+    [...within.querySelectorAll('.step-btn')].find(b => b.getAttribute('aria-label')?.startsWith(label))!
+  const confirmBtn = (label: string) =>
+    [...document.body.querySelectorAll('.panel-btn')].find(b => b.textContent?.includes(label))
+
+  describe('one value at a time', () => {
+    it('offers a revert on every value, naming what it goes back to', () => {
+      renderApp()
+      openSettings()
+      const labels = $$('.setting-row .step-btn')
+        .map(b => b.getAttribute('aria-label'))
+        .filter((l): l is string => !!l && l.startsWith('Reset '))
+      expect(labels).toEqual([
+        'Reset phrase dwell to 1.5s',
+        'Reset action dwell to 0.8s',
+        'Reset auto-repeat to 1000ms',
+        'Reset volume to 100%',
+        'Reset speed to 1.0×',
+      ])
+    })
+
+    it('puts a changed value back and keeps it there', () => {
+      renderApp({ phraseDwellMs: 2500 })
+      openSettings()
+      const dwell = row('Phrase dwell')
+      expect(dwell.querySelector<HTMLInputElement>('.setting-number')!.value).toBe('2500')
+
+      click(stepBtn('Reset phrase dwell', dwell))
+
+      expect(dwell.querySelector<HTMLInputElement>('.setting-number')!.value).toBe('1500')
+      expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).phraseDwellMs).toBe(1500)
+    })
+
+    // Quiet rather than gone: a row that changed width as a value crossed its
+    // default would move the two buttons beside it, and a control somebody has
+    // learnt to find should be in the same place whether or not it can do anything.
+    it('goes quiet at the default rather than away', () => {
+      renderApp()
+      openSettings()
+      const dwell = row('Phrase dwell')
+      const revert = stepBtn('Reset phrase dwell', dwell)
+
+      expect(revert.getAttribute('aria-disabled')).toBe('true')
+      expect($$('.setting-row .step-btn').length, 'a control went missing').toBe(15)
+    })
+  })
+
+  describe('all of it at once', () => {
+    /** jsdom implements no navigation, so the reload is watched rather than run. */
+    const watchReload = () => {
+      const reload = vi.fn()
+      Object.defineProperty(window, 'location', {
+        value: { ...window.location, reload },
+        configurable: true,
+        writable: true,
+      })
+      return reload
+    }
+
+    const seedSomething = () => {
+      localStorage.setItem('peri_sent', JSON.stringify([{ text: 'said this', at: 1 }]))
+      localStorage.setItem('peri_elevenlabs', JSON.stringify({ apiKey: 'k', voices: [] }))
+      localStorage.setItem('dwellspeak_profile', JSON.stringify({ contacts: ['Mum'], name: {} }))
+    }
+
+    it('asks before it does anything', () => {
+      renderApp({ phraseDwellMs: 2500 })
+      seedSomething()
+      openSettings()
+      click(confirmBtn('Reset to Factory Defaults'))
+
+      expect(document.body.querySelector('.confirm-modal')).not.toBeNull()
+      // Nothing has gone yet.
+      expect(localStorage.getItem('peri_sent')).not.toBeNull()
+      expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).phraseDwellMs).toBe(2500)
+    })
+
+    it('leaves everything alone when cancelled', () => {
+      renderApp({ phraseDwellMs: 2500 })
+      seedSomething()
+      openSettings()
+      click(confirmBtn('Reset to Factory Defaults'))
+      click(confirmBtn('Cancel'))
+
+      expect(document.body.querySelector('.confirm-modal')).toBeNull()
+      expect(localStorage.getItem('peri_sent')).not.toBeNull()
+      expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).phraseDwellMs).toBe(2500)
+    })
+
+    it('clears everything it wrote, and reloads so nothing stale is left showing', () => {
+      renderApp({ phraseDwellMs: 2500 })
+      seedSomething()
+      const reload = watchReload()
+      openSettings()
+      click(confirmBtn('Reset to Factory Defaults'))
+      click(confirmBtn('Reset everything'))
+
+      for (const key of [
+        'dwellspeak_settings',
+        'dwellspeak_phrase_store_v2',
+        'dwellspeak_profile',
+        'peri_elevenlabs',
+        'peri_sent',
+        'peri_recent',
+      ]) {
+        expect(localStorage.getItem(key), `${key} survived the reset`).toBeNull()
+      }
+      expect(reload).toHaveBeenCalled()
+    })
+
+    // Signing out is its own item with its own confirmation. Dropping somebody at
+    // the sign-in page is not what they asked for when they asked for a reset.
+    it('leaves them signed in', () => {
+      renderApp()
+      watchReload()
+      openSettings()
+      click(confirmBtn('Reset to Factory Defaults'))
+      click(confirmBtn('Reset everything'))
+
+      expect(localStorage.getItem('dwellspeak_user')).not.toBeNull()
+    })
+
+    // Deleting a phrase is the one change with no road back, and this deletes all
+    // of them, so a file to keep is the first thing on offer.
+    it('offers a backup before wiping, and says it saved one', () => {
+      renderApp({ phraseDwellMs: 2500 })
+      seedSomething()
+      openSettings()
+      click(confirmBtn('Reset to Factory Defaults'))
+      click(confirmBtn('Export a backup first'))
+
+      expect(downloads.length, 'no file was offered').toBeGreaterThan(0)
+      expect(document.body.querySelector('.confirm-ok')?.textContent).toMatch(/^Saved as peri-backup/)
+      // Offering is not doing: the device is still whole until they say so.
+      expect(localStorage.getItem('peri_sent')).not.toBeNull()
+      expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).phraseDwellMs).toBe(2500)
+    })
   })
 })

@@ -1,14 +1,84 @@
 
 // Menu → Settings. Dwell times, volume, speed and voice.
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { linkAccount, REMOTE_PREFIX } from '../voice/elevenlabs'
 import { VoicePicker } from '../voice/picker'
 import { clearAudioCache } from '../voice/audio-cache'
-import { type ElevenLabsAccount } from '../core/store'
+import { type Profile } from '../core/phrases'
+import { buildBackup } from '../core/backup'
+import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
 import { useSettings } from '../ui/settings'
-import { loadElevenLabs, loadRecent, saveElevenLabs, saveRecent } from '../core/store'
+import { DEFAULT_SETTINGS, factoryReset, loadElevenLabs, loadRecent, saveElevenLabs, saveRecent } from '../core/store'
 import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
+import { downloadBackup } from './backup-file'
+
+/**
+ * The confirmation in front of a factory reset.
+ *
+ * Centred and portalled for the same reason `ConfirmSignOut` is: a pointer rests
+ * where it last fired, so a "yes" appearing under the control that asked would be
+ * answered by the pointer already sitting there — and this is the one control in
+ * the app that can take away everything somebody wrote.
+ *
+ * It leads with a way out. Deleting a phrase is the one change Peri offers no
+ * road back from, and this deletes all of them at once, so the first thing on
+ * offer is a file to keep. Refusing nothing: somebody who has a backup already,
+ * or does not want one, can go straight past it.
+ */
+function ConfirmReset({ onExport, onConfirm, onCancel }: {
+  /** Reports whether the browser took the file, which decides what is said next. */
+  onExport: () => { ok: true; name: string } | { ok: false }
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const [saved, setSaved] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
+
+  const exportFirst = useCallback(() => {
+    const result = onExport()
+    setSaved(result.ok ? result.name : null)
+    setFailed(!result.ok)
+  }, [onExport])
+
+  return createPortal(
+    <div className="confirm-scrim">
+      <div className="confirm-modal" role="alertdialog" aria-modal="true" aria-label="Reset to factory defaults">
+        <span className="confirm-title">Reset everything?</span>
+        <p className="confirm-note">
+          Every phrase you wrote, every one you reworded or removed, your categories, your emergency
+          bar, your details, what you have said, your settings and any linked voice account will go
+          back to how Peri arrived. <strong>This cannot be undone.</strong> You stay signed in.
+        </p>
+        {/* Said after the fact rather than before it, because "saved" is a claim
+            only the browser can settle — a blocked download that looked like a
+            save would be the worst possible moment to be wrong. */}
+        {saved && <p className="confirm-note confirm-ok">Saved as {saved}. Keep it somewhere safe.</p>}
+        {failed && (
+          <p className="confirm-note confirm-warn">
+            Peri could not save the file. Cancel and use <strong>Backup &amp; sharing</strong>, which
+            can copy it instead.
+          </p>
+        )}
+        <div className="confirm-actions">
+          <PanelButton kind="primary" label="Export a backup first" onActivate={exportFirst} />
+          <PanelButton kind="plain" label="Cancel" onActivate={onCancel} />
+          <PanelButton kind="danger" label="Reset everything" onActivate={onConfirm} />
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
 
 function VoiceRow() {
   const { settings, update } = useSettings()
@@ -23,9 +93,31 @@ function VoiceRow() {
   )
 }
 
-export function SettingsPanel() {
+export function SettingsPanel({ store, profile, categoryById }: {
+  /** Only so the reset confirmation can offer a backup before it wipes them. */
+  store: PhraseStore
+  profile: Profile
+  categoryById: Map<string, string>
+}) {
   const { settings, update } = useSettings()
   const [account, setLinked] = useState<ElevenLabsAccount | null>(loadElevenLabs)
+  const [confirmingReset, setConfirmingReset] = useState(false)
+
+  const exportEverything = useCallback(
+    () => downloadBackup(buildBackup({ store, profile, settings, categoryById })),
+    [store, profile, settings, categoryById],
+  )
+
+  // Storage first, then a reload. Nothing here can reach the React state holding
+  // the same values — the board, the composer, the sent list, this panel's own
+  // account row — and a screen still offering phrases that no longer exist is
+  // worse than no reset at all. Reloading is the one way to be sure every module
+  // has read the empty shelf rather than most of them.
+  const resetEverything = useCallback(() => {
+    factoryReset()
+    clearAudioCache()
+    location.reload()
+  }, [])
 
   // Written straight through, and `speak` reads it back per utterance, so there
   // is no second copy to keep in step. The cache goes with it: audio fetched on
@@ -49,6 +141,8 @@ export function SettingsPanel() {
         <SettingRow label="Phrase dwell">
           <SettingSpinner
             value={settings.phraseDwellMs}
+            defaultValue={DEFAULT_SETTINGS.phraseDwellMs}
+            name="phrase dwell"
             min={500}
             max={3000}
             step={100}
@@ -59,6 +153,8 @@ export function SettingsPanel() {
         <SettingRow label="Action dwell">
           <SettingSpinner
             value={settings.actionDwellMs}
+            defaultValue={DEFAULT_SETTINGS.actionDwellMs}
+            name="action dwell"
             min={300}
             max={2000}
             step={100}
@@ -74,8 +170,10 @@ export function SettingsPanel() {
         <SettingRow label="Auto-repeat">
           <SettingSpinner
             value={settings.repeatDelayMs}
+            defaultValue={DEFAULT_SETTINGS.repeatDelayMs}
+            name="auto-repeat"
             min={100}
-            max={1000}
+            max={2000}
             step={50}
             format={v => `${v}ms`}
             onValue={v => update({ repeatDelayMs: v })}
@@ -84,6 +182,8 @@ export function SettingsPanel() {
         <SettingRow label="Volume">
           <SettingSpinner
             value={Math.round(settings.volume * 100)}
+            defaultValue={DEFAULT_SETTINGS.volume * 100}
+            name="volume"
             min={0}
             max={100}
             step={10}
@@ -94,6 +194,8 @@ export function SettingsPanel() {
         <SettingRow label="Speed">
           <SettingSpinner
             value={Math.round(settings.rate * 10)}
+            defaultValue={DEFAULT_SETTINGS.rate * 10}
+            name="speed"
             min={5}
             max={20}
             step={1}
@@ -103,7 +205,26 @@ export function SettingsPanel() {
         </SettingRow>
         <VoiceRow />
         <ElevenLabsRow account={account} onChange={setAccount} />
+
+        {/* Last, and away from the values it undoes. Every revert above puts one
+            setting back; this puts the whole device back, and the two should not
+            sit close enough that a pointer travelling to one crosses the other. */}
+        <div className="setting-reset">
+          <PanelButton
+            kind="danger"
+            label="Reset to Factory Defaults"
+            onActivate={() => setConfirmingReset(true)}
+          />
+        </div>
       </ScrollPane>
+
+      {confirmingReset && (
+        <ConfirmReset
+          onExport={exportEverything}
+          onConfirm={resetEverything}
+          onCancel={() => setConfirmingReset(false)}
+        />
+      )}
     </div>
   )
 }

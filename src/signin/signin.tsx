@@ -6,7 +6,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { SIGN_IN, SignInCancelled, configuredProviders, type Provider } from './auth'
 import { useSettings } from '../ui/settings'
-import { type User } from '../core/store'
+import { DEFAULT_SETTINGS, type User } from '../core/store'
 import { AppLogoIcon, AppleIcon, FacebookIcon, GoogleIcon } from '../ui/icons'
 import { DwellButton, DwellCursor, ScrollPane, SettingSpinner } from '../ui/controls'
 
@@ -103,6 +103,8 @@ export function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
                 <span className="signin-dwell-label">Dwell time</span>
                 <SettingSpinner
                   value={settings.actionDwellMs}
+                  defaultValue={DEFAULT_SETTINGS.actionDwellMs}
+                  name="dwell time"
                   min={300}
                   max={2000}
                   step={100}

@@ -1270,6 +1270,21 @@ body {
 .step-btn.dwelling { background: color-mix(in srgb, var(--accent) 20%, var(--surface)); }
 .step-btn .dwell-bar { background: var(--accent); }
 
+/* The revert, at the end of every spinner. It goes quiet at the default rather
+   than away: a row that changed width as a value crossed its default would move
+   the two buttons beside it, and a control somebody has learnt to find should be
+   in the same place whether or not it has anything to do. */
+.step-btn.is-disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.step-btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  pointer-events: none;
+}
+
 /* value + formatted label */
 .setting-spinner {
   display: flex;
@@ -2337,6 +2352,12 @@ body {
   color: var(--text-muted);
 }
 
+/* What happened when a backup was offered before a reset. Said after the fact,
+   never before it: a blocked download that had already claimed to save would be
+   the worst possible moment to be wrong. */
+.confirm-ok { color: var(--accent); }
+.confirm-warn { color: #f59e0b; }
+
 .confirm-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2344,6 +2365,15 @@ body {
   /* The safe one first, so it is the one nearer the reading order and the one a
      hurried dwell lands on. */
   justify-content: flex-start;
+}
+
+/* The factory reset, alone at the foot of Settings. Spaced well clear of the
+   values above it: every revert up there puts one setting back and this puts the
+   whole device back, and a pointer travelling to one must not cross the other. */
+.setting-reset {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
 }
 
 /* ── Legal pages (/privacy, /terms) ── */
