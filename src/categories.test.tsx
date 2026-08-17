@@ -27,8 +27,8 @@ const STORE_KEY = 'dwellspeak_phrase_store_v2'
 const storedStore = () => JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}')
 
 const cells = () => $$('.phrase-cell')
-const toggles = () => $$('.toggle-btn')
-const enterEditMode = () => click(toggles()[1])
+const editToggle = () => $('.edit-toggle')
+const enterEditMode = () => click(editToggle())
 // The bar also holds add / sort / reorder buttons, which are role="button"
 // rather than role="tab" — this keeps them out of the category list.
 const tabs = () => $$('.filter-tab[role="tab"]')
@@ -122,7 +122,7 @@ describe('renaming a category', () => {
     expect(tabLabels()).not.toContain(original)
 
     // The phrases followed rather than being orphaned under a vanished tab.
-    click(toggles()[1]) // leave edit mode
+    click(editToggle()) // leave edit mode
     click(tabNamed('Renamed'))
     expect(cells().length).toBeGreaterThan(0)
   })
@@ -212,7 +212,7 @@ describe('the phrase editor', () => {
 
     // The tab appearing proves only that the category exists. What matters is
     // that the phrase actually moved into it.
-    click(toggles()[1]) // leave edit mode
+    click(editToggle()) // leave edit mode
     click(tabNamed('Invented'))
     expect(cells().map(c => c.textContent)).toEqual(['A brand new phrase'])
   })
@@ -227,7 +227,7 @@ describe('the phrase editor', () => {
     type($('.edit-modal-select')!, destination)
     saveModal()
 
-    click(toggles()[1]) // leave edit mode
+    click(editToggle()) // leave edit mode
     click(tabNamed(destination))
     expect(cells().map(c => c.textContent)).toContain(moved)
   })
@@ -628,7 +628,7 @@ describe('ordering categories', () => {
   it('does not stay armed after edit mode is left and re-entered', () => {
     renderApp()
     startReordering()
-    click(toggles()[1]) // leave edit mode
+    click(editToggle()) // leave edit mode
     enterEditMode()
     expect(sortBtn()).toBeNull()
     expect($('.add-category-tab')).not.toBeNull()

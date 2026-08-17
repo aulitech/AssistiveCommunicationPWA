@@ -165,7 +165,7 @@ describe('what leaves the board', () => {
   // synthesiser and its own chance to say the asterisks out loud.
   it('speaks the words in auto-speak too', () => {
     renderApp()
-    click($$('.toggle-btn')[0]) // auto-speak
+    click($('.autospeak-toggle'))
     click(marked())
     expect(spoken).toEqual(['Help me up'])
     expect(message()).toBe('')
@@ -286,7 +286,7 @@ describe('pasting and dropping a link', () => {
 
   it('takes one in the phrase editor too, where a phrase is written', () => {
     renderApp()
-    click($$('.toggle-btn')[1]) // edit mode
+    click($('.edit-toggle'))
     click(marked())
     const field = $<HTMLTextAreaElement>('.edit-modal-text')!
     // A paste goes to the caret. Put it where somebody who had just typed
@@ -352,7 +352,7 @@ describe('choosing a phrase that is a link', () => {
 
   it('opens rather than speaks in auto-speak too', () => {
     showMarkedAnd([LINK])
-    click($$('.toggle-btn')[0]) // auto-speak
+    click($('.autospeak-toggle'))
     click(cells()[0])
 
     expect(opened).toEqual([[MENU, '_blank']])
@@ -363,7 +363,7 @@ describe('choosing a phrase that is a link', () => {
   // reword — every attempt to open the editor would leave the app instead.
   it('opens the editor in edit mode rather than the link', () => {
     showMarkedAnd([LINK])
-    click($$('.toggle-btn')[1]) // edit mode
+    click($('.edit-toggle'))
     click(cells()[0])
 
     expect(opened).toEqual([])
@@ -389,7 +389,7 @@ describe('editing a marked-up phrase', () => {
   // rather than the rendering — there is nowhere else to reach the markers.
   it('opens on the markup, not on the words', () => {
     renderApp()
-    click($$('.toggle-btn')[1]) // edit mode
+    click($('.edit-toggle'))
     click(marked())
     expect($<HTMLTextAreaElement>('.edit-modal-text')?.value).toBe('**Help** me up')
   })
