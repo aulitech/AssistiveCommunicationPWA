@@ -148,7 +148,9 @@ function FilterArrow({ onAction, repeat, label, children }: {
   children: React.ReactNode
 }) {
   const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onAction, { repeatMs: repeat ? 200 : undefined })
+  const { active, props } = useDwellControl(settings.actionDwellMs, onAction, {
+    repeatMs: repeat ? settings.repeatDelayMs : undefined,
+  })
   return (
     <div
       className={cx('filter-arrow', active && 'dwelling')}

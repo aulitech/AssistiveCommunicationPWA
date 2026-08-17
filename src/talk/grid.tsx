@@ -71,7 +71,9 @@ function ScrollBtn({ onAction, repeat, label, children }: {
   children: React.ReactNode
 }) {
   const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onAction, { repeatMs: repeat ? 180 : undefined })
+  const { active, props } = useDwellControl(settings.actionDwellMs, onAction, {
+    repeatMs: repeat ? settings.repeatDelayMs : undefined,
+  })
   return (
     <div
       className={cx('scroll-btn', active && 'dwelling')}

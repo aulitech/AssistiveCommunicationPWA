@@ -66,6 +66,21 @@ export function SettingsPanel() {
             onValue={v => update({ actionDwellMs: v })}
           />
         </SettingRow>
+        {/* Beside the two dwell times because it is the third of the timings, but
+            answering a different question: those are how long it takes to choose
+            something, this is how fast it happens again while the pointer stays.
+            Shown in milliseconds — a tenth of a second is the interesting
+            difference here, and "0.2s" hides it. */}
+        <SettingRow label="Auto-repeat">
+          <SettingSpinner
+            value={settings.repeatDelayMs}
+            min={100}
+            max={1000}
+            step={50}
+            format={v => `${v}ms`}
+            onValue={v => update({ repeatDelayMs: v })}
+          />
+        </SettingRow>
         <SettingRow label="Volume">
           <SettingSpinner
             value={Math.round(settings.volume * 100)}
