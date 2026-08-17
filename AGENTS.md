@@ -43,7 +43,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `ui/controls.tsx` - The dwell controls more than one screen uses: `DwellButton`, `NavItem`, `SettingRow`, `SettingSpinner`, `ScrollRow` (a row that scrolls sideways with its own dwell arrows — the filter chips outgrow the screen), `PickerModal` and `PickerTile` (a full-screen grid of choices, portalled to the body — a panel animated with `transform` makes `position: fixed` resolve against the panel rather than the viewport), `ScrollPane` (four dwell controls — jump to top, nudge up, nudge down, jump to bottom, each shown only when there is somewhere to go), `PanelButton`, `ProseSections`, `DwellCursor`
 - `ui/settings.ts`, `ui/edit-mode.ts` - The two React contexts. Separate from the panels that edit them, or `controls.tsx` would have to import the settings screen, which is built out of `controls.tsx`
 - `ui/style.ts` - `cx` and `dwellVar`. Not components, so not in `controls.tsx` — a module mixing the two loses fast refresh for everything importing it
-- `ui/icons.tsx` - Inline SVG. Icons used by exactly one screen stay with that screen — `ReorderIcon` is here because both bars that can be arranged draw it
+- `ui/icons.tsx` - Inline SVG. Icons used by exactly one screen stay with that screen — `ReorderIcon` is here because both bars that can be arranged draw it, and `PageIcon` because both bars that can be paged do
 
 **voice/**
 
@@ -67,6 +67,11 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `talk/use-sent.ts` - The messages already spoken or copied
 - `talk/use-toast.ts` - The line that appears and fades
 - `talk/grid.tsx` - The grid, the cell, and the rail. The rail is scrolling only — the two mode toggles that used to head it are in the topbar now, beside Rest. **Only the first n cells are rendered** — see `core/virtual.ts`
+
+**Three sizes of jump**, on the rail and on the category bar alike: a nudge (one chevron, repeats while held), a page (two chevrons, fires once), and an end (a chevron against a bar). They are ordered outward by how far they travel, so the three are told apart by position as well as by glyph. Two things about the page are deliberate:
+
+- **A page is the visible extent less one nudge's worth**, not the whole extent. Grid rows are not a uniform height and category tabs are pills of every width, so a jump of exactly one screen leaves something cut across the fold — a phrase half off the top, or half a category at the edge that a gaze user hits meaning its neighbour. The floor keeps a viewport smaller than the overlap from paging by nothing.
+- **It does not repeat.** Everything else held down does, but repeats of a whole screen queue their smooth scrolls into a blur, and a page is a place to read from — the point is knowing where you landed.
 - `talk/phrase-text.tsx` - `PhraseText`, which draws a phrase's slots and any markdown in it. Used by the grid cell and the emergency bar, so a phrase looks the same wherever it is shown
 - `talk/topbar.tsx`, `talk/filter-bar.tsx`, `talk/emergency.tsx`, `talk/slots.tsx`, `talk/editors.tsx` - One surface each. The topbar carries **all three modes in one strip** — edit, Rest, auto-speak, in that order, centred on the top border of the message box and overlapping it, since they are the same kind of thing and the middle of the screen's top is where a gaze on its way anywhere passes. Riding on the border rather than sitting in a band above it is what keeps the cost to the grid at 2px instead of 18px; what it costs instead is that the top-centre of the message box answers to a mode rather than to the caret. `topbar` padding-top and `.topbar-modes` `top` have to stay equal, and at least half a toggle tall, or the strip drifts off the border or over the top of the bar. The filter bar and the emergency bar can both be arranged by hand, both out of `ui/reorder`, and each keeps its own mode — tidying the category tabs must not arm the bar somebody speaks with
 
@@ -121,7 +126,7 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 - `ui/dwell.test.tsx` - The dwell hook: timing, tap, keyboard, disabled, and repeat
 - `ui/caret.test.tsx` - Which of the two caret APIs is trusted, when neither is, and the one claim about the hook the app tests cannot make — that it reports where it put the caret
 - `src/App.test.tsx` - Whole-app flows driven through the real DOM
-- `src/categories.test.tsx` - Adding, renaming, deleting and ordering category tabs
+- `src/categories.test.tsx` - Adding, renaming, deleting and ordering category tabs, and paging the bar — the page arithmetic, the order the arrows sit in, and that a page does not repeat. **Paging tests have to supply the geometry** (`clientWidth`, `clientHeight`), since jsdom lays nothing out and a page measured from nothing is a page of nothing
 - `src/emergency.test.tsx` - Arranging the emergency bar, and the two things that must not follow from it: a phrase moved out of reach of the order it was stored under, and a bar left in reorder mode when somebody needs to speak
 - `src/markdown.test.tsx` - Where the markup ends up once a phrase is used: drawn on the board, gone from what is spoken and searched, kept in the message box and on the clipboard. **Scope the grid to the seeded category first** — the board also holds the two and a half thousand phrases Peri ships, several of which begin with "Help"
 - `src/shell.test.ts` - `index.html` and the manifest: the parts of the app no component renders

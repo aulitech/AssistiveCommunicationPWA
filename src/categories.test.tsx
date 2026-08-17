@@ -658,3 +658,69 @@ describe('a category that runs out of phrases', () => {
     expect(cells().length).toBeGreaterThan(1)
   })
 })
+
+// The bar holds more categories than fit, and a dwell user has no wheel to bring
+// the rest into view. It had a nudge and a jump to either end; the page is the
+// step in between, and the one that maps to "show me the next lot".
+describe('paging the category bar', () => {
+  const arrow = (label: string) => $$('.filter-arrow').find(a => a.getAttribute('aria-label') === label)
+
+  /** jsdom lays nothing out, so the width a page is measured from is supplied. */
+  const withWidth = (w: number) => {
+    const scroller = $<HTMLElement>('.filter-scroll')!
+    Object.defineProperty(scroller, 'clientWidth', { value: w, configurable: true })
+    const scrollBy = vi.fn()
+    scroller.scrollBy = scrollBy
+    return scrollBy
+  }
+
+  // One nudge's worth stays on screen. Tabs are pills of every different width,
+  // so a jump of exactly one screen can cut one in half at the edge — and half a
+  // category is a target that can be hit meaning the one beside it.
+  it('moves a screenful of tabs less one nudge, in both directions', () => {
+    renderApp()
+    const scrollBy = withWidth(700)
+
+    click(arrow('Next page of categories'))
+    expect(scrollBy).toHaveBeenCalledWith({ left: 500, behavior: 'smooth' })
+
+    click(arrow('Previous page of categories'))
+    expect(scrollBy).toHaveBeenLastCalledWith({ left: -500, behavior: 'smooth' })
+  })
+
+  it('still moves when the bar is narrower than the overlap', () => {
+    renderApp()
+    const scrollBy = withWidth(150)
+
+    click(arrow('Next page of categories'))
+    expect(scrollBy).toHaveBeenCalledWith({ left: 200, behavior: 'smooth' })
+  })
+
+  // Outermost is the biggest jump, so the three are told apart by where they sit
+  // as well as by their glyphs — one chevron nudges, two move a page, a chevron
+  // against a bar goes to the end.
+  it('orders the controls by how far they travel', () => {
+    renderApp()
+    const labels = $$('.filter-arrow').map(a => a.getAttribute('aria-label'))
+    expect(labels).toEqual([
+      'Go to first category',
+      'Previous page of categories',
+      'Scroll categories left',
+      'Scroll categories right',
+      'Next page of categories',
+      'Go to last category',
+    ])
+  })
+
+  it('does not repeat while the pointer stays', () => {
+    renderApp()
+    const scrollBy = withWidth(700)
+
+    fireEvent.pointerEnter(arrow('Next page of categories')!)
+    act(() => void vi.advanceTimersByTime(800))
+    expect(scrollBy).toHaveBeenCalledTimes(1)
+
+    act(() => void vi.advanceTimersByTime(5000))
+    expect(scrollBy, 'the page control repeated').toHaveBeenCalledTimes(1)
+  })
+})

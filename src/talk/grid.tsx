@@ -11,6 +11,7 @@ import { useEdit } from '../ui/edit-mode'
 import { stripMarkdown } from '../core/markdown'
 import { hasChoices, type Phrase } from '../core/phrases'
 import { needsMore, windowSize } from '../core/virtual'
+import { PageIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { PhraseText } from './phrase-text'
 
@@ -64,6 +65,21 @@ const PhraseCell = memo(function PhraseCell({
 
 const SCROLL_STEP = 120
 
+/**
+ * How far a page moves: the visible height, less one nudge's worth.
+ *
+ * Not the whole height. Rows here are not a uniform height — a phrase long
+ * enough to wrap three times makes its whole row taller, and about one row in
+ * five does — so a jump of exactly one screen can leave a row split across the
+ * fold, half at the bottom of one page and half at the top of the next. Keeping
+ * a nudge's worth on screen means every row is whole somewhere, and gives the
+ * eye something it just read to land on.
+ *
+ * The floor matters where the grid is shorter than the overlap: a page of
+ * nothing is a control that does nothing.
+ */
+const pageBy = (extent: number) => Math.max(extent - SCROLL_STEP, SCROLL_STEP)
+
 function ScrollBtn({ onAction, repeat, label, children }: {
   onAction: () => void
   repeat?: boolean
@@ -100,6 +116,13 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
 }) {
   const scrollTo = useCallback((pos: number) => gridRef.current?.scrollTo({ top: pos, behavior: 'smooth' }), [gridRef])
   const scrollBy = useCallback((dy: number) => gridRef.current?.scrollBy({ top: dy, behavior: 'smooth' }), [gridRef])
+  // Measured at the moment it is asked for rather than held in state: the grid
+  // resizes with the keyboard, with rotation, and with the filter bar coming and
+  // going, and a page is only ever wanted now.
+  const scrollPage = useCallback(
+    (direction: 1 | -1) => scrollBy(direction * pageBy(gridRef.current?.clientHeight ?? 0)),
+    [scrollBy, gridRef],
+  )
 
   return (
     <div className="grid-scrollbar">
@@ -107,6 +130,11 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <line x1="5" y1="6" x2="19" y2="6"/><polyline points="8 14 12 10 16 14"/>
         </svg>
+      </ScrollBtn>
+      {/* A screenful at a time, and deliberately not repeating — see `PageIcon`
+          for why the double chevron, and `pageBy` for why not a whole screen. */}
+      <ScrollBtn onAction={() => scrollPage(-1)} label="Previous page">
+        <PageIcon direction="up" />
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollBy(-SCROLL_STEP)} repeat label="Scroll up">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -117,6 +145,9 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
+      </ScrollBtn>
+      <ScrollBtn onAction={() => scrollPage(1)} label="Next page">
+        <PageIcon direction="down" />
       </ScrollBtn>
       <ScrollBtn
         onAction={() => {

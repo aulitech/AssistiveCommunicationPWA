@@ -123,6 +123,32 @@ export function ReorderIcon() {
   )
 }
 
+/**
+ * A screenful in one direction. Here rather than beside either bar because both
+ * the phrase grid's rail and the category bar draw it, the same reason
+ * `ReorderIcon` is here.
+ *
+ * A **double** chevron, and that is the whole of the design. Three sizes of jump
+ * sit next to each other on both bars and a gaze user has to tell them apart
+ * without reading: one chevron nudges, two chevrons move a screen, and a chevron
+ * against a bar goes to the end. Anything else drawn for "page" — a rectangle, a
+ * document, an arrow with a line under it — reads as a new thing rather than as
+ * more of the same thing.
+ */
+export function PageIcon({ direction }: { direction: 'up' | 'down' | 'left' | 'right' }) {
+  // Two chevrons, one behind the other along the axis of travel. Written as a
+  // rotation of the "up" pair so the four never drift apart by hand.
+  const turn = { up: 0, right: 90, down: 180, left: 270 }[direction]
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <g transform={`rotate(${turn} 12 12)`}>
+        <polyline points="18 12 12 6 6 12" />
+        <polyline points="18 19 12 13 6 19" />
+      </g>
+    </svg>
+  )
+}
+
 export function PlusIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="20" height="20" aria-hidden="true">
