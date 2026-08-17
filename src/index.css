@@ -217,14 +217,22 @@ body {
   transition: color 0.1s, background 0.1s;
 }
 
+/* A divider on the side facing the tabs, so each arrow is separated from its
+   neighbour and from the scroller — and nowhere doubled, since only one of any
+   two adjacent arrows draws the line between them.
+ *
+ * Keyed off which side of the scroller the arrow is on rather than off its
+ * position in the row. It was `:last-child` and `:nth-last-child(2)`, written
+ * when there were two arrows on the right; there are three now, and there are
+ * two on a portrait phone, so counting from the end was going to keep being
+ * wrong. `.filter-bar-tools` draws its own left border, so the outermost arrow
+ * needs nothing on that side. */
 .filter-arrow {
   border-right: 1px solid var(--border);
 }
-.filter-arrow:last-child {
+
+.filter-scroll ~ .filter-arrow {
   border-right: none;
-  border-left: 1px solid var(--border);
-}
-.filter-arrow:nth-last-child(2) {
   border-left: 1px solid var(--border);
 }
 
@@ -243,6 +251,17 @@ body {
 
 .filter-arrow .dwell-bar {
   border-radius: 0;
+}
+
+/* A phone held upright is the narrowest this bar ever gets, and six arrows plus
+   the tools leave it almost no room for the tabs they exist to reach. The two
+   that go all the way are the ones to drop: paging gets to either end as well,
+   only a screen at a time, whereas nothing else nudges. Width alone is not the
+   test — a tablet in portrait is over 700px and keeps all six. */
+@media (max-width: 700px) and (orientation: portrait) {
+  .filter-arrow-end {
+    display: none;
+  }
 }
 
 .filter-arrow.dwelling .dwell-bar {

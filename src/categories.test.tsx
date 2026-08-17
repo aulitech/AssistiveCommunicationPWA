@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, act } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import App from './App'
 
 // Category editing spans the filter bar, a modal and the phrase editor, so it
@@ -712,7 +714,24 @@ describe('paging the category bar', () => {
     ])
   })
 
-  it('does not repeat while the pointer stays', () => {
+  // A phone held upright has no room for six arrows and the tools besides, so the
+  // two that go all the way are hidden there — paging reaches either end too,
+  // only a screen at a time, and nothing else nudges.
+  //
+  // This can only check that the rule is written and that the arrows it names are
+  // the right two. jsdom applies no cascade and lays nothing out, so whether the
+  // rule *takes effect* is a question for the deploy preview.
+  it('hides the home and end arrows on a phone held upright', () => {
+    renderApp()
+    const named = $$('.filter-arrow-end').map(a => a.getAttribute('aria-label'))
+    expect(named).toEqual(['Go to first category', 'Go to last category'])
+
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    // Width alone would take the arrows off a tablet in portrait as well.
+    expect(css).toMatch(/@media \(max-width: 700px\) and \(orientation: portrait\) \{\s*\.filter-arrow-end \{\s*display: none;/)
+  })
+
+  it('keeps paging while the pointer stays', () => {
     renderApp()
     const scrollBy = withWidth(700)
 
@@ -720,7 +739,8 @@ describe('paging the category bar', () => {
     act(() => void vi.advanceTimersByTime(800))
     expect(scrollBy).toHaveBeenCalledTimes(1)
 
-    act(() => void vi.advanceTimersByTime(5000))
-    expect(scrollBy, 'the page control repeated').toHaveBeenCalledTimes(1)
+    // The default 200ms repeat: three more in 700ms.
+    act(() => void vi.advanceTimersByTime(700))
+    expect(scrollBy.mock.calls.length, 'the page control did not repeat').toBe(4)
   })
 })

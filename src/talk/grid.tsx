@@ -131,9 +131,10 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
           <line x1="5" y1="6" x2="19" y2="6"/><polyline points="8 14 12 10 16 14"/>
         </svg>
       </ScrollBtn>
-      {/* A screenful at a time, and deliberately not repeating — see `PageIcon`
-          for why the double chevron, and `pageBy` for why not a whole screen. */}
-      <ScrollBtn onAction={() => scrollPage(-1)} label="Previous page">
+      {/* A screenful at a time, repeating while held at whatever pace the
+          auto-repeat setting says — see `PageIcon` for why the double chevron,
+          and `pageBy` for why not a whole screen. */}
+      <ScrollBtn onAction={() => scrollPage(-1)} repeat label="Previous page">
         <PageIcon direction="up" />
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollBy(-SCROLL_STEP)} repeat label="Scroll up">
@@ -146,7 +147,7 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </ScrollBtn>
-      <ScrollBtn onAction={() => scrollPage(1)} label="Next page">
+      <ScrollBtn onAction={() => scrollPage(1)} repeat label="Next page">
         <PageIcon direction="down" />
       </ScrollBtn>
       <ScrollBtn

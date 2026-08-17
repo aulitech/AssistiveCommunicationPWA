@@ -144,10 +144,12 @@ function CustomOrderIcon() {
 /** How far a nudge moves the tabs, and the overlap a page leaves behind it. */
 const SCROLL_STEP = 200
 
-function FilterArrow({ onAction, repeat, label, children }: {
+function FilterArrow({ onAction, repeat, label, className, children }: {
   onAction: () => void
   repeat?: boolean
   label: string
+  /** `filter-arrow-end` on the two that go all the way — see the stylesheet. */
+  className?: string
   children: React.ReactNode
 }) {
   const { settings } = useSettings()
@@ -156,7 +158,7 @@ function FilterArrow({ onAction, repeat, label, children }: {
   })
   return (
     <div
-      className={cx('filter-arrow', active && 'dwelling')}
+      className={cx('filter-arrow', className, active && 'dwelling')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
       aria-label={label}
@@ -228,13 +230,13 @@ export function FilterBar({
 
   return (
     <div className="filter-bar-wrap" role="tablist" aria-label="Filter phrases by category">
-      <FilterArrow onAction={() => scrollTo(0)} label="Go to first category">
+      <FilterArrow onAction={() => scrollTo(0)} className="filter-arrow-end" label="Go to first category">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <line x1="5" y1="6" x2="5" y2="18"/><polyline points="19 18 11 12 19 6"/>
         </svg>
       </FilterArrow>
 
-      <FilterArrow onAction={() => scrollPage(-1)} label="Previous page of categories">
+      <FilterArrow onAction={() => scrollPage(-1)} repeat label="Previous page of categories">
         <PageIcon direction="left" />
       </FilterArrow>
 
@@ -263,11 +265,11 @@ export function FilterBar({
         </svg>
       </FilterArrow>
 
-      <FilterArrow onAction={() => scrollPage(1)} label="Next page of categories">
+      <FilterArrow onAction={() => scrollPage(1)} repeat label="Next page of categories">
         <PageIcon direction="right" />
       </FilterArrow>
 
-      <FilterArrow onAction={() => scrollTo(999999)} label="Go to last category">
+      <FilterArrow onAction={() => scrollTo(999999)} className="filter-arrow-end" label="Go to last category">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <line x1="19" y1="6" x2="19" y2="18"/><polyline points="5 6 13 12 5 18"/>
         </svg>
