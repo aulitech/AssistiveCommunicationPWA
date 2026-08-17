@@ -32,8 +32,8 @@ const storedStore = () => JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}')
 const buttons = () => $$('.emergency-btn:not(.emergency-tool)')
 const labels = () => buttons().map(b => b.textContent)
 const named = (text: string) => buttons().find(b => b.textContent === text)
-const toggles = () => $$('.toggle-btn')
-const enterEditMode = () => click(toggles()[1])
+const editToggle = () => $('.edit-toggle')
+const enterEditMode = () => click(editToggle())
 const reorderBtn = () => $('.emergency-reorder')
 const addBtn = () => $('.emergency-add')
 const startReordering = () => {
@@ -298,7 +298,7 @@ describe('leaving the mode', () => {
   it('does not stay armed after edit mode is left and re-entered', () => {
     renderApp()
     startReordering()
-    click(toggles()[1]) // leave edit mode
+    click(editToggle()) // leave edit mode
     enterEditMode()
 
     expect(reorderBtn()?.getAttribute('aria-pressed')).toBe('false')
@@ -311,7 +311,7 @@ describe('leaving the mode', () => {
     renderApp()
     startReordering()
     const first = labels()[0]!
-    click(toggles()[1]) // leave edit mode
+    click(editToggle()) // leave edit mode
 
     expect(named(first)?.getAttribute('aria-label')).toBe(first)
     expect($('.emergency-btn.reorderable')).toBeNull()

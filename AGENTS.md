@@ -66,9 +66,9 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `talk/use-composer.ts` - The message being built: its text, its history, and the caret
 - `talk/use-sent.ts` - The messages already spoken or copied
 - `talk/use-toast.ts` - The line that appears and fades
-- `talk/grid.tsx` - The grid, the cell, and the rail. **Only the first n cells are rendered** — see `core/virtual.ts`
+- `talk/grid.tsx` - The grid, the cell, and the rail. The rail is scrolling only — the two mode toggles that used to head it are in the topbar now, beside Rest. **Only the first n cells are rendered** — see `core/virtual.ts`
 - `talk/phrase-text.tsx` - `PhraseText`, which draws a phrase's slots and any markdown in it. Used by the grid cell and the emergency bar, so a phrase looks the same wherever it is shown
-- `talk/topbar.tsx`, `talk/filter-bar.tsx`, `talk/emergency.tsx`, `talk/slots.tsx`, `talk/editors.tsx` - One surface each. The filter bar and the emergency bar can both be arranged by hand, both out of `ui/reorder`, and each keeps its own mode — tidying the category tabs must not arm the bar somebody speaks with
+- `talk/topbar.tsx`, `talk/filter-bar.tsx`, `talk/emergency.tsx`, `talk/slots.tsx`, `talk/editors.tsx` - One surface each. The topbar carries **all three modes in one strip** — edit, Rest, auto-speak, in that order across the top edge of the message box, since they are the same kind of thing and the middle of the screen's top is where a gaze on its way anywhere passes. It costs the grid 18px of height, which Rest alone did not. The filter bar and the emergency bar can both be arranged by hand, both out of `ui/reorder`, and each keeps its own mode — tidying the category tabs must not arm the bar somebody speaks with
 
 **signin/**, **legal/** — a screen and the module behind it, twice
 

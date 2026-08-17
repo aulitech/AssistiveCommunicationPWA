@@ -76,14 +76,18 @@ body {
 
 /* ── Topbar ── */
 .topbar {
-  /* Anchors the Rest lozenge. Centring on the topbar rather than on the message
+  /* Anchors the mode strip. Centring on the topbar rather than on the message
      box itself puts it 4px off the box's true centre — the button rails either
-     side are not quite symmetric — which is not a difference anyone can see. */
+     side are not quite symmetric — which is not a difference anyone can see.
+
+     The top padding is the strip: Rest used to be the only thing up there and
+     needed almost none, but it has two icons beside it now and they need room to
+     be seen. That room is the grid's, which is why it is as little as it is. */
   position: relative;
   display: flex;
   align-items: stretch;
   gap: 0;
-  padding: 10px 10px;
+  padding: 28px 10px 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
@@ -293,13 +297,64 @@ body {
    no icon and no word. Amber, because green already means selected and blue
    means held, and this is the control someone has to find when nothing else
    on screen will answer. Its name lives in `aria-label` alone. */
-.rest-btn {
+/* The three modes as one centred strip: edit, Rest, auto-speak. Rest holds the
+   middle — it is the one control that has to be findable without looking, and
+   the middle of the screen's top is where it was found. The row is what is
+   positioned now; the lozenge inside it no longer places itself. */
+.topbar-modes {
   position: absolute;
-  top: 6px;
+  top: 4px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 5;
 
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* The mode toggles either side of Rest. Painted small to sit on a strip Rest is
+   half a rem of, with an invisible area around them that a head or eye tracker
+   can actually hit — the same bargain `.rest-btn::before` strikes. */
+.mode-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 6px;
+  overflow: hidden;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.1s, background 0.1s;
+}
+
+.mode-btn::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.mode-btn svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  stroke-width: 2.6;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.mode-btn.dwelling { color: var(--text); }
+
+/* On rather than off, said with the accent the rest of the app says it with. */
+.mode-btn.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.rest-btn {
+  position: relative;
   width: 8rem;
   height: 0.5rem;
   border-radius: 999px;
@@ -1573,19 +1628,6 @@ body {
 @keyframes composerDwellFill {
   from { background-size: 0 3px; }
   to { background-size: 100% 3px; }
-}
-
-/* ── Mode toggles (auto-speak, edit) ── */
-/* These sit above the scroll controls and stay put, so they must not flex to
-   fill the rail the way the scroll buttons do. */
-.toggle-btn {
-  flex: 0 0 44px;
-}
-
-.toggle-btn.active {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 15%, var(--surface));
-  border-bottom: 1px solid var(--border);
 }
 
 /* ── EditModal ── */

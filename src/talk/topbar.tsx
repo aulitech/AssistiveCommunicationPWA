@@ -1,14 +1,19 @@
 // The bar across the top: the message being composed, and the controls that act
-// on it. Rest sits here too — straddling the top edge of the message box, in the
-// middle of the screen's top where a gaze on its way anywhere passes, and taking
-// no height from the grid.
+// on it. All three of the app's modes sit here too — edit, Rest, auto-speak —
+// in a strip straddling the top edge of the message box, in the middle of the
+// screen's top where a gaze on its way anywhere passes.
+//
+// Rest held that strip alone for a long time and cost the grid nothing, being
+// half a rem tall. Edit and auto-speak came up from the grid rail to join it,
+// and two icons need more than half a rem, so the strip is 18px taller than it
+// was and the grid is 18px shorter. That is the price of the arrangement.
 
 import { useCallback, useState } from 'react'
 import { useSettings } from '../ui/settings'
 import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
 import { useLinkInput } from '../ui/link-input'
-import { ClearIcon, CopyIcon, MenuIcon, SpeakIcon, UndoIcon } from '../ui/icons'
+import { AutoSpeakIcon, ClearIcon, CopyIcon, EditIcon, MenuIcon, SpeakIcon, UndoIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import type { Composer } from './use-composer'
 
@@ -46,6 +51,40 @@ function ActionButton({ onSelect, className = '', children, label, disabled }: {
 }
 
 /**
+ * A mode toggle — auto-speak, or edit. Both used to sit at the top of the grid
+ * rail; they are here now, either side of Rest, because all three are modes and
+ * Rest was already here. The rail is left to scrolling.
+ *
+ * Small, because the strip they share with Rest is a strip rather than a row,
+ * and Rest is half a rem of it. So each takes the same treatment Rest does: the
+ * painted size is small and the area answering to a pointer is larger and
+ * invisible — see `.mode-btn::before`.
+ */
+function ModeToggle({ on, onToggle, label, className, children }: {
+  on: boolean
+  onToggle: () => void
+  label: string
+  className: string
+  children: React.ReactNode
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onToggle)
+  return (
+    <div
+      className={cx('mode-btn', className, on && 'active', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={label}
+      aria-pressed={on}
+      {...props}
+    >
+      <div className="scroll-btn-fill" key={active ? 'a' : 'i'} />
+      {children}
+    </div>
+  )
+}
+
+/**
  * The only control that stays live while the app is resting — everything else
  * is switched off around it, so this has to be the way back. Its own dwell
  * therefore never depends on the resting state.
@@ -71,9 +110,12 @@ function RestButton({ resting, onToggle }: { resting: boolean; onToggle: () => v
   )
 }
 
-export function Topbar({ composer, editMode, menuOpen, onToggleMenu, resting, onToggleRest, onAddPhrase, onSpeak, onCopy }: {
+export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak, menuOpen, onToggleMenu, resting, onToggleRest, onAddPhrase, onSpeak, onCopy }: {
   composer: Composer
   editMode: boolean
+  onToggleEdit: () => void
+  autoSpeak: boolean
+  onToggleAutoSpeak: () => void
   menuOpen: boolean
   onToggleMenu: () => void
   resting: boolean
@@ -132,10 +174,35 @@ export function Topbar({ composer, editMode, menuOpen, onToggleMenu, resting, on
 
   return (
     <header className="topbar">
-      {/* Straddling the top edge of the message box — the middle of the
-          screen's top, where a gaze on its way anywhere passes. Costs the
-          grid no height at all. */}
-      <RestButton resting={resting} onToggle={onToggleRest} />
+      {/* The three modes, straddling the top edge of the message box — the
+          middle of the screen's top, where a gaze on its way anywhere passes.
+          Edit and auto-speak came up from the grid rail to join Rest, which was
+          always here: they are the same kind of thing, and a mode is worth more
+          on the path a gaze already takes than at the end of a rail.
+
+          Rest keeps the centre. It is the one control that has to be findable
+          without looking, and it was found there. */}
+      <div className="topbar-modes">
+        <ModeToggle
+          className="edit-toggle"
+          on={editMode}
+          onToggle={onToggleEdit}
+          label={editMode ? 'Exit edit mode' : 'Edit phrases'}
+        >
+          <EditIcon />
+        </ModeToggle>
+
+        <RestButton resting={resting} onToggle={onToggleRest} />
+
+        <ModeToggle
+          className="autospeak-toggle"
+          on={autoSpeak}
+          onToggle={onToggleAutoSpeak}
+          label={autoSpeak ? 'Turn off auto-speak' : 'Turn on auto-speak — speak phrases immediately'}
+        >
+          <AutoSpeakIcon />
+        </ModeToggle>
+      </div>
 
       <ActionButton label={menuOpen ? 'Close menu' : 'Open menu'} onSelect={onToggleMenu} className="menu-btn">
         <MenuIcon />

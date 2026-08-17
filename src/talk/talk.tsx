@@ -307,6 +307,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
           <Topbar
             composer={composer}
             editMode={editMode}
+            onToggleEdit={toggleEditMode}
+            autoSpeak={settings.autoSpeak}
+            onToggleAutoSpeak={toggleAutoSpeak}
             menuOpen={menuOpen}
             onToggleMenu={() => setMenuOpen(o => !o)}
             resting={resting}
@@ -341,10 +344,6 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
               showingSent ? 'Nothing said yet. Messages you speak or copy are kept here.' : undefined
             }
             onSelect={handleSelectPhrase}
-            editMode={editMode}
-            onToggleEdit={toggleEditMode}
-            autoSpeak={settings.autoSpeak}
-            onToggleAutoSpeak={toggleAutoSpeak}
           />
 
           <EmergencyBar

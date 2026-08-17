@@ -33,7 +33,9 @@ function renderApp(settings?: Record<string, unknown>) {
 
 const message = () => $<HTMLTextAreaElement>('.text-display')!.value
 const cells = () => $$('.phrase-cell')
-const toggles = () => $$('.toggle-btn')
+const modes = () => $$('.mode-btn')
+const editToggle = () => $('.edit-toggle')!
+const speakToggle = () => $('.autospeak-toggle')!
 const plainCell = (skip: string[] = []) =>
   cells().find(c => !c.querySelector('.phrase-slot') && !skip.includes(c.textContent ?? ''))!
 const slotCell = () =>
@@ -181,11 +183,13 @@ describe('resting', () => {
   }
   const startResting = () => click(rest())
 
-  // On the message box rather than over the phrases, so it costs the grid no
-  // height at all.
-  it('sits on the message box, taking nothing from the grid', () => {
+  // On the message box rather than over the phrases. It used to be the only
+  // thing in that strip and cost the grid nothing; edit and auto-speak have
+  // joined it there and the strip is taller for them, but the phrases still
+  // start below the topbar rather than under any of it.
+  it('sits in the mode strip on the message box, not over the phrases', () => {
     renderApp()
-    expect($('.topbar > .rest-btn')).not.toBeNull()
+    expect($('.topbar > .topbar-modes > .rest-btn')).not.toBeNull()
     expect($('.grid-area .rest-btn')).toBeNull()
   })
 
@@ -315,12 +319,17 @@ describe('fill-in-the-blank phrases', () => {
 })
 
 describe('auto-speak', () => {
-  it('is off by default, with the toggle above the edit toggle', () => {
+  // The three modes share one strip across the top of the message box, in the
+  // order edit, Rest, auto-speak. DOM order is what can be checked here — jsdom
+  // lays nothing out — but in a flex row with nothing setting `order` that is
+  // also the order they are seen in, left to right.
+  it('is off by default, sitting to the right of Rest with edit to its left', () => {
     renderApp()
-    const [auto, edit] = toggles()
-    expect(auto.getAttribute('aria-label')).toMatch(/auto-speak/i)
-    expect(edit.getAttribute('aria-label')).toMatch(/edit/i)
-    expect(auto.getAttribute('aria-pressed')).toBe('false')
+    const strip = $$('.topbar-modes > *')
+    expect(strip.map(el => el.className.split(' ')[0])).toEqual(['mode-btn', 'rest-btn', 'mode-btn'])
+    expect(strip[0].getAttribute('aria-label')).toMatch(/edit/i)
+    expect(strip[2].getAttribute('aria-label')).toMatch(/auto-speak/i)
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
   })
 
   it('speaks the phrase and leaves the message alone', () => {
@@ -345,8 +354,8 @@ describe('auto-speak', () => {
 
   it('goes back to composing when switched off', () => {
     renderApp({ autoSpeak: true })
-    click(toggles()[0])
-    expect(toggles()[0].getAttribute('aria-pressed')).toBe('false')
+    click(speakToggle())
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
 
     const cell = plainCell()
     click(cell)
@@ -356,7 +365,7 @@ describe('auto-speak', () => {
 
   it('persists across a reload', () => {
     renderApp()
-    click(toggles()[0])
+    click(speakToggle())
     expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).autoSpeak).toBe(true)
   })
 })
@@ -391,7 +400,7 @@ describe('emergency bar', () => {
 // fill-in-the-blank phrase showed "I want the red/blue one" and saving it stored
 // exactly that — flattening the slot, with no way back and nothing said about it.
 describe('editing a phrase that has choices behind it', () => {
-  const enterEditMode = () => click(toggles()[1])
+  const enterEditMode = () => click(editToggle())
   const save = () => click($$('.edit-action-btn').find(b => b.textContent?.includes('Save')))
 
   it('opens on what the phrase was written as, brackets and all', () => {
@@ -427,7 +436,7 @@ describe('editing a phrase that has choices behind it', () => {
       'the slot was flattened by opening the editor and saving',
     ).not.toBeNull()
 
-    click(toggles()[1]) // leave edit mode
+    click(editToggle()) // leave edit mode
     click(cells().find(c => c.textContent === shown))
     expect($('.slot-picker')).not.toBeNull()
   })
@@ -438,7 +447,7 @@ describe('editing a phrase that has choices behind it', () => {
 // the input a gaze user does not have. Typing comes from whatever keyboard they
 // already use; saying *where* to type is the part no keyboard supplies.
 describe('placing the caret in a phrase by dwell', () => {
-  const enterEditMode = () => click(toggles()[1])
+  const enterEditMode = () => click(editToggle())
   const field = () => $<HTMLTextAreaElement>('.edit-modal-text')!
   /** jsdom implements neither caret API, so the browser's answer is stubbed. */
   const answers = (offset: number) =>
@@ -561,7 +570,7 @@ describe('edit mode', () => {
   // array, so the grid kept showing the old text until the filter moved.
   it('shows an edited phrase immediately', () => {
     renderApp()
-    click(toggles()[1])
+    click(editToggle())
 
     const before = cells()[0].textContent
     click(cells()[0])
@@ -575,7 +584,7 @@ describe('edit mode', () => {
 
   it('adds an emergency phrase', () => {
     renderApp()
-    click(toggles()[1])
+    click(editToggle())
     expect($('.emergency-add')).not.toBeNull()
 
     const before = $$('.emergency-btn').length
@@ -593,7 +602,7 @@ describe('edit mode', () => {
 
   it('removes a deleted phrase from the grid', () => {
     renderApp()
-    click(toggles()[1])
+    click(editToggle())
 
     const doomed = cells()[0].textContent
     click(cells()[0])
@@ -604,16 +613,16 @@ describe('edit mode', () => {
 
   it('toggles independently of auto-speak', () => {
     renderApp()
-    click(toggles()[1])
+    click(editToggle())
     expect($('.app')?.classList.contains('edit-mode')).toBe(true)
-    expect(toggles()[0].getAttribute('aria-pressed')).toBe('false')
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
   })
 })
 
 describe('adding a phrase from the message box', () => {
   const composer = () => $<HTMLTextAreaElement>('.text-display')!
   const modalText = () => $<HTMLTextAreaElement>('.edit-modal-text')?.value
-  const enterEditMode = () => click(toggles()[1])
+  const enterEditMode = () => click(editToggle())
   const dwell = (el: Element) => {
     fireEvent.pointerEnter(el)
     act(() => void vi.advanceTimersByTime(800))
@@ -657,7 +666,7 @@ describe('adding a phrase from the message box', () => {
     dwell(composer())
     click($$('.edit-action-btn').find(b => b.textContent?.includes('Save')))
     clearMessage()
-    click(toggles()[1]) // leave edit mode
+    click(editToggle()) // leave edit mode
 
     expect(cells().map(c => c.textContent)).toContain('Please pass me the water')
   })
@@ -1560,7 +1569,7 @@ describe('sent messages', () => {
   })
 
   describe('in edit mode', () => {
-    const enterEditMode = () => click(toggles()[1])
+    const enterEditMode = () => click(editToggle())
     const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
     const sendOne = () => {
       click(plainCell())
@@ -1779,7 +1788,7 @@ describe('rendering only part of a long grid', () => {
 describe('starting from the last choice made', () => {
   const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
   const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
-  const enterEditMode = () => click(toggles()[1])
+  const enterEditMode = () => click(editToggle())
   const categorySelect = () => $<HTMLSelectElement>('#edit-category')
   const voiceTrigger = () => $('.voice-trigger')
   const flush = async () => {
@@ -1934,7 +1943,7 @@ describe('giving a phrase its own voice', () => {
     played.length = 0
     spoken.length = 0
   }
-  const enterEditMode = () => click(toggles()[1])
+  const enterEditMode = () => click(editToggle())
   const stored = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}').voiceOverrides ?? {}
 
   const linkAccount = () => localStorage.setItem('peri_elevenlabs', JSON.stringify(LINKED))
@@ -2024,7 +2033,7 @@ describe('giving a phrase its own voice', () => {
     click(action('Save'))
     await flush()
 
-    click(toggles()[1]) // leave edit mode
+    click(editToggle()) // leave edit mode
     click(plainCell())
     await flush()
 
@@ -2046,7 +2055,7 @@ describe('giving a phrase its own voice', () => {
     await chooseVoice('Rachel')
     click(action('Save'))
     await flush()
-    click(toggles()[1]) // leave edit mode
+    click(editToggle()) // leave edit mode
 
     // Nothing may be asked for at this point: the bar never waits.
     const fetcher = vi.fn()
@@ -2088,7 +2097,7 @@ describe('giving a phrase its own voice', () => {
     settle()
     click(action('Save'))
     await flush()
-    click(toggles()[1]) // leave edit mode
+    click(editToggle()) // leave edit mode
 
     // Nothing may be asked for now: it was fetched when the phrase was saved.
     const fetcher = vi.fn()
@@ -2157,7 +2166,7 @@ describe('giving a phrase its own voice', () => {
     click(action('Save'))
     await flush()
 
-    click(toggles()[1])
+    click(editToggle())
     click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
     click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Backup & sharing'))
     click(inDoc('.panel-btn').find(b => b.getAttribute('aria-label') === 'Save a file'))
@@ -2769,7 +2778,7 @@ describe('accessibility', () => {
 
   it('labels the mode toggles with their pressed state', () => {
     renderApp()
-    expect(toggles().every(t => t.hasAttribute('aria-pressed'))).toBe(true)
+    expect(modes().every(t => t.hasAttribute('aria-pressed'))).toBe(true)
   })
 })
 

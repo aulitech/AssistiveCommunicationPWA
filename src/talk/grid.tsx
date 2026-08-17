@@ -11,7 +11,6 @@ import { useEdit } from '../ui/edit-mode'
 import { stripMarkdown } from '../core/markdown'
 import { hasChoices, type Phrase } from '../core/phrases'
 import { needsMore, windowSize } from '../core/virtual'
-import { AutoSpeakIcon, EditIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { PhraseText } from './phrase-text'
 
@@ -87,60 +86,21 @@ function ScrollBtn({ onAction, repeat, label, children }: {
   )
 }
 
-function ToggleBtn({ on, onToggle, label, children }: {
-  on: boolean
-  onToggle: () => void
-  label: string
-  children: React.ReactNode
-}) {
-  const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onToggle)
-  return (
-    <div
-      className={cx('scroll-btn toggle-btn', on && 'active', active && 'dwelling')}
-      style={dwellVar(settings.actionDwellMs)}
-      role="button"
-      aria-label={label}
-      aria-pressed={on}
-      {...props}
-    >
-      <div className="scroll-btn-fill" key={active ? 'a' : 'i'} />
-      {children}
-    </div>
-  )
-}
-
-function GridScrollBar({ gridRef, onBeforeJumpToBottom, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak }: {
+/**
+ * Scrolling only. The two mode toggles used to sit at the top of this rail; they
+ * are in the topbar now, either side of Rest, which is the third of the three
+ * and was already there.
+ */
+function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
   gridRef: React.RefObject<HTMLElement | null>
   /** Renders the rest of the list, so the jump has somewhere to land. */
   onBeforeJumpToBottom: () => void
-  editMode: boolean
-  onToggleEdit: () => void
-  autoSpeak: boolean
-  onToggleAutoSpeak: () => void
 }) {
   const scrollTo = useCallback((pos: number) => gridRef.current?.scrollTo({ top: pos, behavior: 'smooth' }), [gridRef])
   const scrollBy = useCallback((dy: number) => gridRef.current?.scrollBy({ top: dy, behavior: 'smooth' }), [gridRef])
 
   return (
     <div className="grid-scrollbar">
-      {/* Mode toggles — always visible above the scroll controls */}
-      <ToggleBtn
-        on={autoSpeak}
-        onToggle={onToggleAutoSpeak}
-        label={autoSpeak ? 'Turn off auto-speak' : 'Turn on auto-speak — speak phrases immediately'}
-      >
-        <AutoSpeakIcon />
-      </ToggleBtn>
-
-      <ToggleBtn
-        on={editMode}
-        onToggle={onToggleEdit}
-        label={editMode ? 'Exit edit mode' : 'Edit phrases'}
-      >
-        <EditIcon />
-      </ToggleBtn>
-
       <ScrollBtn onAction={() => scrollTo(0)} label="Scroll to top">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <line x1="5" y1="6" x2="19" y2="6"/><polyline points="8 14 12 10 16 14"/>
@@ -178,15 +138,11 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom, editMode, onToggleEdit, 
  * Only the first `shown` cells are rendered — see `core/virtual.ts` for why the
  * window grows from the top rather than sliding.
  */
-export function PhraseGrid({ phrases, emptyMessage, onSelect, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak }: {
+export function PhraseGrid({ phrases, emptyMessage, onSelect }: {
   phrases: Phrase[]
   /** Shown when there is nothing to show, for filters that can legitimately be empty. */
   emptyMessage?: string
   onSelect: (phrase: Phrase) => void
-  editMode: boolean
-  onToggleEdit: () => void
-  autoSpeak: boolean
-  onToggleAutoSpeak: () => void
 }) {
   const gridRef = useRef<HTMLElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
@@ -262,14 +218,7 @@ export function PhraseGrid({ phrases, emptyMessage, onSelect, editMode, onToggle
         </div>
         {phrases.length === 0 && emptyMessage && <p className="grid-empty">{emptyMessage}</p>}
       </main>
-      <GridScrollBar
-        gridRef={gridRef}
-        onBeforeJumpToBottom={showEverything}
-        editMode={editMode}
-        onToggleEdit={onToggleEdit}
-        autoSpeak={autoSpeak}
-        onToggleAutoSpeak={onToggleAutoSpeak}
-      />
+      <GridScrollBar gridRef={gridRef} onBeforeJumpToBottom={showEverything} />
     </div>
   )
 }
