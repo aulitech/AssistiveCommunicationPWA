@@ -29,6 +29,11 @@ export const downloads: { filename: string; text: string }[] = []
 /** Audio the app has started playing, in order. */
 export const played: { volume: number; rate: number }[] = []
 
+/** Elements asked to bring themselves into view, newest last. jsdom has no layout
+ *  and so no `scrollIntoView` at all — without this it is a missing function
+ *  rather than one that does nothing. */
+export const scrolledIntoView: Element[] = []
+
 /** Set false to make playback fail the way a browser blocking autoplay does. */
 export let audioPlays = true
 export const setAudioPlays = (ok: boolean) => {
@@ -99,6 +104,9 @@ beforeEach(() => {
   // jsdom implements neither smooth scrolling nor the clipboard.
   Element.prototype.scrollTo = () => {}
   Element.prototype.scrollBy = () => {}
+  Element.prototype.scrollIntoView = function () {
+    scrolledIntoView.push(this)
+  }
   vi.stubGlobal('scrollTo', () => {})
 
   Object.defineProperty(navigator, 'clipboard', {
@@ -110,6 +118,7 @@ beforeEach(() => {
   audioPlays = true
   played.length = 0
   downloads.length = 0
+  scrolledIntoView.length = 0
   blobText.clear()
   // jsdom has no object URLs and no downloads. Recording what a download would
   // have carried is the only way to assert on the file the app hands out.

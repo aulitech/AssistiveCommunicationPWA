@@ -343,8 +343,24 @@ function CollapsibleSection({ section, open, onToggle }: {
 }) {
   const { settings } = useSettings()
   const { active, props } = useDwellControl(settings.actionDwellMs, onToggle)
+  const ref = useRef<HTMLElement>(null)
+
+  // Opening one puts its heading at the top of the pane, so what was just
+  // chosen is the first thing on screen and its text runs downward from there.
+  // Without it, opening a section low in the list leaves the heading where it
+  // was and the text below the fold — and the reader has to find the scroll
+  // arrows to see what they asked for.
+  //
+  // After the render that opened it, so the layout it scrolls to is the one with
+  // the section already expanded and the previous one already closed. It runs on
+  // mount too, for the section that starts open; the pane is at the top then, so
+  // that is a scroll to where it already is.
+  useEffect(() => {
+    if (open) ref.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [open])
+
   return (
-    <section className={cx('help-section', 'is-collapsible', open && 'is-open')}>
+    <section ref={ref} className={cx('help-section', 'is-collapsible', open && 'is-open')}>
       <h3
         className={cx('help-section-title', active && 'dwelling')}
         style={dwellVar(settings.actionDwellMs)}
