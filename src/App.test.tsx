@@ -3216,3 +3216,105 @@ describe('putting settings back', () => {
     })
   })
 })
+
+// The keyboard route into a text box is Ctrl-V, which is exactly the input this
+// app exists without — so both boxes offer a control that asks on the user's
+// behalf. It can be refused, and for a gaze user refusal is the likely case.
+describe('pasting by dwell', () => {
+  const iconBtn = (label: string) => $$('.icon-btn').find(b => b.getAttribute('aria-label') === label)
+  const composer = () => $<HTMLTextAreaElement>('.text-display')!
+  const toast = () => $('.toast')?.textContent ?? $('.toast-region')?.textContent ?? ''
+  const settleAsync = async () => {
+    await act(async () => {
+      await Promise.resolve()
+      vi.advanceTimersByTime(50)
+    })
+  }
+
+  it('sits to the right of copy', () => {
+    renderApp()
+    const right = $$('.icon-btn.right').map(b => b.getAttribute('aria-label'))
+    expect(right).toEqual(['Speak', 'Copy to clipboard', 'Paste from clipboard'])
+  })
+
+  // Never disabled: what is on the clipboard is not this app's to know until it
+  // asks, so a paste with nothing behind it says so rather than being greyed out.
+  it('stays live with an empty message, unlike speak and copy', () => {
+    renderApp()
+    expect(iconBtn('Speak')?.hasAttribute('disabled')).toBe(true)
+    expect(iconBtn('Copy to clipboard')?.hasAttribute('disabled')).toBe(true)
+    expect(iconBtn('Paste from clipboard')?.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('puts the clipboard into the message box', async () => {
+    renderApp()
+    setClipboardText('from the clipboard')
+    click(iconBtn('Paste from clipboard'))
+    await settleAsync()
+
+    expect(composer().value).toBe('from the clipboard')
+  })
+
+  // The same conversion a Ctrl-V gets: a bare address on an AAC board is a whole
+  // row of characters and forty seconds of punctuation read aloud.
+  it('turns a pasted address into the name of the page', async () => {
+    renderApp()
+    setClipboardText('https://example.com/menu')
+    click(iconBtn('Paste from clipboard'))
+    await settleAsync()
+
+    expect(composer().value).toBe('[example.com](https://example.com/menu)')
+  })
+
+  // Lands at the caret, not at the end. The caret has to be moved off the end
+  // first or the two answers are the same: `fireEvent.change` leaves it there,
+  // which is what made an earlier version of this test pass either way.
+  it('lands where the caret is rather than at the end', async () => {
+    renderApp()
+    fireEvent.change(composer(), { target: { value: 'look at' } })
+    composer().setSelectionRange(4, 4) // "look| at"
+    setClipboardText('this')
+    click(iconBtn('Paste from clipboard'))
+    await settleAsync()
+
+    expect(composer().value).toBe('look this at')
+  })
+
+  // Reading the clipboard needs permission and, in most browsers, a recent click
+  // or key press — and a dwell has no press in it. Saying nothing would leave the
+  // control looking broken to exactly the people it is for.
+  it('says so out loud when the browser refuses', async () => {
+    renderApp()
+    const readText = navigator.clipboard.readText as ReturnType<typeof vi.fn>
+    readText.mockRejectedValueOnce(new Error('denied'))
+
+    click(iconBtn('Paste from clipboard'))
+    await settleAsync()
+
+    expect(toast()).toMatch(/blocked/i)
+    expect(composer().value).toBe('')
+  })
+
+  it('says so when there is nothing on the clipboard', async () => {
+    renderApp()
+    setClipboardText('')
+    click(iconBtn('Paste from clipboard'))
+    await settleAsync()
+
+    expect(toast()).toMatch(/nothing on the clipboard/i)
+  })
+
+  it('offers the same in the phrase editor', async () => {
+    renderApp()
+    click($('.edit-toggle'))
+    click(plainCell())
+    const field = $<HTMLTextAreaElement>('.edit-modal-text')!
+    fireEvent.change(field, { target: { value: 'I want' } })
+
+    setClipboardText('a drink')
+    click($$('.edit-modal-tools .edit-action-btn').find(b => b.textContent?.includes('Paste')))
+    await settleAsync()
+
+    expect($<HTMLTextAreaElement>('.edit-modal-text')!.value).toBe('I want a drink')
+  })
+})

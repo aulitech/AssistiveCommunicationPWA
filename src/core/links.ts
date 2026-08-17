@@ -100,6 +100,20 @@ export function readLink(data: DataTransfer | null): Link | null {
 }
 
 /**
+ * The same question of a bare string, for the paste control.
+ *
+ * A keyboard paste arrives as a `DataTransfer` carrying several versions of the
+ * same thing, and the richer ones are where a label comes from. Reading the
+ * clipboard on purpose hands over text and nothing else, so there is no page
+ * title to be had and the site's own name is the best label on offer.
+ */
+export function readLinkText(text: string): Link | null {
+  const url = readUrl(text)
+  if (!url) return null
+  return { url, label: labelFromUrl(url) }
+}
+
+/**
  * A label is one line of a button. Newlines are taken out because a phrase now
  * reads them as new lines, and brackets because they would close the label
  * early. It is deliberately not shortened: a long page title makes an awkward

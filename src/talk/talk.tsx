@@ -18,6 +18,7 @@ import { type AppState } from '../core/backup'
 import { speak, warmVoice } from '../voice/speech'
 import { cx } from '../ui/style'
 import { DwellCursor } from '../ui/controls'
+import { type PasteResult } from '../ui/link-input'
 import { Topbar } from './topbar'
 import { PhraseGrid } from './grid'
 import { FilterBar } from './filter-bar'
@@ -286,6 +287,22 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     })
   }, [message, copyMessage, flashToast, sent])
 
+  /**
+   * Both text boxes offer a paste, and both can be refused. Reading the clipboard
+   * needs permission and, in most browsers, a recent click or key press — and a
+   * dwell is a timer firing after a pointer has rested, with no press in it. So
+   * the people this app is for are the likeliest to be turned down, and silence
+   * would leave the control looking simply broken. The same reasoning as the
+   * toast behind a blocked link.
+   */
+  const reportPaste = useCallback(
+    (result: PasteResult) => {
+      if (result === 'refused') flashToast('Blocked. Allow clipboard access for Peri to paste')
+      else if (result === 'empty') flashToast('Nothing on the clipboard')
+    },
+    [flashToast],
+  )
+
   // The panel closes onto the restored board, so the result is the first thing
   // the user sees rather than the screen they restored it from.
   const handleRestore = useCallback(
@@ -317,6 +334,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             onAddPhrase={openAddFromComposer}
             onSpeak={handleSpeak}
             onCopy={handleCopy}
+            onPasted={reportPaste}
           />
 
           {/* Hidden while a typed word is narrowing the grid: the tabs would be
@@ -411,6 +429,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
               onSave={handleSave}
               onDelete={handleDelete}
               onClose={() => setEditing(null)}
+              onPasted={reportPaste}
               keeping={editingSent}
             />
           )}

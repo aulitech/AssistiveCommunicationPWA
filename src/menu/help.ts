@@ -57,6 +57,12 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'When the message is ready, rest on the speaker button to say it aloud, or the copy button to send it somewhere else.',
       ),
+      text(
+        'The paste button beside copy brings in whatever was last copied, at the point the caret is sitting. The phrase editor has one too.',
+      ),
+      text(
+        'If it says it was blocked, allow clipboard access for Peri in your browser settings. Firefox does not offer the clipboard to a web page at all — there, use Ctrl+V if you have a keyboard.',
+      ),
       text('The button on the left clears the message, and afterwards offers to undo the clearing.'),
     ],
   },

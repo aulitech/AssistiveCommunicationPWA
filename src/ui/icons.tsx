@@ -158,6 +158,18 @@ export function PageIcon({ direction }: { direction: 'up' | 'down' | 'left' | 'r
  * "back to the value it shipped with", and the two must not be learnt as one
  * control. The closed loop is the difference: it returns to where it started.
  */
+/** The clipboard, with the sheet coming off it — the mirror of `CopyIcon`. */
+export function PasteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h6" />
+      <rect x="9" y="2" width="6" height="4" rx="1" />
+      <path d="M14 12h7v9a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1z" />
+      <polyline points="17.5 9 17.5 15 20.5 12" />
+    </svg>
+  )
+}
+
 export function ResetIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
