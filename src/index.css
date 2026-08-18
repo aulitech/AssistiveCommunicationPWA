@@ -775,6 +775,13 @@ body {
   padding: 8px;
   display: flex;
   flex-direction: column;
+  /* Each item is only as wide as what is written on it. Stretched to the
+     column — which is the whole viewport, since the panel spans it — a row of
+     text a few centimetres long answered to a gaze anywhere along a metre of
+     empty space beside it, and the five of them tiled the panel with no gap
+     between one and the next. Shrunk to their content they are five targets
+     with somewhere safe to look in between. */
+  align-items: flex-start;
   gap: 4px;
 }
 

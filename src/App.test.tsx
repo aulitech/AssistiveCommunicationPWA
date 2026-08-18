@@ -1136,6 +1136,62 @@ describe('my details', () => {
   })
 })
 
+// The panel spans the viewport, and everything in this menu is aimed at rather
+// than read — so where an item *is not* matters as much as where it is.
+describe('the menu items', () => {
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
+  const back = () => $('.panel-back')
+
+  // jsdom lays nothing out, so this can only check the rule is written. Whether
+  // the items actually shrink is a question for the deploy preview.
+  it('is no wider than what is written on it', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    expect(css).toMatch(/\.panel-nav \{[^}]*\balign-items: flex-start;/)
+  })
+
+  // A pointer rests where it last fired. Back sits over the menu that comes
+  // back, so without this the item underneath opens on its own — and the item
+  // underneath might be Sign out.
+  it('ignores a dwell for a second after a panel closes', () => {
+    renderApp()
+    openMenu()
+    click(nav('Settings'))
+    expect($('.settings-panel')).not.toBeNull()
+
+    click(back())
+    click(nav('Settings'))
+    expect($('.settings-panel'), 'the menu reopened on its own').toBeNull()
+
+    // Pinned at both ends, or a guard of a tenth of a second passes this just
+    // as well as a guard of one: still deaf just short of the second, and
+    // listening again just past it. `click` advances the clock 50ms of its own.
+    act(() => void vi.advanceTimersByTime(800))
+    click(nav('Settings'))
+    expect($('.settings-panel'), 'the guard let go early').toBeNull()
+
+    act(() => void vi.advanceTimersByTime(200))
+    click(nav('Settings'))
+    expect($('.settings-panel')).not.toBeNull()
+  })
+
+  // The sign-out dialog is centred, which puts its buttons squarely over the
+  // items — including the one that raised it.
+  it('holds the same guard up after the sign-out dialog', () => {
+    renderApp()
+    openMenu()
+    click(nav('Sign out'))
+    click([...document.body.querySelectorAll('.panel-btn')].find(b => b.getAttribute('aria-label') === 'Stay signed in'))
+
+    click(nav('Sign out'))
+    expect(document.body.querySelector('.confirm-modal'), 'it asked again on its own').toBeNull()
+
+    act(() => void vi.advanceTimersByTime(1000))
+    click(nav('Sign out'))
+    expect(document.body.querySelector('.confirm-modal')).not.toBeNull()
+  })
+})
+
 describe('help', () => {
   const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
   const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)

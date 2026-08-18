@@ -74,10 +74,17 @@ export function DwellButton({
   )
 }
 
-export function NavItem({ icon, label, sublabel, onSelect }: {
+export function NavItem({ icon, label, sublabel, disabled, onSelect }: {
   icon: React.ReactNode
   label: string
   sublabel?: string
+  /**
+   * Deaf to a dwell for the moment — the guard the menu holds up after one of
+   * these closes. Nothing about it changes on the way past: a row of items
+   * greying out for a second and coming back reads as a fault rather than as a
+   * pause. The fill simply does not start, which is the honest cue.
+   */
+  disabled?: boolean
   onSelect: () => void
 }) {
   const { settings } = useSettings()
@@ -87,7 +94,7 @@ export function NavItem({ icon, label, sublabel, onSelect }: {
     setFlash(true)
     setTimeout(() => setFlash(false), 320)
   }, [onSelect])
-  const { active, props } = useDwellControl(settings.actionDwellMs, handleActivate)
+  const { active, props } = useDwellControl(settings.actionDwellMs, handleActivate, { disabled })
 
   return (
     <div
