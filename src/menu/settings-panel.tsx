@@ -138,6 +138,22 @@ export function SettingsPanel({ store, profile, categoryById }: {
   return (
     <div className="settings-panel">
       <ScrollPane className="settings-scroller" paneClassName="settings-body" step={100}>
+        {/* First, because it is the setting somebody needs before they can read
+            any of the others — including this panel. It is also the one that
+            re-lays the panel out as it changes, and the top row is where that
+            moves its own controls least. */}
+        <SettingRow label="Text size">
+          <SettingSpinner
+            value={Math.round(settings.zoom * 100)}
+            defaultValue={DEFAULT_SETTINGS.zoom * 100}
+            name="text size"
+            min={50}
+            max={200}
+            step={10}
+            format={v => `${v}%`}
+            onValue={v => update({ zoom: v / 100 })}
+          />
+        </SettingRow>
         <SettingRow label="Phrase dwell">
           <SettingSpinner
             value={settings.phraseDwellMs}

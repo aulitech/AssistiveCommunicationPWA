@@ -263,6 +263,7 @@ describe('reading a backup back', () => {
           rate: 40,
           voiceURI: 7,
           autoSpeak: 'yes',
+          zoom: 9,
         },
       }),
     )
@@ -278,6 +279,9 @@ describe('reading a backup back', () => {
       // 'yes' is not a boolean, so it falls back to the default like every
       // other nonsense value here — and the default is on.
       autoSpeak: true,
+      // A file does not get to make the text nine times its size, which would
+      // take the settings panel down with it.
+      zoom: 2,
     })
   })
 

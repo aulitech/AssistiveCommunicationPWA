@@ -190,6 +190,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text('Open the menu and choose Settings. Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.'),
       text('Settings and My details scroll if there is more than fits, using the same arrows as the phrase grid.'),
       list(
+        'Text size — how big everything is written, from half again as small to twice as large. It grows the words rather than the screen, so the board keeps the same number of phrases on it.',
         'Phrase dwell — how long to rest on a phrase before it is chosen.',
         'Action dwell — how long to rest on buttons and menus.',
         'Volume and Speed — how the voice sounds.',

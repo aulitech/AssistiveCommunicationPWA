@@ -140,6 +140,31 @@ describe('the shape of the source tree', () => {
     expect(binary).toEqual([])
   })
 
+  // Text size is one setting now, and it works by being the root font-size —
+  // which only reaches text written in `rem`. A single `font-size` left in
+  // pixels is a line that will not grow when somebody turns the zoom up, and
+  // the ones that matter most are the ones somebody would reach for it for.
+  // Checked here rather than by eye: it is 77 declarations and a diff shows
+  // nothing.
+  it('sizes every piece of text in rem', () => {
+    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const inPixels = [...css.matchAll(/font-size:[^;]+/g)]
+      .map(m => m[0])
+      .filter(rule => rule.includes('px'))
+    expect(inPixels).toEqual([])
+
+    // And the handful set from a component, where a bare number means pixels.
+    // Tests are left out: this one names the property to look for it.
+    const inline = sources()
+      .filter(path => !path.includes('.test.'))
+      .flatMap(path =>
+        [...readFileSync(path, 'utf8').matchAll(/fontSize: *([^,}]+)/g)].map(m => [path, m[1]] as const),
+      )
+      .filter(([, value]) => !value.includes('rem'))
+      .map(([path, value]) => `${relative(SRC, path)}: ${value}`)
+    expect(inline).toEqual([])
+  })
+
   it('keeps App as the only default export', () => {
     const defaults = sources()
       .filter(p => /^export default/m.test(readFileSync(p, 'utf8')))
