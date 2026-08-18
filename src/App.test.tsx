@@ -652,20 +652,23 @@ describe('edit mode', () => {
   })
 
   // Typing narrows the grid to the word being written, which is how a gaze user
-  // finishes a word. In edit mode the box holds a phrase instead, and narrowing
-  // the board to a word of that would take away the very phrases they came to
-  // edit.
-  it('does not narrow the board to the phrase being written', () => {
+  // finishes a word. Edit mode carries whatever was composed in with it, and
+  // narrowing the board to a word of that would take away the very phrases
+  // somebody came to edit.
+  //
+  // The message has to be left in the box rather than cleared first: writing a
+  // phrase writes the draft and never the message, so a cleared box narrows the
+  // grid to nothing whether the guard is there or not.
+  it('does not narrow the board to the message it came in with', () => {
     renderApp()
     const all = cells().length
     writeIn(box(), 'help')
     expect(cells().length, 'composing did not narrow the grid at all').toBeLessThan(all)
 
-    clearMessage()
     click(editToggle())
-    writePhrase('help')
 
     expect(cells().length).toBe(all)
+    expect(box().value, 'the message did not come with it').toBe('help')
   })
 
   // Saving leaves the editor on a blank phrase rather than closing anything —
