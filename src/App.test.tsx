@@ -1041,18 +1041,34 @@ describe('composing', () => {
   })
 })
 
-describe('my details', () => {
-  const openProfile = () => {
+// The lists a phrase's slots choose from. This panel was **My details**, which
+// edited two of them — `name` and `contacts` — and nothing else. All of them are
+// the user's now: seeded from the table, editable and extensible.
+describe('aliases', () => {
+  const openAliases = () => {
     click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
-    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'My details'))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Aliases'))
   }
+  const list = (name: string) => $$('.alias-list').find(l => l.getAttribute('aria-label') === name)!
+  const wordsIn = (name: string) =>
+    [...list(name).querySelectorAll('.alias-word-text')].map(w => w.textContent)
+  const addTo = (name: string, word: string) => {
+    const row = list(name)
+    fireEvent.change(row.querySelector('input')!, { target: { value: word } })
+    settle()
+    click(row.querySelector('.contact-add-btn'))
+  }
+  const stored = () => JSON.parse(localStorage.getItem('peri_aliases') ?? '{}')
   const cellTexts = () => cells().map(c => c.textContent)
 
-  it('opens from the menu', () => {
+  it('opens from the menu, seeded with every list the table ships', () => {
     renderApp()
-    openProfile()
-    expect($('.profile-input')).not.toBeNull()
-    expect($('.profile-empty')?.textContent).toMatch(/nobody/i)
+    openAliases()
+
+    expect($$('.alias-list').length).toBeGreaterThan(5)
+    expect(wordsIn('pronouns')).toContain('they')
+    // The two the table ships empty, listed so they can be filled in.
+    expect(wordsIn('contacts')).toEqual([])
   })
 
   it('fills in a name phrase that was previously a blank', () => {
@@ -1061,9 +1077,8 @@ describe('my details', () => {
     // them — the trailing space is where the name goes.
     expect(cellTexts()).toContain(`This is ${BLANK}`)
 
-    openProfile()
-    fireEvent.change($('input[aria-label="Nickname"]')!, { target: { value: 'Ada' } })
-    settle()
+    openAliases()
+    addTo('name.nickname', 'Ada')
 
     expect(cellTexts()).toContain('This is Ada')
     expect(cellTexts()).not.toContain(`This is ${BLANK}`)
@@ -1071,25 +1086,19 @@ describe('my details', () => {
 
   it('adds a contact and offers it on the matching phrase', () => {
     renderApp()
-    openProfile()
+    openAliases()
+    addTo('contacts', 'Mum')
 
-    fireEvent.change($('input[aria-label="Add a contact"]')!, { target: { value: 'Mum' } })
-    settle()
-    click($('.contact-add-btn'))
-
-    expect($$('.contact-name').map(c => c.textContent)).toEqual(['Mum'])
+    expect(wordsIn('contacts')).toEqual(['Mum'])
     // A lone contact needs no picker — it goes straight into the phrase.
     expect(cellTexts().some(t => t?.includes('call Mum'))).toBe(true)
   })
 
   it('asks which contact once there is more than one', () => {
     renderApp()
-    openProfile()
-    for (const name of ['Mum', 'Dad']) {
-      fireEvent.change($('input[aria-label="Add a contact"]')!, { target: { value: name } })
-      settle()
-      click($('.contact-add-btn'))
-    }
+    openAliases()
+    addTo('contacts', 'Mum')
+    addTo('contacts', 'Dad')
     click($('.panel-back'))
     click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
 
@@ -1102,40 +1111,91 @@ describe('my details', () => {
     expect(message()).toContain('Dad')
   })
 
-  it('removes a contact', () => {
+  it('removes a word', () => {
     renderApp()
-    openProfile()
-    fireEvent.change($('input[aria-label="Add a contact"]')!, { target: { value: 'Mum' } })
-    settle()
-    click($('.contact-add-btn'))
-    expect($$('.contact-name')).toHaveLength(1)
+    openAliases()
+    addTo('contacts', 'Mum')
+    expect(wordsIn('contacts')).toEqual(['Mum'])
 
-    click($('.contact-remove'))
-    expect($$('.contact-name')).toHaveLength(0)
+    click(list('contacts').querySelector('.contact-remove'))
+    expect(wordsIn('contacts')).toEqual([])
   })
 
-  it('refuses blank and duplicate contacts', () => {
+  // Taking a word off a list the table ships is the edit that needs the store to
+  // win outright: falling back to the shipped words would put it straight back.
+  it('takes a word off a list the table ships, and keeps it off', () => {
     renderApp()
-    openProfile()
+    openAliases()
+    const before = wordsIn('pronouns')
+    click(list('pronouns').querySelector('.contact-remove'))
 
-    click($('.contact-add-btn'))
-    expect($$('.contact-name')).toHaveLength(0)
+    expect(wordsIn('pronouns')).toEqual(before.slice(1))
+    expect(stored().pronouns).toEqual(before.slice(1))
+  })
 
-    for (let i = 0; i < 2; i++) {
-      fireEvent.change($('input[aria-label="Add a contact"]')!, { target: { value: 'Mum' } })
-      settle()
-      click($('.contact-add-btn'))
-    }
-    expect($$('.contact-name')).toHaveLength(1)
+  it('refuses blank and duplicate words', () => {
+    renderApp()
+    openAliases()
+
+    click(list('contacts').querySelector('.contact-add-btn'))
+    expect(wordsIn('contacts')).toEqual([])
+
+    addTo('contacts', 'Mum')
+    addTo('contacts', 'Mum')
+    expect(wordsIn('contacts')).toEqual(['Mum'])
+  })
+
+  // Extensible: a list of their own, reached by writing its name in a phrase.
+  it('adds a list of its own, which a phrase can then use', () => {
+    renderApp()
+    openAliases()
+    const newList = $$('.alias-list').find(l => l.getAttribute('aria-label') === 'New list')!
+    fireEvent.change(newList.querySelector('input')!, { target: { value: 'Drinks' } })
+    settle()
+    click(newList.querySelector('.contact-add-btn'))
+
+    // Lower-cased, because that is how a slot looks one up.
+    expect(wordsIn('drinks')).toEqual([])
+    addTo('drinks', 'tea')
+    expect(stored().drinks).toEqual(['tea'])
+  })
+
+  // A list the table ships can be emptied but not removed — the phrases that
+  // name it would have nothing to look up.
+  it('offers to delete only a list of its own', () => {
+    renderApp()
+    openAliases()
+    expect(list('pronouns').querySelector('[aria-label^="Delete"]')).toBeNull()
+
+    const newList = $$('.alias-list').find(l => l.getAttribute('aria-label') === 'New list')!
+    fireEvent.change(newList.querySelector('input')!, { target: { value: 'drinks' } })
+    settle()
+    click(newList.querySelector('.contact-add-btn'))
+
+    click(list('drinks').querySelector('[aria-label^="Delete"]'))
+    expect($$('.alias-list').find(l => l.getAttribute('aria-label') === 'drinks')).toBeUndefined()
+    expect(stored().drinks).toBeUndefined()
   })
 
   it('persists across a reload', () => {
     renderApp()
-    openProfile()
-    fireEvent.change($('input[aria-label="Nickname"]')!, { target: { value: 'Ada' } })
-    settle()
+    openAliases()
+    addTo('name.nickname', 'Ada')
 
-    expect(JSON.parse(localStorage.getItem('dwellspeak_profile')!).name.nickname).toBe('Ada')
+    expect(stored()['name.nickname']).toEqual(['Ada'])
+  })
+
+  // Renaming a menu item must not lose somebody their contacts. The old panel
+  // wrote a profile; this reads it once and carries it over.
+  it('carries an old profile over the first time it loads', () => {
+    localStorage.setItem(
+      'dwellspeak_profile',
+      JSON.stringify({ name: { given: 'Ada', surname: 'Lovelace', nickname: 'Ada' }, contacts: ['Mum'] }),
+    )
+    renderApp()
+
+    expect(cellTexts().some(t => t?.includes('call Mum'))).toBe(true)
+    expect(stored()).toMatchObject({ contacts: ['Mum'], name: ['Ada Lovelace'], 'name.nickname': ['Ada'] })
   })
 })
 
@@ -1340,7 +1400,7 @@ describe('help', () => {
   it.each([
     ['Settings', true],
     ['Help', true],
-    ['My details', false],
+    ['Aliases', false],
     ['Backup & sharing', false],
   ])('gives %s the full viewport: %s', (panel, tall) => {
     renderApp()
@@ -1784,7 +1844,7 @@ describe('leaving a panel', () => {
   const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
   const back = () => $('.panel-back')
   const isOpen = () => $('.top-panel.open') !== null
-  const PANELS = ['Settings', 'My details', 'Backup & sharing', 'Help']
+  const PANELS = ['Settings', 'Aliases', 'Backup & sharing', 'Help']
   const SCREENS = ['Menu', ...PANELS]
 
   const show = (screen: string) => {
@@ -2734,10 +2794,10 @@ describe('reaching all of a panel that has grown', () => {
     settle()
   }
 
-  // My details grows with every contact added, and Settings with the linked
-  // account row. A panel taller than the screen is a panel whose bottom half a
+  // Aliases grows with every word added, and Settings with the linked account
+  // row. A panel taller than the screen is a panel whose bottom half a
   // dwell user cannot reach — there is no wheel and no scrollbar.
-  it.each(['My details', 'Settings'])('scrolls %s once there is more than fits', panel => {
+  it.each(['Aliases', 'Settings'])('scrolls %s once there is more than fits', panel => {
     renderApp()
     openMenu()
     click(nav(panel))
@@ -2753,7 +2813,7 @@ describe('reaching all of a panel that has grown', () => {
   it('scrolls the panel when an arrow is dwelled', () => {
     renderApp()
     openMenu()
-    click(nav('My details'))
+    click(nav('Aliases'))
 
     const pane = $('.settings-body')!
     overflow(pane)
@@ -2775,7 +2835,7 @@ describe('the menu panels on a wide screen', () => {
   // they line up as you move between them.
   it.each([
     ['Settings', '.settings-body'],
-    ['My details', '.settings-body'],
+    ['Aliases', '.settings-body'],
     ['Backup & sharing', '.backup-body'],
     ['Help', '.help-measure'],
   ])('keeps %s in a reading column', (panel, selector) => {

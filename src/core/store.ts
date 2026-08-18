@@ -5,7 +5,7 @@
 // the first time one of them changed, and an export that no longer matches the
 // store is a backup that silently restores nothing.
 
-import { EMPTY_PROFILE, type Profile } from './phrases'
+import { EMPTY_ALIASES, type Aliases } from './phrases'
 
 // Four of these storage keys still say `dwellspeak_`, the app's former name.
 // They are deliberately not renamed: everything a user has — their phrases,
@@ -14,7 +14,8 @@ import { EMPTY_PROFILE, type Profile } from './phrases'
 // already using it. The name is cosmetic; the data is not.
 const SETTINGS_KEY = 'dwellspeak_settings'
 const PHRASE_STORE_KEY = 'dwellspeak_phrase_store_v2'
-const PROFILE_KEY = 'dwellspeak_profile'
+const PROFILE_KEY = 'dwellspeak_profile' // read once, to carry an old profile forward
+const ALIASES_KEY = 'peri_aliases'
 const USER_KEY = 'dwellspeak_user'
 const ELEVENLABS_KEY = 'peri_elevenlabs'
 const SENT_KEY = 'peri_sent'
@@ -228,29 +229,70 @@ export function savePhraseStore(s: PhraseStore) {
   localStorage.setItem(PHRASE_STORE_KEY, JSON.stringify(s))
 }
 
-// ── Profile ──────────────────────────────────────────────────────────────────
-// Fills the `contacts` and `name` aliases the phrase table ships empty, so
-// phrases like "I'm going to call {contact}" have something to offer.
+// ── Aliases ──────────────────────────────────────────────────────────────────
+// The lists a phrase's slots choose from. The table ships nine of them and two
+// arrive empty — `contacts` and `name` — because there is nowhere in the data to
+// put a particular person's details. All of them are the user's to change now,
+// and only what they changed is stored: a key that is absent follows the table.
 
-export function loadProfile(): Profile {
+/** Anything that is not a list of non-empty strings is not a list. */
+export function readAliases(raw: unknown): Aliases {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return EMPTY_ALIASES
+  const out: Aliases = {}
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!Array.isArray(value)) continue
+    const name = key.trim().toLowerCase()
+    if (!name) continue
+    out[name] = value.filter((w): w is string => typeof w === 'string' && w.trim() !== '').map(w => w.trim())
+  }
+  return out
+}
+
+/**
+ * The three name fields and the contact list somebody entered under **My
+ * details**, which is what this panel used to be, read as the alias lists they
+ * always were behind the scenes. Run once, when there is no alias store yet —
+ * losing somebody's contacts to a renamed menu item would be unforgivable.
+ */
+export function aliasesFromProfile(raw: unknown): Aliases {
+  const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const name = (source.name && typeof source.name === 'object' ? source.name : {}) as Record<string, unknown>
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+  const out: Aliases = {}
+
+  const contacts = Array.isArray(source.contacts) ? source.contacts.map(str).filter(Boolean) : []
+  if (contacts.length) out.contacts = contacts
+
+  const given = str(name.given)
+  const surname = str(name.surname)
+  const nickname = str(name.nickname)
+  if (given) out['name.given'] = [given]
+  if (surname) out['name.surname'] = [surname]
+  if (nickname) out['name.nickname'] = [nickname]
+  // A bare {name} read as the fullest form on offer, and still should.
+  const full = [given, surname].filter(Boolean).join(' ') || nickname || given
+  if (full) out.name = [full]
+
+  return out
+}
+
+export function loadAliases(): Aliases {
   try {
-    const raw = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? '{}')
-    const str = (v: unknown) => (typeof v === 'string' ? v : '')
-    return {
-      name: {
-        given: str(raw?.name?.given),
-        surname: str(raw?.name?.surname),
-        nickname: str(raw?.name?.nickname),
-      },
-      contacts: Array.isArray(raw?.contacts) ? raw.contacts.filter((c: unknown) => typeof c === 'string') : [],
-    }
+    const stored = localStorage.getItem(ALIASES_KEY)
+    if (stored !== null) return readAliases(JSON.parse(stored))
+    // Nothing here yet: carry over whatever the old details panel held, once.
+    const profile = localStorage.getItem(PROFILE_KEY)
+    if (profile === null) return EMPTY_ALIASES
+    const carried = aliasesFromProfile(JSON.parse(profile))
+    saveAliases(carried)
+    return carried
   } catch {
-    return EMPTY_PROFILE
+    return EMPTY_ALIASES
   }
 }
 
-export function saveProfile(p: Profile) {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(p))
+export function saveAliases(a: Aliases) {
+  localStorage.setItem(ALIASES_KEY, JSON.stringify(a))
 }
 
 // ── Messages already said ─────────────────────────────────────────────────────
@@ -417,6 +459,7 @@ const RESETTABLE_KEYS = [
   SETTINGS_KEY,
   PHRASE_STORE_KEY,
   PROFILE_KEY,
+  ALIASES_KEY,
   ELEVENLABS_KEY,
   SENT_KEY,
   RECENT_KEY,
@@ -441,7 +484,7 @@ export function factoryReset() {
 /** What the app holds immediately after one, for anything that wants to assert it. */
 export const factoryState = () => ({
   store: emptyStore(),
-  profile: EMPTY_PROFILE,
+  aliases: EMPTY_ALIASES,
   settings: DEFAULT_SETTINGS,
 })
 

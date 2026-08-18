@@ -4,14 +4,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDwellControl } from '../ui/dwell'
-import { type Profile } from '../core/phrases'
+import { type Aliases } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { type PhraseStore, type User } from '../core/store'
 import { type AppState } from '../core/backup'
 import { cx, dwellVar } from '../ui/style'
 import { NavItem, PanelButton } from '../ui/controls'
 import { SettingsPanel } from './settings-panel'
-import { ProfilePanel } from './profile-panel'
+import { AliasesPanel } from './aliases-panel'
 import { BackupPanel } from './backup-panel'
 import { HelpPanel } from './help-panel'
 
@@ -85,7 +85,7 @@ function ConfirmSignOut({ user, onConfirm, onCancel }: {
   )
 }
 
-type PanelView = 'menu' | 'settings' | 'profile' | 'backup' | 'help'
+type PanelView = 'menu' | 'settings' | 'aliases' | 'backup' | 'help'
 
 /**
  * How long the menu is deaf to a dwell after one of its items closes.
@@ -100,13 +100,13 @@ type PanelView = 'menu' | 'settings' | 'profile' | 'backup' | 'help'
  */
 const REOPEN_GUARD_MS = 1000
 
-export function TopPanel({ open, user, onClose, onSignOut, profile, onProfileChange, store, categories, categoryById, onRestore }: {
+export function TopPanel({ open, user, onClose, onSignOut, aliases, onAliasesChange, store, categories, categoryById, onRestore }: {
   open: boolean
   user: User
   onClose: () => void
   onSignOut: () => void
-  profile: Profile
-  onProfileChange: (p: Profile) => void
+  aliases: Aliases
+  onAliasesChange: (next: Aliases) => void
   store: PhraseStore
   categories: string[]
   categoryById: Map<string, string>
@@ -191,13 +191,13 @@ export function TopPanel({ open, user, onClose, onSignOut, profile, onProfileCha
         {view !== 'menu' ? (
           <>
             {view === 'settings' && (
-              <SettingsPanel store={store} profile={profile} categoryById={categoryById} />
+              <SettingsPanel store={store} aliases={aliases} categoryById={categoryById} />
             )}
-            {view === 'profile' && <ProfilePanel profile={profile} onChange={onProfileChange} />}
+            {view === 'aliases' && <AliasesPanel aliases={aliases} onChange={onAliasesChange} />}
             {view === 'backup' && (
               <BackupPanel
                 store={store}
-                profile={profile}
+                aliases={aliases}
                 categories={categories}
                 categoryById={categoryById}
                 onRestore={onRestore}
@@ -216,14 +216,10 @@ export function TopPanel({ open, user, onClose, onSignOut, profile, onProfileCha
             />
             <NavItem
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
-              label="My details"
-              sublabel={
-                profile.contacts.length
-                  ? `${profile.contacts.length} contact${profile.contacts.length === 1 ? '' : 's'}`
-                  : 'Your name and contacts'
-              }
+              label="Aliases"
+              sublabel="The words your phrases choose from"
               disabled={guarded}
-              onSelect={() => setView('profile')}
+              onSelect={() => setView('aliases')}
             />
             <NavItem
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}

@@ -2141,6 +2141,42 @@ body {
   .signin-spinner { animation-duration: 2s !important; }
 }
 
+/* ── Aliases panel ── */
+/* A list per alias, each a row of words with the control that takes one off. */
+.alias-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.alias-list-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Wrapping, because `bodyparts` is fifty words and a row that scrolls sideways
+   would hide most of them behind a control a gaze user has to find first. */
+.alias-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.alias-word {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  background: var(--cell);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.alias-word-text { color: var(--text); }
 /* ── Profile panel ── */
 /* Supplies the {contact} and {name} values the phrase table ships empty.
    Typed rather than dwelled — one-off setup, usually by whoever configures

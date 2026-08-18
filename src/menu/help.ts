@@ -100,7 +100,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Curly brackets with nothing in them — {} — leave a blank instead. The phrase goes into the message as it stands, with the space ready to type into.',
       ),
       text(
-        'Peri also knows some lists of its own, such as {pronouns} and {bodyparts}, and fills {contact} and {name} from My details. Those need no quotes.',
+        'Peri also knows some lists of its own, such as {pronouns} and {bodyparts}. Those need no quotes, and you can change what is in them under Aliases.',
       ),
       text(
         'A phrase keeps what you wrote, not what it shows. Opening one to fix a typo will not flatten its choices.',
@@ -176,11 +176,14 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
-    title: 'Your details',
+    title: 'Aliases',
     blocks: [
-      text('Open the menu and choose My details to add your name and the people you talk about.'),
+      text('Open the menu and choose Aliases. Each one is a named list of words, and a phrase that writes that name in curly brackets offers the list to choose from.'),
       text(
-        'Phrases such as "This is …" and "I\'m going to call …" then use what you entered. With one contact saved the name is filled in for you; with several, you are asked which one you mean.',
+        'Peri comes with nine — pronouns, directions, body parts and so on — and two of them start empty: contacts, and your name. Fill those in and phrases such as "This is …" and "I\'m going to call …" come to life.',
+      ),
+      text(
+        'With one word on a list it is filled in for you; with several, you are asked which one you mean. Take words off any list, add your own, or make a new list and write its name in a phrase.',
       ),
     ],
   },
@@ -188,7 +191,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Settings',
     blocks: [
       text('Open the menu and choose Settings. Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.'),
-      text('Settings and My details scroll if there is more than fits, using the same arrows as the phrase grid.'),
+      text('Settings and Aliases scroll if there is more than fits, using the same arrows as the phrase grid.'),
       list(
         'Text size — how big everything is written, from half again as small to twice as large. It grows the words rather than the screen, so the board keeps the same number of phrases on it.',
         'Phrase dwell — how long to rest on a phrase before it is chosen.',

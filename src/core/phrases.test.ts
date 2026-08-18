@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
   BLANK,
-  EMPTY_PROFILE,
   PHRASES,
   buildPhrases,
   choosableSlots,
@@ -11,8 +10,8 @@ import {
   makePhrase,
   parseSegments,
   plainPhrase,
-  profileAliases,
-  type Profile,
+  aliasOverlay,
+  tableAliases,
 } from './phrases'
 import table from './imports/phrasetable.json'
 
@@ -205,18 +204,17 @@ describe('the shipped phrase table', () => {
   })
 })
 
-describe('user profile aliases', () => {
-  const profile = (patch: Partial<Profile>): Profile => ({ ...EMPTY_PROFILE, ...patch })
-  const withProfile = (raw: string, p: Profile) => compose(parseSegments(raw, profileAliases(p)))
+describe("the user's own alias lists", () => {
+  const withAliases = (raw: string, aliases: Record<string, string[]>) =>
+    compose(parseSegments(raw, aliasOverlay(aliases)))
 
   it('leaves phrases as blanks when nothing is filled in', () => {
-    expect(withProfile('This is {name.nickname}', EMPTY_PROFILE)).toBe(`This is ${BLANK}`)
-    expect(withProfile('I am going to call {contact}', EMPTY_PROFILE)).toBe(`I am going to call ${BLANK}`)
+    expect(withAliases('This is {name.nickname}', {})).toBe(`This is ${BLANK}`)
+    expect(withAliases('I am going to call {contact}', {})).toBe(`I am going to call ${BLANK}`)
   })
 
   it('drops a single value straight in, with no picker step', () => {
-    const p = profile({ name: { given: '', surname: '', nickname: 'Sam' } })
-    const segments = parseSegments('This is {name.nickname}', profileAliases(p))
+    const segments = parseSegments('This is {name.nickname}', aliasOverlay({ 'name.nickname': ['Sam'] }))
 
     expect(compose(segments)).toBe('This is Sam')
     expect(hasChoices(segments)).toBe(false)
@@ -224,8 +222,7 @@ describe('user profile aliases', () => {
   })
 
   it('offers a picker once there is more than one contact', () => {
-    const p = profile({ contacts: ['Mum', 'Dad'] })
-    const segments = parseSegments('I am going to call {contact}', profileAliases(p))
+    const segments = parseSegments('I am going to call {contact}', aliasOverlay({ contacts: ['Mum', 'Dad'] }))
 
     expect(hasChoices(segments)).toBe(true)
     expect(choosableSlots(segments)[0].options).toEqual(['Mum', 'Dad'])
@@ -233,50 +230,73 @@ describe('user profile aliases', () => {
   })
 
   it('fills a lone contact without asking', () => {
-    const p = profile({ contacts: ['Mum'] })
-    expect(withProfile('I am going to call {contact}', p)).toBe('I am going to call Mum')
+    expect(withAliases('I am going to call {contact}', { contacts: ['Mum'] })).toBe('I am going to call Mum')
   })
 
-  it('ignores blank and whitespace-only entries', () => {
-    const p = profile({ contacts: ['  ', ''], name: { given: '  ', surname: '', nickname: '' } })
-    expect(withProfile('This is {name.nickname}', p)).toBe(`This is ${BLANK}`)
-    expect(withProfile('I am going to call {contact}', p)).toBe(`I am going to call ${BLANK}`)
+  // The one edit the panel could not otherwise carry out. A list the user has
+  // emptied has to stay empty rather than falling back to the shipped words —
+  // taking a word off a list is the whole of what "editable" means here.
+  it('honours a list the user has emptied', () => {
+    const segments = parseSegments('Do you like {pronouns}?', aliasOverlay({ pronouns: [] }))
+    expect(choosableSlots(segments)).toHaveLength(0)
+    expect(compose(segments)).toBe(`Do you like ${BLANK}?`)
   })
 
-  it('builds a bare {name} from the fullest form given', () => {
-    const full = profileAliases(profile({ name: { given: 'Ada', surname: 'Lovelace', nickname: 'Ada' } }))
-    expect(full.get('name')).toEqual(['Ada Lovelace'])
-
-    const onlyNick = profileAliases(profile({ name: { given: '', surname: '', nickname: 'Ada' } }))
-    expect(onlyNick.get('name')).toEqual(['Ada'])
+  it('replaces a shipped list rather than adding to it', () => {
+    const segments = parseSegments('Do you like {pronouns}?', aliasOverlay({ pronouns: ['ze', 'zir'] }))
+    expect(choosableSlots(segments)[0].options).toEqual(['ze', 'zir'])
   })
 
-  it('does not disturb aliases the table already provides', () => {
-    const p = profile({ contacts: ['Mum'] })
-    const [pronouns] = parseSegments('Do you like {pronouns}?', profileAliases(p))
+  it('resolves a list the user invented, by the name they gave it', () => {
+    const segments = parseSegments('I would like a {drinks}', aliasOverlay({ drinks: ['tea', 'coffee'] }))
+    expect(choosableSlots(segments)[0].options).toEqual(['tea', 'coffee'])
+  })
+
+  it('does not disturb lists the table already provides', () => {
+    const [pronouns] = parseSegments('Do you like {pronouns}?', aliasOverlay({ contacts: ['Mum'] }))
       .filter(s => s.kind === 'slot')
       .map(s => (s.kind === 'slot' ? s.options : []))
     expect(pronouns).toContain('they')
   })
 })
 
+// What the panel is seeded from.
+describe('tableAliases', () => {
+  it('hands back every list the table ships, in a readable order', () => {
+    const shipped = tableAliases()
+    expect(Object.keys(shipped)).toContain('pronouns')
+    expect(shipped.pronouns).toContain('they')
+    expect(Object.keys(shipped)).toEqual([...Object.keys(shipped)].sort((a, b) => a.localeCompare(b)))
+  })
+
+  // The two the table ships empty, because there is nowhere in the data to put
+  // a particular person. They are still listed, so the panel offers them.
+  it('lists the ones that arrive empty', () => {
+    const shipped = tableAliases()
+    expect(Object.keys(shipped)).toContain('contacts')
+    expect(shipped.contacts).toEqual([])
+  })
+
+  it('hands back a copy, so editing one does not edit the table', () => {
+    tableAliases().pronouns.push('mangled')
+    expect(tableAliases().pronouns).not.toContain('mangled')
+  })
+})
+
 describe('buildPhrases', () => {
-  it('matches the default export when given no profile', () => {
+  it('matches the default export when given no lists', () => {
     expect(buildPhrases().length).toBe(PHRASES.length)
   })
 
-  it('keeps phrase ids stable when the profile changes', () => {
-    // Ids hash the source text, so saved edits survive a profile edit.
-    const before = buildPhrases(EMPTY_PROFILE)
-    const after = buildPhrases({ ...EMPTY_PROFILE, contacts: ['Mum', 'Dad'] })
+  it('keeps phrase ids stable when a list changes', () => {
+    // Ids hash the source text, so saved edits survive an alias edit.
+    const before = buildPhrases()
+    const after = buildPhrases({ contacts: ['Mum', 'Dad'] })
     expect(after.map(p => p.id)).toEqual(before.map(p => p.id))
   })
 
-  it('resolves the profile-backed phrases that used to be dead', () => {
-    const filled = buildPhrases({
-      name: { given: 'Ada', surname: '', nickname: 'Ada' },
-      contacts: ['Mum', 'Dad'],
-    })
+  it('resolves the phrases that used to be dead for want of a name', () => {
+    const filled = buildPhrases({ 'name.nickname': ['Ada'], contacts: ['Mum', 'Dad'] })
     const texts = filled.map(p => p.text)
 
     expect(texts).toContain('This is Ada')
@@ -288,7 +308,7 @@ describe('buildPhrases', () => {
 
   it('still leaves genuinely anonymous blanks alone', () => {
     // "Did you see {}" names no alias, so there is nothing to fill it with.
-    const filled = buildPhrases({ name: { given: 'Ada', surname: '', nickname: 'Ada' }, contacts: ['Mum'] })
+    const filled = buildPhrases({ 'name.nickname': ['Ada'], contacts: ['Mum'] })
     expect(filled.some(p => hasBlank(p.segments))).toBe(true)
   })
 })

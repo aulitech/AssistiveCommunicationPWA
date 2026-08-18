@@ -15,7 +15,7 @@ import {
   type Backup,
 } from './backup'
 import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from './store'
-import { EMPTY_PROFILE, type Profile } from './phrases'
+import { EMPTY_ALIASES, type Aliases } from './phrases'
 import { saveElevenLabs, saveSent } from './store'
 
 // A store with something of the user's in every field, and the map of ids to
@@ -36,8 +36,10 @@ function fixture(): { state: AppState; categoryById: Map<string, string> } {
     categorySort: 'custom',
     emergencyOrder: ['em-2', 'em-0'],
   }
-  const profile: Profile = {
-    name: { given: 'Ada', surname: 'Lovelace', nickname: 'Ada' },
+  const aliases: Aliases = {
+    'name.given': ['Ada'],
+    'name.surname': ['Lovelace'],
+    name: ['Ada Lovelace'],
     contacts: ['Mum', 'Charles'],
   }
   const categoryById = new Map([
@@ -48,7 +50,7 @@ function fixture(): { state: AppState; categoryById: Map<string, string> } {
     ['built-3', 'Home'],
   ])
   return {
-    state: { store, profile, settings: { ...DEFAULT_SETTINGS, phraseDwellMs: 2200 } },
+    state: { store, aliases, settings: { ...DEFAULT_SETTINGS, phraseDwellMs: 2200 } },
     categoryById,
   }
 }
@@ -63,7 +65,7 @@ const exportOf = (scope: string[]) => {
   return buildBackup({ ...state, categoryById, scope })
 }
 
-const fresh = (): AppState => ({ store: emptyStore(), profile: EMPTY_PROFILE, settings: DEFAULT_SETTINGS })
+const fresh = (): AppState => ({ store: emptyStore(), aliases: EMPTY_ALIASES, settings: DEFAULT_SETTINGS })
 
 describe('building a backup', () => {
   it('stamps the format so a file can be told apart from any other JSON', () => {
@@ -81,7 +83,7 @@ describe('building a backup', () => {
     expect(backup.categories.renamed).toEqual({ Feelings: 'Moods' })
     expect(backup.categories.order).toEqual(['Home', 'Food', 'Moods'])
     expect(backup.categories.sort).toBe('custom')
-    expect(backup.profile?.contacts).toEqual(['Mum', 'Charles'])
+    expect(backup.aliases?.contacts).toEqual(['Mum', 'Charles'])
     expect(backup.settings?.phraseDwellMs).toBe(2200)
   })
 
@@ -140,9 +142,9 @@ describe('building a backup', () => {
 
   // Whose device this is, how long they need to dwell and who their contacts
   // are is not part of "here are my Food phrases".
-  it('leaves the details and settings out of a few categories', () => {
+  it('leaves the lists and settings out of a few categories', () => {
     const backup = exportOf(['Home'])
-    expect(backup.profile).toBeUndefined()
+    expect(backup.aliases).toBeUndefined()
     expect(backup.settings).toBeUndefined()
     expect(backup.categories.sort).toBeUndefined()
   })
@@ -164,13 +166,13 @@ describe('building a backup', () => {
     expect(summarize(buildBackup({ ...fresh(), categoryById: new Map(), scope: ['Food'] })).empty).toBe(true)
   })
 
-  // Otherwise the panel offers someone "your details" when they have entered
-  // none, and replacing from that file would clear the name on the device that
+  // Otherwise the panel offers someone "your word lists" when they have changed
+  // none, and replacing from that file would empty the lists on the device that
   // receives it.
-  it('leaves an untouched profile out rather than writing empty strings', () => {
+  it('leaves untouched lists out rather than writing an empty object', () => {
     const backup = buildBackup({ ...fresh(), categoryById: new Map() })
-    expect(backup.profile).toBeUndefined()
-    expect(summarize(backup).profile).toBe(false)
+    expect(backup.aliases).toBeUndefined()
+    expect(summarize(backup).aliases).toBe(false)
     expect(describeBackup(summarize(backup))).toBe('your settings')
   })
 })
@@ -297,12 +299,12 @@ describe('reading a backup back', () => {
 describe('describing a backup', () => {
   it('counts what is in it', () => {
     const summary = summarize(exportAll())
-    expect(summary).toMatchObject({ added: 2, edited: 2, removed: 1, profile: true, settings: true, empty: false })
+    expect(summary).toMatchObject({ added: 2, edited: 2, removed: 1, aliases: true, settings: true, empty: false })
   })
 
   it('says so plainly, in English', () => {
     expect(describeBackup(summarize(exportAll()))).toBe(
-      '2 phrases you added, 2 edits, 1 phrase you removed, your details, your settings',
+      '2 phrases you added, 2 edits, 1 phrase you removed, your word lists, your settings',
     )
     expect(describeBackup(summarize(buildBackup({ ...fresh(), categoryById: new Map(), scope: ['Food'] })))).toMatch(
       /nothing/i,
@@ -335,7 +337,7 @@ describe('restoring onto a fresh device', () => {
     expect(next.store.categoryOrder).toEqual(['Home', 'Food', 'Moods'])
     expect(next.store.categorySort).toBe('custom')
     expect(next.store.emergencyOrder).toEqual(['em-2', 'em-0'])
-    expect(next.profile.contacts).toEqual(['Mum', 'Charles'])
+    expect(next.aliases.contacts).toEqual(['Mum', 'Charles'])
     expect(next.settings.phraseDwellMs).toBe(2200)
   })
 
@@ -356,7 +358,7 @@ describe('merging into a device that is already in use', () => {
       categoryOrder: ['Food'],
       emergencyOrder: ['em-4'],
     },
-    profile: { name: { given: '', surname: '', nickname: 'Bee' }, contacts: ['Sam'] },
+    aliases: { 'name.nickname': ['Bee'], contacts: ['Sam'] },
     settings: { ...DEFAULT_SETTINGS, rate: 1.6 },
   })
 
@@ -388,7 +390,7 @@ describe('merging into a device that is already in use', () => {
     expect(next.store.custom.map(p => p.id)).toEqual(['custom-1', 'custom-2'])
     expect(next.store.overrides).toEqual({ 'built-1': "I'm knackered" })
     expect(next.store.hidden).toEqual(['built-2'])
-    expect(next.profile.contacts).toEqual(['Mum', 'Charles'])
+    expect(next.aliases.contacts).toEqual(['Mum', 'Charles'])
   })
 
   // Everything a file covering a few categories says nothing about would go.
@@ -445,16 +447,17 @@ describe('merging into a device that is already in use', () => {
     expect(before).toEqual(snapshot)
   })
 
-  it('fills in details the device is missing without erasing the ones it has', () => {
+  it('fills in lists the device is missing without emptying the ones it has', () => {
     const next = applyBackup(exportAll(), local(), 'merge')
-    expect(next.profile.name.given).toBe('Ada')
-    expect(next.profile.name.nickname).toBe('Ada')
-    expect(next.profile.contacts).toEqual(['Sam', 'Mum', 'Charles'])
+    expect(next.aliases['name.given']).toEqual(['Ada'])
+    // The device's own nickname is untouched: the file said nothing about it.
+    expect(next.aliases['name.nickname']).toEqual(['Bee'])
+    expect(next.aliases.contacts).toEqual(['Sam', 'Mum', 'Charles'])
   })
 
-  it('leaves the details and settings alone when the file has none', () => {
+  it('leaves the lists and settings alone when the file has none', () => {
     const next = applyBackup(exportOf(['Home']), local(), 'merge')
-    expect(next.profile).toEqual(local().profile)
+    expect(next.aliases).toEqual(local().aliases)
     expect(next.settings.rate).toBe(1.6)
   })
 })
