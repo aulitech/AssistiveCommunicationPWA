@@ -133,12 +133,17 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Speaking straight away',
     blocks: [
       text(
-        'The speaker button to the right of the Rest bar, along the top edge of the message box, turns on auto-speak. It lights up when it is on.',
+        'The speaker button to the right of the Rest bar, along the top edge of the message box, is auto-speak. It lights up when it is on, and it is on when Peri is first opened.',
       ),
       text(
-        'With auto-speak on, every phrase you choose is spoken the moment you choose it, and nothing is collected in the message box.',
+        'With auto-speak on, every phrase you choose is spoken the moment you choose it, and nothing is collected in the message box. This suits quick back-and-forth conversation.',
       ),
-      text('This suits quick back-and-forth conversation. Turn it off to go back to building longer messages.'),
+      text(
+        'The two buttons either side of Rest move between three ways of working: auto-speak, editing phrases, and building a message.',
+      ),
+      text(
+        'Turning auto-speak off goes to edit mode. Turning edit mode off comes back to building a message, where a phrase you choose goes into the box to be part of a longer sentence.',
+      ),
     ],
   },
   {
@@ -155,7 +160,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Changing the phrases',
     blocks: [
       text('The pencil button to the left of the Rest bar, along the top edge of the message box, turns on edit mode. Auto-speak switches off while it is on: the two ask opposite things of a dwell on a phrase.'),
-      text('In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again, and a strip under it shows the category and the voice.'),
+      text('In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again, and a second strip appears along the bottom edge of the box holding the category and the voice.'),
       list(
         'Choose any phrase to bring it into the box and change its wording.',
         'The tick saves what is in the box; the bin deletes the phrase it came from; the + starts a new one.',

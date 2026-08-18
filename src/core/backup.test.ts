@@ -275,7 +275,9 @@ describe('reading a backup back', () => {
       voiceURI: '',
       volume: 1,
       rate: 2,
-      autoSpeak: false,
+      // 'yes' is not a boolean, so it falls back to the default like every
+      // other nonsense value here — and the default is on.
+      autoSpeak: true,
     })
   })
 

@@ -52,7 +52,10 @@ export const DEFAULT_SETTINGS: Settings = {
   voiceURI: '',
   volume: 1,
   rate: 1,
-  autoSpeak: false,
+  // On, so the board talks the moment it is opened. Somebody who wants to build
+  // a sentence out of several phrases turns it off; somebody who wants a button
+  // to say a thing has nothing to find first.
+  autoSpeak: true,
 }
 
 /**
