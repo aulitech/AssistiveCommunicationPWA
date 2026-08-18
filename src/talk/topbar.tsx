@@ -286,6 +286,12 @@ export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, on
         rows={1}
         spellCheck
         autoCapitalize="sentences"
+        // The board opens with the caret already in the box, so somebody with a
+        // keyboard can type the first thing they want to say without having to
+        // put it there first — and putting it there is the one thing a dwell
+        // could not do until `useCaretDwell`. A programmatic focus does not
+        // raise a phone's on-screen keyboard, which needs a real gesture.
+        autoFocus
       />
 
       {/* Three on the right in both modes, in the same three places. Outside

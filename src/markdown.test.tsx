@@ -27,14 +27,19 @@ const MARKED = { id: 'custom-md', text: '**Help** me up', category: 'Marked' }
 const LISTED = { id: 'custom-list', text: '# Drinks\n- water\n- juice', category: 'Marked' }
 const EMERGENCY = { id: 'custom-md-em', text: '**Stop** now', category: 'Emergency' }
 
-// Auto-speak is on by default now, so a test about composing has to say so:
-// with it on, a chosen phrase is spoken and never reaches the box.
-function renderApp(custom = [MARKED, LISTED, EMERGENCY], settings: Record<string, unknown> = { autoSpeak: false }) {
+// The board opens in auto-speak, whatever was stored, and these tests are about
+// composing and editing — so each render switches out of it, which is two
+// dwells on the edit toggle: auto-speak → edit → composing.
+function renderApp(custom = [MARKED, LISTED, EMERGENCY], settings: Record<string, unknown> = {}) {
   localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
   localStorage.setItem('dwellspeak_settings', JSON.stringify(settings))
   localStorage.setItem(STORE_KEY, JSON.stringify({ custom }))
   container = render(<App />).container
   settle()
+  if (settings.autoSpeak !== true) {
+    click($('.edit-toggle'))
+    click($('.edit-toggle'))
+  }
 }
 
 const box = () => $<HTMLTextAreaElement>('.text-display')!

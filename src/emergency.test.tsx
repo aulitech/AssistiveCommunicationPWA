@@ -18,13 +18,16 @@ function click(el: Element | null | undefined) {
   settle()
 }
 
-// Auto-speak is on by default now, so a test about composing has to say so:
-// with it on, a chosen phrase is spoken and never reaches the box.
+// The board opens in auto-speak, whatever was stored, and these tests are about
+// composing and editing — so each render switches out of it, which is two
+// dwells on the edit toggle: auto-speak → edit → composing.
 function renderApp() {
   localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
-  localStorage.setItem('dwellspeak_settings', JSON.stringify({ autoSpeak: false }))
+  localStorage.removeItem('dwellspeak_settings')
   container = render(<App />).container
   settle()
+  click(editToggle())
+  click(editToggle())
 }
 
 const STORE_KEY = 'dwellspeak_phrase_store_v2'

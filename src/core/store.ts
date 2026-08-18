@@ -78,9 +78,22 @@ export const SETTING_LIMITS = {
   rate: { min: 0.5, max: 2 },
 } as const
 
+/**
+ * Everything the user set, except the mode.
+ *
+ * **`autoSpeak` is not carried across a load.** It is stored like the rest and
+ * ignored on the way back in, so Peri opens ready to talk however it was left —
+ * which is the one thing a board has to do the moment it is switched on. It is
+ * a mode rather than a preference: the other two are a dwell away, and the
+ * board being silent when somebody needs it is not recoverable in the same way.
+ */
 export function loadSettings(): Settings {
   try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }
+    return {
+      ...DEFAULT_SETTINGS,
+      ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}'),
+      autoSpeak: DEFAULT_SETTINGS.autoSpeak,
+    }
   } catch {
     return DEFAULT_SETTINGS
   }
