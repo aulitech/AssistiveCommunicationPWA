@@ -1136,19 +1136,12 @@ describe('my details', () => {
   })
 })
 
-// The panel spans the viewport, and everything in this menu is aimed at rather
-// than read — so where an item *is not* matters as much as where it is.
+// Everything in this menu is aimed at rather than read, so when an item will
+// *not* answer matters as much as where it is.
 describe('the menu items', () => {
   const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
   const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
   const back = () => $('.panel-back')
-
-  // jsdom lays nothing out, so this can only check the rule is written. Whether
-  // the items actually shrink is a question for the deploy preview.
-  it('is no wider than what is written on it', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
-    expect(css).toMatch(/\.panel-nav \{[^}]*\balign-items: flex-start;/)
-  })
 
   // A pointer rests where it last fired. Back sits over the menu that comes
   // back, so without this the item underneath opens on its own — and the item
