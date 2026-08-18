@@ -719,6 +719,26 @@ describe('edit mode', () => {
     expect($('.edit-bar .voice-trigger')).not.toBeNull()
   })
 
+  // The two numbers that put it there. `.topbar` padding-bottom is where the
+  // box's lower border falls; the strip's `bottom`, with `translateY(50%)`, is
+  // where its own centre line falls — so they have to be the same number, and
+  // are one variable for that reason. Written as two they drifted apart at the
+  // first change, leaving the strip centred 20px below the border it rides.
+  //
+  // jsdom applies no cascade and lays nothing out, so this can only check that
+  // the rule is written. Whether it takes effect is for the deploy preview.
+  it('centres that strip on the border rather than below it', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+
+    expect(css).toMatch(/\.app\.edit-mode \.topbar \{ padding-bottom: var\(--edit-bar-inset\); \}/)
+    expect(css).toMatch(/\.edit-bar \{[^}]*\bbottom: var\(--edit-bar-inset\);/)
+    // Half the strip's height, so its lower edge reaches the bottom of the bar
+    // and no further — any more and it hangs over the category tabs.
+    const inset = css.match(/--edit-bar-inset: (\d+)px/)?.[1]
+    const height = css.match(/\.edit-bar \{[^}]*\bheight: (\d+)px/)?.[1]
+    expect(Number(inset)).toBe(Number(height) / 2)
+  })
+
   // Saving leaves the editor on a blank phrase rather than closing anything —
   // there is nothing to close — so the toast is the only thing that says it
   // happened at all.
