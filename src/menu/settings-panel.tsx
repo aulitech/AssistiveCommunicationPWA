@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom'
 import { linkAccount, REMOTE_PREFIX } from '../voice/elevenlabs'
 import { VoicePicker } from '../voice/picker'
 import { clearAudioCache } from '../voice/audio-cache'
-import { type Profile } from '../core/phrases'
+import { type Aliases } from '../core/phrases'
 import { buildBackup } from '../core/backup'
 import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
 import { useSettings } from '../ui/settings'
@@ -93,10 +93,10 @@ function VoiceRow() {
   )
 }
 
-export function SettingsPanel({ store, profile, categoryById }: {
+export function SettingsPanel({ store, aliases, categoryById }: {
   /** Only so the reset confirmation can offer a backup before it wipes them. */
   store: PhraseStore
-  profile: Profile
+  aliases: Aliases
   categoryById: Map<string, string>
 }) {
   const { settings, update } = useSettings()
@@ -104,8 +104,8 @@ export function SettingsPanel({ store, profile, categoryById }: {
   const [confirmingReset, setConfirmingReset] = useState(false)
 
   const exportEverything = useCallback(
-    () => downloadBackup(buildBackup({ store, profile, settings, categoryById })),
-    [store, profile, settings, categoryById],
+    () => downloadBackup(buildBackup({ store, aliases, settings, categoryById })),
+    [store, aliases, settings, categoryById],
   )
 
   // Storage first, then a reload. Nothing here can reach the React state holding

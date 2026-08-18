@@ -16,7 +16,7 @@ import {
   compose,
   parseSegments,
   type Phrase,
-  type Profile,
+  type Aliases,
 } from '../core/phrases'
 import { stripMarkdown } from '../core/markdown'
 import { audioKey, warmAudio } from '../voice/audio-cache'
@@ -24,12 +24,12 @@ import { remoteVoiceId } from '../voice/elevenlabs'
 import {
   displayCategory,
   loadPhraseStore,
-  loadProfile,
+  loadAliases,
   moveInOrder,
   orderCategories,
   orderEmergency,
   renameCategory,
-  saveProfile,
+  saveAliases,
   savePhraseStore,
   type PhraseStore,
 } from '../core/store'
@@ -39,7 +39,7 @@ const newPhraseId = () => `custom-${Date.now()}-${Math.random().toString(36).sli
 
 export function useBoard() {
   const [store, setStore] = useState<PhraseStore>(loadPhraseStore)
-  const [profile, setProfile] = useState<Profile>(loadProfile)
+  const [aliases, setAliases] = useState<Aliases>(loadAliases)
 
   const updateStore = useCallback((patch: Partial<PhraseStore>) => {
     setStore(s => {
@@ -49,9 +49,9 @@ export function useBoard() {
     })
   }, [])
 
-  const changeProfile = useCallback((next: Profile) => {
-    saveProfile(next)
-    setProfile(next)
+  const changeAliases = useCallback((next: Aliases) => {
+    saveAliases(next)
+    setAliases(next)
   }, [])
 
   // Overrides and user-authored phrases are re-parsed, so they behave like any
@@ -62,8 +62,8 @@ export function useBoard() {
   }, [])
 
   // Slot options are resolved at parse time, so the table is rebuilt when the
-  // user's own details change — a few milliseconds, and only on a profile edit.
-  const tablePhrases = useMemo(() => buildPhrases(profile), [profile])
+  // user's own lists change — a few milliseconds, and only on an alias edit.
+  const tablePhrases = useMemo(() => buildPhrases(aliases), [aliases])
 
   // A phrase moved individually keeps that category; otherwise it follows any
   // rename applied to the category it came in.
@@ -265,17 +265,17 @@ export function useBoard() {
    * moment where the grid is showing half of somebody's backup.
    */
   const restore = useCallback(
-    (nextStore: PhraseStore, nextProfile: Profile) => {
+    (nextStore: PhraseStore, nextAliases: Aliases) => {
       updateStore(nextStore)
-      changeProfile(nextProfile)
+      changeAliases(nextAliases)
     },
-    [updateStore, changeProfile],
+    [updateStore, changeAliases],
   )
 
   return {
     store,
-    profile,
-    changeProfile,
+    aliases,
+    changeAliases,
     mainPhrases,
     emergencyPhrases,
     allCategories,

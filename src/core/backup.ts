@@ -21,8 +21,15 @@
 //    tested without a browser, and a rejected import cannot leave the store
 //    half-written.
 
-import { EMPTY_PROFILE, type Profile } from './phrases'
-import { DEFAULT_SETTINGS, SETTING_LIMITS, emptyStore, type PhraseStore, type Settings } from './store'
+import { EMPTY_ALIASES, type Aliases } from './phrases'
+import {
+  DEFAULT_SETTINGS,
+  SETTING_LIMITS,
+  aliasesFromProfile,
+  emptyStore,
+  type PhraseStore,
+  type Settings,
+} from './store'
 
 export const BACKUP_FORMAT = 'peri-backup'
 export const BACKUP_VERSION = 1
@@ -76,14 +83,14 @@ export interface Backup {
    * somebody did as a rewording is.
    */
   emergencyOrder?: string[]
-  /** Whole-app backups only. */
-  profile?: Profile
+  /** Whole-app backups only. Both of these. */
+  aliases?: Aliases
   settings?: Settings
 }
 
 export interface BackupInput {
   store: PhraseStore
-  profile: Profile
+  aliases: Aliases
   settings: Settings
   /**
    * The category each phrase shows under, by id — hidden phrases included.
@@ -97,7 +104,7 @@ export interface BackupInput {
 }
 
 export function buildBackup(input: BackupInput): Backup {
-  const { store, profile, settings, categoryById, now = new Date() } = input
+  const { store, aliases, settings, categoryById, now = new Date() } = input
   const scope = input.scope && input.scope.length > 0 ? [...input.scope] : null
   const wanted = scope && new Set(scope)
   const inScope = (category: string | undefined) => !wanted || (category !== undefined && wanted.has(category))
@@ -155,17 +162,16 @@ export function buildBackup(input: BackupInput): Backup {
     ...(inScope('Emergency') && store.emergencyOrder.length > 0
       ? { emergencyOrder: [...store.emergencyOrder] }
       : {}),
-    // An untouched profile is left out rather than written as a block of empty
-    // strings, so the panel does not offer someone "your details" when they have
-    // never entered any — and so replacing from a file does not quietly clear
-    // the name on the device that receives it.
-    ...(scope || !hasDetails(profile) ? {} : { profile }),
+    // Lists nobody has touched are left out rather than written as an empty
+    // object, so the panel does not offer someone "your word lists" when they
+    // have changed none — and so replacing from a file does not quietly empty
+    // the lists on the device that receives it.
+    ...(scope || !hasAliases(aliases) ? {} : { aliases }),
     ...(scope ? {} : { settings }),
   }
 }
 
-const hasDetails = (profile: Profile) =>
-  profile.contacts.length > 0 || Object.values(profile.name).some(Boolean)
+const hasAliases = (aliases: Aliases) => Object.keys(aliases).length > 0
 
 // ── Reading a file back ───────────────────────────────────────────────────────
 // Anything can be dropped into a file picker, including a backup half-written by
@@ -219,13 +225,25 @@ function readEdited(v: unknown): BackupEdit[] {
     .filter(e => e.id !== '' && (e.text !== undefined || e.category !== undefined || e.voice !== undefined))
 }
 
-function readProfile(v: unknown): Profile | undefined {
+function readAliases(v: unknown): Aliases | undefined {
   if (!isRecord(v)) return undefined
-  const name = isRecord(v.name) ? v.name : {}
-  return {
-    name: { given: str(name.given), surname: str(name.surname), nickname: str(name.nickname) },
-    contacts: strings(v.contacts),
+  const out: Aliases = {}
+  for (const [key, value] of Object.entries(v)) {
+    const name = str(key).trim().toLowerCase()
+    if (name) out[name] = strings(value)
   }
+  return out
+}
+
+/**
+ * A file written before the lists were the user's to edit carries a `profile`
+ * instead — three name fields and a contact list. They were always these same
+ * lists behind the scenes, so they are read as such rather than dropped.
+ */
+function readLegacyProfile(v: unknown): Aliases | undefined {
+  if (!isRecord(v)) return undefined
+  const carried = aliasesFromProfile(v)
+  return Object.keys(carried).length > 0 ? carried : undefined
 }
 
 /**
@@ -273,7 +291,7 @@ export function parseBackup(text: string): ParseResult {
 
   const categories = isRecord(raw.categories) ? raw.categories : {}
   const scope = Array.isArray(raw.scope) ? strings(raw.scope) : null
-  const profile = readProfile(raw.profile)
+  const aliases = readAliases(raw.aliases) ?? readLegacyProfile(raw.profile)
   const settings = readSettings(raw.settings)
 
   return {
@@ -294,7 +312,7 @@ export function parseBackup(text: string): ParseResult {
         ...(categories.sort === 'alpha' || categories.sort === 'custom' ? { sort: categories.sort } : {}),
       },
       ...(strings(raw.emergencyOrder).length > 0 ? { emergencyOrder: strings(raw.emergencyOrder) } : {}),
-      ...(profile ? { profile } : {}),
+      ...(aliases ? { aliases } : {}),
       ...(settings ? { settings } : {}),
     },
   }
@@ -309,7 +327,7 @@ export interface BackupSummary {
   removed: number
   /** Distinct categories the file has anything to say about. */
   categories: number
-  profile: boolean
+  aliases: boolean
   settings: boolean
   /** Nothing to export, or nothing an import would do. */
   empty: boolean
@@ -330,7 +348,7 @@ export function summarize(backup: Backup): BackupSummary {
     edited: backup.edited.length,
     removed: backup.removed.length,
     categories: names.size,
-    profile: backup.profile !== undefined,
+    aliases: backup.aliases !== undefined,
     settings: backup.settings !== undefined,
   }
   return {
@@ -343,7 +361,7 @@ export function summarize(backup: Backup): BackupSummary {
       Object.keys(backup.categories.renamed).length === 0 &&
       backup.categories.order.length === 0 &&
       (backup.emergencyOrder?.length ?? 0) === 0 &&
-      !summary.profile &&
+      !summary.aliases &&
       !summary.settings,
   }
 }
@@ -355,7 +373,7 @@ export function describeBackup(summary: BackupSummary): string {
   if (summary.added) parts.push(`${plural(summary.added, 'phrase')} you added`)
   if (summary.edited) parts.push(`${plural(summary.edited, 'edit')}`)
   if (summary.removed) parts.push(`${plural(summary.removed, 'phrase')} you removed`)
-  if (summary.profile) parts.push('your details')
+  if (summary.aliases) parts.push('your word lists')
   if (summary.settings) parts.push('your settings')
   if (parts.length === 0) return 'Nothing yet — no changes of your own to save.'
   return parts.join(', ')
@@ -384,7 +402,7 @@ export type ImportMode = 'merge' | 'replace'
 
 export interface AppState {
   store: PhraseStore
-  profile: Profile
+  aliases: Aliases
   settings: Settings
 }
 
@@ -407,7 +425,7 @@ export const canReplace = (backup: Backup) => backup.scope === null
 export function applyBackup(backup: Backup, current: AppState, mode: ImportMode): AppState {
   const replacing = mode === 'replace'
   const base: AppState = replacing
-    ? { store: emptyStore(), profile: EMPTY_PROFILE, settings: DEFAULT_SETTINGS }
+    ? { store: emptyStore(), aliases: EMPTY_ALIASES, settings: DEFAULT_SETTINGS }
     : current
 
   const custom = base.store.custom.map(p => ({ ...p }))
@@ -481,24 +499,22 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
 
   return {
     store,
-    profile: mergeProfile(base.profile, backup.profile, replacing),
+    aliases: mergeAliases(base.aliases, backup.aliases, replacing),
     // Settings ride along only in a whole-app backup, and someone importing one
     // asked for the setup it holds — including the dwell time it was tuned to.
     settings: backup.settings ?? base.settings,
   }
 }
 
-function mergeProfile(base: Profile, incoming: Profile | undefined, replacing: boolean): Profile {
+function mergeAliases(base: Aliases, incoming: Aliases | undefined, replacing: boolean): Aliases {
   if (!incoming) return base
   if (replacing) return incoming
-  return {
-    // What the file says wins where it says anything; a blank field in the file
-    // is not an instruction to erase the name already here.
-    name: {
-      given: incoming.name.given || base.name.given,
-      surname: incoming.name.surname || base.name.surname,
-      nickname: incoming.name.nickname || base.name.nickname,
-    },
-    contacts: [...new Set([...base.contacts, ...incoming.contacts])],
+  // Merging adds and never takes away, exactly as it does for phrases: a file
+  // somebody else made must not be able to delete a word off a list on your
+  // device. A list in both keeps this device's words and gains the file's.
+  const merged: Aliases = { ...base }
+  for (const [key, words] of Object.entries(incoming)) {
+    merged[key] = [...new Set([...(base[key] ?? []), ...words])]
   }
+  return merged
 }

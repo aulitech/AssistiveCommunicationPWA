@@ -4,7 +4,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
-import { type Profile } from '../core/phrases'
+import { type Aliases } from '../core/phrases'
 import { type PhraseStore } from '../core/store'
 import {
   applyBackup,
@@ -31,9 +31,9 @@ function describeScope(scope: string[] | null): string {
   return `${scope.length} categories`
 }
 
-export function BackupPanel({ store, profile, categories, categoryById, onRestore }: {
+export function BackupPanel({ store, aliases, categories, categoryById, onRestore }: {
   store: PhraseStore
-  profile: Profile
+  aliases: Aliases
   /** Every category that can be exported on its own, in the order shown. */
   categories: string[]
   categoryById: Map<string, string>
@@ -52,16 +52,16 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
   const [incoming, setIncoming] = useState<{ backup: Backup; summary: BackupSummary } | null>(null)
 
   const backup = useMemo(
-    () => buildBackup({ store, profile, settings, categoryById, scope }),
-    [store, profile, settings, categoryById, scope],
+    () => buildBackup({ store, aliases, settings, categoryById, scope }),
+    [store, aliases, settings, categoryById, scope],
   )
   const summary = useMemo(() => summarize(backup), [backup])
   // What "Everything" would hold, whether or not it is the current choice — it
   // is the line under the option, so it has to stand for the option and not for
   // whatever categories happen to be ticked.
   const everything = useMemo(
-    () => (scope === null ? summary : summarize(buildBackup({ store, profile, settings, categoryById }))),
-    [scope, summary, store, profile, settings, categoryById],
+    () => (scope === null ? summary : summarize(buildBackup({ store, aliases, settings, categoryById }))),
+    [scope, summary, store, aliases, settings, categoryById],
   )
 
   const openPicker = useCallback(() => {
@@ -152,10 +152,10 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
   const restore = useCallback(
     (mode: ImportMode) => {
       if (!incoming) return
-      const next = applyBackup(incoming.backup, { store, profile, settings }, mode)
+      const next = applyBackup(incoming.backup, { store, aliases, settings }, mode)
       onRestore(next, mode === 'replace' ? 'Backup restored' : 'Backup merged in')
     },
-    [incoming, store, profile, settings, onRestore],
+    [incoming, store, aliases, settings, onRestore],
   )
 
   return (
