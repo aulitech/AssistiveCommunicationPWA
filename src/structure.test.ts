@@ -165,6 +165,44 @@ describe('the shape of the source tree', () => {
     expect(inline).toEqual([])
   })
 
+  // Contrast is arithmetic, and nobody does it by eye — which is how the muted
+  // grey sat at 4.3:1 against a hovered cell for the whole life of the app,
+  // under what AA asks for, in the one state a control is in while somebody is
+  // looking at it. The palette is small enough to simply check.
+  //
+  // AAA rather than AA: this is read by people with low vision, on a screen
+  // they may be a metre from, and the dim colour is the one that carries every
+  // sublabel and hint in the app.
+  it('keeps every colour of text readable on every surface', () => {
+    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const token = (name: string) => {
+      const hex = css.match(new RegExp(`--${name}: *(#[0-9a-fA-F]{3,6})`))?.[1]
+      if (!hex) throw new Error(`the palette no longer defines --${name}`)
+      return hex
+    }
+
+    /** WCAG relative luminance, which is not the same as how bright it looks. */
+    const luminance = (hex: string) => {
+      const full = hex.length === 4 ? hex.replace(/#(.)(.)(.)/, '#$1$1$2$2$3$3') : hex
+      const channels = [1, 3, 5].map(i => parseInt(full.slice(i, i + 2), 16) / 255)
+      const [r, g, b] = channels.map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+    const contrast = (a: string, b: string) => {
+      const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p)
+      return (x + 0.05) / (y + 0.05)
+    }
+
+    // Every surface text is ever drawn on, `cell-hover` included — a cell under
+    // the pointer is exactly when its words are being read.
+    const surfaces = ['bg', 'surface', 'cell', 'cell-hover']
+    const worst = surfaces.map(name => ({
+      surface: name,
+      ratio: Number(contrast(token('text-muted'), token(name)).toFixed(2)),
+    }))
+    expect(worst.filter(w => w.ratio < 7)).toEqual([])
+  })
+
   it('keeps App as the only default export', () => {
     const defaults = sources()
       .filter(p => /^export default/m.test(readFileSync(p, 'utf8')))
