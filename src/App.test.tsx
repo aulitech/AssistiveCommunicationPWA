@@ -757,9 +757,12 @@ describe('edit mode', () => {
     expect(css).toMatch(/\.edit-bar \{[^}]*\bbottom: var\(--edit-bar-inset\);/)
     // Half the strip's height, so its lower edge reaches the bottom of the bar
     // and no further — any more and it hangs over the category tabs.
-    const inset = css.match(/--edit-bar-inset: (\d+)px/)?.[1]
-    const height = css.match(/\.edit-bar \{[^}]*\bheight: (\d+)px/)?.[1]
-    expect(Number(inset)).toBe(Number(height) / 2)
+    // Read as numbers, and checked to be numbers first: `Object.is(NaN, NaN)`
+    // is true, so a regex that stops matching would otherwise pass this.
+    const inset = Number(css.match(/--edit-bar-inset: ([\d.]+)rem/)?.[1])
+    const height = Number(css.match(/\.edit-bar \{[^}]*\bheight: ([\d.]+)rem/)?.[1])
+    expect(height, 'the strip no longer states a height in rem').toBeGreaterThan(0)
+    expect(inset).toBe(height / 2)
   })
 
   // Saving leaves the editor on a blank phrase rather than closing anything —
@@ -3317,6 +3320,33 @@ describe('putting settings back', () => {
   const confirmBtn = (label: string) =>
     [...document.body.querySelectorAll('.panel-btn')].find(b => b.textContent?.includes(label))
 
+  // The one setting the stylesheet cannot read for itself: every size in it is
+  // in `rem`, so this is the root font-size and everything written follows.
+  describe('text size', () => {
+    it('scales the root font size, and keeps it', () => {
+      renderApp()
+      expect(document.documentElement.style.fontSize).toBe('100%')
+
+      openSettings()
+      click(stepBtn('Increase', row('Text size')))
+
+      expect(document.documentElement.style.fontSize).toBe('110%')
+      expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).zoom).toBeCloseTo(1.1)
+    })
+
+    it('comes back at that size after a reload', () => {
+      renderApp({ zoom: 1.5 })
+      expect(document.documentElement.style.fontSize).toBe('150%')
+    })
+
+    // A percentage rather than a pixel count, so it multiplies whatever the
+    // reader has already told their browser they want rather than replacing it.
+    it("is a multiple of the browser's own size, not a size of its own", () => {
+      renderApp({ zoom: 2 })
+      expect(document.documentElement.style.fontSize).not.toMatch(/px/)
+    })
+  })
+
   describe('one value at a time', () => {
     it('offers a revert on every value, naming what it goes back to', () => {
       renderApp()
@@ -3325,6 +3355,7 @@ describe('putting settings back', () => {
         .map(b => b.getAttribute('aria-label'))
         .filter((l): l is string => !!l && l.startsWith('Reset '))
       expect(labels).toEqual([
+        'Reset text size to 100%',
         'Reset phrase dwell to 1.5s',
         'Reset action dwell to 0.8s',
         'Reset auto-repeat to 1000ms',
@@ -3355,7 +3386,7 @@ describe('putting settings back', () => {
       const revert = stepBtn('Reset phrase dwell', dwell)
 
       expect(revert.getAttribute('aria-disabled')).toBe('true')
-      expect($$('.setting-row .step-btn').length, 'a control went missing').toBe(15)
+      expect($$('.setting-row .step-btn').length, 'a control went missing').toBe(18)
     })
   })
 

@@ -43,6 +43,17 @@ export interface Settings {
   rate: number // 0.5–2
   /** Speak each selected phrase immediately instead of composing a message. */
   autoSpeak: boolean
+  /**
+   * How big the text is, as a multiple of the browser's own default. 1 is
+   * normal.
+   *
+   * Every size in the stylesheet is in `rem`, so this is a single number applied
+   * to the root font-size and everything written follows it — the phrases, the
+   * message, the tabs, the guide. It is not a browser zoom: a browser zoom
+   * scales the whole page, which on a board fixed to the height of the screen
+   * means fewer phrases and more scrolling. This grows only what is read.
+   */
+  zoom: number
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -56,6 +67,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // a sentence out of several phrases turns it off; somebody who wants a button
   // to say a thing has nothing to find first.
   autoSpeak: true,
+  zoom: 1,
 }
 
 /**
@@ -76,6 +88,12 @@ export const SETTING_LIMITS = {
   repeatDelayMs: { min: 100, max: 2000 },
   volume: { min: 0, max: 1 },
   rate: { min: 0.5, max: 2 },
+  /**
+   * Half again as small to twice as large. The floor is not merely a taste
+   * either: text small enough to be unreadable would take the settings panel
+   * down with it, and the control to put it back is written in the same text.
+   */
+  zoom: { min: 0.5, max: 2 },
 } as const
 
 /**

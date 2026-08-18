@@ -176,10 +176,10 @@ export function TopPanel({ open, user, onClose, onSignOut, profile, onProfileCha
         {/* User row */}
         <div className="panel-user-row">
           <div className="panel-avatar" aria-hidden="true">
-            {user.provider === 'google' && <span style={{ fontSize: 18 }}>G</span>}
-            {user.provider === 'apple' && <span style={{ fontSize: 18 }}></span>}
-            {user.provider === 'facebook' && <span style={{ fontSize: 18 }}>f</span>}
-            {user.provider === 'guest' && <span style={{ fontSize: 18 }}>👤</span>}
+            {user.provider === 'google' && <span style={{ fontSize: '1.35rem' }}>G</span>}
+            {user.provider === 'apple' && <span style={{ fontSize: '1.35rem' }}></span>}
+            {user.provider === 'facebook' && <span style={{ fontSize: '1.35rem' }}>f</span>}
+            {user.provider === 'guest' && <span style={{ fontSize: '1.35rem' }}>👤</span>}
           </div>
           <div className="panel-user-info">
             <span className="panel-user-name">{user.name}</span>

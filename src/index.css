@@ -89,14 +89,19 @@ body {
      The top padding is where the message box begins, and the mode strip is
      centred on that line — so the padding has to be at least half the strip or it
      would overflow the top of the bar. The strip is a 1.5rem toggle in 0.25rem of
-     padding, which is 32px, so this is 16px. **It has to equal `.topbar-modes`
+     padding, which is 2rem, so this is 1rem — in rem rather than pixels, because
+     the strip it is half of is built out of rem and would otherwise outgrow its
+     own anchor at any zoom above 100%. **It has to equal `.topbar-modes`
      `top`**: equal is what puts the strip on the border, and half the strip is
      what keeps it inside the bar. */
   position: relative;
   display: flex;
   align-items: stretch;
   gap: 0;
-  padding: 16px 10px 10px;
+  /* The top padding is half the mode strip, which is built out of rem itself —
+     so it is written in rem too and the two cannot come apart when the root
+     font-size changes. */
+  padding: 1rem 10px 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
@@ -104,13 +109,18 @@ body {
 
 .text-display {
   flex: 1;
-  min-height: 52px;
-  max-height: 52px;
-  padding: 12px 14px;
+  /* In rem, like the type inside it: a box fixed in pixels around text that
+     scales is a box that clips the moment anybody turns the zoom up. One line
+     of 1.35rem at 1.4, plus this padding, is 3.4rem — so the pair of numbers
+     below and the `.icon-btn` square that has to line up with them all move
+     together when the root font-size does. */
+  min-height: 3.5rem;
+  max-height: 3.5rem;
+  padding: 0.75rem 0.9rem;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  font-size: 18px;
+  font-size: 1.35rem;
   font-weight: 500;
   font-family: var(--font);
   color: var(--text);
@@ -131,8 +141,10 @@ body {
 /* ── Icon Buttons ── */
 .icon-btn {
   position: relative;
-  width: 52px;
-  height: 52px;
+  /* Square, and the same height as the message box it sits beside — see the
+     note there for why that height is in rem. */
+  width: 3.5rem;
+  height: 3.5rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--cell);
@@ -282,7 +294,7 @@ body {
   border-radius: 20px;
   border: 1px solid var(--border);
   background: transparent;
-  font-size: 13px;
+  font-size: 1rem;
   font-weight: 500;
   color: var(--text-muted);
 
@@ -343,7 +355,7 @@ body {
 .topbar-modes {
   position: absolute;
   /* Matches `.topbar` padding-top — see the note there. */
-  top: 16px;
+  top: 1rem;
   left: 50%;
   transform: translate(-50%, -50%);
   /* Above everything in the app, and below the panel and the dialogs, which are
@@ -552,7 +564,7 @@ body {
   margin: 0;
   padding: 28px 24px;
   max-width: 46ch;
-  font-size: 14px;
+  font-size: 1.05rem;
   line-height: 1.6;
   color: var(--text-muted);
   text-align: center;
@@ -566,7 +578,9 @@ body {
   border: 1px solid var(--border);
   background: var(--cell);
   padding: 16px 12px 12px;
-  min-height: 72px;
+  /* In rem so a zoomed phrase has somewhere to go: a cell fixed in pixels
+     around text that scales is one that wraps an extra line and clips. */
+  min-height: 4.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -590,7 +604,7 @@ body {
 }
 
 .phrase-cell-text {
-  font-size: 15px;
+  font-size: 1.15rem;
   font-weight: 500;
   color: var(--text);
   line-height: 1.35;
@@ -712,7 +726,7 @@ body {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 1.25rem;
   color: var(--text);
   flex-shrink: 0;
 }
@@ -748,7 +762,7 @@ body {
   border-radius: 9px;
   border: 1px solid var(--border);
   background: var(--surface);
-  font-size: 13px;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text);
   cursor: pointer;
@@ -766,13 +780,13 @@ body {
 .panel-back.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
 
 .panel-user-name {
-  font-size: 14px;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--text);
 }
 
 .panel-user-email {
-  font-size: 12px;
+  font-size: 0.9rem;
   color: var(--text-muted);
 }
 
@@ -834,13 +848,13 @@ body {
 }
 
 .nav-item-label {
-  font-size: 15px;
+  font-size: 1.15rem;
   font-weight: 500;
   color: var(--text);
 }
 
 .nav-item-sub {
-  font-size: 12px;
+  font-size: 0.9rem;
   color: var(--text-muted);
 }
 
@@ -906,7 +920,7 @@ body {
 }
 
 .signin-app-name {
-  font-size: 32px;
+  font-size: 2.5rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -914,7 +928,7 @@ body {
 }
 
 .signin-tagline {
-  font-size: 16px;
+  font-size: 1.25rem;
   color: var(--text-muted);
   text-align: center;
   line-height: 1.5;
@@ -942,21 +956,21 @@ body {
 }
 
 .signin-feature-icon {
-  font-size: 22px;
+  font-size: 1.7rem;
   line-height: 1;
   flex-shrink: 0;
   margin-top: 1px;
 }
 
 .signin-feature-title {
-  font-size: 14px;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--text);
   margin-bottom: 2px;
 }
 
 .signin-feature-body {
-  font-size: 13px;
+  font-size: 1rem;
   color: var(--text-muted);
   line-height: 1.45;
 }
@@ -984,8 +998,8 @@ body {
   .signin-content { padding: 24px 20px 20px; }
   .signin-brand { gap: 10px; margin-bottom: 20px; }
   .signin-logo, .signin-logo svg { width: 56px; height: 56px; }
-  .signin-app-name { font-size: 26px; }
-  .signin-tagline { font-size: 15px; }
+  .signin-app-name { font-size: 2rem; }
+  .signin-tagline { font-size: 1.15rem; }
   .signin-features { gap: 8px; margin-bottom: 20px; }
   .signin-feature { padding: 9px 14px; }
   .signin-feature-body { display: none; }
@@ -1007,9 +1021,9 @@ body {
     margin-bottom: 14px;
   }
   .signin-logo, .signin-logo svg { width: 36px; height: 36px; }
-  .signin-app-name { font-size: 21px; }
+  .signin-app-name { font-size: 1.6rem; }
   .signin-tagline { display: none; }
-  .signin-legal { font-size: 11px; }
+  .signin-legal { font-size: 0.8rem; }
 }
 
 @media (max-width: 380px) {
@@ -1042,14 +1056,14 @@ body {
   align-items: center;
   gap: 14px;
   padding: 16px 20px;
-  font-size: 15px;
+  font-size: 1.15rem;
   font-weight: 500;
   color: var(--text);
   position: relative;
 }
 
 .auth-guest-icon {
-  font-size: 20px;
+  font-size: 1.5rem;
   line-height: 1;
   width: 22px;
   text-align: center;
@@ -1079,7 +1093,7 @@ body {
   align-items: center;
   gap: 12px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 0.9rem;
   margin: 2px 0;
 }
 
@@ -1093,7 +1107,7 @@ body {
 
 /* Legal */
 .signin-legal {
-  font-size: 11px;
+  font-size: 0.8rem;
   color: var(--text-muted);
   text-align: center;
   line-height: 1.6;
@@ -1107,7 +1121,7 @@ body {
   border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
   border-radius: 10px;
   padding: 12px 14px;
-  font-size: 13px;
+  font-size: 1rem;
   color: #fca5a5;
   display: flex;
   gap: 8px;
@@ -1116,7 +1130,7 @@ body {
 
 /* Details step */
 .signin-details-heading {
-  font-size: 15px;
+  font-size: 1.15rem;
   font-weight: 600;
   color: var(--text);
   margin: 0 0 16px;
@@ -1124,7 +1138,7 @@ body {
 
 .signin-field-label {
   display: block;
-  font-size: 11px;
+  font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1136,7 +1150,7 @@ body {
   font-weight: 400;
   text-transform: none;
   letter-spacing: 0;
-  font-size: 11px;
+  font-size: 0.8rem;
 }
 
 .signin-input {
@@ -1146,7 +1160,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 13px 14px;
-  font-size: 15px;
+  font-size: 1.15rem;
   font-family: var(--font);
   color: var(--text);
   outline: none;
@@ -1172,7 +1186,7 @@ body {
   gap: 16px;
   padding: 32px;
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 1.15rem;
 }
 
 .signin-spinner {
@@ -1226,7 +1240,7 @@ body {
 }
 
 .emergency-label {
-  font-size: 13px;
+  font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--urgent);
@@ -1289,7 +1303,7 @@ body {
 .setting-row:last-child { border-bottom: none; }
 
 .setting-label {
-  font-size: 13px;
+  font-size: 1rem;
   color: var(--text-muted);
   width: 96px;
   flex-shrink: 0;
@@ -1311,7 +1325,7 @@ body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 20px;
+  font-size: 1.5rem;
   font-weight: 300;
   line-height: 1;
   color: var(--text);
@@ -1356,7 +1370,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 4px 6px;
-  font-size: 14px;
+  font-size: 1.05rem;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
@@ -1369,7 +1383,7 @@ body {
 .setting-number[type=number] { -moz-appearance: textfield; }
 
 .setting-formatted {
-  font-size: 12px;
+  font-size: 0.9rem;
   color: var(--text-muted);
   width: 32px;
   font-variant-numeric: tabular-nums;
@@ -1391,13 +1405,13 @@ body {
   flex: 1;
   min-width: 140px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-size: 0.9rem;
 }
 
 .eleven-status {
   flex: 1;
   min-width: 120px;
-  font-size: 13px;
+  font-size: 1rem;
   color: var(--accent);
 }
 
@@ -1405,7 +1419,7 @@ body {
 .eleven-note {
   flex-basis: 100%;
   margin: 0;
-  font-size: 11.5px;
+  font-size: 0.85rem;
   line-height: 1.5;
 }
 
@@ -1427,7 +1441,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 1rem;
   color: var(--text);
   cursor: pointer;
   overflow: hidden;
@@ -1491,13 +1505,13 @@ body {
 }
 
 .picker-modal-title {
-  font-size: 15px;
+  font-size: 1.15rem;
   font-weight: 600;
   color: var(--text);
 }
 
 .picker-modal-hint {
-  font-size: 11.5px;
+  font-size: 0.85rem;
   color: var(--text-muted);
 }
 
@@ -1551,7 +1565,7 @@ body {
   border-radius: 20px;
   border: 1px solid var(--border);
   background: transparent;
-  font-size: 13px;
+  font-size: 1rem;
   font-weight: 500;
   color: var(--text-muted);
   cursor: pointer;
@@ -1570,7 +1584,7 @@ body {
 }
 
 .picker-filter-count {
-  font-size: 11px;
+  font-size: 0.8rem;
   opacity: 0.7;
   font-variant-numeric: tabular-nums;
 }
@@ -1627,7 +1641,7 @@ body {
 }
 
 .picker-tile-name {
-  font-size: 14px;
+  font-size: 1.05rem;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1635,7 +1649,7 @@ body {
 }
 
 .picker-tile-detail {
-  font-size: 11px;
+  font-size: 0.8rem;
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1697,7 +1711,7 @@ body {
 .voice-option {
   position: relative;
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 1rem;
   color: var(--text);
   cursor: pointer;
   overflow: hidden;
@@ -1752,7 +1766,7 @@ body {
    and talking does not: the bar is 8px taller there and unchanged everywhere
    else. */
 .app.edit-mode {
-  --edit-bar-inset: 18px;
+  --edit-bar-inset: 1.25rem;
 }
 
 .app.edit-mode .topbar { padding-bottom: var(--edit-bar-inset); }
@@ -1778,11 +1792,12 @@ body {
    The number is **half the strip's height**, which is why the height is stated
    here rather than left to the content: half is what puts the strip's lower
    edge exactly on the bottom of the bar, so it reaches the border without
-   hanging over the category tabs. */
+   hanging over the category tabs. Both are in rem, so the strip and the room
+   made for it grow together with the type inside them. */
 .edit-bar {
   position: absolute;
   bottom: var(--edit-bar-inset);
-  height: 36px;
+  height: 2.5rem;
   left: 50%;
   transform: translate(-50%, 50%);
   /* Above the app, below the panel and the dialogs — the same layer the modes
@@ -1809,14 +1824,14 @@ body {
    rather than sitting in a panel, and every pixel of it is a pixel of grid. */
 .edit-bar .picker-trigger {
   padding: 5px 9px;
-  font-size: 12px;
+  font-size: 0.9rem;
   background: var(--bg);
 }
 
 .edit-bar .voice-trigger { width: 150px; }
 
 .edit-bar-title {
-  font-size: 13px;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
@@ -1831,7 +1846,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
-  font-size: 12px;
+  font-size: 0.9rem;
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -1885,7 +1900,7 @@ body {
 }
 
 .edit-modal-title {
-  font-size: 15px;
+  font-size: 1.15rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -1900,7 +1915,7 @@ body {
   position: relative;
   padding: 8px 18px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   overflow: hidden;
@@ -1968,7 +1983,7 @@ body {
 }
 
 .slot-picker-preview {
-  font-size: 22px;
+  font-size: 1.7rem;
   font-weight: 600;
   line-height: 1.4;
   text-align: center;
@@ -1989,7 +2004,7 @@ body {
 
 .slot-picker-step {
   text-align: center;
-  font-size: 13px;
+  font-size: 1rem;
   color: var(--text-muted);
 }
 
@@ -2006,7 +2021,7 @@ body {
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--cell);
-  font-size: 17px;
+  font-size: 1.3rem;
   font-weight: 600;
   text-align: center;
   cursor: pointer;
@@ -2023,7 +2038,7 @@ body {
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface);
-  font-size: 14px;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
@@ -2056,7 +2071,7 @@ body {
 }
 
 .signin-dwell-label {
-  font-size: 13px;
+  font-size: 1rem;
   color: var(--text-muted);
   font-weight: 500;
 }
@@ -2077,7 +2092,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text);
-  font-size: 14px;
+  font-size: 1.05rem;
   font-weight: 500;
   box-shadow: 0 8px 30px rgba(0,0,0,0.5);
 }
@@ -2126,14 +2141,14 @@ body {
    the device. */
 .profile-hint {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: 0.9rem;
   line-height: 1.5;
   color: var(--text-muted);
 }
 
 .profile-empty {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: 0.9rem;
   color: var(--text-muted);
   font-style: italic;
 }
@@ -2147,7 +2162,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  font-size: 13px;
+  font-size: 1rem;
   outline: none;
 }
 
@@ -2180,7 +2195,7 @@ body {
 
 .contact-name {
   flex: 1;
-  font-size: 13px;
+  font-size: 1rem;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2282,7 +2297,7 @@ body {
 
 .help-title {
   margin: 0 0 4px;
-  font-size: 17px;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--text);
 }
@@ -2297,7 +2312,7 @@ body {
 
 .help-section-title {
   margin: 0 0 7px;
-  font-size: 14px;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--accent);
 }
@@ -2357,7 +2372,7 @@ body {
 
 .help-text {
   margin: 0 0 10px;
-  font-size: 14.5px;
+  font-size: 1.1rem;
   line-height: 1.65;
   color: var(--text);
 }
@@ -2371,7 +2386,7 @@ body {
 }
 
 .help-list li {
-  font-size: 14.5px;
+  font-size: 1.1rem;
   line-height: 1.6;
   color: var(--text);
 }
@@ -2412,7 +2427,7 @@ body {
 
 .backup-note {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.9rem;
   line-height: 1.55;
   color: var(--text-muted);
 }
@@ -2426,7 +2441,7 @@ body {
 
 .backup-summary {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 0.95rem;
   line-height: 1.5;
   color: var(--text);
 }
@@ -2444,7 +2459,7 @@ body {
   justify-content: center;
   padding: 9px 16px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   overflow: hidden;
@@ -2491,7 +2506,7 @@ body {
 .backup-error,
 .backup-status {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 0.95rem;
   line-height: 1.5;
 }
 
@@ -2528,14 +2543,14 @@ body {
 }
 
 .confirm-title {
-  font-size: 16px;
+  font-size: 1.25rem;
   font-weight: 600;
   color: var(--text);
 }
 
 .confirm-note {
   margin: 0;
-  font-size: 13px;
+  font-size: 1rem;
   line-height: 1.55;
   color: var(--text-muted);
 }
@@ -2584,7 +2599,7 @@ body {
 .legal-back {
   display: inline-block;
   margin-bottom: 20px;
-  font-size: 14px;
+  font-size: 1.05rem;
   color: var(--accent);
   text-decoration: none;
 }
@@ -2593,20 +2608,20 @@ body {
 
 .legal-title {
   margin: 0 0 4px;
-  font-size: 26px;
+  font-size: 2rem;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .legal-updated {
   margin: 0 0 18px;
-  font-size: 13px;
+  font-size: 1rem;
   color: var(--text-muted);
 }
 
 .legal-intro {
   margin: 0 0 8px;
-  font-size: 15.5px;
+  font-size: 1.2rem;
   line-height: 1.65;
   color: var(--text);
   padding-left: 14px;
@@ -2617,7 +2632,7 @@ body {
   margin: 28px 0 0;
   padding-top: 16px;
   border-top: 1px solid var(--border);
-  font-size: 13px;
+  font-size: 1rem;
   color: var(--text-muted);
 }
 
@@ -2645,7 +2660,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 1.05rem;
   outline: none;
 }
 
@@ -2654,7 +2669,7 @@ body {
 
 .edit-modal-note {
   margin: -6px 0 0;
-  font-size: 12px;
+  font-size: 0.9rem;
   line-height: 1.5;
   color: var(--text-muted);
 }
