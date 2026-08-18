@@ -5,8 +5,9 @@ import { resolve } from 'node:path'
 import App from './App'
 import { DEFAULT_SETTINGS } from './core/store'
 
-// Category editing spans the filter bar, a modal and the phrase editor, so it
-// gets its own file rather than swelling App.test.tsx further.
+// Category editing spans the filter bar, the rename dialog and the editor strip
+// under the message box, so it gets its own file rather than swelling
+// App.test.tsx further.
 
 let container: HTMLElement
 
@@ -49,6 +50,24 @@ const type = (el: Element, value: string) => {
   settle()
 }
 const nameField = () => $('input[aria-label="Category name"]')!
+
+// A phrase is edited in the message box now, and filed from a grid rather than
+// from a `<select>` — a native select opens a list the operating system draws,
+// which is the one control on this screen a dwell cannot reach.
+const box = () => $<HTMLTextAreaElement>('.text-display')!
+const iconBtn = (label: string) => $$<HTMLButtonElement>('.icon-btn').find(b => b.getAttribute('aria-label') === label)
+const writePhrase = (value: string) => type(box(), value)
+const savePhrase = () => click(iconBtn('Save phrase'))
+const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
+const pickerBtn = (label: string) =>
+  inDoc('.picker-modal-actions .panel-btn').find(b => b.getAttribute('aria-label') === label)
+const chooseCategory = (name: string) => {
+  click($('.category-trigger'))
+  click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === name))
+  // "New category…" closes the grid by itself, to ask for the name.
+  const done = pickerBtn('Done')
+  if (done) click(done)
+}
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
@@ -203,13 +222,15 @@ describe('the phrase editor', () => {
     renderApp()
     enterEditMode()
     click(cells()[0])
-    type($('.edit-modal-text')!, 'A brand new phrase')
-    type($('.edit-modal-select')!, ' __new_category__')
+    writePhrase('A brand new phrase')
 
-    const field = $('input[aria-label="New category name"]')
-    expect(field).not.toBeNull()
-    type(field!, 'Invented')
+    // The grid's last tile is not a category: it asks for one, in the same
+    // dialog the category tabs use to add theirs.
+    chooseCategory('New category…')
+    expect(nameField()).not.toBeNull()
+    type(nameField(), 'Invented')
     saveModal()
+    savePhrase()
 
     expect(tabLabels()).toContain('Invented')
 
@@ -227,8 +248,8 @@ describe('the phrase editor', () => {
     const moved = cells()[0].textContent!
 
     click(cells()[0])
-    type($('.edit-modal-select')!, destination)
-    saveModal()
+    chooseCategory(destination)
+    savePhrase()
 
     click(editToggle()) // leave edit mode
     click(tabNamed(destination))
@@ -239,10 +260,26 @@ describe('the phrase editor', () => {
     renderApp()
     enterEditMode()
     click(cells()[0])
-    type($('.edit-modal-text')!, 'Some phrase')
-    type($('.edit-modal-select')!, ' __new_category__')
+    writePhrase('Some phrase')
+    chooseCategory('New category…')
 
     expect(action('Save')?.className).toMatch(/is-disabled/)
+  })
+
+  // Nothing closes on a save, because nothing was opened. The editor going back
+  // to a blank phrase is the only sign it happened, so it has to be reliable.
+  it('leaves a phrase filed where it was put', () => {
+    renderApp()
+    enterEditMode()
+    const destination = catTabs()[2].textContent!
+
+    writePhrase('Somewhere particular')
+    chooseCategory(destination)
+    savePhrase()
+
+    click(editToggle()) // leave edit mode
+    click(tabNamed(destination))
+    expect(cells().map(c => c.textContent)).toContain('Somewhere particular')
   })
 })
 
@@ -654,7 +691,7 @@ describe('a category that runs out of phrases', () => {
 
     enterEditMode()
     click(cells()[0])
-    click(action('Delete'))
+    click(iconBtn('Delete phrase'))
 
     expect(tabNamed('Solo')).toBeUndefined()
     expect(tabNamed('All')?.getAttribute('aria-selected')).toBe('true')

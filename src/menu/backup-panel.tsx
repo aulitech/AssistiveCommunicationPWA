@@ -169,7 +169,7 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
 
         <span className="setting-label backup-heading">What to save</span>
         <div
-          className={cx('voice-trigger backup-scope-trigger', scopeActive && 'dwelling')}
+          className={cx('picker-trigger backup-scope-trigger', scopeActive && 'dwelling')}
           style={dwellVar(settings.actionDwellMs)}
           role="button"
           aria-haspopup="dialog"
@@ -177,7 +177,7 @@ export function BackupPanel({ store, profile, categories, categoryById, onRestor
           aria-label={`Saving ${describeScope(scope)}. Choose what to save`}
           {...scopeProps}
         >
-          <span className="voice-trigger-label">{describeScope(scope)}</span>
+          <span className="picker-trigger-label">{describeScope(scope)}</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
             <polyline points="6 9 12 15 18 9" />
           </svg>

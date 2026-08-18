@@ -188,5 +188,25 @@ export function PlusIcon() {
   )
 }
 
+/** Save. A tick rather than a word, because it sits in the topbar's icon rail. */
+export function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" width="20" height="20" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+
+/** Delete. Beside Save in edit mode, and the only red thing in that rail. */
+export function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20" aria-hidden="true">
+      <polyline points="3 6 21 6" />
+      <path d="M8 6V4h8v2" />
+      <path d="M6 6l1 14h10l1-14" />
+    </svg>
+  )
+}
+
 // ── DwellCursor ───────────────────────────────────────────────────────────────
 // Isolated component — updates DOM directly, never re-renders the tree.

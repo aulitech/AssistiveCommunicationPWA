@@ -34,7 +34,8 @@ function renderApp(custom = [MARKED, LISTED, EMERGENCY]) {
   settle()
 }
 
-const message = () => $<HTMLTextAreaElement>('.text-display')!.value
+const box = () => $<HTMLTextAreaElement>('.text-display')!
+const message = () => box().value
 const cells = () => $$('.phrase-cell')
 const cellFor = (id: string) => cells().find(c => c.getAttribute('aria-label')?.includes(id))
 const marked = () => cellFor('Help me up')!
@@ -202,7 +203,6 @@ describe('pasting and dropping a link', () => {
     getData: (type: string) => types[type] ?? '',
     types: Object.keys(types),
   })
-  const box = () => $<HTMLTextAreaElement>('.text-display')!
   const paste = (el: Element, types: Record<string, string>) => {
     fireEvent.paste(el, { clipboardData: transfer(types) })
     settle()
@@ -284,19 +284,17 @@ describe('pasting and dropping a link', () => {
     )
   })
 
-  it('takes one in the phrase editor too, where a phrase is written', () => {
+  it('takes one into a phrase being written too', () => {
     renderApp()
     click($('.edit-toggle'))
     click(marked())
-    const field = $<HTMLTextAreaElement>('.edit-modal-text')!
+    const field = box()
     // A paste goes to the caret. Put it where somebody who had just typed
     // would leave it — jsdom autofocuses without placing one, so the default
     // here is the very start of the field rather than the end.
     field.selectionStart = field.selectionEnd = field.value.length
     paste(field, { 'text/plain': MENU })
-    expect($<HTMLTextAreaElement>('.edit-modal-text')!.value).toBe(
-      '**Help** me up [cafe.example](https://cafe.example/menu)',
-    )
+    expect(box().value).toBe('**Help** me up [cafe.example](https://cafe.example/menu)')
   })
 })
 
@@ -361,13 +359,13 @@ describe('choosing a phrase that is a link', () => {
 
   // Edit mode has to keep winning, or a link is a phrase nobody can ever
   // reword — every attempt to open the editor would leave the app instead.
-  it('opens the editor in edit mode rather than the link', () => {
+  it('loads the phrase into the editor in edit mode rather than opening the link', () => {
     showMarkedAnd([LINK])
     click($('.edit-toggle'))
     click(cells()[0])
 
     expect(opened).toEqual([])
-    expect($<HTMLTextAreaElement>('.edit-modal-text')?.value).toBe(`[the menu](${MENU})`)
+    expect(box().value).toBe(`[the menu](${MENU})`)
   })
 
   // A browser only allows this off the back of a press, and a dwell is a timer
@@ -387,10 +385,10 @@ describe('choosing a phrase that is a link', () => {
 describe('editing a marked-up phrase', () => {
   // The editor is where markdown gets written, so it has to show the source
   // rather than the rendering — there is nowhere else to reach the markers.
-  it('opens on the markup, not on the words', () => {
+  it('loads the markup, not the words', () => {
     renderApp()
     click($('.edit-toggle'))
     click(marked())
-    expect($<HTMLTextAreaElement>('.edit-modal-text')?.value).toBe('**Help** me up')
+    expect(box().value).toBe('**Help** me up')
   })
 })

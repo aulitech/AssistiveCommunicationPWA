@@ -1,7 +1,15 @@
 // The bar across the top: the message being composed, and the controls that act
-// on it. All three of the app's modes sit here too — edit, Rest, auto-speak —
+// on it — or, in edit mode, the phrase being written and the controls that act on
+// *that*. All three of the app's modes sit here too — edit, Rest, auto-speak —
 // in a strip straddling the top edge of the message box, in the middle of the
 // screen's top where a gaze on its way anywhere passes.
+//
+// **The box is the phrase editor in edit mode.** There was a dialog for that,
+// which covered the very phrases being edited and had to be got out of before
+// anything else could be reached. So the one box does both jobs and the rail
+// beside it changes with the mode: speak, copy and paste become save, delete and
+// paste. The controls stay in the same places, which is what makes the mode a
+// change of meaning rather than a change of layout.
 //
 // The strip is centred on the box's top border and overlaps the box, rather than
 // sitting in a band above it — a band wide enough for two icons cost the grid
@@ -14,9 +22,10 @@ import { useSettings } from '../ui/settings'
 import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
 import { useLinkInput, type PasteResult } from '../ui/link-input'
-import { AutoSpeakIcon, ClearIcon, CopyIcon, EditIcon, MenuIcon, PasteIcon, SpeakIcon, UndoIcon } from '../ui/icons'
+import { AutoSpeakIcon, CheckIcon, ClearIcon, CopyIcon, EditIcon, MenuIcon, PasteIcon, PlusIcon, SpeakIcon, TrashIcon, UndoIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import type { Composer } from './use-composer'
+import type { Editor } from './use-editor'
 
 function ActionButton({ onSelect, className = '', children, label, disabled }: {
   onSelect: () => void
@@ -111,8 +120,10 @@ function RestButton({ resting, onToggle }: { resting: boolean; onToggle: () => v
   )
 }
 
-export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak, menuOpen, onToggleMenu, resting, onToggleRest, onAddPhrase, onSpeak, onCopy, onPasted }: {
+export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak, menuOpen, onToggleMenu, resting, onToggleRest, onSavePhrase, onDeletePhrase, onSpeak, onCopy, onPasted }: {
   composer: Composer
+  /** The phrase being written, which in edit mode is what the box holds. */
+  editor: Editor
   editMode: boolean
   onToggleEdit: () => void
   autoSpeak: boolean
@@ -121,8 +132,9 @@ export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAu
   onToggleMenu: () => void
   resting: boolean
   onToggleRest: () => void
-  /** Turn what is composed into a phrase of its own. Edit mode only. */
-  onAddPhrase: () => void
+  /** Both of these change the board, so the screen does them, not the editor. */
+  onSavePhrase: () => void
+  onDeletePhrase: () => void
   /** Both of these are how a message leaves, which the screen keeps a record of. */
   onSpeak: () => void
   onCopy: () => void
@@ -131,37 +143,32 @@ export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAu
 }) {
   const { settings } = useSettings()
   const { text, setText, showUndo, canClear, clearOrUndo, textareaRef, trackCursor, setCursor } = composer
+  const { draft, isUntouched, startNew, setText: setDraftText } = editor
 
-  // The box is two different things, so a hold on it is two different dwells,
-  // each switched off in the other's mode. Both were reachable only by clicking
-  // before — the one input a dwell-only user cannot produce.
-  //
-  //  * **In edit mode the box is a button.** It is `readOnly`, holds no caret
-  //    to place, and holding it opens the editor — the only entry point there
-  //    is for adding an ordinary phrase.
-  //  * **Otherwise it is a box being written in**, and holding it puts the
-  //    caret where the pointer is. Which matters more here than in the phrase
-  //    editor: the caret decides which word the grid narrows itself to, so
-  //    placing it is how a gaze user says which word to finish.
-  const dwell = useDwellControl(settings.actionDwellMs, onAddPhrase, { disabled: !editMode })
+  // One box, two things in it: the message being composed, and — in edit mode —
+  // the phrase being written. Which one is showing decides everything below,
+  // because a keystroke has to go to the right one of the two.
+  const value = editMode ? draft.text : text
+  const write = editMode ? setDraftText : setText
 
-  // The gate here used to be `focused` — the box stopped arming altogether once
-  // it held focus, so a pointer resting on it while its owner typed would not
-  // flash a progress bar at them. That also made the caret placeable exactly
-  // once, on the way in, and never again. Aiming is what actually settles it: a
-  // pointer that has not moved does not re-arm, whether the box has focus or not.
+  // The same dwell either way, and enabled in both modes now. The box used to be
+  // `readOnly` in edit mode, a button whose hold opened the editor dialog; there
+  // is no dialog to open any more, so it is a box being typed in whichever mode
+  // it is in. Outside edit mode the caret does a second job — it decides which
+  // word the grid narrows itself to, which is how a gaze user says which word to
+  // finish — so where it lands is reported back to the composer.
   const caret = useCaretDwell(textareaRef, settings.actionDwellMs, {
-    disabled: editMode,
-    onPlace: setCursor,
+    onPlace: editMode ? undefined : setCursor,
   })
 
   // A link pasted or dropped here becomes `[label](url)`, so the message reads
-  // as the page's name and still carries the address when it is copied out.
+  // as the page's name and still carries the address when it is copied out. Into
+  // whichever of the two the box is showing.
   const linkInput = useLinkInput(
     textareaRef,
     useCallback(
       (next: string, caret: number) => {
-        setText(next)
+        write(next)
         const el = textareaRef.current
         if (!el) return
         // After the value React is about to render, or the caret is placed in
@@ -171,7 +178,7 @@ export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAu
           el.focus()
         }, 0)
       },
-      [setText, textareaRef],
+      [write, textareaRef],
     ),
   )
 
@@ -190,7 +197,12 @@ export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAu
           on the path a gaze already takes than at the end of a rail.
 
           Rest keeps the centre. It is the one control that has to be findable
-          without looking, and it was found there. */}
+          without looking, and it was found there.
+
+          Edit and auto-speak are exclusive of one another — the board cannot be
+          both a thing being spoken from and a thing being rewritten — so each
+          reads as pressed only while it is the one that is on, and switching one
+          on switches the other off. */}
       <div className="topbar-modes">
         <ModeToggle
           className="edit-toggle"
@@ -217,59 +229,51 @@ export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAu
         <MenuIcon />
       </ActionButton>
 
-      <ActionButton
-        className="left"
-        onSelect={clearOrUndo}
-        label={showUndo ? 'Undo' : 'Clear'}
-        disabled={!canClear}
-      >
-        {showUndo ? <UndoIcon /> : <ClearIcon />}
-      </ActionButton>
+      {/* The left slot empties the box in both modes — of the message, or of the
+          phrase being written along with whatever it was pointed at. */}
+      {editMode ? (
+        <ActionButton
+          className="left"
+          onSelect={() => startNew()}
+          label="Start a new phrase"
+          disabled={isUntouched}
+        >
+          <PlusIcon />
+        </ActionButton>
+      ) : (
+        <ActionButton
+          className="left"
+          onSelect={clearOrUndo}
+          label={showUndo ? 'Undo' : 'Clear'}
+          disabled={!canClear}
+        >
+          {showUndo ? <UndoIcon /> : <ClearIcon />}
+        </ActionButton>
+      )}
 
       <textarea
         ref={textareaRef}
-        className={cx('text-display', (dwell.active || caret.active) && 'dwelling')}
+        className={cx('text-display', caret.active && 'dwelling')}
         style={dwellVar(settings.actionDwellMs)}
-        aria-label={
-          editMode
-            ? text.trim()
-              ? 'Add this message as a new phrase'
-              : 'Add a new phrase'
-            : 'Composed message'
-        }
-        value={text}
+        aria-label={editMode ? 'Phrase text' : 'Composed message'}
+        value={value}
         onChange={e => {
-          setText(e.target.value)
-          trackCursor(e)
+          write(e.target.value)
+          if (!editMode) trackCursor(e)
         }}
-        onSelect={trackCursor}
+        // Only outside edit mode: the caret tracked here is the composer's, and
+        // it decides which word the grid filters on. A caret moved about in a
+        // phrase would narrow the board to a word that is not in the message.
+        onSelect={editMode ? undefined : trackCursor}
         onPaste={linkInput.onPaste}
         onDrop={linkInput.onDrop}
         onDragOver={linkInput.onDragOver}
-        // Both dwells get every pointer event; each is disabled in the other's
-        // mode, so only one of them is ever armed by them.
-        onPointerEnter={e => {
-          dwell.props.onPointerEnter?.()
-          caret.props.onPointerEnter(e)
-        }}
-        onPointerMove={caret.props.onPointerMove}
-        onPointerLeave={() => {
-          dwell.props.onPointerLeave()
-          caret.props.onPointerLeave()
-        }}
-        onClick={e => {
-          trackCursor(e)
-          if (editMode) dwell.props.onClick()
-        }}
-        // The handler cancels Space so it cannot scroll the grid, and the
-        // hook's own disabled check already stops that outside edit mode —
-        // but that check reads a ref synced in an effect, and this is the
-        // one surface where swallowing a space is unacceptable.
-        onKeyDown={editMode ? dwell.props.onKeyDown : undefined}
-        onKeyUp={trackCursor}
+        {...caret.props}
+        onClick={editMode ? undefined : trackCursor}
+        onKeyUp={editMode ? undefined : trackCursor}
         placeholder={
           editMode
-            ? 'Hold here to add a new phrase…'
+            ? 'Write a phrase, or hold one on the board to edit it…'
             : settings.autoSpeak
               ? 'Auto-speak is on — phrases are spoken, not collected here'
               : 'Dwell on a phrase or type…'
@@ -277,16 +281,46 @@ export function Topbar({ composer, editMode, onToggleEdit, autoSpeak, onToggleAu
         rows={1}
         spellCheck
         autoCapitalize="sentences"
-        readOnly={editMode}
       />
 
-      <ActionButton className="right" onSelect={onSpeak} label="Speak" disabled={!text}>
-        <SpeakIcon />
-      </ActionButton>
+      {/* Three on the right in both modes, in the same three places. Outside
+          edit mode they are how a message leaves; inside it they are what
+          becomes of the phrase in the box. Paste is the one that means the same
+          thing either way, so it keeps its place at the end. */}
+      {editMode ? (
+        <>
+          <ActionButton
+            className="right"
+            onSelect={onSavePhrase}
+            label={draft.keeping ? 'Keep this message as a phrase' : 'Save phrase'}
+            disabled={!draft.canSave}
+          >
+            <CheckIcon />
+          </ActionButton>
 
-      <ActionButton className="right" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
-        <CopyIcon />
-      </ActionButton>
+          {/* Quiet rather than gone while there is nothing to delete: a control
+              that comes and goes moves the ones beside it, and these are aimed
+              at rather than read. */}
+          <ActionButton
+            className="right danger"
+            onSelect={onDeletePhrase}
+            label={draft.keeping ? 'Forget this message' : 'Delete phrase'}
+            disabled={draft.isNew}
+          >
+            <TrashIcon />
+          </ActionButton>
+        </>
+      ) : (
+        <>
+          <ActionButton className="right" onSelect={onSpeak} label="Speak" disabled={!text}>
+            <SpeakIcon />
+          </ActionButton>
+
+          <ActionButton className="right" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
+            <CopyIcon />
+          </ActionButton>
+        </>
+      )}
 
       {/* Beside copy, because they are the pair. The keyboard route into this box
           is Ctrl-V, which a dwell user does not have — so a control asks on their

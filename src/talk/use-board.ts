@@ -157,12 +157,20 @@ export function useBoard() {
 
   // ── Changing what is on it ─────────────────────────────────────────────────
 
+  /**
+   * Adds a phrase and hands back its id, which is the only way the caller can
+   * give a brand-new phrase a voice of its own: the id is made here, and until
+   * the phrase exists there is nothing to hang one on.
+   */
   const addPhrase = useCallback(
-    (text: string, category: string, isEmergency: boolean) =>
+    (text: string, category: string, isEmergency: boolean) => {
+      const id = newPhraseId()
       updateStore({
-        custom: [...store.custom, { id: newPhraseId(), text, category: isEmergency ? 'Emergency' : category }],
+        custom: [...store.custom, { id, text, category: isEmergency ? 'Emergency' : category }],
         categories: isEmergency ? store.categories : [...new Set([...store.categories, category])],
-      }),
+      })
+      return id
+    },
     [store, updateStore],
   )
 
