@@ -1711,6 +1711,16 @@ body {
   to { background-size: 100% 3px; }
 }
 
+/* Room for the lower half of the strip — half its height, and the same number
+   the strip is positioned by. Only in edit mode, so it is a cost editing pays
+   and talking does not: the bar is 8px taller there and unchanged everywhere
+   else. */
+.app.edit-mode {
+  --edit-bar-inset: 18px;
+}
+
+.app.edit-mode .topbar { padding-bottom: var(--edit-bar-inset); }
+
 /* The other strip, on the lower border of the message box, and centred on it
    exactly as `.topbar-modes` is on the upper one. The words are in the box; this
    is everything else a phrase has, which is two things — where it is filed and
@@ -1721,12 +1731,22 @@ body {
    what it saves is the grid. Opaque black for the same reason too — it sits *on*
    the box, and the border and the typed text showed through the gaps.
 
-   **`bottom` has to match `.topbar` padding-bottom**, which is what puts the
-   strip on the border, and `.app.edit-mode .topbar` has to add half the strip's
-   height to that padding or the lower half hangs over the category tabs. */
+   **The inset is one number used twice**, and it has to stay that way. It is
+   `.topbar` padding-bottom in edit mode, which is where the box's lower border
+   falls; it is this strip's `bottom`, which with `translateY(50%)` is where the
+   strip's own centre line falls. Equal is what puts the strip *on* the border.
+   Written as two numbers they drifted apart immediately — the padding grew to
+   make room and the strip stayed where it was, leaving it centred 20px below
+   the border it was meant to be riding.
+
+   The number is **half the strip's height**, which is why the height is stated
+   here rather than left to the content: half is what puts the strip's lower
+   edge exactly on the bottom of the bar, so it reaches the border without
+   hanging over the category tabs. */
 .edit-bar {
   position: absolute;
-  bottom: 10px;
+  bottom: var(--edit-bar-inset);
+  height: 36px;
   left: 50%;
   transform: translate(-50%, 50%);
   /* Above the app, below the panel and the dialogs — the same layer the modes
@@ -1748,10 +1768,6 @@ body {
 }
 
 .edit-bar::-webkit-scrollbar { display: none; }
-
-/* Room for the lower half of the strip. Only in edit mode, so the height is a
-   cost editing pays and talking does not. */
-.app.edit-mode .topbar { padding-bottom: 30px; }
 
 /* Tighter than the same control in a settings row: this one is riding a border
    rather than sitting in a panel, and every pixel of it is a pixel of grid. */
