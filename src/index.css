@@ -1690,11 +1690,20 @@ body {
 }
 
 /* The box is the phrase editor in edit mode, so it keeps the text cursor it has
-   everywhere else — the dashed outline is the same cue the phrase cells carry,
-   saying which surfaces edit mode has changed the meaning of. */
+   everywhere else and says which mode it is in with its own border. Dashed is
+   the same cue the phrase cells carry — which surfaces edit mode has changed the
+   meaning of — but on the box it has to be the border rather than an outline
+   over it: the box already has one, and an outline sits just outside it, so the
+   two read as a double line drawn around a single box. */
 .app.edit-mode .text-display {
-  outline: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
+
+/* Focus still brightens it, and has to be said again here to outrank the rule
+   above. The style says which mode the board is in, the colour says where the
+   typing will go. */
+.app.edit-mode .text-display:focus { border-color: var(--accent); }
 
 /* The dwell progress everywhere else is a child element; a textarea cannot hold
    one, so it is painted as a background layer instead. Same bar, no wrapper —
