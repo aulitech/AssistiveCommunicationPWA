@@ -44,6 +44,20 @@ const slotCell = () =>
     const s = c.querySelector('.phrase-slot')
     return s && !s.classList.contains('is-blank')
   })!
+// In edit mode the message box *is* the phrase editor — there is no dialog any
+// more — and the rail beside it carries what were the dialog's buttons.
+const box = () => $<HTMLTextAreaElement>('.text-display')!
+const iconBtn = (label: string) => $$<HTMLButtonElement>('.icon-btn').find(b => b.getAttribute('aria-label') === label)
+const writeIn = (el: Element, value: string) => {
+  fireEvent.change(el, { target: { value } })
+  settle()
+}
+const writePhrase = (value: string) => writeIn(box(), value)
+const savePhrase = () => click(iconBtn('Save phrase'))
+const deletePhrase = () => click(iconBtn('Delete phrase'))
+/** What the strip under the box says is being edited. */
+const editTitle = () => $('.edit-bar-title')?.textContent
+
 const clearMessage = () => {
   const clear = $$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Clear')
   if (clear) click(clear)
@@ -402,7 +416,7 @@ describe('emergency bar', () => {
 // exactly that — flattening the slot, with no way back and nothing said about it.
 describe('editing a phrase that has choices behind it', () => {
   const enterEditMode = () => click(editToggle())
-  const save = () => click($$('.edit-action-btn').find(b => b.textContent?.includes('Save')))
+  const save = () => savePhrase()
 
   it('opens on what the phrase was written as, brackets and all', () => {
     renderApp()
@@ -411,7 +425,7 @@ describe('editing a phrase that has choices behind it', () => {
     const shown = cell.textContent!
     click(cell)
 
-    const source = $<HTMLTextAreaElement>('.edit-modal-text')!.value
+    const source = box().value
     expect(source).toMatch(/\{.*\}/)
     expect(source).not.toBe(shown)
   })
@@ -449,7 +463,10 @@ describe('editing a phrase that has choices behind it', () => {
 // already use; saying *where* to type is the part no keyboard supplies.
 describe('placing the caret in a phrase by dwell', () => {
   const enterEditMode = () => click(editToggle())
-  const field = () => $<HTMLTextAreaElement>('.edit-modal-text')!
+  // The same box the message is composed in. It was a second textarea in a
+  // dialog until the editor moved onto the main screen; the dwell is what has
+  // to keep working in both of the box's jobs.
+  const field = () => box()
   /** jsdom implements neither caret API, so the browser's answer is stubbed. */
   const answers = (offset: number) =>
     Object.assign(document, { caretPositionFromPoint: () => ({ offsetNode: field(), offset }) })
@@ -485,6 +502,7 @@ describe('placing the caret in a phrase by dwell', () => {
     delete (document as unknown as Record<string, unknown>).caretPositionFromPoint
   })
 
+  /** Edit mode, with a phrase of the board loaded into the box. */
   const openEditor = () => {
     renderApp()
     enterEditMode()
@@ -551,7 +569,7 @@ describe('placing the caret in a phrase by dwell', () => {
     aimAt(200, 100)
 
     expect(document.activeElement).toBe(field())
-    expect($('.edit-modal')).not.toBeNull()
+    expect(editTitle()).toBe('Editing phrase')
   })
 
   // The hook's own key handling cancels Space so it cannot scroll the grid.
@@ -575,9 +593,8 @@ describe('edit mode', () => {
 
     const before = cells()[0].textContent
     click(cells()[0])
-    fireEvent.change($('.edit-modal-text')!, { target: { value: 'EDITED PHRASE' } })
-    settle()
-    click($$('.edit-action-btn').find(b => b.textContent?.includes('Save')))
+    writePhrase('EDITED PHRASE')
+    savePhrase()
 
     expect(cells()[0].textContent).toBe('EDITED PHRASE')
     expect(cells()[0].textContent).not.toBe(before)
@@ -590,11 +607,10 @@ describe('edit mode', () => {
 
     const before = $$('.emergency-btn').length
     click($('.emergency-add'))
-    expect($('.edit-modal-title')?.textContent).toMatch(/emergency/i)
+    expect(editTitle()).toMatch(/emergency/i)
 
-    fireEvent.change($('.edit-modal-text')!, { target: { value: 'I need my inhaler' } })
-    settle()
-    click($$('.edit-action-btn').find(b => b.textContent?.includes('Save')))
+    writePhrase('I need my inhaler')
+    savePhrase()
 
     const labels = $$('.emergency-btn .emergency-label').map(e => e.textContent)
     expect($$('.emergency-btn')).toHaveLength(before + 1)
@@ -607,92 +623,127 @@ describe('edit mode', () => {
 
     const doomed = cells()[0].textContent
     click(cells()[0])
-    click($$('.edit-action-btn').find(b => b.textContent?.includes('Delete')))
+    deletePhrase()
 
     expect(cells()[0].textContent).not.toBe(doomed)
   })
 
-  it('toggles independently of auto-speak', () => {
+  // The two ask opposite things of the same dwell — one makes a phrase a thing
+  // to say this instant, the other a thing to rewrite — so a board cannot be in
+  // both at once.
+  it('switches auto-speak off when it starts', () => {
     renderApp()
+    click(speakToggle())
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
+
     click(editToggle())
     expect($('.app')?.classList.contains('edit-mode')).toBe(true)
     expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
   })
+
+  it('is switched off by auto-speak in turn', () => {
+    renderApp()
+    click(editToggle())
+    expect(editToggle().getAttribute('aria-pressed')).toBe('true')
+
+    click(speakToggle())
+    expect(editToggle().getAttribute('aria-pressed')).toBe('false')
+    expect($('.app')?.classList.contains('edit-mode')).toBe(false)
+  })
+
+  // Typing narrows the grid to the word being written, which is how a gaze user
+  // finishes a word. In edit mode the box holds a phrase instead, and narrowing
+  // the board to a word of that would take away the very phrases they came to
+  // edit.
+  it('does not narrow the board to the phrase being written', () => {
+    renderApp()
+    const all = cells().length
+    writeIn(box(), 'help')
+    expect(cells().length, 'composing did not narrow the grid at all').toBeLessThan(all)
+
+    clearMessage()
+    click(editToggle())
+    writePhrase('help')
+
+    expect(cells().length).toBe(all)
+  })
+
+  // Saving leaves the editor on a blank phrase rather than closing anything —
+  // there is nothing to close — so the toast is the only thing that says it
+  // happened at all.
+  it('says a phrase was saved, and empties the box for the next one', () => {
+    renderApp()
+    click(editToggle())
+    writePhrase('Something worth keeping')
+    savePhrase()
+
+    expect($('.toast')?.textContent).toMatch(/added to/i)
+    expect(box().value).toBe('')
+    expect(editTitle()).toBe('New phrase')
+  })
 })
 
-describe('adding a phrase from the message box', () => {
-  const composer = () => $<HTMLTextAreaElement>('.text-display')!
-  const modalText = () => $<HTMLTextAreaElement>('.edit-modal-text')?.value
+// Adding a phrase *is* entering edit mode now: the box carries whatever was
+// composed in it straight into the phrase being written, so a message worth
+// keeping becomes a phrase without being typed a second time. There was a dialog
+// held open by a dwell on the box, and it is gone along with the rest of them.
+describe('keeping a composed message as a phrase', () => {
   const enterEditMode = () => click(editToggle())
-  const dwell = (el: Element) => {
-    fireEvent.pointerEnter(el)
-    act(() => void vi.advanceTimersByTime(800))
-    settle()
-  }
-  const compose = (value: string) => {
-    fireEvent.change(composer(), { target: { value } })
-    settle()
-  }
+  const compose = (value: string) => writeIn(box(), value)
 
-  // Regression guard: the message box is the only way to add an ordinary
-  // phrase, and it used to answer to a click alone — the one input a
-  // dwell-only user cannot produce.
-  it('opens the editor on hover and hold', () => {
-    renderApp()
-    enterEditMode()
-    dwell(composer())
-    expect($('.edit-modal-title')?.textContent).toBe('Add phrase')
-  })
-
-  it('opens the editor from the keyboard, for switch access', () => {
-    renderApp()
-    enterEditMode()
-    fireEvent.keyDown(composer(), { key: 'Enter' })
-    settle()
-    expect($('.edit-modal-title')?.textContent).toBe('Add phrase')
-  })
-
-  it('carries the composed message into the editor', () => {
+  it('carries the composed message into the phrase being written', () => {
     renderApp()
     compose('  Please pass me the water  ')
     enterEditMode()
-    dwell(composer())
-    expect(modalText()).toBe('Please pass me the water')
+
+    expect(box().value).toBe('Please pass me the water')
+    expect(editTitle()).toBe('New phrase')
   })
 
   it('saves the carried message as a real phrase', () => {
     renderApp()
     compose('Please pass me the water')
     enterEditMode()
-    dwell(composer())
-    click($$('.edit-action-btn').find(b => b.textContent?.includes('Save')))
-    clearMessage()
+    savePhrase()
     click(editToggle()) // leave edit mode
+    clearMessage()
 
     expect(cells().map(c => c.textContent)).toContain('Please pass me the water')
   })
 
-  it('opens an empty editor when nothing is composed', () => {
+  it('starts empty when nothing is composed, with nothing to save', () => {
     renderApp()
     enterEditMode()
-    dwell(composer())
-    expect(modalText()).toBe('')
+
+    expect(box().value).toBe('')
+    expect(iconBtn('Save phrase')?.disabled).toBe(true)
   })
 
-  // Outside edit mode the box is for typing, so a hold must not open the editor
-  // while the user is mid-message.
-  it('does not open the editor outside edit mode', () => {
+  // Two different things share the one box, and only one of them is on screen
+  // at a time. Writing a phrase must not rewrite the sentence somebody was part
+  // way through saying.
+  it('gives the message back when edit mode ends', () => {
     renderApp()
-    dwell(composer())
-    expect($('.edit-modal')).toBeNull()
+    compose('Please pass me the water')
+    enterEditMode()
+    writePhrase('Something else entirely')
+    click(editToggle())
+
+    expect(box().value).toBe('Please pass me the water')
   })
 
-  // Wiring the dwell key handler unconditionally would swallow Space, which the
-  // hook cancels to stop the grid scrolling — in the one place people type.
+  // The dwell primitive cancels Space so it cannot scroll the grid. Spread onto
+  // a box people type in, the first space typed would vanish — in either mode,
+  // since the box is typed in in both of them now.
   it('does not swallow Space while composing', () => {
     renderApp()
-    expect(fireEvent.keyDown(composer(), { key: ' ' })).toBe(true)
-    expect($('.edit-modal')).toBeNull()
+    expect(fireEvent.keyDown(box(), { key: ' ' })).toBe(true)
+  })
+
+  it('does not swallow Space while writing a phrase', () => {
+    renderApp()
+    enterEditMode()
+    expect(fireEvent.keyDown(box(), { key: ' ' })).toBe(true)
   })
 })
 
@@ -1789,7 +1840,6 @@ describe('sent messages', () => {
 
   describe('in edit mode', () => {
     const enterEditMode = () => click(editToggle())
-    const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
     const sendOne = () => {
       click(plainCell())
       const said = message()
@@ -1808,11 +1858,11 @@ describe('sent messages', () => {
       enterEditMode()
       click(cells()[0])
 
-      expect($('.edit-modal-title')?.textContent).toMatch(/keep this message/i)
-      expect(action('Keep')).toBeDefined()
-      expect(action('Forget')).toBeDefined()
+      expect(editTitle()).toMatch(/keep this message/i)
+      expect(iconBtn('Keep this message as a phrase')).toBeDefined()
+      expect(iconBtn('Forget this message')).toBeDefined()
       // It must not offer to file it under "Sent", which is not a real category.
-      expect($<HTMLSelectElement>('.edit-modal-select')?.value).not.toBe('Sent')
+      expect($('.category-trigger')?.textContent).not.toMatch(/Sent/)
       expect(said).not.toBe('')
     })
 
@@ -1822,7 +1872,7 @@ describe('sent messages', () => {
       click(tabNamed('Sent'))
       enterEditMode()
       click(cells()[0])
-      click(action('Keep'))
+      click(iconBtn('Keep this message as a phrase'))
 
       const custom = JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!).custom
       expect(custom.map((c: { text: string }) => c.text)).toEqual([said])
@@ -1837,7 +1887,7 @@ describe('sent messages', () => {
       click(tabNamed('Sent'))
       enterEditMode()
       click(cells()[0])
-      click(action('Forget'))
+      click(iconBtn('Forget this message'))
 
       expect(stored()).toEqual([])
       expect(cells()).toHaveLength(0)
@@ -2006,9 +2056,7 @@ describe('rendering only part of a long grid', () => {
 
 describe('starting from the last choice made', () => {
   const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
-  const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
   const enterEditMode = () => click(editToggle())
-  const categorySelect = () => $<HTMLSelectElement>('#edit-category')
   const voiceTrigger = () => $('.voice-trigger')
   const flush = async () => {
     await act(async () => {
@@ -2016,26 +2064,34 @@ describe('starting from the last choice made', () => {
     })
     settle()
   }
-  const openAdd = () => click($('.text-display'))
-  /** A category that is not the one the editor opens on. */
+  // The category is chosen from a full-screen grid now, portalled to the body,
+  // so it is reached through the document rather than through the container.
+  const categoryTrigger = () => $('.category-trigger')!
+  const shownCategory = () => categoryTrigger().querySelector('.picker-trigger-label')!.textContent
+  const tileNames = () => inDoc('.picker-tile .picker-tile-name').map(t => t.textContent!)
+  const pickerBtn = (label: string) =>
+    inDoc('.picker-modal-actions .panel-btn').find(b => b.getAttribute('aria-label') === label)
+  /** What the grid offers, leaving the choice as it found it. */
+  const categoryChoices = () => {
+    click(categoryTrigger())
+    const names = tileNames().filter(n => n !== 'New category…')
+    click(pickerBtn('Cancel'))
+    return names
+  }
+  const chooseCategory = (name: string) => {
+    click(categoryTrigger())
+    click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === name))
+    click(pickerBtn('Done'))
+  }
+  /** A category that is not the one the editor starts on. */
   const someOtherCategory = () => {
-    openAdd()
-    const opening = categorySelect()!.value
-    const other = [...categorySelect()!.options]
-      .map(o => o.value)
-      .find(v => v !== opening && v.trim() !== '')!
-    click(action('Cancel'))
-    return other
+    const opening = shownCategory()
+    return categoryChoices().find(name => name !== opening)!
   }
   const addPhrase = (text: string, category?: string) => {
-    openAdd()
-    fireEvent.change($('.edit-modal-text')!, { target: { value: text } })
-    settle()
-    if (category) {
-      fireEvent.change(categorySelect()!, { target: { value: category } })
-      settle()
-    }
-    click(action('Save'))
+    writePhrase(text)
+    if (category) chooseCategory(category)
+    savePhrase()
   }
 
   // Filing phrases is done in runs. Starting each one from the alphabetically
@@ -2046,9 +2102,8 @@ describe('starting from the last choice made', () => {
 
     const elsewhere = someOtherCategory()
     addPhrase('One for over there', elsewhere)
-    openAdd()
 
-    expect(categorySelect()!.value).toBe(elsewhere)
+    expect(shownCategory()).toBe(elsewhere)
   })
 
   it('remembers it across a reload', () => {
@@ -2060,9 +2115,8 @@ describe('starting from the last choice made', () => {
     cleanup()
     renderApp()
     enterEditMode()
-    openAdd()
 
-    expect(categorySelect()!.value).toBe(elsewhere)
+    expect(shownCategory()).toBe(elsewhere)
   })
 
   // Opening a phrase to fix a typo must not quietly refile it or change how it
@@ -2073,28 +2127,22 @@ describe('starting from the last choice made', () => {
     const elsewhere = someOtherCategory()
     addPhrase('One for over there', elsewhere)
 
-    const other = cells().find(c => c.textContent !== 'One for over there')!
-    const ownCategory = () => {
-      click(other)
-      const value = categorySelect()!.value
-      click(action('Cancel'))
-      return value
-    }
-    expect(ownCategory()).not.toBe(elsewhere)
+    click(cells().find(c => c.textContent !== 'One for over there')!)
+    expect(shownCategory()).not.toBe(elsewhere)
   })
 
   // A category can be renamed or emptied away between one phrase and the next,
-  // and a select whose value is not among its options shows nothing at all.
+  // and a phrase filed under one the grid does not offer is a phrase nobody can
+  // find their way back to.
   it('ignores a remembered category that no longer exists', () => {
     localStorage.setItem('peri_recent', JSON.stringify({ category: 'Somewhere Deleted' }))
     renderApp()
     enterEditMode()
-    openAdd()
 
-    const options = [...categorySelect()!.options].map(o => o.value)
-    expect(options).not.toContain('Somewhere Deleted')
-    expect(categorySelect()!.value, 'the editor opened on nothing').not.toBe('')
-    expect(options).toContain(categorySelect()!.value)
+    const choices = categoryChoices()
+    expect(choices).not.toContain('Somewhere Deleted')
+    expect(shownCategory(), 'the editor started on nothing').not.toBe('')
+    expect(choices).toContain(shownCategory())
   })
 
   it('starts a new phrase from the last voice, and an existing one from its own', async () => {
@@ -2107,19 +2155,15 @@ describe('starting from the last choice made', () => {
     enterEditMode()
 
     // Give one phrase a voice.
-    click($('.text-display'))
-    fireEvent.change($('.edit-modal-text')!, { target: { value: 'In her voice' } })
-    settle()
+    writePhrase('In her voice')
     click(voiceTrigger())
     click(inDoc('.picker-tile').find(el => (el.getAttribute('aria-label') ?? '').startsWith('Rachel')))
     click(inDoc('.panel-btn').find(b => b.getAttribute('aria-label') === 'Done'))
-    click(action('Save'))
+    savePhrase()
     await flush()
 
     // The next new one starts there.
-    click($('.text-display'))
     expect(voiceTrigger()?.textContent).toContain('Rachel')
-    click(action('Cancel'))
 
     // A phrase that has none of its own still shows none.
     click(cells().find(c => c.textContent !== 'In her voice')!)
@@ -2147,7 +2191,6 @@ describe('starting from the last choice made', () => {
 describe('giving a phrase its own voice', () => {
   const LINKED = { apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel', collection: 'premade' }] }
   const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
-  const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
   const voiceTrigger = () => $('.voice-trigger')
   /**
    * The same grid Settings uses. Choosing previews the voice, so what it spoke
@@ -2175,7 +2218,7 @@ describe('giving a phrase its own voice', () => {
     settle()
   }
 
-  it('offers a voice on the phrase editor, defaulting to none', () => {
+  it('offers a voice on the phrase being edited, defaulting to none', () => {
     linkAccount()
     renderApp()
     enterEditMode()
@@ -2187,9 +2230,9 @@ describe('giving a phrase its own voice', () => {
     expect(inDoc('.picker-tile').map(el => el.getAttribute('aria-label'))).toContain('Rachel · ElevenLabs')
   })
 
-  // Reopening has to show what the phrase already carries, or there is no way
-  // to tell what it is set to without changing it.
-  it('shows the phrase its own voice when the editor is reopened', async () => {
+  // Coming back to a phrase has to show what it already carries, or there is no
+  // way to tell what it is set to without changing it.
+  it('shows the phrase its own voice when it is chosen again', async () => {
     linkAccount()
     audioReplies()
     renderApp()
@@ -2197,11 +2240,30 @@ describe('giving a phrase its own voice', () => {
     const cell = plainCell()
     click(cell)
     await chooseVoice('Rachel')
-    click(action('Save'))
+    savePhrase()
     await flush()
 
     click(cell)
     expect(voiceTrigger()?.textContent).toContain('Rachel')
+  })
+
+  // A phrase written from nothing has no id until it is saved, so the voice has
+  // to be hung on it afterwards. It was simply dropped before: the phrase came
+  // out in the app's voice however carefully another had been chosen for it.
+  it('gives a brand-new phrase the voice chosen for it', async () => {
+    linkAccount()
+    audioReplies()
+    renderApp()
+    enterEditMode()
+    writePhrase('In her voice')
+    await chooseVoice('Rachel')
+    savePhrase()
+    await flush()
+
+    const store = JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!)
+    const added = store.custom.find((c: { text: string }) => c.text === 'In her voice')
+    expect(added, 'the phrase was not added at all').toBeDefined()
+    expect(stored()[added.id]).toBe('elevenlabs:v1')
   })
 
   it('remembers the voice against that phrase alone', async () => {
@@ -2214,7 +2276,7 @@ describe('giving a phrase its own voice', () => {
     click(cell)
 
     await chooseVoice('Rachel')
-    click(action('Save'))
+    savePhrase()
     await flush()
 
     const overrides = stored()
@@ -2233,7 +2295,7 @@ describe('giving a phrase its own voice', () => {
     click(plainCell())
 
     await chooseVoice('Rachel')
-    click(action('Save'))
+    savePhrase()
     await flush()
 
     expect(fetcher).toHaveBeenCalledTimes(1)
@@ -2243,16 +2305,19 @@ describe('giving a phrase its own voice', () => {
   it('speaks the phrase in its own voice rather than the chosen one', async () => {
     linkAccount()
     audioReplies()
-    renderApp({ autoSpeak: true })
+    renderApp()
 
     enterEditMode()
     const cell = plainCell()
     click(cell)
     await chooseVoice('Rachel')
-    click(action('Save'))
+    savePhrase()
     await flush()
 
-    click(editToggle()) // leave edit mode
+    // Auto-speak switches edit mode off by itself: the two are exclusive, and
+    // the board cannot be a thing being spoken from and a thing being rewritten
+    // at the same time.
+    click(speakToggle())
     click(plainCell())
     await flush()
 
@@ -2272,7 +2337,7 @@ describe('giving a phrase its own voice', () => {
     enterEditMode()
     click($('.emergency-btn'))
     await chooseVoice('Rachel')
-    click(action('Save'))
+    savePhrase()
     await flush()
     click(editToggle()) // leave edit mode
 
@@ -2312,9 +2377,8 @@ describe('giving a phrase its own voice', () => {
     enterEditMode()
     click(button('Stop now'))
     await chooseVoice('Rachel')
-    fireEvent.change($('.edit-modal-text')!, { target: { value: '**Stop** right now' } })
-    settle()
-    click(action('Save'))
+    writePhrase('**Stop** right now')
+    savePhrase()
     await flush()
     click(editToggle()) // leave edit mode
 
@@ -2342,7 +2406,7 @@ describe('giving a phrase its own voice', () => {
     enterEditMode()
     click(slotCell())
     await chooseVoice('Rachel')
-    click(action('Save'))
+    savePhrase()
     await flush()
 
     // The text field of each request, not the whole body — the JSON wrapper has
@@ -2382,7 +2446,7 @@ describe('giving a phrase its own voice', () => {
     enterEditMode()
     click(plainCell())
     await chooseVoice('Rachel')
-    click(action('Save'))
+    savePhrase()
     await flush()
 
     click(editToggle())
@@ -3304,17 +3368,18 @@ describe('pasting by dwell', () => {
     expect(toast()).toMatch(/nothing on the clipboard/i)
   })
 
-  it('offers the same in the phrase editor', async () => {
+  // The same control, in the same place, doing the same thing to whichever of
+  // the two the box is holding — there is one box now, and one paste.
+  it('offers the same while a phrase is being written', async () => {
     renderApp()
     click($('.edit-toggle'))
     click(plainCell())
-    const field = $<HTMLTextAreaElement>('.edit-modal-text')!
-    fireEvent.change(field, { target: { value: 'I want' } })
+    fireEvent.change(box(), { target: { value: 'I want' } })
 
     setClipboardText('a drink')
-    click($$('.edit-modal-tools .edit-action-btn').find(b => b.textContent?.includes('Paste')))
+    click(iconBtn('Paste from clipboard'))
     await settleAsync()
 
-    expect($<HTMLTextAreaElement>('.edit-modal-text')!.value).toBe('I want a drink')
+    expect(box().value).toBe('I want a drink')
   })
 })

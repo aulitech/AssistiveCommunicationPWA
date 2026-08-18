@@ -58,7 +58,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'When the message is ready, rest on the speaker button to say it aloud, or the copy button to send it somewhere else.',
       ),
       text(
-        'The paste button beside copy brings in whatever was last copied, at the point the caret is sitting. The phrase editor has one too.',
+        'The paste button beside copy brings in whatever was last copied, at the point the caret is sitting — into the message, or into a phrase being written.',
       ),
       text(
         'If it says it was blocked, allow clipboard access for Peri in your browser settings. Firefox does not offer the clipboard to a web page at all — there, use Ctrl+V if you have a keyboard.',
@@ -154,10 +154,12 @@ export const HELP_SECTIONS: ProseSection[] = [
   {
     title: 'Changing the phrases',
     blocks: [
-      text('The pencil button to the left of the Rest bar, along the top edge of the message box, turns on edit mode.'),
+      text('The pencil button to the left of the Rest bar, along the top edge of the message box, turns on edit mode. Auto-speak switches off while it is on: the two ask opposite things of a dwell on a phrase.'),
+      text('In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again, and a strip under it shows the category and the voice.'),
       list(
-        'Choose any phrase to change its wording.',
-        'Choose the message box to add a new phrase of your own. It starts in the category and voice you last used, so adding several in a row takes one choice rather than one each.',
+        'Choose any phrase to bring it into the box and change its wording.',
+        'The tick saves what is in the box; the bin deletes the phrase it came from; the + starts a new one.',
+        'A new phrase starts in the category and voice you last used, so adding several in a row takes one choice rather than one each.',
         'Use the + at the end of the red bar to add an emergency phrase.',
         'The arrows beside it rearrange the red bar: choose a phrase to pick it up, then choose where it should go. Choosing it again puts it back.',
         'Paste or drag a web link into the message box or a phrase and it becomes the name of the page. The address is still there when you copy the message, but it is not read aloud.',
@@ -219,7 +221,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The last two hundred are kept; older ones drop off the end.',
       ),
       text(
-        'In edit mode, resting on one offers to keep it as a phrase of your own, or to forget it. Forgetting is worth knowing about if you have just said something private.',
+        'In edit mode, resting on one brings it into the box to keep as a phrase of your own, or offers the bin to forget it. Forgetting is worth knowing about if you have just said something private.',
       ),
       text('This list stays on your device and is never put in a backup file.'),
     ],
@@ -252,7 +254,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'A different voice for one phrase',
     blocks: [
       text(
-        'In edit mode, the phrase editor has a Voice setting. It opens the same full screen of voices as Settings does, and each one you try says the phrase itself rather than a sample — so you hear how that sentence sounds in it.',
+        'In edit mode, the strip under the message box has a Voice setting. It opens the same full screen of voices as Settings does, and each one you try says the phrase itself rather than a sample — so you hear how that sentence sounds in it.',
       ),
       text(
         'Leave it as "Same as everything else" for almost everything. Set it where a phrase wants a voice of its own: someone you are quoting, a name said the way its owner says it, something that has to cut through a noisy room.',

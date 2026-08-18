@@ -53,7 +53,15 @@ const mouseDrag = (from: string, to: string) => {
   fireEvent.drop(named(to)!)
   settle()
 }
-const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
+// In edit mode the message box holds the phrase being edited, and the rail
+// beside it carries what were the dialog's buttons.
+const box = () => $<HTMLTextAreaElement>('.text-display')!
+const iconBtn = (label: string) => $$('.icon-btn').find(b => b.getAttribute('aria-label') === label)
+const writePhrase = (value: string) => {
+  fireEvent.change(box(), { target: { value } })
+  settle()
+}
+const editTitle = () => $('.edit-bar-title')?.textContent
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
@@ -149,9 +157,8 @@ describe('moving an emergency phrase', () => {
 
     click(reorderBtn()) // back to editing
     click(named(before[0]!))
-    fireEvent.change($('.edit-modal-text')!, { target: { value: 'Reworded' } })
-    settle()
-    click(action('Save'))
+    writePhrase('Reworded')
+    click(iconBtn('Save phrase'))
 
     expect(labels().indexOf('Reworded')).toBe(at)
   })
@@ -165,9 +172,8 @@ describe('moving an emergency phrase', () => {
 
     click(reorderBtn()) // leave reorder mode to reach the add button
     click(addBtn())
-    fireEvent.change($('.edit-modal-text')!, { target: { value: 'I need my inhaler' } })
-    settle()
-    click(action('Save'))
+    writePhrase('I need my inhaler')
+    click(iconBtn('Save phrase'))
 
     expect(labels()).toEqual([...before, 'I need my inhaler'])
   })
@@ -183,7 +189,7 @@ describe('moving an emergency phrase', () => {
 
     click(reorderBtn())
     click(named(doomed))
-    click(action('Delete'))
+    click(iconBtn('Delete phrase'))
 
     expect(storedStore().emergencyOrder).toHaveLength(ids.length - 1)
     expect(labels()).not.toContain(doomed)
@@ -191,23 +197,24 @@ describe('moving an emergency phrase', () => {
 })
 
 describe('what a dwell does while reordering', () => {
-  it('moves rather than opens the editor', () => {
+  it('moves rather than loads the phrase into the editor', () => {
     renderApp()
     startReordering()
     click(buttons()[0])
-    expect($('.edit-modal')).toBeNull()
+    expect(box().value).toBe('')
   })
 
-  it('opens the editor again once reordering is switched off', () => {
+  it('loads it again once reordering is switched off', () => {
     renderApp()
     startReordering()
     click(reorderBtn())
     const first = labels()[0]
     click(buttons()[0])
     // An emergency phrase is edited without a category to file it under, which
-    // is what tells this editor apart from the grid's.
-    expect($<HTMLTextAreaElement>('.edit-modal-text')?.value).toBe(first)
-    expect($('.edit-modal-select')).toBeNull()
+    // is what tells it apart from a phrase off the grid.
+    expect(box().value).toBe(first)
+    expect(editTitle()).toBe('Editing emergency phrase')
+    expect($('.category-trigger')).toBeNull()
   })
 
   // Adding a phrase mid-reorder would drop whatever is in the air, so the add
@@ -223,7 +230,8 @@ describe('what a dwell does while reordering', () => {
     expect($$('.emergency-tool')).toHaveLength(before)
     expect(addBtn()?.getAttribute('aria-disabled')).toBe('true')
     click(addBtn())
-    expect($('.edit-modal')).toBeNull()
+    // Still an ordinary new phrase: the add did not fire.
+    expect(editTitle()).toBe('New phrase')
   })
 })
 
@@ -331,6 +339,6 @@ describe('the two reorder modes', () => {
 
     const first = labels()[0]
     click(buttons()[0])
-    expect($<HTMLTextAreaElement>('.edit-modal-text')?.value).toBe(first)
+    expect(box().value).toBe(first)
   })
 })

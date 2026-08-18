@@ -440,6 +440,7 @@ body {
 /* Everything else, while resting. Dimmed because none of it will answer — but
    still legible, since reading the screen is most of why someone rests. */
 .app.resting .topbar,
+.app.resting .edit-bar,
 .app.resting .filter-bar-wrap,
 .app.resting .grid-wrapper,
 .app.resting .grid-scrollbar,
@@ -1385,8 +1386,11 @@ body {
 .eleven-error { color: #f87171; }
 .eleven-note { color: var(--text-muted); }
 
-/* The trigger stays in the settings row; the choosing happens full screen. */
-.voice-trigger {
+/* One shape for every control that opens a full-screen grid — a voice, a
+   category, a set of categories to export. The trigger stays in the row it
+   belongs to; the choosing happens full screen. Each keeps a name of its own
+   alongside this one, so a rule — or a test — can still say which it means. */
+.picker-trigger {
   position: relative;
   display: flex;
   align-items: center;
@@ -1403,10 +1407,10 @@ body {
   overflow: hidden;
 }
 
-.voice-trigger.dwelling { border-color: var(--accent); }
-.voice-trigger .dwell-bar { background: var(--accent); }
+.picker-trigger.dwelling { border-color: var(--accent); }
+.picker-trigger .dwell-bar { background: var(--accent); }
 
-.voice-trigger-label {
+.picker-trigger-label {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1686,8 +1690,10 @@ body {
   outline: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
+/* The box is the phrase editor in edit mode, so it keeps the text cursor it has
+   everywhere else — the dashed outline is the same cue the phrase cells carry,
+   saying which surfaces edit mode has changed the meaning of. */
 .app.edit-mode .text-display {
-  cursor: pointer;
   outline: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
@@ -1706,7 +1712,70 @@ body {
   to { background-size: 100% 3px; }
 }
 
-/* ── EditModal ── */
+/* The strip under the message box, in edit mode only: what is being edited,
+   where it is filed, and how it sounds. The words are in the box above; this is
+   everything else a phrase has, which is two things.
+
+   It exists only in edit mode, so the height it costs the grid is a cost editing
+   pays and talking does not. */
+.edit-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.edit-bar::-webkit-scrollbar { display: none; }
+
+.edit-bar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* An emergency phrase has no category to choose, and the strip says so rather
+   than dropping the control — a strip that loses one between one phrase and the
+   next moves everything beside it. */
+.edit-bar-fixed {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* The same control as the voice trigger beside it, and deliberately the same
+   shape: two choices on one strip, each opening a full-screen grid, and no
+   reason for anybody to learn two. */
+.category-trigger { width: 150px; }
+
+/* The last tile in the category grid is not a category. */
+.picker-tile.is-new {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+/* Delete sits in the topbar rail in edit mode, and is the one red thing in it:
+   deleting a phrase is the change this app offers no way back from. */
+.icon-btn.danger {
+  color: #ef4444;
+  border-color: color-mix(in srgb, #ef4444 45%, var(--border));
+}
+
+.icon-btn.danger .dwell-ring { background: rgba(239,68,68,0.35); }
+
+/* ── CategoryModal ── */
+/* The one dialog left. The phrase editor was one of these until the message box
+   took the job over — a dialog covered the very phrases being edited, and every
+   one of its controls was a target somewhere the pointer had never been. */
 .edit-modal-scrim {
   position: fixed;
   inset: 0;
@@ -1737,67 +1806,10 @@ body {
   color: var(--text);
 }
 
-.edit-modal-text {
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 15px;
-  resize: vertical;
-  font-family: inherit;
-}
-
-.edit-modal-text:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
-
-/* The phrase text answers to a dwell of its own, which puts the caret under the
-   pointer. A textarea cannot hold a progress bar as a child, so the fill is
-   painted as a background layer — the same treatment, and the same keyframes,
-   as the message box in the topbar. */
-.edit-modal-text.dwelling {
-  background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
-  background-repeat: no-repeat;
-  background-position: left bottom;
-  animation: composerDwellFill var(--dwell-duration, 800ms) linear forwards;
-}
-
-.edit-modal-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.edit-modal-label {
-  font-size: 13px;
-  color: var(--text-muted);
-  width: 72px;
-  flex-shrink: 0;
-}
-
-.edit-modal-select {
-  flex: 1;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 13px;
-}
-
 .edit-modal-actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
-}
-
-/* What acts on the text, directly under the box it acts on — and at the other
-   end of the dialog from Save and Delete, so a pointer travelling to it crosses
-   neither. */
-.edit-modal-tools {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-start;
-  margin-top: -4px;
 }
 
 .edit-action-btn {

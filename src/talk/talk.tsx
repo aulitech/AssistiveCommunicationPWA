@@ -1,7 +1,7 @@
 // The talking screen.
 //
-// State lives in three hooks — the board, the message, and the toast — so what
-// is left here is the screen's own business: which dialog is open, which
+// State lives in four hooks — the board, the message, the phrase being edited,
+// and the toast — so what is left here is the screen's own business: which
 // category is showing, whether the app is in edit mode or resting, and what to
 // say when an operation finishes.
 
@@ -24,20 +24,13 @@ import { PhraseGrid } from './grid'
 import { FilterBar } from './filter-bar'
 import { EmergencyBar } from './emergency'
 import { SlotPicker } from './slots'
-import { CategoryModal, EditModal } from './editors'
+import { CategoryModal, PhraseEditBar } from './editors'
 import { TopPanel } from '../menu/menu'
 import { useBoard } from './use-board'
 import { useComposer } from './use-composer'
+import { useEditor } from './use-editor'
 import { SENT_CATEGORY, SENT_FILTER, useSent } from './use-sent'
 import { useToast } from './use-toast'
-
-/** Which phrase the editor is open on, if any. `phrase: null` means a new one. */
-interface Editing {
-  phrase: Phrase | null
-  isEmergency: boolean
-  /** Seeds a new phrase — the composed message, when adding from the message box. */
-  initialText?: string
-}
 
 export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const { settings, update } = useSettings()
@@ -54,12 +47,21 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const [reordering, setReordering] = useState(false)
   const [reorderingEmergency, setReorderingEmergency] = useState(false)
   const [resting, setResting] = useState(false)
-  const [editing, setEditing] = useState<Editing | null>(null)
-  const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
+  // `forDraft` marks a category being invented from inside the phrase editor,
+  // which files the phrase under it as well as creating it.
+  const [editingCategory, setEditingCategory] = useState<{ name: string | null; forDraft?: boolean } | null>(
+    null,
+  )
   const [filling, setFilling] = useState<Phrase | null>(null)
   const [recent, setRecent] = useState(loadRecent)
 
   const { store, allCategories, voiceFor } = board
+
+  // The phrase being written, which in edit mode is what the message box holds.
+  // There is always one — pointing it at a phrase is what choosing a cell does
+  // in edit mode, and there is nothing to open and nothing to close.
+  const editor = useEditor({ allCategories, recent, voiceFor })
+  const { draft, startNew } = editor
   // Pulled out rather than reached through `composer`, which is a fresh object
   // every render: a callback depending on the whole of it would change identity
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
@@ -94,12 +96,17 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
   // Sent messages are their own list rather than part of the board: they are a
   // record of what was said, not phrases anybody added.
+  // Only what is being *composed* narrows the grid. In edit mode the box holds a
+  // phrase being written, and narrowing the board to a word of it would take
+  // away the phrases the user came to edit.
+  const filterWord = editMode ? '' : currentWord
+
   const visiblePhrases = useMemo(
     () =>
       showingSent
-        ? search(sent.phrases, SENT_CATEGORY, currentWord)
-        : search(board.mainPhrases, effectiveFilter, currentWord),
-    [showingSent, sent.phrases, board.mainPhrases, effectiveFilter, currentWord],
+        ? search(sent.phrases, SENT_CATEGORY, filterWord)
+        : search(board.mainPhrases, effectiveFilter, filterWord),
+    [showingSent, sent.phrases, board.mainPhrases, effectiveFilter, filterWord],
   )
 
   // ── Choosing a phrase ──────────────────────────────────────────────────────
@@ -156,59 +163,61 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
   // ── Editing what is on the board ───────────────────────────────────────────
 
-  const openEdit = useCallback((phrase: Phrase | null, isEmergency = false) => {
-    cancelAllDwells()
-    setEditing({ phrase, isEmergency })
-  }, [])
+  /**
+   * Save what is in the box.
+   *
+   * Nothing closes afterwards, because nothing was opened — the editor goes back
+   * to a blank phrase, ready for the next one. So this is the only place that
+   * can say the save happened, and it says it out loud.
+   */
+  const handleSave = useCallback(() => {
+    if (!draft.canSave) return
+    const { phrase, isEmergency, category, keeping } = draft
+    const text = draft.text.trim()
+    const voice = draft.voice || undefined
 
-  const editingSent = editing?.phrase?.category === SENT_CATEGORY
+    // Warmed against what the phrase reads as, not what it is written as: the
+    // editor holds the source, and nobody wants a clip of somebody reading
+    // "open curly bracket, quote, red, quote" aloud.
+    if (voice) void warmVoice(compose(parseSegments(text)), voice)
+    // Where the next one starts from.
+    setRecent(current => {
+      const next = { category: isEmergency ? current.category : category, voice }
+      saveRecent(next)
+      return next
+    })
 
-  // Adding from the message box carries whatever is composed there into the
-  // editor, so a message worth keeping becomes a phrase without retyping it.
-  // Deliberately not routed through `openEdit`: that one is on the edit context
-  // every phrase cell reads, and making it depend on the message would
-  // re-render the whole grid on each keystroke.
-  const openAddFromComposer = useCallback(() => {
-    cancelAllDwells()
-    setEditing({ phrase: null, isEmergency: false, initialText: message.trim() })
-  }, [message])
-
-  const handleSave = useCallback(
-    (text: string, category: string, voice: string | undefined) => {
-      if (!editing) return
-      const { phrase, isEmergency } = editing
+    // Saving a sent message keeps it: it becomes a phrase of the user's own, in
+    // a category they pick, rather than editing the record of having said it.
+    // The record is left exactly as it was.
+    if (phrase === null || keeping) {
+      // The id comes back so a brand-new phrase can be given the voice chosen
+      // for it — there is no id to hang one on until the phrase exists.
+      const id = board.addPhrase(text, category, isEmergency)
+      if (voice) board.setVoice(id, voice)
+    } else {
       // Fetched and stored the moment it is assigned, so the phrase can be said
       // in that voice without waiting — including on the emergency bar, which
       // never waits.
-      if (phrase) board.setVoice(phrase.id, voice)
-      // Warmed against what the phrase reads as, not what it is written as: the
-      // editor now hands back the source, and nobody wants a clip of somebody
-      // reading "open curly bracket, quote, red, quote" aloud.
-      if (voice) void warmVoice(compose(parseSegments(text)), voice)
-      // Where the next one starts from.
-      setRecent(current => {
-        const next = { category: isEmergency ? current.category : category, voice }
-        saveRecent(next)
-        return next
-      })
-      // Saving a sent message keeps it: it becomes a phrase of the user's own,
-      // in a category they pick, rather than editing the record of having said
-      // it. The record is left exactly as it was.
-      if (phrase === null || phrase.category === SENT_CATEGORY) board.addPhrase(text, category, isEmergency)
-      else board.editPhrase(phrase, text, category, isEmergency)
-      setEditing(null)
-    },
-    [editing, board],
-  )
+      board.setVoice(phrase.id, voice)
+      board.editPhrase(phrase, text, category, isEmergency)
+    }
+    startNew()
+    flashToast(
+      keeping ? 'Kept as a phrase' : phrase === null ? `Added to ${isEmergency ? 'Emergency' : category}` : 'Saved',
+    )
+  }, [draft, board, startNew, flashToast])
 
   const handleDelete = useCallback(() => {
-    if (!editing?.phrase) return
-    // Forgetting a message is the only way to take something off this list, and
+    const { phrase, keeping } = draft
+    if (!phrase) return
+    // Forgetting a message is the only way to take something off that list, and
     // somebody who has just said something private needs one.
-    if (editing.phrase.category === SENT_CATEGORY) sent.forget(editing.phrase.id)
-    else board.removePhrase(editing.phrase.id)
-    setEditing(null)
-  }, [editing, board, sent])
+    if (keeping) sent.forget(phrase.id)
+    else board.removePhrase(phrase.id)
+    startNew()
+    flashToast(keeping ? 'Forgotten' : 'Deleted')
+  }, [draft, board, sent, startNew, flashToast])
 
   // ── Editing the categories ─────────────────────────────────────────────────
 
@@ -217,18 +226,27 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     setEditingCategory({ name })
   }, [])
 
+  /** From inside the editor's category grid, which also files the phrase there. */
+  const openCategoryForDraft = useCallback(() => {
+    cancelAllDwells()
+    setEditingCategory({ name: null, forDraft: true })
+  }, [])
+
   const handleCategorySave = useCallback(
     (name: string) => {
       const current = editingCategory?.name ?? null
       if (current === null) {
         board.addCategory(name)
+        // Invented from the editor: the phrase in the box goes into it, which
+        // is the whole reason it was invented.
+        if (editingCategory?.forDraft) editor.setCategory(name)
       } else {
         board.renameCategoryTo(current, name)
         setActiveFilter(f => (f === current ? name : f))
       }
       setEditingCategory(null)
     },
-    [editingCategory, board],
+    [editingCategory, board, editor],
   )
 
   const handleCategoryDelete = useCallback(() => {
@@ -248,21 +266,39 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
   // ── Modes ──────────────────────────────────────────────────────────────────
 
+  /**
+   * Edit mode and auto-speak are exclusive of one another, so switching either
+   * on switches the other off. They ask opposite things of the same dwell: one
+   * makes a phrase a thing to say this instant, the other makes it a thing to
+   * rewrite, and a board cannot be both at once.
+   *
+   * Entering carries whatever is in the message box in as a new phrase, so a
+   * message worth keeping becomes a phrase without being typed again.
+   */
   const toggleEditMode = useCallback(() => {
-    setEditMode(m => !m)
+    const next = !editMode
+    setEditMode(next)
+    if (next) update({ autoSpeak: false })
+    startNew(next ? message.trim() : '')
     // Reordering is a mode within edit mode; leaving the outer one should not
     // leave either of them armed for next time.
     setReordering(false)
     setReorderingEmergency(false)
-  }, [])
+  }, [editMode, message, startNew, update])
 
   const toggleAutoSpeak = useCallback(() => {
     const next = !settings.autoSpeak
     update({ autoSpeak: next })
+    if (next) {
+      setEditMode(false)
+      setReordering(false)
+      setReorderingEmergency(false)
+      startNew()
+    }
     // The button's lit state is the only other cue, and it sits in a narrow
     // rail — say plainly which way the mode just went.
     flashToast(next ? 'Auto-speak on — phrases speak immediately' : 'Auto-speak off — phrases build a message')
-  }, [settings.autoSpeak, update, flashToast])
+  }, [settings.autoSpeak, update, startNew, flashToast])
 
   // Anything part-way through when rest begins would otherwise complete after
   // it, which is the one thing resting is supposed to prevent.
@@ -315,7 +351,17 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     [board, update, flashToast],
   )
 
-  const editCtx: EditCtxValue = useMemo(() => ({ editMode, openEdit }), [editMode, openEdit])
+  // `editor.open` is stable, which matters: this value reaches every one of a
+  // couple of thousand memoised phrase cells.
+  const editCtx: EditCtxValue = useMemo(
+    () => ({ editMode, openEdit: editor.open }),
+    [editMode, editor.open],
+  )
+
+  const countFor = useCallback(
+    (name: string) => board.phraseCountByCategory.get(name) ?? 0,
+    [board.phraseCountByCategory],
+  )
 
   return (
     <EditCtx.Provider value={editCtx}>
@@ -331,15 +377,31 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             onToggleMenu={() => setMenuOpen(o => !o)}
             resting={resting}
             onToggleRest={toggleRest}
-            onAddPhrase={openAddFromComposer}
+            editor={editor}
+            onSavePhrase={handleSave}
+            onDeletePhrase={handleDelete}
             onSpeak={handleSpeak}
             onCopy={handleCopy}
             onPasted={reportPaste}
           />
 
+          {/* The rest of the editor: what is being edited, its category, and its
+              voice. A strip rather than a dialog — it sits under the box holding
+              the words, and it takes nothing away from the board it edits. */}
+          {editMode && (
+            <PhraseEditBar
+              draft={draft}
+              categories={allCategories}
+              countFor={countFor}
+              onCategory={editor.setCategory}
+              onVoice={editor.setVoice}
+              onCreateCategory={openCategoryForDraft}
+            />
+          )}
+
           {/* Hidden while a typed word is narrowing the grid: the tabs would be
               filtering a list that is already filtered by something else. */}
-          {!(currentWord && visiblePhrases.length > 0) && (
+          {!(filterWord && visiblePhrases.length > 0) && (
             <FilterBar
               categories={tabs}
               activeFilter={effectiveFilter}
@@ -415,22 +477,6 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
               onSave={handleCategorySave}
               onDelete={handleCategoryDelete}
               onClose={() => setEditingCategory(null)}
-            />
-          )}
-
-          {editing !== null && (
-            <EditModal
-              phrase={editing.phrase}
-              isEmergency={editing.isEmergency}
-              initialText={editing.initialText}
-              allCategories={allCategories}
-              voice={editing.phrase ? voiceFor(editing.phrase.id) : undefined}
-              recent={recent}
-              onSave={handleSave}
-              onDelete={handleDelete}
-              onClose={() => setEditing(null)}
-              onPasted={reportPaste}
-              keeping={editingSent}
             />
           )}
         </div>
