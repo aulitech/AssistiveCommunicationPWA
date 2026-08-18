@@ -484,6 +484,20 @@ body {
 
 .scroll-btn:last-child { border-bottom: none; }
 
+/* Six controls stacked in a column need vertical room, and on a short screen —
+   a phone on its side, a browser window pulled down — the grid has better use
+   for it. The pages are the pair that goes: a nudge repeats while it is held,
+   so it crosses the same distance a page does, and the two ends still reach
+   either end of the grid in one dwell. Nothing becomes unreachable.
+
+   Height alone is the test, with no orientation clause: the rule the category
+   bar uses needs one because a tablet in portrait is wider than a phone, but a
+   landscape tablet is 768px tall and a landscape phone is 430px, so the height
+   already tells them apart. */
+@media (max-height: 700px) {
+  .scroll-btn-page { display: none; }
+}
+
 .scroll-btn svg {
   width: 18px;
   height: 18px;

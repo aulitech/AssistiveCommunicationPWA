@@ -80,10 +80,11 @@ const SCROLL_STEP = 120
  */
 const pageBy = (extent: number) => Math.max(extent - SCROLL_STEP, SCROLL_STEP)
 
-function ScrollBtn({ onAction, repeat, label, children }: {
+function ScrollBtn({ onAction, repeat, label, className, children }: {
   onAction: () => void
   repeat?: boolean
   label: string
+  className?: string
   children: React.ReactNode
 }) {
   const { settings } = useSettings()
@@ -92,7 +93,7 @@ function ScrollBtn({ onAction, repeat, label, children }: {
   })
   return (
     <div
-      className={cx('scroll-btn', active && 'dwelling')}
+      className={cx('scroll-btn', className, active && 'dwelling')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
       aria-label={label}
@@ -133,8 +134,12 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
       </ScrollBtn>
       {/* A screenful at a time, repeating while held at whatever pace the
           auto-repeat setting says — see `PageIcon` for why the double chevron,
-          and `pageBy` for why not a whole screen. */}
-      <ScrollBtn onAction={() => scrollPage(-1)} repeat label="Previous page">
+          and `pageBy` for why not a whole screen.
+
+          These two are the pair that goes on a short screen: six controls in a
+          column need vertical room the grid has more use for, and a nudge held
+          down crosses the same distance. See `.scroll-btn-page` in `index.css`. */}
+      <ScrollBtn onAction={() => scrollPage(-1)} repeat className="scroll-btn-page" label="Previous page">
         <PageIcon direction="up" />
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollBy(-SCROLL_STEP)} repeat label="Scroll up">
@@ -147,7 +152,7 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </ScrollBtn>
-      <ScrollBtn onAction={() => scrollPage(1)} repeat label="Next page">
+      <ScrollBtn onAction={() => scrollPage(1)} repeat className="scroll-btn-page" label="Next page">
         <PageIcon direction="down" />
       </ScrollBtn>
       <ScrollBtn

@@ -1372,6 +1372,23 @@ describe('the scroll rail', () => {
       expect(scrollBy).toHaveBeenCalledWith({ top: 120, behavior: 'smooth' })
     })
 
+    // Six controls in a column need vertical room, and a short screen has none
+    // to spare. The pages are the pair that goes: a nudge repeats while held, so
+    // it crosses the same distance, and the ends still reach either end.
+    //
+    // This can only check that the rule is written and that it names the two
+    // arrows it is meant to. jsdom applies no cascade and lays nothing out, so
+    // whether it takes effect is a question for the deploy preview.
+    it('goes off a short screen, and takes nothing else with it', () => {
+      renderApp()
+      const named = $$('.scroll-btn-page').map(b => b.getAttribute('aria-label'))
+      expect(named).toEqual(['Previous page', 'Next page'])
+
+      const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+      // Height alone, and no orientation clause — see the rule for why.
+      expect(css).toMatch(/@media \(max-height: 700px\) \{\s*\.scroll-btn-page \{\s*display: none;/)
+    })
+
     // Repeats while held, like the nudges, and paced by the same auto-repeat
     // setting — so a screenful a second is a choice the user can make rather than
     // one this file makes for them.
