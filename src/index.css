@@ -1171,7 +1171,7 @@ body {
   display: flex;
   flex-shrink: 0;
   gap: 1.5rem;
-  padding: 1.5rem;
+  padding: 1rem;
   background: color-mix(in srgb, #ef4444 12%, var(--bg));
   border-top: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
 }
