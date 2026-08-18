@@ -22,6 +22,8 @@
   --text-muted: #888;
   --accent: #22c55e;
   --accent-dim: rgba(34, 197, 94, 0.15);
+  --danger : #bd1e06;
+  --urgent : #4fcaf0;
   --dwell-color: #22c55e;
   --selected-flash: rgba(34, 197, 94, 0.3);
   /* The one deliberate exception to the single-accent palette. A category held
@@ -1193,8 +1195,8 @@ body {
   flex-shrink: 0;
   gap: 1.5rem;
   padding: 1rem;
-  background: color-mix(in srgb, #ef4444 12%, var(--bg));
-  border-top: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
+  background: color-mix(in srgb, var(--urgent) 12%, var(--bg));
+  border-top: 1px solid color-mix(in srgb, var(--urgent) 30%, transparent);
 }
 
 .emergency-btn {
@@ -1204,26 +1206,26 @@ body {
   align-items: center;
   justify-content: center;
   padding: 12px 8px;
-  background: color-mix(in srgb, #ef4444 18%, var(--surface));
-  border: 1px solid color-mix(in srgb, #ef4444 40%, transparent);
+  background: color-mix(in srgb, var(--urgent) 18%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--urgent) 40%, transparent);
   border-radius: 8px;
   overflow: hidden;
   cursor: default;
 }
 
 .emergency-btn.dwelling {
-  background: color-mix(in srgb, #ef4444 30%, var(--surface));
+  background: color-mix(in srgb, var(--urgent) 30%, var(--surface));
 }
 
 .emergency-btn.flashed {
-  background: #ef4444;
+  background: var(--urgent);
 }
 
 .emergency-label {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: #ef4444;
+  color: var(--urgent);
   pointer-events: none;
   position: relative;
   z-index: 1;
@@ -1241,7 +1243,7 @@ body {
   left: 0;
   height: 3px;
   width: 0;
-  background: #ef4444;
+  background: var(--urgent);
 }
 
 .emergency-btn.dwelling .emergency-dwell-bar {
