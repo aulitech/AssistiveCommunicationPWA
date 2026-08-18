@@ -245,7 +245,10 @@ function readSettings(v: unknown): Settings | undefined {
     voiceURI: str(v.voiceURI),
     volume: num(v.volume, SETTING_LIMITS.volume, DEFAULT_SETTINGS.volume),
     rate: num(v.rate, SETTING_LIMITS.rate, DEFAULT_SETTINGS.rate),
-    autoSpeak: v.autoSpeak === true,
+    // Falls back to the default like every other field rather than to false:
+    // a file that says nothing about a setting is a file that says nothing, and
+    // the default is on.
+    autoSpeak: typeof v.autoSpeak === 'boolean' ? v.autoSpeak : DEFAULT_SETTINGS.autoSpeak,
   }
 }
 

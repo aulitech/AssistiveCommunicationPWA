@@ -24,7 +24,7 @@ import { PhraseGrid } from './grid'
 import { FilterBar } from './filter-bar'
 import { EmergencyBar } from './emergency'
 import { SlotPicker } from './slots'
-import { CategoryModal, PhraseEditBar } from './editors'
+import { CategoryModal } from './editors'
 import { TopPanel } from '../menu/menu'
 import { useBoard } from './use-board'
 import { useComposer } from './use-composer'
@@ -267,38 +267,55 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // ── Modes ──────────────────────────────────────────────────────────────────
 
   /**
-   * Edit mode and auto-speak are exclusive of one another, so switching either
-   * on switches the other off. They ask opposite things of the same dwell: one
-   * makes a phrase a thing to say this instant, the other makes it a thing to
-   * rewrite, and a board cannot be both at once.
+   * What a dwell on a phrase means. Three answers, and never more than one:
    *
-   * Entering carries whatever is in the message box in as a new phrase, so a
+   *  * **speak** — it is said this instant. The board is a talker, and this is
+   *    where it starts, so opening the app for the first time is enough to be
+   *    able to say something.
+   *  * **compose** — it goes into the message box, to be part of a sentence
+   *    built out of several.
+   *  * **edit** — it comes into the box to be reworded.
+   *
+   * The two toggles move between them, and each is a toggle rather than a
+   * choice: switching auto-speak *off* is a request to change the phrases, so
+   * it lands in edit mode, and switching edit off comes back to composing. The
+   * three sit in a ring, which is what makes two controls enough for three
+   * states without either of them ever doing nothing.
+   *
+   * Entering edit mode carries whatever is in the message box in with it, so a
    * message worth keeping becomes a phrase without being typed again.
    */
-  const toggleEditMode = useCallback(() => {
-    const next = !editMode
-    setEditMode(next)
-    if (next) update({ autoSpeak: false })
-    startNew(next ? message.trim() : '')
-    // Reordering is a mode within edit mode; leaving the outer one should not
-    // leave either of them armed for next time.
-    setReordering(false)
-    setReorderingEmergency(false)
-  }, [editMode, message, startNew, update])
-
-  const toggleAutoSpeak = useCallback(() => {
-    const next = !settings.autoSpeak
-    update({ autoSpeak: next })
-    if (next) {
-      setEditMode(false)
+  const setMode = useCallback(
+    (mode: 'speak' | 'compose' | 'edit') => {
+      update({ autoSpeak: mode === 'speak' })
+      setEditMode(mode === 'edit')
+      startNew(mode === 'edit' ? message.trim() : '')
+      // Reordering is a mode within edit mode; leaving it should not leave
+      // either of them armed for next time.
       setReordering(false)
       setReorderingEmergency(false)
-      startNew()
-    }
-    // The button's lit state is the only other cue, and it sits in a narrow
-    // rail — say plainly which way the mode just went.
-    flashToast(next ? 'Auto-speak on — phrases speak immediately' : 'Auto-speak off — phrases build a message')
-  }, [settings.autoSpeak, update, startNew, flashToast])
+      // The lit toggle is the only other cue, and it is a 1.5rem icon in a
+      // strip — say plainly which of the three the board is now in.
+      flashToast(
+        mode === 'speak'
+          ? 'Auto-speak on — phrases speak immediately'
+          : mode === 'edit'
+            ? 'Edit mode — choose a phrase to change it'
+            : 'Auto-speak off — phrases build a message',
+      )
+    },
+    [message, startNew, update, flashToast],
+  )
+
+  const toggleEditMode = useCallback(
+    () => setMode(editMode ? 'compose' : 'edit'),
+    [editMode, setMode],
+  )
+
+  const toggleAutoSpeak = useCallback(
+    () => setMode(settings.autoSpeak ? 'edit' : 'speak'),
+    [settings.autoSpeak, setMode],
+  )
 
   // Anything part-way through when rest begins would otherwise complete after
   // it, which is the one thing resting is supposed to prevent.
@@ -383,21 +400,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             onSpeak={handleSpeak}
             onCopy={handleCopy}
             onPasted={reportPaste}
+            categories={allCategories}
+            countFor={countFor}
+            onCreateCategory={openCategoryForDraft}
           />
-
-          {/* The rest of the editor: what is being edited, its category, and its
-              voice. A strip rather than a dialog — it sits under the box holding
-              the words, and it takes nothing away from the board it edits. */}
-          {editMode && (
-            <PhraseEditBar
-              draft={draft}
-              categories={allCategories}
-              countFor={countFor}
-              onCategory={editor.setCategory}
-              onVoice={editor.setVoice}
-              onCreateCategory={openCategoryForDraft}
-            />
-          )}
 
           {/* Hidden while a typed word is narrowing the grid: the tabs would be
               filtering a list that is already filtered by something else. */}

@@ -18,8 +18,11 @@ function click(el: Element | null | undefined) {
   settle()
 }
 
+// Auto-speak is on by default now, so a test about composing has to say so:
+// with it on, a chosen phrase is spoken and never reaches the box.
 function renderApp() {
   localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
+  localStorage.setItem('dwellspeak_settings', JSON.stringify({ autoSpeak: false }))
   container = render(<App />).container
   settle()
 }

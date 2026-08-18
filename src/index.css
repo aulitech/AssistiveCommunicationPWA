@@ -440,7 +440,6 @@ body {
 /* Everything else, while resting. Dimmed because none of it will answer — but
    still legible, since reading the screen is most of why someone rests. */
 .app.resting .topbar,
-.app.resting .edit-bar,
 .app.resting .filter-bar-wrap,
 .app.resting .grid-wrapper,
 .app.resting .grid-scrollbar,
@@ -1712,42 +1711,75 @@ body {
   to { background-size: 100% 3px; }
 }
 
-/* The strip under the message box, in edit mode only: what is being edited,
-   where it is filed, and how it sounds. The words are in the box above; this is
-   everything else a phrase has, which is two things.
+/* The other strip, on the lower border of the message box, and centred on it
+   exactly as `.topbar-modes` is on the upper one. The words are in the box; this
+   is everything else a phrase has, which is two things — where it is filed and
+   how it sounds.
 
-   It exists only in edit mode, so the height it costs the grid is a cost editing
-   pays and talking does not. */
+   Riding the border rather than sitting in a band below it is the same bargain
+   the modes strike above: what it costs is the bottom-centre of the box, and
+   what it saves is the grid. Opaque black for the same reason too — it sits *on*
+   the box, and the border and the typed text showed through the gaps.
+
+   **`bottom` has to match `.topbar` padding-bottom**, which is what puts the
+   strip on the border, and `.app.edit-mode .topbar` has to add half the strip's
+   height to that padding or the lower half hangs over the category tabs. */
 .edit-bar {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  /* Above the app, below the panel and the dialogs — the same layer the modes
+     sit on, since the two strips are the same kind of thing. */
+  z-index: 90;
+
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-  flex-shrink: 0;
+  gap: 8px;
+  /* A phone is narrower than the two triggers and a title laid side by side, so
+     the strip scrolls sideways rather than running off both edges of it. */
+  max-width: calc(100% - 20px);
   overflow-x: auto;
   scrollbar-width: none;
+
+  background: #000;
+  padding: 4px 10px;
+  border-radius: 999px;
 }
 
 .edit-bar::-webkit-scrollbar { display: none; }
+
+/* Room for the lower half of the strip. Only in edit mode, so the height is a
+   cost editing pays and talking does not. */
+.app.edit-mode .topbar { padding-bottom: 30px; }
+
+/* Tighter than the same control in a settings row: this one is riding a border
+   rather than sitting in a panel, and every pixel of it is a pixel of grid. */
+.edit-bar .picker-trigger {
+  padding: 5px 9px;
+  font-size: 12px;
+  background: var(--bg);
+}
+
+.edit-bar .voice-trigger { width: 150px; }
 
 .edit-bar-title {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
+  padding-left: 2px;
 }
 
 /* An emergency phrase has no category to choose, and the strip says so rather
    than dropping the control — a strip that loses one between one phrase and the
    next moves everything beside it. */
 .edit-bar-fixed {
-  padding: 8px 10px;
+  padding: 5px 9px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface);
-  font-size: 13px;
+  background: var(--bg);
+  font-size: 12px;
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -1755,7 +1787,7 @@ body {
 /* The same control as the voice trigger beside it, and deliberately the same
    shape: two choices on one strip, each opening a full-screen grid, and no
    reason for anybody to learn two. */
-.category-trigger { width: 150px; }
+.category-trigger { width: 132px; }
 
 /* The last tile in the category grid is not a category. */
 .picker-tile.is-new {

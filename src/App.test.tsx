@@ -25,9 +25,18 @@ function click(el: Element | null | undefined) {
 }
 
 /** Renders straight into the app screen by seeding a signed-in guest. */
-function renderApp(settings?: Record<string, unknown>) {
+// Auto-speak is on by default now, so a test about composing has to say so:
+// with it on, a chosen phrase is spoken and never reaches the box.
+function renderApp(settings: Record<string, unknown> = { autoSpeak: false }) {
   localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
-  if (settings) localStorage.setItem('dwellspeak_settings', JSON.stringify(settings))
+  localStorage.setItem('dwellspeak_settings', JSON.stringify(settings))
+  container = render(<App />).container
+  settle()
+}
+
+/** No stored settings at all — what somebody opening Peri for the first time gets. */
+function renderFresh() {
+  localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
   container = render(<App />).container
   settle()
 }
@@ -296,7 +305,7 @@ describe('choosing a phrase', () => {
   })
 
   it('speaks the composed message with the user settings', () => {
-    renderApp({ rate: 1.5, volume: 0.4 })
+    renderApp({ rate: 1.5, volume: 0.4, autoSpeak: false })
     click(plainCell())
     click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak')!)
     expect(spoken).toEqual([message()])
@@ -338,13 +347,25 @@ describe('auto-speak', () => {
   // order edit, Rest, auto-speak. DOM order is what can be checked here — jsdom
   // lays nothing out — but in a flex row with nothing setting `order` that is
   // also the order they are seen in, left to right.
-  it('is off by default, sitting to the right of Rest with edit to its left', () => {
+  it('sits to the right of Rest, with edit to its left', () => {
     renderApp()
     const strip = $$('.topbar-modes > *')
     expect(strip.map(el => el.className.split(' ')[0])).toEqual(['mode-btn', 'rest-btn', 'mode-btn'])
     expect(strip[0].getAttribute('aria-label')).toMatch(/edit/i)
     expect(strip[2].getAttribute('aria-label')).toMatch(/auto-speak/i)
-    expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
+  })
+
+  // The board talks the moment it is opened. Somebody who wants to build a
+  // sentence out of several phrases turns this off; somebody who wants a button
+  // that says a thing has nothing to find first.
+  it('is on before anybody has chosen anything', () => {
+    renderFresh()
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
+
+    const cell = plainCell()
+    click(cell)
+    expect(spoken).toEqual([cell.textContent])
+    expect(message()).toBe('')
   })
 
   it('speaks the phrase and leaves the message alone', () => {
@@ -367,10 +388,26 @@ describe('auto-speak', () => {
     expect(message()).toBe('')
   })
 
-  it('goes back to composing when switched off', () => {
+  // Two controls, three states, in a ring. Switching auto-speak off is a
+  // request to change the phrases, so it lands in edit mode; switching edit off
+  // in turn comes back to composing. That is what lets two toggles reach three
+  // states without either of them ever doing nothing.
+  it('lands in edit mode when it is switched off', () => {
     renderApp({ autoSpeak: true })
     click(speakToggle())
+
     expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
+    expect(editToggle().getAttribute('aria-pressed')).toBe('true')
+    expect($('.app')?.classList.contains('edit-mode')).toBe(true)
+  })
+
+  it('comes back to composing once edit mode is switched off in turn', () => {
+    renderApp({ autoSpeak: true })
+    click(speakToggle()) // to edit
+    click(editToggle()) // to composing
+
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
+    expect(editToggle().getAttribute('aria-pressed')).toBe('false')
 
     const cell = plainCell()
     click(cell)
@@ -669,6 +706,17 @@ describe('edit mode', () => {
 
     expect(cells().length).toBe(all)
     expect(box().value, 'the message did not come with it').toBe('help')
+  })
+
+  // The strip rides the lower border of the message box, exactly as the modes
+  // ride the upper one — which it can only do from inside the bar the box is in.
+  it('puts the category and the voice on the message box itself', () => {
+    renderApp()
+    click(editToggle())
+
+    expect($('.topbar > .edit-bar')).not.toBeNull()
+    expect($('.edit-bar .category-trigger')).not.toBeNull()
+    expect($('.edit-bar .voice-trigger')).not.toBeNull()
   })
 
   // Saving leaves the editor on a blank phrase rather than closing anything —

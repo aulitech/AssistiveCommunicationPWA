@@ -24,6 +24,7 @@ import { useDwellControl } from '../ui/dwell'
 import { useLinkInput, type PasteResult } from '../ui/link-input'
 import { AutoSpeakIcon, CheckIcon, ClearIcon, CopyIcon, EditIcon, MenuIcon, PasteIcon, PlusIcon, SpeakIcon, TrashIcon, UndoIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
+import { PhraseEditBar } from './editors'
 import type { Composer } from './use-composer'
 import type { Editor } from './use-editor'
 
@@ -120,7 +121,7 @@ function RestButton({ resting, onToggle }: { resting: boolean; onToggle: () => v
   )
 }
 
-export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak, menuOpen, onToggleMenu, resting, onToggleRest, onSavePhrase, onDeletePhrase, onSpeak, onCopy, onPasted }: {
+export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak, menuOpen, onToggleMenu, resting, onToggleRest, onSavePhrase, onDeletePhrase, categories, countFor, onCreateCategory, onSpeak, onCopy, onPasted }: {
   composer: Composer
   /** The phrase being written, which in edit mode is what the box holds. */
   editor: Editor
@@ -135,6 +136,10 @@ export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, on
   /** Both of these change the board, so the screen does them, not the editor. */
   onSavePhrase: () => void
   onDeletePhrase: () => void
+  /** For the strip on the box's lower border: what a phrase can be filed under. */
+  categories: string[]
+  countFor: (name: string) => number
+  onCreateCategory: () => void
   /** Both of these are how a message leaves, which the screen keeps a record of. */
   onSpeak: () => void
   onCopy: () => void
@@ -330,6 +335,21 @@ export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, on
       <ActionButton className="right" onSelect={paste} label="Paste from clipboard">
         <PasteIcon />
       </ActionButton>
+
+      {/* The other strip, on the box's lower border, and centred on it exactly
+          as the modes are on the upper one. A phrase has two things besides its
+          words — where it is filed and how it sounds — and they belong to the
+          box holding those words rather than to a band underneath it. */}
+      {editMode && (
+        <PhraseEditBar
+          draft={draft}
+          categories={categories}
+          countFor={countFor}
+          onCategory={editor.setCategory}
+          onVoice={editor.setVoice}
+          onCreateCategory={onCreateCategory}
+        />
+      )}
     </header>
   )
 }
