@@ -25,13 +25,19 @@ function click(el: Element | null | undefined) {
 }
 
 /** Renders straight into the app screen by seeding a signed-in guest. */
-// Auto-speak is on by default now, so a test about composing has to say so:
-// with it on, a chosen phrase is spoken and never reaches the box.
-function renderApp(settings: Record<string, unknown> = { autoSpeak: false }) {
+// The board opens in auto-speak, whatever was stored — so a test about
+// composing has to switch out of it, which is two dwells on the edit toggle:
+// auto-speak → edit → composing. Passing `{ autoSpeak: true }` leaves it where
+// it started.
+function renderApp(settings: Record<string, unknown> = {}) {
   localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
   localStorage.setItem('dwellspeak_settings', JSON.stringify(settings))
   container = render(<App />).container
   settle()
+  if (settings.autoSpeak !== true) {
+    click(editToggle())
+    click(editToggle())
+  }
 }
 
 /** No stored settings at all — what somebody opening Peri for the first time gets. */
@@ -415,10 +421,27 @@ describe('auto-speak', () => {
     expect(message()).toBe(cell.textContent)
   })
 
-  it('persists across a reload', () => {
-    renderApp()
-    click(speakToggle())
-    expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).autoSpeak).toBe(true)
+  // Stored like every other setting, and ignored on the way back in. A board
+  // has to open ready to talk however it was left; somebody who would rather
+  // build messages is two dwells from doing so, and being unable to say
+  // anything is not recoverable in the same way.
+  it('comes back on when the page loads, however it was left', () => {
+    renderFresh()
+    click(speakToggle()) // to edit mode, and the change is written down
+    expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).autoSpeak).toBe(false)
+
+    cleanup()
+    renderFresh()
+
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
+  })
+
+  // Somebody with a keyboard can type the first thing they want to say without
+  // having to put the caret in the box first — which is the one thing a dwell
+  // could not do at all until the box grew a dwell of its own.
+  it('opens with the message box already focused', () => {
+    renderFresh()
+    expect(document.activeElement).toBe($('.text-display'))
   })
 })
 
@@ -843,6 +866,9 @@ describe('placing the caret in the message box by dwell', () => {
   // cannot do — the message was theirs to build but not to correct.
   it('gives it focus after a hold', () => {
     renderApp()
+    // The box is focused when the board opens, so take that away first: the
+    // claim is that a dwell puts it back, not that it was never there.
+    composer().blur()
     expect(document.activeElement).not.toBe(composer())
     dwell(composer())
     expect(document.activeElement).toBe(composer())

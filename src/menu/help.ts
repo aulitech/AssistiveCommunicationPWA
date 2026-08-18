@@ -133,7 +133,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Speaking straight away',
     blocks: [
       text(
-        'The speaker button to the right of the Rest bar, along the top edge of the message box, is auto-speak. It lights up when it is on, and it is on when Peri is first opened.',
+        'The speaker button to the right of the Rest bar, along the top edge of the message box, is auto-speak. It lights up when it is on, and it is on every time Peri is opened, so the board can always talk straight away.',
       ),
       text(
         'With auto-speak on, every phrase you choose is spoken the moment you choose it, and nothing is collected in the message box. This suits quick back-and-forth conversation.',
