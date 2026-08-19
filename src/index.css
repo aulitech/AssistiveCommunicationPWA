@@ -1844,6 +1844,11 @@ body {
   padding-left: 2px;
 }
 
+/* Saying why Save has gone quiet. Amber rather than the danger red: nothing is
+   being destroyed, and nothing has gone wrong — the phrase is simply already
+   there. */
+.edit-bar-title.is-warning { color: var(--rest); }
+
 /* An emergency phrase has no category to choose, and the strip says so rather
    than dropping the control — a strip that loses one between one phrase and the
    next moves everything beside it. */

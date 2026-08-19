@@ -60,7 +60,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // The phrase being written, which in edit mode is what the message box holds.
   // There is always one — pointing it at a phrase is what choosing a cell does
   // in edit mode, and there is nothing to open and nothing to close.
-  const editor = useEditor({ allCategories, recent, voiceFor })
+  const editor = useEditor({ allCategories, recent, voiceFor, duplicateOf: board.duplicateOf })
   const { draft, startNew } = editor
   // Pulled out rather than reached through `composer`, which is a fresh object
   // every render: a callback depending on the whole of it would change identity

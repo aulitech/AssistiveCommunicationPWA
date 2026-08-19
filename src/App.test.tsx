@@ -731,6 +731,91 @@ describe('edit mode', () => {
     expect(box().value, 'the message did not come with it').toBe('help')
   })
 
+  // A phrase listed twice in one category is a cell somebody has to read past to
+  // reach the one they meant. Save goes quiet rather than away, and the strip
+  // says why — a disabled control explains nothing by itself.
+  //
+  // Driven from a phrase the test put there rather than one off the board: what
+  // a cell *reads* as is not always what it was written as, and the check is on
+  // the wording.
+  describe('a phrase that is already there', () => {
+    const KITCHEN = { id: 'custom-kettle', text: 'Put the kettle on', category: 'Kitchen' }
+    const seed = () => {
+      localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringify({ custom: [KITCHEN] }))
+      renderApp()
+      click(editToggle())
+    }
+    const chooseCategory = (name: string) => {
+      click($('.category-trigger'))
+      click(
+        [...document.body.querySelectorAll('.picker-tile')].find(
+          t => t.querySelector('.picker-tile-name')?.textContent === name,
+        ),
+      )
+      click(
+        [...document.body.querySelectorAll('.picker-modal-actions .panel-btn')].find(
+          b => b.getAttribute('aria-label') === 'Done',
+        ),
+      )
+    }
+
+    it('cannot be saved a second time', () => {
+      seed()
+      chooseCategory('Kitchen')
+      writePhrase(KITCHEN.text)
+
+      expect(editTitle()).toMatch(/already on the board/i)
+      expect(iconBtn('Save phrase')?.disabled).toBe(true)
+
+      writePhrase(`${KITCHEN.text} please`)
+      expect(editTitle()).toBe('New phrase')
+      expect(iconBtn('Save phrase')?.disabled).toBe(false)
+    })
+
+    // Case and spacing are not the difference between two phrases.
+    it('is recognised through case and spacing', () => {
+      seed()
+      chooseCategory('Kitchen')
+      writePhrase(`  ${KITCHEN.text.toUpperCase()}  `)
+
+      expect(iconBtn('Save phrase')?.disabled).toBe(true)
+    })
+
+    // Opening a phrase and saving it unchanged is not adding a duplicate of it.
+    it('is not a duplicate of itself', () => {
+      seed()
+      click(cells().find(c => c.textContent === KITCHEN.text)!)
+
+      expect(editTitle()).toBe('Editing phrase')
+      expect(iconBtn('Save phrase')?.disabled).toBe(false)
+    })
+
+    // The table lists "Good morning" under three categories on purpose, and
+    // somebody looks in whichever of them they think in.
+    it('is allowed again under another category', () => {
+      seed()
+      chooseCategory('Kitchen')
+      writePhrase(KITCHEN.text)
+      expect(iconBtn('Save phrase')?.disabled).toBe(true)
+
+      chooseCategory('Food')
+      expect(iconBtn('Save phrase')?.disabled).toBe(false)
+    })
+
+    // The bar is a category like any other for this purpose.
+    it('is refused on the emergency bar too', () => {
+      renderApp()
+      click(editToggle())
+      const first = $('.emergency-btn .emergency-label')!.textContent!
+
+      click($('.emergency-add'))
+      writePhrase(first)
+
+      expect(editTitle()).toMatch(/already on the board/i)
+      expect(iconBtn('Save phrase')?.disabled).toBe(true)
+    })
+  })
+
   // The strip rides the lower border of the message box, exactly as the modes
   // ride the upper one — which it can only do from inside the bar the box is in.
   it('puts the category and the voice on the message box itself', () => {
