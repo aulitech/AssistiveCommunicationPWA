@@ -192,7 +192,10 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Any list can be renamed or deleted, including the ones Peri comes with. Doing that leaves a blank in the phrases that used it, since those were written with the old name in them.',
       ),
       text(
-        'Choose a heading to open that list; the others fold away. An open list shows its words as a grid, with two buttons above it: one switches between A to Z and the order you put the words in, and the other lets you arrange them — choose a word to pick it up, then choose where it should go.',
+        'The lists all start closed, so what you arrive at is their names. Choose one to open it and it comes to the top of the panel; choosing another folds the first away again.',
+      ),
+      text(
+        'An open list shows its words as a grid, with two buttons above it: one switches between A to Z and the order you put the words in, and the other lets you arrange them — choose a word to pick it up, then choose where it should go.',
       ),
     ],
   },

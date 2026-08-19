@@ -1174,8 +1174,10 @@ describe('aliases', () => {
     openAliases()
 
     const open = () => $$('.alias-list.is-open').map(l => l.getAttribute('aria-label'))
-    // The first is open on arrival, so the panel is not a wall of headings.
-    expect(open()).toHaveLength(1)
+    // All of them closed on arrival: the panel is opened to reach one list out
+    // of ten, and one already open is one the user has to fold away first.
+    expect(open()).toEqual([])
+    expect($$('.alias-word')).toHaveLength(0)
 
     openList('pronouns')
     expect(open()).toEqual(['pronouns'])
@@ -1194,7 +1196,8 @@ describe('aliases', () => {
   it('brings the list it opens to the top of the pane', () => {
     renderApp()
     openAliases()
-    scrolledIntoView.length = 0
+    // Nothing opened itself, so nothing has moved yet.
+    expect(scrolledIntoView.filter(el => el.classList.contains('alias-list'))).toEqual([])
 
     openList('clothes')
     expect(scrolledIntoView).toContain(list('clothes'))
@@ -3134,6 +3137,26 @@ describe('reaching all of a panel that has grown', () => {
 
     overflow(pane!)
     expect(arrows()).toEqual(['Go to top', 'Scroll up', 'Scroll down', 'Go to bottom'])
+  })
+
+  // A pane fills whatever height it is given, so a panel that hangs down as far
+  // as its own content can never overflow: the arrows never appear and anything
+  // past the bottom of the screen is simply out of reach, there being no wheel
+  // and no scrollbar here. Settings and the guide are given the viewport; the
+  // two that hang from the menu bound themselves instead. Whether it *looks*
+  // right is a question for the deploy preview — that a bound exists is not.
+  it('bounds the Aliases panel, so its pane has somewhere to overflow into', () => {
+    renderApp()
+    openMenu()
+    click(nav('Aliases'))
+    expect($('.alias-panel'), 'the Aliases panel fills its parent instead').not.toBeNull()
+
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    expect(css).toContain('.alias-panel {')
+    const rule = css.slice(css.indexOf('.alias-panel {'))
+    // `dvh` as well: on a phone `vh` is the viewport with the browser's chrome
+    // hidden, so a panel bounded in it still runs under the address bar.
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/max-height:\s*calc\(100dvh/)
   })
 
   it('scrolls the panel when an arrow is dwelled', () => {

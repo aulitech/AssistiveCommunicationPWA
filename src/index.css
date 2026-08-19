@@ -2147,6 +2147,24 @@ body {
 }
 
 /* ── Aliases panel ── */
+/* The panel hangs down as far as its lists and no further than the screen.
+   Bounding it is what makes it scroll at all: the pane inside fills whatever
+   height it is given, and a height given by the content it holds can never be
+   overflowed — the arrows never appear, and everything past the bottom of the
+   screen is simply out of reach, there being no wheel and no scrollbar here.
+
+   `dvh` for the reason `.top-panel.is-tall` uses it: on a phone `vh` is the
+   viewport with the browser's chrome *hidden*, so a panel sized in it runs under
+   the address bar. The reserve is the user row above it, in `rem` so it follows
+   the zoom the row's own text does. */
+.alias-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: calc(100vh - 8rem);
+  max-height: calc(100dvh - 8rem);
+}
+
 /* One list per alias, folded up. Folded, the panel is a list of what it can
    offer — which is how somebody finds the one they came for, rather than
    scrolling past fifty body parts to reach it. */
