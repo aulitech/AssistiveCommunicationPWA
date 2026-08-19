@@ -183,7 +183,10 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Peri comes with nine — pronouns, directions, body parts and so on — and two of them start empty: contacts, and your name. Fill those in and phrases such as "This is …" and "I\'m going to call …" come to life.',
       ),
       text(
-        'With one word on a list it is filled in for you; with several, you are asked which one you mean. Take words off any list, add your own, or make a new list and write its name in a phrase.',
+        'With one word on a list it is filled in for you; with several, you are asked which one you mean. Take words off any list, or add your own.',
+      ),
+      text(
+        'The + at the top adds a list of your own, called new-list until you rename it. The pencil beside it turns the headings into name boxes, each with an × to delete that list. The lists Peri comes with keep their names, because the phrases that use them are written with those names in.',
       ),
       text(
         'Choose a heading to open that list; the others fold away. An open list shows its words as a grid, with two buttons above it: one switches between A to Z and the order you put the words in, and the other lets you arrange them — choose a word to pick it up, then choose where it should go.',

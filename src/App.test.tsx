@@ -1282,19 +1282,79 @@ describe('aliases', () => {
     expect(wordsIn('contacts')).toEqual(['Mum'])
   })
 
+  const panelTool = (label: string) =>
+    [...$$('.alias-panel-tools .alias-tool')].find(t =>
+      (t.getAttribute('aria-label') ?? '').startsWith(label),
+    )!
+  const nameField = (name: string) =>
+    list(name).querySelector<HTMLInputElement>(`input[aria-label="Rename ${name}"]`)
+  const rename = (from: string, to: string) => {
+    fireEvent.change(nameField(from)!, { target: { value: to } })
+    fireEvent.blur(nameField(from)!)
+    settle()
+  }
+
   // Extensible: a list of their own, reached by writing its name in a phrase.
-  it('adds a list of its own, which a phrase can then use', () => {
+  // The + cannot ask for a name — it is one dwell, and naming is a keyboard
+  // job — so it makes one, opens it, and leaves the field ready to type in.
+  it('adds a list, named for them and ready to be renamed', () => {
     renderApp()
     openAliases()
-    const newList = $$('.alias-list').find(l => l.getAttribute('aria-label') === 'New list')!
-    fireEvent.change(newList.querySelector('input')!, { target: { value: 'Drinks' } })
-    settle()
-    click(newList.querySelector('.contact-add-btn'))
+    click(panelTool('Add a list'))
 
+    expect(stored()['new-list']).toEqual([])
+    expect(nameField('new-list')).not.toBeNull()
+
+    rename('new-list', 'Drinks')
     // Lower-cased, because that is how a slot looks one up.
-    expect(wordsIn('drinks')).toEqual([])
-    addTo('drinks', 'tea')
+    expect(stored().drinks).toEqual([])
+    expect(stored()['new-list']).toBeUndefined()
+  })
+
+  // Without a name of its own the second one would land on the first, and the
+  // panel would show one list where the user asked for two.
+  it('gives a second new list a name of its own', () => {
+    renderApp()
+    openAliases()
+    click(panelTool('Add a list'))
+    click(panelTool('Add a list'))
+
+    expect(Object.keys(stored()).sort()).toEqual(['new-list', 'new-list-2'])
+  })
+
+  it('keeps the words when a list is renamed', () => {
+    renderApp()
+    openAliases()
+    click(panelTool('Add a list'))
+    click(panelTool('Done editing'))
+    addTo('new-list', 'tea')
+
+    click(panelTool('Edit list names'))
+    rename('new-list', 'drinks')
+
     expect(stored().drinks).toEqual(['tea'])
+  })
+
+  // Two lists called the same thing would be one list nobody could reach.
+  it('refuses a name another list already has', () => {
+    renderApp()
+    openAliases()
+    click(panelTool('Add a list'))
+    rename('new-list', 'pronouns')
+
+    expect(stored()['new-list']).toEqual([])
+    expect(stored().pronouns).toBeUndefined()
+  })
+
+  // A name the table ships is written into the phrases that use it: rename
+  // `pronouns` and every phrase saying {pronouns} resolves to nothing.
+  it('leaves the names the table ships alone', () => {
+    renderApp()
+    openAliases()
+    click(panelTool('Add a list'))
+
+    expect(nameField('pronouns')).toBeNull()
+    expect(nameField('new-list')).not.toBeNull()
   })
 
   // A list the table ships can be emptied but not removed — the phrases that
@@ -1302,18 +1362,20 @@ describe('aliases', () => {
   it('offers to delete only a list of its own', () => {
     renderApp()
     openAliases()
-    openList('pronouns')
+    click(panelTool('Add a list'))
+
     expect(list('pronouns').querySelector('[aria-label^="Delete"]')).toBeNull()
 
-    const newList = $$('.alias-list').find(l => l.getAttribute('aria-label') === 'New list')!
-    fireEvent.change(newList.querySelector('input')!, { target: { value: 'drinks' } })
-    settle()
-    click(newList.querySelector('.contact-add-btn'))
+    click(list('new-list').querySelector('[aria-label^="Delete"]'))
+    expect($$('.alias-list').find(l => l.getAttribute('aria-label') === 'new-list')).toBeUndefined()
+    expect(stored()['new-list']).toBeUndefined()
+  })
 
-    openList('drinks')
-    click(list('drinks').querySelector('[aria-label^="Delete"]'))
-    expect($$('.alias-list').find(l => l.getAttribute('aria-label') === 'drinks')).toBeUndefined()
-    expect(stored().drinks).toBeUndefined()
+  // Nothing to edit the names of until there is a list of their own.
+  it("offers no name editing while every list is the table's", () => {
+    renderApp()
+    openAliases()
+    expect(panelTool('Edit list names').getAttribute('aria-disabled')).toBe('true')
   })
 
   // Two arrangements, the same pair the category tabs offer: A–Z, or the order

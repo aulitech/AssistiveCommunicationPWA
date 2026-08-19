@@ -2190,8 +2190,29 @@ body {
 
 .alias-list.is-open .alias-caret { transform: rotate(90deg); }
 
-/* The tools an open list carries: which arrangement, arranging, and — for a list
-   the user made — deleting it. */
+/* The two that are about the lists rather than about any one list's words:
+   adding one, and editing what they are called. Above all of them, since that
+   is what they act on. */
+.alias-panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* A field and a delete, in place of the heading that opens the list. */
+.alias-list-head.is-editing {
+  cursor: default;
+  gap: 6px;
+}
+
+.alias-name {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The tools an open list carries: which arrangement, and arranging. */
 .alias-tools {
   display: flex;
   align-items: center;
