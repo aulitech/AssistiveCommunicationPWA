@@ -149,12 +149,17 @@ export function PhraseEditBar({ draft, categories, countFor, onCategory, onVoice
 
   return (
     <div className="edit-bar" role="group" aria-label="Phrase being edited">
-      <span className="edit-bar-title">
-        {draft.keeping
-          ? 'Keep this message'
-          : draft.isNew
-            ? draft.isEmergency ? 'New emergency phrase' : 'New phrase'
-            : draft.isEmergency ? 'Editing emergency phrase' : 'Editing phrase'}
+      {/* What is being edited — or, where the words are already on the board,
+          why Save has gone quiet. A disabled control explains nothing by
+          itself, and this is the line the user is already reading for state. */}
+      <span className={cx('edit-bar-title', draft.duplicate && 'is-warning')}>
+        {draft.duplicate
+          ? 'Already on the board'
+          : draft.keeping
+            ? 'Keep this message'
+            : draft.isNew
+              ? draft.isEmergency ? 'New emergency phrase' : 'New phrase'
+              : draft.isEmergency ? 'Editing emergency phrase' : 'Editing phrase'}
       </span>
 
       {/* The emergency bar is the category, so there is nothing to choose. Said

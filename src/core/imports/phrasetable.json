@@ -10914,15 +10914,6 @@
             "count": 0
         },
         {
-            "txt": "I am getting along",
-            "id": 1197,
-            "image": "",
-            "category": "Responses",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
             "txt": "I am sorry to hear that",
             "id": 1198,
             "image": "",
@@ -13148,15 +13139,6 @@
         {
             "txt": "Not very good today",
             "id": 1445,
-            "image": "",
-            "category": "Responses",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "Not very good today",
-            "id": 1446,
             "image": "",
             "category": "Responses",
             "language": "en",
@@ -16017,15 +15999,6 @@
             "count": 0
         },
         {
-            "txt": "Thank you for being such a good friend",
-            "id": 1764,
-            "image": "",
-            "category": "Appreciation",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
             "txt": "Thanks for everything",
             "id": 1765,
             "image": "",
@@ -18611,15 +18584,6 @@
         {
             "txt": "That's my choice",
             "id": 2052,
-            "image": "",
-            "category": "Self Determination",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "That's my problem",
-            "id": 2053,
             "image": "",
             "category": "Self Determination",
             "language": "en",

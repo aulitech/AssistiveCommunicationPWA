@@ -34,6 +34,10 @@ import {
   type PhraseStore,
 } from '../core/store'
 
+/** How a phrase is recognised as one already on the board — see `phraseKeys`. */
+const phraseKey = (text: string, category: string) =>
+  `${category.trim().toLowerCase()}\u0000${text.trim().toLowerCase().replace(/\s+/g, ' ')}`
+
 /** Phrases the user wrote carry this prefix, which is how a delete tells them apart. */
 const newPhraseId = () => `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
@@ -148,6 +152,38 @@ export function useBoard() {
     })
     if (keys.length > 0) void warmAudio(keys)
   }, [store.voiceOverrides, mainPhrases, emergencyPhrases])
+
+  /**
+   * What is already on the board, by category and wording — the check behind
+   * refusing a duplicate.
+   *
+   * **Within a category only.** The table lists "Good morning" under
+   * Interpersonal, Texting and Time of Day, and that is the point: somebody
+   * looking for it looks in whichever of the three they think in. What is
+   * useless is the same words twice in the same place.
+   *
+   * Keyed on the source, folded to lower case with its spaces collapsed, so
+   * "Thank  you" and "thank you" are the one phrase. The separator is the one
+   * character neither a category nor a phrase can hold, written as an escape —
+   * a literal NUL makes this file binary to grep.
+   */
+  const phraseKeys = useMemo(() => {
+    const keys = new Map<string, string>()
+    for (const p of [...mainPhrases, ...emergencyPhrases]) keys.set(phraseKey(p.source, p.category), p.id)
+    return keys
+  }, [mainPhrases, emergencyPhrases])
+
+  /**
+   * The id of the phrase this wording would duplicate, if there is one.
+   * `exceptId` is the phrase being edited, which does not duplicate itself.
+   */
+  const duplicateOf = useCallback(
+    (text: string, category: string, exceptId?: string) => {
+      const found = phraseKeys.get(phraseKey(text, category))
+      return found && found !== exceptId ? found : undefined
+    },
+    [phraseKeys],
+  )
 
   const phraseCountByCategory = useMemo(() => {
     const counts = new Map<string, number>()
@@ -282,6 +318,7 @@ export function useBoard() {
     categoryById,
     phraseCountByCategory,
     voiceFor,
+    duplicateOf,
     setVoice,
     addPhrase,
     editPhrase,

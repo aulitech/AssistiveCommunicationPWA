@@ -48,13 +48,22 @@ export interface Draft {
   keeping: boolean
   isNew: boolean
   canSave: boolean
+  /**
+   * The board already holds these words in this category. A second copy is
+   * nothing but a cell somebody has to read past to reach the one they meant,
+   * so it cannot be saved — and the strip says so, since a control that has
+   * gone quiet explains nothing by itself.
+   */
+  duplicate: boolean
 }
 
-export function useEditor({ allCategories, recent, voiceFor }: {
+export function useEditor({ allCategories, recent, voiceFor, duplicateOf }: {
   allCategories: string[]
   /** Where a new phrase starts from: the last category and voice used. */
   recent: { category?: string; voice?: string }
   voiceFor: (id: string) => string | undefined
+  /** Whether the board already holds this wording under this category. */
+  duplicateOf: (text: string, category: string, exceptId?: string) => string | undefined
 }) {
   const [target, setTarget] = useState<Target | null>(null)
   const [edits, setEdits] = useState<Edits>({})
@@ -99,6 +108,11 @@ export function useEditor({ allCategories, recent, voiceFor }: {
 
     const text = edits.text ?? phrase?.source ?? ''
     const category = edits.category ?? filedUnder()
+    // Against the category it would be filed under, which for an emergency
+    // phrase is the bar rather than whatever the picker last showed.
+    const duplicate =
+      text.trim() !== '' &&
+      duplicateOf(text, isEmergency ? 'Emergency' : category, phrase?.id) !== undefined
     return {
       phrase,
       isEmergency,
@@ -107,11 +121,12 @@ export function useEditor({ allCategories, recent, voiceFor }: {
       voice: edits.voice ?? (phrase ? (voiceFor(phrase.id) ?? '') : (recent.voice ?? '')),
       keeping: phrase?.category === SENT_CATEGORY,
       isNew: phrase === null,
+      duplicate,
       // A phrase has to be filed somewhere; the emergency bar is the somewhere
       // for the ones on it.
-      canSave: text.trim().length > 0 && (isEmergency || category.trim().length > 0),
+      canSave: text.trim().length > 0 && (isEmergency || category.trim().length > 0) && !duplicate,
     }
-  }, [target, edits, allCategories, recent, voiceFor])
+  }, [target, edits, allCategories, recent, voiceFor, duplicateOf])
 
   /** Whether anything would be lost by starting again. */
   const isUntouched = target === null && !edits.text && !edits.category && !edits.voice

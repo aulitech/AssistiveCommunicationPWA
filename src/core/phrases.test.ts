@@ -261,6 +261,37 @@ describe("the user's own alias lists", () => {
 })
 
 // What the panel is seeded from.
+// A phrase listed twice in one category is a cell somebody has to read past to
+// reach the one they meant. Four of them shipped for years, differing only in
+// the table's own `id` field, which this app ignores — and the disambiguating
+// suffix in `makePhrase` hid them by giving the second copy a working id.
+//
+// The same wording in *different* categories is deliberate and stays: "Good
+// morning" is under Interpersonal, Texting and Time of Day, and somebody looks
+// in whichever of the three they think in.
+describe('the shipped table', () => {
+  it('lists no phrase twice in the same category', () => {
+    const seen = new Map<string, number>()
+    for (const p of PHRASES) {
+      const key = `${p.category}\u0000${p.source.trim().toLowerCase().replace(/\s+/g, ' ')}`
+      seen.set(key, (seen.get(key) ?? 0) + 1)
+    }
+    const repeated = [...seen].filter(([, n]) => n > 1).map(([key]) => key.replace('\u0000', ' — '))
+    expect(repeated).toEqual([])
+  })
+
+  // The rule above is about a category, not about the board: taking every
+  // repeat out would empty three categories of their most-used phrases.
+  it('still lists the same wording under more than one category', () => {
+    const categories = new Map<string, Set<string>>()
+    for (const p of PHRASES) {
+      const text = p.text.toLowerCase()
+      categories.set(text, (categories.get(text) ?? new Set()).add(p.category))
+    }
+    expect([...categories.values()].filter(c => c.size > 1).length).toBeGreaterThan(50)
+  })
+})
+
 describe('tableAliases', () => {
   it('hands back every list the table ships, in a readable order', () => {
     const shipped = tableAliases()
