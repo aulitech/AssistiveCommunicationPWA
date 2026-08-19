@@ -23,6 +23,9 @@
 import { useCallback, useEffect, useRef, type PointerEvent, type RefObject } from 'react'
 import { useDwellControl } from './dwell'
 
+/** Either kind of text box: the message box, and the fields in the Aliases panel. */
+export type CaretField = HTMLTextAreaElement | HTMLInputElement
+
 /**
  * What the two APIs look like *at runtime*, which is not what the type
  * definitions say: those declare both as always present, and an old browser,
@@ -38,7 +41,7 @@ interface CaretApi {
  * browser will not say. Null means the caller should leave the caret alone
  * rather than move it somewhere invented.
  */
-export function caretIndexAt(field: HTMLTextAreaElement, x: number, y: number): number | null {
+export function caretIndexAt(field: CaretField, x: number, y: number): number | null {
   const doc = document as unknown as CaretApi
   // An offset past the end of the value is an answer about something else.
   const within = (index: number) => (index >= 0 && index <= field.value.length ? index : null)
@@ -60,12 +63,39 @@ export function caretIndexAt(field: HTMLTextAreaElement, x: number, y: number): 
 }
 
 /**
+ * The word around `index`, as a range into `value`.
+ *
+ * What a hold selects before it selects everything. Whitespace is the only
+ * boundary — a hyphenated name and an address are each one word, because in a
+ * box this size what somebody means to replace is what reads as one thing.
+ *
+ * A caret that is **not on a word** — on a space, or past the end of the value —
+ * takes the word behind it: resting just after "coffee " is aiming at "coffee",
+ * there being nothing else it could mean.
+ */
+export function wordAt(value: string, index: number): [number, number] {
+  const isWord = (c: string | undefined) => c !== undefined && !/\s/.test(c)
+  let from = Math.max(0, Math.min(index, value.length))
+  let to = from
+  if (!isWord(value[to])) {
+    while (from > 0 && !isWord(value[from - 1])) from -= 1
+    to = from
+  }
+  while (from > 0 && isWord(value[from - 1])) from -= 1
+  while (to < value.length && isWord(value[to])) to += 1
+  return [from, to]
+}
+
+/**
  * How far the pointer must travel before it counts as aiming somewhere new.
  * A dwell fires once per arrival, so without this the caret could be placed
  * only by leaving the box and coming back — but gaze never holds perfectly
  * still, and re-arming on every pixel of drift would mean it never fired.
  */
 export const AIM_TOLERANCE = 12
+
+/** The last step of a hold: caret, then word, then everything. */
+const LAST_HOLD = 2
 
 /**
  * Whether the pointer is now far enough from `from` to count as aiming
@@ -122,15 +152,39 @@ function restartFill(el: HTMLElement | null) {
  * box tracks the caret in state — it decides which word the grid filters on —
  * and a caret moved by anything other than the user's own keystrokes would
  * otherwise leave that state behind.
+ *
+ * **`selectOnHold` is how a gaze selects text.** Placing a caret is one thing a
+ * dwell can say and selecting a range is two, so the second is said by *keeping
+ * still*: rest once and the caret lands under the pointer, keep resting and the
+ * word around it is taken, keep resting again and the whole value is. Each step
+ * replays the fill, so the next one is visibly coming and moving away at any
+ * point stops it. No second control anywhere — two targets in one place is the
+ * worst thing to hand somebody aiming by gaze, and there is nowhere in a box
+ * this size to put one.
+ *
+ * The message box does not ask for it. A pointer parked over the message while
+ * its owner reads the board is at rest without meaning anything by it, and the
+ * caret there also decides which word the grid completes. In a field somebody
+ * has opened to reword, a rest is intent.
  */
 export function useCaretDwell(
-  fieldRef: RefObject<HTMLTextAreaElement | null>,
+  fieldRef: RefObject<CaretField | null>,
   durationMs: number,
-  options: { disabled?: boolean; onPlace?: (index: number) => void } = {},
+  options: { disabled?: boolean; onPlace?: (index: number) => void; selectOnHold?: boolean } = {},
 ) {
-  const { disabled = false, onPlace } = options
+  const { disabled = false, onPlace, selectOnHold = false } = options
   const aim = useRef({ x: 0, y: 0 })
   const armedAt = useRef({ x: 0, y: 0 })
+  /**
+   * How far the hold has got: 0 puts the caret down, 1 takes the word around it,
+   * 2 takes the whole value, and anything beyond is a rest with nothing left to
+   * ask for. Reset wherever the wait starts again, so aiming somewhere new is
+   * always a caret rather than a continuation of the last hold.
+   */
+  const step = useRef(0)
+  const placedAt = useRef(0)
+  // Filled in below: the callback is built before the control that cancels it.
+  const cancelRef = useRef<() => void>(() => {})
 
   // Read through a ref so a caller passing an inline function does not
   // rebuild the handlers on every render.
@@ -142,36 +196,71 @@ export function useCaretDwell(
   const placeCaret = useCallback(() => {
     const el = fieldRef.current
     if (!el) return
-    const index = caretIndexAt(el, aim.current.x, aim.current.y)
     // Focus alone is worth having even where the browser will not say which
     // character was meant — it is the difference between a box that can be
     // typed into and one that cannot.
     el.focus()
-    if (index === null) return
-    el.setSelectionRange(index, index)
-    placeRef.current?.(index)
-  }, [fieldRef])
 
-  const { active, start, cancel, props } = useDwellControl(durationMs, placeCaret, { disabled })
+    let next = step.current + 1
+    if (step.current === 0) {
+      const index = caretIndexAt(el, aim.current.x, aim.current.y)
+      // Nothing was placed, so there is nothing to grow a selection out of: the
+      // hold stays where it is and the next rest tries again.
+      if (index === null) return
+      el.setSelectionRange(index, index)
+      placedAt.current = index
+      placeRef.current?.(index)
+    } else if (step.current === 1) {
+      const [from, to] = wordAt(el.value, placedAt.current)
+      el.setSelectionRange(from, to)
+      // A field holding one word is already all of it. There is nothing between
+      // the word and everything, so the hold is finished rather than repeating
+      // itself with the same selection twice.
+      if (from === 0 && to === el.value.length) next = LAST_HOLD + 1
+    } else {
+      el.setSelectionRange(0, el.value.length)
+    }
+
+    if (!selectOnHold) return
+    step.current = next
+    // A bar that fills promises a firing, so at the end of the hold it has to
+    // stop rather than keep filling towards a step that would do nothing.
+    if (next > LAST_HOLD) cancelRef.current()
+    else restartFill(el)
+  }, [fieldRef, selectOnHold])
+
+  const { active, start, cancel, props } = useDwellControl(durationMs, placeCaret, {
+    disabled,
+    // What turns a rest into a hold. Without it the dwell fires once and the
+    // caret is all a gaze can ever say.
+    repeatMs: selectOnHold ? durationMs : undefined,
+  })
+
+  useEffect(() => {
+    cancelRef.current = cancel
+  })
 
   const onPointerEnter = useCallback(
-    (e: PointerEvent<HTMLTextAreaElement>) => {
+    (e: PointerEvent<CaretField>) => {
       const at = { x: e.clientX, y: e.clientY }
       aim.current = at
       armedAt.current = at
+      step.current = 0
       start()
     },
     [start],
   )
 
   const onPointerMove = useCallback(
-    (e: PointerEvent<HTMLTextAreaElement>) => {
+    (e: PointerEvent<CaretField>) => {
       const at = { x: e.clientX, y: e.clientY }
       aim.current = at
       if (!movedAway(armedAt.current, at.x, at.y)) return
       // Aiming somewhere new starts the wait again, so the caret lands where
-      // the pointer settled rather than where it first arrived.
+      // the pointer settled rather than where it first arrived — and says a
+      // caret rather than carrying on the selection the last rest was growing.
       armedAt.current = at
+      step.current = 0
       restartFill(fieldRef.current)
       cancel()
       start()

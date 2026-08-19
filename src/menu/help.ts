@@ -186,7 +186,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'With one word on a list it is filled in for you; with several, you are asked which one you mean. Take words off any list, or add your own.',
       ),
       text(
-        'The + at the top adds a list of your own, called new-list until you rename it. The pencil beside it turns every heading into a name box, each with an × to delete that list.',
+        'The + at the top adds a list of your own, called new-list until you rename it. The pencil beside it turns every heading into a name box, each with an × to delete that list. The arrow beside those puts back the last list you deleted.',
       ),
       text(
         'Any list can be renamed or deleted, including the ones Peri comes with. Doing that leaves a blank in the phrases that used it, since those were written with the old name in them.',
@@ -199,6 +199,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'The third turns every word into a box you can retype, with an × beside it to take that word off. Words can only be deleted there, so resting on one you are simply reading cannot lose it. The fourth puts back the last word you deleted, and again for the one before that.',
+      ),
+      text(
+        'Every box here takes the caret from where you rest: hold still over the text and the caret lands under the pointer. Keep resting and the word under it is picked out; keep resting once more and the whole box is, ready to be typed over.',
       ),
     ],
   },

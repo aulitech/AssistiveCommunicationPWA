@@ -13,6 +13,7 @@
 // into the next release.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
@@ -21,6 +22,30 @@ import { moveInOrder, loadAliasSort, saveAliasSort } from '../core/store'
 import { CustomOrderIcon, EditIcon, PlusIcon, ReorderIcon, SortAlphaIcon, UndoIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { ScrollPane } from '../ui/controls'
+
+/**
+ * A text box in this panel: typed into with whatever keyboard the user has, and
+ * aimed at by dwell for the part no keyboard supplies.
+ *
+ * Every field here is one — the list names, the words, and the two add rows —
+ * because a box you cannot put the caret into is a box you can only ever clear
+ * and retype. Resting places the caret; **going on resting takes the word, then
+ * the lot**, which is how a gaze selects at all. See `useCaretDwell`.
+ */
+function DwellInput({ className, ...rest }: React.ComponentProps<'input'>) {
+  const { settings } = useSettings()
+  const ref = useRef<HTMLInputElement>(null)
+  const { active, props } = useCaretDwell(ref, settings.actionDwellMs, { selectOnHold: true })
+  return (
+    <input
+      ref={ref}
+      className={cx('profile-input', className, active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      {...props}
+      {...rest}
+    />
+  )
+}
 
 /**
  * One word in a list. A chip is one of three things and never two at once:
@@ -165,8 +190,7 @@ function AddRow({ label, placeholder, onAdd }: {
 
   return (
     <div className="contact-add">
-      <input
-        className="profile-input"
+      <DwellInput
         value={draft}
         onChange={e => setDraft(e.target.value)}
         onKeyDown={e => {
@@ -231,8 +255,8 @@ function NameField({ value, className, label, normalise = (raw: string) => raw.t
   }
 
   return (
-    <input
-      className={cx('profile-input', className)}
+    <DwellInput
+      className={className}
       value={draft}
       onChange={e => setDraft(e.target.value)}
       onBlur={commit}
@@ -333,16 +357,45 @@ export function AliasesPanel({ aliases, onChange }: {
     [lists, hidden, names, shipped, wordsOf, onChange],
   )
 
+  /**
+   * The lists taken off, newest last, each with **exactly what was stored under
+   * its name** — which is nothing at all for one the table ships that nobody had
+   * touched. What goes back is that state rather than the words: writing the
+   * table's own words into the store would pin the list to this release and stop
+   * it following the table into the next one, which is the whole point of
+   * keeping only what the user changed.
+   *
+   * Deleting a list is the largest loss this panel can hand out — fifty words in
+   * one dwell, and every phrase that named it left with a blank — so it is the
+   * one that most needs a way back. Kept in memory and per panel visit, exactly
+   * as a list's own undo of its words is.
+   */
+  const [dropped, setDropped] = useState<{ name: string; stored?: string[] }[]>([])
+  const lastDropped = dropped[dropped.length - 1]
+
   const dropList = useCallback(
     (name: string) => {
       const next = { ...lists }
       delete next[name]
+      setDropped(stack => [...stack, { name, stored: lists[name] }])
       // One the table ships has to be said out loud, or it simply comes back.
       onChange({ lists: next, hidden: name in shipped ? [...new Set([...hidden, name])] : hidden })
       setOpenName(null)
     },
     [lists, hidden, shipped, onChange],
   )
+
+  const undoDrop = useCallback(() => {
+    if (!lastDropped) return
+    setDropped(stack => stack.slice(0, -1))
+    // Made again by hand in the meantime: the deletion is spent either way, and
+    // putting the old one back would take away whatever is on the new one.
+    if (names.includes(lastDropped.name)) return
+    const next = { ...lists }
+    if (lastDropped.stored) next[lastDropped.name] = lastDropped.stored
+    else delete next[lastDropped.name]
+    onChange({ lists: next, hidden: hidden.filter(h => h !== lastDropped.name) })
+  }, [lastDropped, names, lists, hidden, onChange])
 
   // Never both at once: a chip that is a field, a delete and a handle together
   // is three targets in one place, and a dwell meant for one of them does
@@ -391,6 +444,17 @@ export function AliasesPanel({ aliases, onChange }: {
             onActivate={() => setEditingNames(e => !e)}
           >
             <EditIcon />
+          </ListTool>
+          {/* Quiet rather than away with nothing to put back, and naming the
+              list it would restore — a control that comes and goes moves the
+              two beside it, and these are aimed at rather than read. */}
+          <ListTool
+            className="alias-undo"
+            label={lastDropped ? `Put the ${lastDropped.name} list back` : 'Nothing to put back'}
+            disabled={!lastDropped}
+            onActivate={undoDrop}
+          >
+            <UndoIcon />
           </ListTool>
         </div>
 
