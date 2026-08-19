@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom'
 import { linkAccount, REMOTE_PREFIX } from '../voice/elevenlabs'
 import { VoicePicker } from '../voice/picker'
 import { clearAudioCache } from '../voice/audio-cache'
-import { type Aliases } from '../core/phrases'
+import { type AliasStore } from '../core/phrases'
 import { buildBackup } from '../core/backup'
 import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
 import { useSettings } from '../ui/settings'
@@ -96,7 +96,7 @@ function VoiceRow() {
 export function SettingsPanel({ store, aliases, categoryById }: {
   /** Only so the reset confirmation can offer a backup before it wipes them. */
   store: PhraseStore
-  aliases: Aliases
+  aliases: AliasStore
   categoryById: Map<string, string>
 }) {
   const { settings, update } = useSettings()

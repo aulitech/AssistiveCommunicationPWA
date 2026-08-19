@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDwellControl } from '../ui/dwell'
-import { type Aliases } from '../core/phrases'
+import { type AliasStore } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { type PhraseStore, type User } from '../core/store'
 import { type AppState } from '../core/backup'
@@ -105,8 +105,8 @@ export function TopPanel({ open, user, onClose, onSignOut, aliases, onAliasesCha
   user: User
   onClose: () => void
   onSignOut: () => void
-  aliases: Aliases
-  onAliasesChange: (next: Aliases) => void
+  aliases: AliasStore
+  onAliasesChange: (next: AliasStore) => void
   store: PhraseStore
   categories: string[]
   categoryById: Map<string, string>

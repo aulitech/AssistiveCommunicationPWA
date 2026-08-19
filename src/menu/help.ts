@@ -186,7 +186,10 @@ export const HELP_SECTIONS: ProseSection[] = [
         'With one word on a list it is filled in for you; with several, you are asked which one you mean. Take words off any list, or add your own.',
       ),
       text(
-        'The + at the top adds a list of your own, called new-list until you rename it. The pencil beside it turns the headings into name boxes, each with an × to delete that list. The lists Peri comes with keep their names, because the phrases that use them are written with those names in.',
+        'The + at the top adds a list of your own, called new-list until you rename it. The pencil beside it turns every heading into a name box, each with an × to delete that list.',
+      ),
+      text(
+        'Any list can be renamed or deleted, including the ones Peri comes with. Doing that leaves a blank in the phrases that used it, since those were written with the old name in them.',
       ),
       text(
         'Choose a heading to open that list; the others fold away. An open list shows its words as a grid, with two buttons above it: one switches between A to Z and the order you put the words in, and the other lets you arrange them — choose a word to pick it up, then choose where it should go.',

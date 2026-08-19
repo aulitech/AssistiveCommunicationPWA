@@ -21,9 +21,10 @@
 //    tested without a browser, and a rejected import cannot leave the store
 //    half-written.
 
-import { EMPTY_ALIASES, type Aliases } from './phrases'
+import { EMPTY_ALIASES, type AliasStore, type Aliases } from './phrases'
 import {
   DEFAULT_SETTINGS,
+  readAliases,
   SETTING_LIMITS,
   aliasesFromProfile,
   emptyStore,
@@ -84,13 +85,13 @@ export interface Backup {
    */
   emergencyOrder?: string[]
   /** Whole-app backups only. Both of these. */
-  aliases?: Aliases
+  aliases?: AliasStore
   settings?: Settings
 }
 
 export interface BackupInput {
   store: PhraseStore
-  aliases: Aliases
+  aliases: AliasStore
   settings: Settings
   /**
    * The category each phrase shows under, by id — hidden phrases included.
@@ -171,7 +172,8 @@ export function buildBackup(input: BackupInput): Backup {
   }
 }
 
-const hasAliases = (aliases: Aliases) => Object.keys(aliases).length > 0
+const hasAliases = ({ lists, hidden }: AliasStore) =>
+  Object.keys(lists).length > 0 || hidden.length > 0
 
 // ── Reading a file back ───────────────────────────────────────────────────────
 // Anything can be dropped into a file picker, including a backup half-written by
@@ -225,14 +227,13 @@ function readEdited(v: unknown): BackupEdit[] {
     .filter(e => e.id !== '' && (e.text !== undefined || e.category !== undefined || e.voice !== undefined))
 }
 
-function readAliases(v: unknown): Aliases | undefined {
-  if (!isRecord(v)) return undefined
-  const out: Aliases = {}
-  for (const [key, value] of Object.entries(v)) {
-    const name = str(key).trim().toLowerCase()
-    if (name) out[name] = strings(value)
-  }
-  return out
+/**
+ * `readAliases` reads both shapes — the store, and the bare object of lists a
+ * file written before a list could be deleted carries — so this is only about
+ * whether the field was there at all.
+ */
+function readAliasStore(v: unknown): AliasStore | undefined {
+  return isRecord(v) ? readAliases(v) : undefined
 }
 
 /**
@@ -240,10 +241,10 @@ function readAliases(v: unknown): Aliases | undefined {
  * instead — three name fields and a contact list. They were always these same
  * lists behind the scenes, so they are read as such rather than dropped.
  */
-function readLegacyProfile(v: unknown): Aliases | undefined {
+function readLegacyProfile(v: unknown): AliasStore | undefined {
   if (!isRecord(v)) return undefined
   const carried = aliasesFromProfile(v)
-  return Object.keys(carried).length > 0 ? carried : undefined
+  return Object.keys(carried.lists).length > 0 ? carried : undefined
 }
 
 /**
@@ -291,7 +292,7 @@ export function parseBackup(text: string): ParseResult {
 
   const categories = isRecord(raw.categories) ? raw.categories : {}
   const scope = Array.isArray(raw.scope) ? strings(raw.scope) : null
-  const aliases = readAliases(raw.aliases) ?? readLegacyProfile(raw.profile)
+  const aliases = readAliasStore(raw.aliases) ?? readLegacyProfile(raw.profile)
   const settings = readSettings(raw.settings)
 
   return {
@@ -402,7 +403,7 @@ export type ImportMode = 'merge' | 'replace'
 
 export interface AppState {
   store: PhraseStore
-  aliases: Aliases
+  aliases: AliasStore
   settings: Settings
 }
 
@@ -506,15 +507,17 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
   }
 }
 
-function mergeAliases(base: Aliases, incoming: Aliases | undefined, replacing: boolean): Aliases {
+function mergeAliases(base: AliasStore, incoming: AliasStore | undefined, replacing: boolean): AliasStore {
   if (!incoming) return base
   if (replacing) return incoming
   // Merging adds and never takes away, exactly as it does for phrases: a file
   // somebody else made must not be able to delete a word off a list on your
-  // device. A list in both keeps this device's words and gains the file's.
-  const merged: Aliases = { ...base }
-  for (const [key, words] of Object.entries(incoming)) {
-    merged[key] = [...new Set([...(base[key] ?? []), ...words])]
+  // device, and **its `hidden` is not applied at all** — hiding a list is a
+  // removal, and only replace applies removals. A list in both keeps this
+  // device's words and gains the file's.
+  const lists: Aliases = { ...base.lists }
+  for (const [key, words] of Object.entries(incoming.lists)) {
+    lists[key] = [...new Set([...(base.lists[key] ?? []), ...words])]
   }
-  return merged
+  return { lists, hidden: base.hidden }
 }

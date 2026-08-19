@@ -57,7 +57,22 @@ type AliasIndex = Map<string, string[]>
  */
 export type Aliases = Record<string, string[]>
 
-export const EMPTY_ALIASES: Aliases = {}
+/**
+ * Everything the user has done to the lists: the ones they changed, and the
+ * names of the ones they took away.
+ *
+ * `hidden` is there for the same reason `PhraseStore.hidden` is. A list the
+ * table ships cannot be deleted by leaving it out of `lists` — the table would
+ * put it straight back — so a removal has to be written down as its own fact.
+ * Renaming a shipped list is built out of the same thing: the words move to the
+ * new name and the old one is hidden.
+ */
+export interface AliasStore {
+  lists: Aliases
+  hidden: string[]
+}
+
+export const EMPTY_ALIASES: AliasStore = { lists: {}, hidden: [] }
 
 function buildAliasIndex(raw: unknown): AliasIndex {
   const index: AliasIndex = new Map()
@@ -109,9 +124,15 @@ export function tableAliases(): Aliases {
  * The user's lists, in the shape `lookupAlias` reads. Exported because
  * `parseSegments` takes one, and parsing a single phrase against a set of lists
  * is how the rules above are tested.
+ *
+ * A hidden name arrives as an empty list rather than as a missing one:
+ * present-but-empty is what stops the lookup falling through to the table,
+ * which is the whole of what deleting a shipped list has to mean.
  */
-export function aliasOverlay(aliases: Aliases): AliasIndex {
-  return new Map(Object.entries(aliases).map(([key, words]) => [key.toLowerCase(), words]))
+export function aliasOverlay({ lists, hidden }: AliasStore): AliasIndex {
+  const index: AliasIndex = new Map(hidden.map(name => [name.toLowerCase(), []]))
+  for (const [key, words] of Object.entries(lists)) index.set(key.toLowerCase(), words)
+  return index
 }
 
 // Phrases say {direction} / {contact} where the alias list is plural.
@@ -345,7 +366,7 @@ const PHRASE_ROWS = ((phraseTable.phrases as { txt: string; category: string }[]
  * in at parse time, so the table is rebuilt whenever a list changes — a few
  * milliseconds, and only on an edit.
  */
-export function buildPhrases(aliases: Aliases = EMPTY_ALIASES): Phrase[] {
+export function buildPhrases(aliases: AliasStore = EMPTY_ALIASES): Phrase[] {
   const overlay = aliasOverlay(aliases)
   const seen = new Map<string, number>()
   return PHRASE_ROWS.map(p => makePhrase(p.txt.trim(), p.category, seen, overlay)).filter(
