@@ -239,11 +239,13 @@ export function AliasesPanel({ aliases, onChange }: {
   /** What a list holds: the user's words where they have them, the table's otherwise. */
   const wordsOf = useCallback((name: string) => lists[name] ?? shipped[name] ?? [], [lists, shipped])
 
-  // One open at a time, and the first open on arrival — the same bargain the
-  // guide's headings strike. Folded, the panel is a list of what it can offer,
-  // which is how somebody finds the one list they came for; `bodyparts` alone
-  // is fifty words to scroll past otherwise.
-  const [openName, setOpenName] = useState<string | null>(names[0] ?? null)
+  // One open at a time, and **all of them closed on arrival**. Folded, the panel
+  // is a list of what it can offer, which is how somebody finds the one list
+  // they came for; `bodyparts` alone is fifty words to scroll past otherwise.
+  // The guide's headings open their first section on arrival and this does not,
+  // because they are different questions: a guide is opened to read something,
+  // and this is opened to reach one list out of ten.
+  const [openName, setOpenName] = useState<string | null>(null)
   // Arranging is a mode within an open list, so closing one puts it away.
   const [arranging, setArranging] = useState(false)
   // Editing the *names*, which is about the lists rather than about any one
@@ -318,7 +320,12 @@ export function AliasesPanel({ aliases, onChange }: {
 
 
   return (
-    <div className="settings-panel">
+    // Its own class rather than `settings-panel`: that one fills whatever it is
+    // given, which for Settings is the viewport. This panel hangs down only as
+    // far as its lists, so the height it is given is the height of its content —
+    // and a pane told to fill that can never overflow, which is a pane that
+    // never scrolls. Bounded in the stylesheet, exactly as Backup is.
+    <div className="alias-panel">
       <ScrollPane className="settings-scroller" paneClassName="settings-body" step={100}>
         <p className="profile-hint">
           The words a phrase offers where it leaves a blank — “Please turn{' '}
