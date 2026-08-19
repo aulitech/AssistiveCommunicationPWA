@@ -18,22 +18,30 @@ import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
 import { tableAliases, type AliasStore, type Aliases } from '../core/phrases'
 import { moveInOrder, loadAliasSort, saveAliasSort } from '../core/store'
-import { CustomOrderIcon, EditIcon, PlusIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
+import { CustomOrderIcon, EditIcon, PlusIcon, ReorderIcon, SortAlphaIcon, UndoIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { ScrollPane } from '../ui/controls'
 
 /**
- * One word in a list: a chip with the control that takes it off — or, while the
- * list is being arranged, a thing to pick up and put down.
+ * One word in a list. A chip is one of three things and never two at once:
  *
- * The two are never offered at once. A chip that both removes a word and moves
- * it is two targets in one place, which is the worst thing to hand somebody
- * aiming by gaze; and a dwell landing on the × mid-arrangement would delete the
- * word rather than drop the one in the air.
+ * - **Plain**, which is most of the time: text to read, and no target at all.
+ * - **Being edited**: a field to reword it and an × to take it off. Deleting is
+ *   only offered here. The × used to sit on every chip in every state, which put
+ *   a delete under the pointer of somebody reading their own words — and a gaze
+ *   that rests is a gaze that fires.
+ * - **Being arranged**: a thing to pick up and put down.
+ *
+ * Two targets in one place is the worst thing to hand somebody aiming by gaze:
+ * a dwell landing on the × mid-arrangement would delete the word rather than
+ * drop the one in the air, and a dwell meant for the field would do the same.
  */
-function WordChip({ word, list, onRemove, reorder }: {
+function WordChip({ word, list, editing, onRename, onRemove, reorder }: {
   word: string
   list: string
+  /** The list is being edited: this chip is a field and a delete. */
+  editing: boolean
+  onRename: (next: string) => void
   onRemove: () => void
   /** Present only while the list is being arranged. */
   reorder?: ReorderProps
@@ -48,6 +56,7 @@ function WordChip({ word, list, onRemove, reorder }: {
     <div
       className={cx(
         'alias-word',
+        editing && !reorder && 'is-editing',
         reorder && 'reorderable',
         reorder?.held && 'is-held',
         reorder?.heldLabel && 'is-drop-zone',
@@ -71,10 +80,21 @@ function WordChip({ word, list, onRemove, reorder }: {
       })}
       {...(reorder ? move.props : {})}
     >
-      <span className="alias-word-text">{word}</span>
+      {editing && !reorder ? (
+        // A word is left exactly as it is typed, unlike a list's name: a name is
+        // a key a slot looks up, and a word is what comes out of the speaker.
+        <NameField
+          value={word}
+          className="alias-word-name"
+          label={`Rename ${word} in ${list}`}
+          onCommit={onRename}
+        />
+      ) : (
+        <span className="alias-word-text">{word}</span>
+      )}
       {reorder ? (
         <div className="dwell-bar" key={move.active ? 'a' : 'i'} />
-      ) : (
+      ) : editing ? (
         <div
           className={cx('contact-remove', remove.active && 'dwelling')}
           style={dwellVar(settings.actionDwellMs)}
@@ -87,7 +107,7 @@ function WordChip({ word, list, onRemove, reorder }: {
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
@@ -173,39 +193,46 @@ function AddRow({ label, placeholder, onAdd }: {
 }
 
 /**
- * A list's name, while the panel is editing names.
+ * A field for renaming something, used for a list's name and for a word in one.
  *
  * Committed on Enter or on leaving the field rather than on every keystroke: a
- * rename is a change of key, and rewriting it letter by letter would leave a
- * list called "d", then "dr", then "dri" — and take the focus with it each time.
+ * rename is a replacement, and rewriting it letter by letter would leave a list
+ * called "d", then "dr", then "dri" — and take the focus with it each time.
  *
  * Every list has one, the table's included. Renaming one the table ships is a
  * real change of meaning — the phrases that say `{pronouns}` resolve to nothing
  * afterwards — but the board is the user's, and so are the words on it.
  */
-function NameField({ name, onRename }: { name: string; onRename: (next: string) => void }) {
-  const [draft, setDraft] = useState(name)
+function NameField({ value, className, label, normalise = (raw: string) => raw.trim(), onCommit }: {
+  value: string
+  className: string
+  label: string
+  /** What the typed text means once it is committed. */
+  normalise?: (raw: string) => string
+  onCommit: (next: string) => void
+}) {
+  const [draft, setDraft] = useState(value)
 
-  // Somewhere else renamed it — an import, a reset — so follow rather than sit
-  // on a name that is no longer there. Adjusted during render rather than in an
-  // effect, which is how the grid and the menu panel do the same thing: an
-  // effect would render once with the stale name still in the field.
-  const [forName, setForName] = useState(name)
-  if (forName !== name) {
-    setForName(name)
-    setDraft(name)
+  // Somewhere else renamed it — an import, a reset, an undo — so follow rather
+  // than sit on a name that is no longer there. Adjusted during render rather
+  // than in an effect, which is how the grid and the menu panel do the same
+  // thing: an effect would render once with the stale name still in the field.
+  const [forValue, setForValue] = useState(value)
+  if (forValue !== value) {
+    setForValue(value)
+    setDraft(value)
   }
 
   const commit = () => {
-    const next = draft.trim().toLowerCase()
-    if (next === name) return
-    if (!next) return setDraft(name)
-    onRename(next)
+    const next = normalise(draft)
+    if (next === value) return
+    if (!next) return setDraft(value)
+    onCommit(next)
   }
 
   return (
     <input
-      className="profile-input alias-name"
+      className={cx('profile-input', className)}
       value={draft}
       onChange={e => setDraft(e.target.value)}
       onBlur={commit}
@@ -214,9 +241,9 @@ function NameField({ name, onRename }: { name: string; onRename: (next: string) 
           e.preventDefault()
           commit()
         }
-        if (e.key === 'Escape') setDraft(name)
+        if (e.key === 'Escape') setDraft(value)
       }}
-      aria-label={`Rename ${name}`}
+      aria-label={label}
     />
   )
 }
@@ -248,6 +275,10 @@ export function AliasesPanel({ aliases, onChange }: {
   const [openName, setOpenName] = useState<string | null>(null)
   // Arranging is a mode within an open list, so closing one puts it away.
   const [arranging, setArranging] = useState(false)
+  // Editing the *words* in the open list — a field and a delete on each chip.
+  // Deleting is only offered here, which is what stops a gaze resting on
+  // somebody's own words from taking one of them off the list.
+  const [editingWords, setEditingWords] = useState(false)
   // Editing the *names*, which is about the lists rather than about any one
   // list's words — so it is the panel's mode, not an open list's.
   const [editingNames, setEditingNames] = useState(false)
@@ -313,8 +344,21 @@ export function AliasesPanel({ aliases, onChange }: {
     [lists, hidden, shipped, onChange],
   )
 
+  // Never both at once: a chip that is a field, a delete and a handle together
+  // is three targets in one place, and a dwell meant for one of them does
+  // another. Each mode turns the other off rather than sitting beside it.
+  const toggleArranging = useCallback(() => {
+    setEditingWords(false)
+    setArranging(a => !a)
+  }, [])
+  const toggleEditingWords = useCallback(() => {
+    setArranging(false)
+    setEditingWords(e => !e)
+  }, [])
+
   const open = useCallback((name: string) => {
     setArranging(false)
+    setEditingWords(false)
     setOpenName(current => (current === name ? null : name))
   }, [])
 
@@ -360,7 +404,9 @@ export function AliasesPanel({ aliases, onChange }: {
             sort={sort}
             onToggleSort={toggleSort}
             arranging={arranging}
-            onToggleArrange={() => setArranging(a => !a)}
+            onToggleArrange={toggleArranging}
+            editingWords={editingWords}
+            onToggleEditWords={toggleEditingWords}
             editingName={editingNames}
             onRename={next => renameList(name, next)}
             onDrop={() => dropList(name)}
@@ -373,7 +419,7 @@ export function AliasesPanel({ aliases, onChange }: {
   )
 }
 
-function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging, onToggleArrange, editingName, onRename, onWords, onDrop, onSorted }: {
+function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging, onToggleArrange, editingWords, onToggleEditWords, editingName, onRename, onWords, onDrop, onSorted }: {
   name: string
   words: string[]
   isOpen: boolean
@@ -385,6 +431,9 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
   onToggleSort: () => void
   arranging: boolean
   onToggleArrange: () => void
+  /** The words are fields with a delete beside them. */
+  editingWords: boolean
+  onToggleEditWords: () => void
   onWords: (next: string[]) => void
   onDrop: () => void
   /** An arrangement made while A–Z was showing is now the arrangement. */
@@ -423,6 +472,59 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
     onToggleArrange()
   }, [release, onToggleArrange])
 
+  // Turning the fields on puts down whatever arranging had in the air, for the
+  // reason turning arranging off does: a word left held would be dropped by the
+  // next dwell, somewhere nobody asked for.
+  const toggleEdit = useCallback(() => {
+    release()
+    onToggleEditWords()
+  }, [release, onToggleEditWords])
+
+  /**
+   * What has been taken off the list, newest last, each with where it was.
+   *
+   * Deleting is the one edit here with nothing to show for it afterwards — a
+   * word that is gone leaves no chip to fix — so every removal is kept and the
+   * last of them can be put back where it was. The index is into the stored
+   * order rather than the shown one, which is what makes an undo out of A–Z put
+   * the word back where the user actually had it.
+   *
+   * It is per list and lasts as long as the panel is open. Nothing is written
+   * to storage: an undo somebody has to come back tomorrow for is a backup,
+   * and there is one of those under the next menu item.
+   */
+  const [removed, setRemoved] = useState<{ word: string; at: number }[]>([])
+  const last = removed[removed.length - 1]
+
+  const removeWord = useCallback(
+    (word: string) => {
+      setRemoved(stack => [...stack, { word, at: words.indexOf(word) }])
+      onWords(words.filter(w => w !== word))
+    },
+    [words, onWords],
+  )
+
+  const undoRemove = useCallback(() => {
+    if (!last) return
+    setRemoved(stack => stack.slice(0, -1))
+    // Typed back in by hand in the meantime: the removal is spent either way,
+    // and putting it back again would leave the word on the list twice.
+    if (words.includes(last.word)) return
+    const next = [...words]
+    next.splice(Math.min(last.at, next.length), 0, last.word)
+    onWords(next)
+  }, [last, words, onWords])
+
+  const renameWord = useCallback(
+    (word: string, to: string) => {
+      // Two chips reading the same thing is one word nobody can tell from the
+      // other, and a slot offering it twice.
+      if (words.includes(to)) return
+      onWords(words.map(w => (w === word ? to : w)))
+    },
+    [words, onWords],
+  )
+
   return (
     <div ref={ref} className={cx('alias-list', 'is-collapsible', isOpen && 'is-open')} role="group" aria-label={name}>
       {editingName ? (
@@ -430,7 +532,15 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
         // heading that both opened the list and took a name would be two
         // targets in one place, which is the worst thing to hand a gaze.
         <div className="alias-list-head is-editing">
-          <NameField name={name} onRename={onRename} />
+          {/* Folded to lower case, because a list's name is the key a slot
+              looks up. A word on the list is not — see `WordChip`. */}
+          <NameField
+            value={name}
+            className="alias-name"
+            label={`Rename ${name}`}
+            normalise={raw => raw.trim().toLowerCase()}
+            onCommit={onRename}
+          />
           <ListTool className="alias-delete" label={`Delete the ${name} list`} onActivate={onDrop}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="14" height="14" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -481,6 +591,28 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
             >
               <ReorderIcon />
             </ListTool>
+            {/* Never disabled, even with nothing on the list: a toggle that goes
+                quiet while it is on is a mode nobody can leave. */}
+            <ListTool
+              className="alias-edit"
+              label={editingWords ? `Done editing the words in ${name}` : `Edit the words in ${name}`}
+              pressed={editingWords}
+              onActivate={toggleEdit}
+            >
+              <EditIcon />
+            </ListTool>
+            {/* Quiet rather than away with nothing to put back — a control that
+                comes and goes moves the three beside it, and these are aimed at
+                rather than read. The word is in the label, since what the last
+                deletion was is the whole question being asked. */}
+            <ListTool
+              className="alias-undo"
+              label={last ? `Put ${last.word} back on ${name}` : 'Nothing to put back'}
+              disabled={!last}
+              onActivate={undoRemove}
+            >
+              <UndoIcon />
+            </ListTool>
           </div>
 
           {words.length === 0 && <p className="profile-empty">Nothing in it yet.</p>}
@@ -493,7 +625,9 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
                 key={word}
                 word={word}
                 list={name}
-                onRemove={() => onWords(words.filter(w => w !== word))}
+                editing={editingWords}
+                onRename={next => renameWord(word, next)}
+                onRemove={() => removeWord(word)}
                 reorder={arranging ? propsFor(word) : undefined}
               />
             ))}

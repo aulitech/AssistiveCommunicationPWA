@@ -195,7 +195,10 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The lists all start closed, so what you arrive at is their names. Choose one to open it and it comes to the top of the panel; choosing another folds the first away again.',
       ),
       text(
-        'An open list shows its words as a grid, with two buttons above it: one switches between A to Z and the order you put the words in, and the other lets you arrange them — choose a word to pick it up, then choose where it should go.',
+        'An open list shows its words as a grid, with four buttons above it. The first switches between A to Z and the order you put the words in. The second arranges them: choose a word to pick it up, then choose where it should go.',
+      ),
+      text(
+        'The third turns every word into a box you can retype, with an × beside it to take that word off. Words can only be deleted there, so resting on one you are simply reading cannot lose it. The fourth puts back the last word you deleted, and again for the one before that.',
       ),
     ],
   },
