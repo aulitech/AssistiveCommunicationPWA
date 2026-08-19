@@ -1417,6 +1417,55 @@ describe('aliases', () => {
     expect(usingPronouns()).toBe(0)
   })
 
+  // Deleting a list is the largest loss this panel hands out: fifty words in one
+  // dwell, and every phrase that named it left with a blank. So it is the one
+  // that most needs a way back.
+  it('puts back a list it deleted, with its words', () => {
+    renderApp()
+    openAliases()
+    click(panelTool('Add a list'))
+    click(panelTool('Done editing'))
+    addTo('new-list', 'tea')
+
+    click(panelTool('Edit list names'))
+    click(list('new-list').querySelector('[aria-label^="Delete"]'))
+    expect(storedLists()['new-list']).toBeUndefined()
+
+    click(panelTool('Put the new-list list back'))
+    expect(storedLists()['new-list']).toEqual(['tea'])
+  })
+
+  // What goes back is the *state* the name was in, not the words that were on
+  // show. Writing the table's own words into the store would pin the list to
+  // this release and stop it following the table into the next one, which is the
+  // whole point of keeping only what the user changed.
+  it('puts back a list the table ships without storing a copy of it', () => {
+    renderApp()
+    openAliases()
+    click(panelTool('Edit list names'))
+    click(list('pronouns').querySelector('[aria-label^="Delete"]'))
+    expect(storedHidden()).toContain('pronouns')
+
+    click(panelTool('Put the pronouns list back'))
+    expect(storedHidden()).not.toContain('pronouns')
+    expect(storedLists().pronouns, "the table's own words were copied into the store").toBeUndefined()
+
+    // A heading is a name box while names are being edited, so leave that mode
+    // before asking the list to open.
+    click(panelTool('Done editing'))
+    expect(wordsIn('pronouns')).toContain('they')
+    // And the phrases that named it have their choices again.
+    expect(cellTexts().filter(t => t?.includes('pronoun')).length).toBeGreaterThan(0)
+  })
+
+  // Quiet rather than away, and naming the list it would restore.
+  it('has no list to put back until one is deleted', () => {
+    renderApp()
+    openAliases()
+
+    expect(panelTool('Nothing to put back').getAttribute('aria-disabled')).toBe('true')
+  })
+
   // Renaming one the table ships carries its words across and hides the old
   // name, which is the same removal written the same way.
   it('renames a list the table ships', () => {
@@ -1664,6 +1713,53 @@ describe('aliases', () => {
 
       click(listTool('drinks', 'arrange'))
       expect(list('drinks').querySelector('.is-held'), 'a word was still in the air').toBeNull()
+    })
+
+    // The part no keyboard supplies: saying *where* in the box to type. There is
+    // no click in a gaze, so a rest over the field puts the caret under it — and
+    // going on resting is how a gaze selects, since a dwell can only say "here".
+    describe('placing the caret by dwell', () => {
+      const dwellOn = (field: Element, at = 100) => {
+        fireEvent.pointerEnter(field, { clientX: at, clientY: 100 })
+        act(() => void vi.advanceTimersByTime(DEFAULT_SETTINGS.actionDwellMs))
+      }
+      const rest = () => act(() => void vi.advanceTimersByTime(DEFAULT_SETTINGS.actionDwellMs))
+      const answers = (field: Element, offset: number) =>
+        Object.assign(document, { caretPositionFromPoint: () => ({ offsetNode: field, offset }) })
+      const range = (field: HTMLInputElement) => [field.selectionStart, field.selectionEnd]
+
+      afterEach(() => {
+        delete (document as unknown as Record<string, unknown>).caretPositionFromPoint
+      })
+
+      it('puts the caret in a word, then takes the word, then the lot', () => {
+        seedDrinks(['tea and coffee'])
+        editWords('drinks')
+        const field = list('drinks').querySelector<HTMLInputElement>('.alias-word-name')!
+        answers(field, 5)
+
+        dwellOn(field)
+        expect(document.activeElement, 'the field was left unfocused').toBe(field)
+        expect(range(field), 'the first rest is a caret, not a selection').toEqual([5, 5])
+
+        rest()
+        expect(range(field)).toEqual([4, 7])
+
+        rest()
+        expect(range(field)).toEqual([0, 14])
+      })
+
+      // The same on a list's name, which is the other field this panel edits.
+      it('puts the caret in a list name', () => {
+        seedDrinks(['tea'])
+        openAliases()
+        click(panelTool('Edit list names'))
+        const field = list('drinks').querySelector<HTMLInputElement>('.alias-name')!
+        answers(field, 2)
+
+        dwellOn(field)
+        expect(range(field)).toEqual([2, 2])
+      })
     })
 
     // Closing the list puts the mode away with it, exactly as it does arranging.

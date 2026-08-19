@@ -2365,6 +2365,20 @@ body {
   border-color: var(--accent);
 }
 
+/* The dwell that puts the caret where somebody is looking, painted as a
+   background layer for the reason the message box paints its own that way: an
+   input can hold no children, so there is nowhere to put a `.dwell-bar`.
+
+   Every step of a hold replays it — caret, then the word, then the lot — so the
+   next one is visibly coming and holding still is a thing with a result. See
+   `useCaretDwell`. */
+.profile-input.dwelling {
+  background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  animation: composerDwellFill var(--dwell-duration, 800ms) linear forwards;
+}
+
 .profile-input::placeholder {
   color: var(--text-muted);
 }
