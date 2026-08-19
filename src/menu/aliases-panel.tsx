@@ -18,7 +18,7 @@ import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
 import { tableAliases, type Aliases } from '../core/phrases'
 import { moveInOrder, loadAliasSort, saveAliasSort } from '../core/store'
-import { CustomOrderIcon, PlusIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
+import { CustomOrderIcon, EditIcon, PlusIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { ScrollPane } from '../ui/controls'
 
@@ -172,6 +172,55 @@ function AddRow({ label, placeholder, onAdd }: {
   )
 }
 
+/**
+ * A list's name, while the panel is editing names.
+ *
+ * Committed on Enter or on leaving the field rather than on every keystroke: a
+ * rename is a change of key, and rewriting it letter by letter would leave a
+ * list called "d", then "dr", then "dri" — and take the focus with it each time.
+ *
+ * Only a list the user made has one. A name the table ships is written into the
+ * phrases that use it — rename `pronouns` and every phrase saying `{pronouns}`
+ * quietly resolves to nothing — so those are shown and not offered.
+ */
+function NameField({ name, onRename }: { name: string; onRename: (next: string) => void }) {
+  const [draft, setDraft] = useState(name)
+
+  // Somewhere else renamed it — an import, a reset — so follow rather than sit
+  // on a name that is no longer there. Adjusted during render rather than in an
+  // effect, which is how the grid and the menu panel do the same thing: an
+  // effect would render once with the stale name still in the field.
+  const [forName, setForName] = useState(name)
+  if (forName !== name) {
+    setForName(name)
+    setDraft(name)
+  }
+
+  const commit = () => {
+    const next = draft.trim().toLowerCase()
+    if (next === name) return
+    if (!next) return setDraft(name)
+    onRename(next)
+  }
+
+  return (
+    <input
+      className="profile-input alias-name"
+      value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          commit()
+        }
+        if (e.key === 'Escape') setDraft(name)
+      }}
+      aria-label={`Rename ${name}`}
+    />
+  )
+}
+
 export function AliasesPanel({ aliases, onChange }: {
   aliases: Aliases
   onChange: (next: Aliases) => void
@@ -191,6 +240,9 @@ export function AliasesPanel({ aliases, onChange }: {
   const [openName, setOpenName] = useState<string | null>(names[0] ?? null)
   // Arranging is a mode within an open list, so closing one puts it away.
   const [arranging, setArranging] = useState(false)
+  // Editing the *names*, which is about the lists rather than about any one
+  // list's words — so it is the panel's mode, not an open list's.
+  const [editingNames, setEditingNames] = useState(false)
   const [sort, setSort] = useState(loadAliasSort)
 
   // One way in, so every route to it is remembered — including arranging a list
@@ -210,12 +262,28 @@ export function AliasesPanel({ aliases, onChange }: {
     [aliases, onChange],
   )
 
-  const addList = useCallback(
-    (raw: string) => {
-      const name = raw.trim().toLowerCase()
-      if (!name || name in shipped || name in aliases) return
-      onChange({ ...aliases, [name]: [] })
-      setOpenName(name)
+  /**
+   * A new list, named for them and left ready to be renamed.
+   *
+   * The `+` cannot ask for a name — it is one dwell, and naming is a keyboard
+   * job — so it makes the list, opens it, and turns on the mode whose field is
+   * the place to type. A name nobody changes is still a working list.
+   */
+  const addList = useCallback(() => {
+    let name = 'new-list'
+    for (let n = 2; name in shipped || name in aliases; n++) name = `new-list-${n}`
+    onChange({ ...aliases, [name]: [] })
+    setOpenName(name)
+    setEditingNames(true)
+  }, [aliases, shipped, onChange])
+
+  const renameList = useCallback(
+    (from: string, to: string) => {
+      if (to in shipped || to in aliases) return
+      const next: Aliases = {}
+      for (const [key, words] of Object.entries(aliases)) next[key === from ? to : key] = words
+      onChange(next)
+      setOpenName(current => (current === from ? to : current))
     },
     [aliases, shipped, onChange],
   )
@@ -235,6 +303,10 @@ export function AliasesPanel({ aliases, onChange }: {
     setOpenName(current => (current === name ? null : name))
   }, [])
 
+  // Nothing to edit the names of until there is a list of their own: the
+  // table's are fixed, being written into the phrases that use them.
+  const canEditNames = names.some(name => !(name in shipped))
+
   return (
     <div className="settings-panel">
       <ScrollPane className="settings-scroller" paneClassName="settings-body" step={100}>
@@ -243,6 +315,24 @@ export function AliasesPanel({ aliases, onChange }: {
           <em>on</em> the lights”, “I'm going to call <em>Mum</em>”. Write{' '}
           <code>{'{'}contacts{'}'}</code> in a phrase to use one.
         </p>
+
+        {/* The two things that are about the lists rather than about any one
+            list's words, so they sit above all of them rather than inside the
+            open one. */}
+        <div className="alias-panel-tools">
+          <ListTool className="alias-add" label="Add a list" onActivate={addList}>
+            <PlusIcon />
+          </ListTool>
+          <ListTool
+            className="alias-rename"
+            label={editingNames ? 'Done editing list names' : 'Edit list names'}
+            pressed={editingNames}
+            disabled={!canEditNames}
+            onActivate={() => setEditingNames(e => !e)}
+          >
+            <EditIcon />
+          </ListTool>
+        </div>
 
         {names.map(name => (
           <AliasList
@@ -255,30 +345,30 @@ export function AliasesPanel({ aliases, onChange }: {
             onToggleSort={toggleSort}
             arranging={arranging}
             onToggleArrange={() => setArranging(a => !a)}
-            /** Only a list of their own can be deleted; the table's can be emptied. */
+            /**
+             * Only a list of their own can be renamed or deleted. A name the
+             * table ships is written into the phrases that use it.
+             */
+            editingName={editingNames && !(name in shipped)}
+            onRename={next => renameList(name, next)}
             onDrop={name in shipped ? undefined : () => dropList(name)}
             onWords={next => setList(name, next)}
             onSorted={() => applySort('custom')}
           />
         ))}
-
-        <div className="alias-list" role="group" aria-label="New list">
-          <span className="setting-label">New list</span>
-          <p className="profile-empty">
-            A name with no spaces — a phrase reaches it by writing that name in curly brackets.
-          </p>
-          <AddRow label="Add a list" placeholder="drinks" onAdd={addList} />
-        </div>
       </ScrollPane>
     </div>
   )
 }
 
-function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging, onToggleArrange, onWords, onDrop, onSorted }: {
+function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging, onToggleArrange, editingName, onRename, onWords, onDrop, onSorted }: {
   name: string
   words: string[]
   isOpen: boolean
   onOpen: () => void
+  /** The panel is editing names, and this is one of the user's own. */
+  editingName: boolean
+  onRename: (next: string) => void
   sort: 'custom' | 'alpha'
   onToggleSort: () => void
   arranging: boolean
@@ -324,19 +414,35 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
 
   return (
     <div ref={ref} className={cx('alias-list', 'is-collapsible', isOpen && 'is-open')} role="group" aria-label={name}>
-      <div
-        className={cx('alias-list-head', heading.active && 'dwelling')}
-        style={dwellVar(settings.actionDwellMs)}
-        role="button"
-        aria-expanded={isOpen}
-        aria-label={`${name}, ${words.length} ${words.length === 1 ? 'word' : 'words'}`}
-        {...heading.props}
-      >
-        <span className="alias-caret" aria-hidden="true" />
-        <span className="setting-label">{name}</span>
-        <span className="alias-count">{words.length}</span>
-        <div className="dwell-bar" key={heading.active ? 'a' : 'i'} />
-      </div>
+      {editingName ? (
+        // The row is a field and a delete while names are being edited: a
+        // heading that both opened the list and took a name would be two
+        // targets in one place, which is the worst thing to hand a gaze.
+        <div className="alias-list-head is-editing">
+          <NameField name={name} onRename={onRename} />
+          {onDrop && (
+            <ListTool className="alias-delete" label={`Delete the ${name} list`} onActivate={onDrop}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="14" height="14" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </ListTool>
+          )}
+        </div>
+      ) : (
+        <div
+          className={cx('alias-list-head', heading.active && 'dwelling')}
+          style={dwellVar(settings.actionDwellMs)}
+          role="button"
+          aria-expanded={isOpen}
+          aria-label={`${name}, ${words.length} ${words.length === 1 ? 'word' : 'words'}`}
+          {...heading.props}
+        >
+          <span className="alias-caret" aria-hidden="true" />
+          <span className="setting-label">{name}</span>
+          <span className="alias-count">{words.length}</span>
+          <div className="dwell-bar" key={heading.active ? 'a' : 'i'} />
+        </div>
+      )}
 
       {/* Unmounted rather than hidden: nine lists left open in the tree would
           have a screen reader read out three hundred words nobody asked for. */}
@@ -366,13 +472,6 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
             >
               <ReorderIcon />
             </ListTool>
-            {onDrop && (
-              <ListTool className="alias-delete" label={`Delete the ${name} list`} onActivate={onDrop}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="14" height="14" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </ListTool>
-            )}
           </div>
 
           {words.length === 0 && <p className="profile-empty">Nothing in it yet.</p>}
