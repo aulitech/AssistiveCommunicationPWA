@@ -2290,6 +2290,20 @@ body {
   white-space: nowrap;
 }
 
+/* Being edited: a field where the word was, and the × beside it. The chip keeps
+   its own shape rather than growing around the field, or turning the mode on
+   would reflow the whole grid and move every word the user was looking at. */
+.alias-word.is-editing {
+  padding: 2px 4px 2px 6px;
+  cursor: default;
+}
+
+.alias-word-name {
+  font-size: 0.9rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
 .alias-word.reorderable { cursor: grab; }
 .alias-word.dwelling .dwell-bar { background: var(--accent); }
 

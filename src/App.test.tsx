@@ -1140,18 +1140,40 @@ describe('aliases', () => {
     const head = list(name).querySelector('.alias-list-head')!
     if (head.getAttribute('aria-expanded') !== 'true') click(head)
   }
+  /** The words on show, whether they are text or fields being edited. */
   const wordsIn = (name: string) => {
     openList(name)
-    return [...list(name).querySelectorAll('.alias-word-text')].map(w => w.textContent)
+    return [...list(name).querySelectorAll('.alias-word')].map(
+      w =>
+        w.querySelector('.alias-word-text')?.textContent ??
+        w.querySelector<HTMLInputElement>('.alias-word-name')?.value ??
+        '',
+    )
+  }
+  const listTool = (name: string, cls: string) => {
+    openList(name)
+    return list(name).querySelector(`.alias-${cls}`)!
+  }
+  /** Deleting and rewording are only offered while the words are being edited. */
+  const editWords = (name: string) => {
+    const tool = listTool(name, 'edit')
+    if (tool.getAttribute('aria-pressed') !== 'true') click(tool)
   }
   const addTo = (name: string, word: string) => {
     openList(name)
     const row = list(name)
-    fireEvent.change(row.querySelector('input')!, { target: { value: word } })
+    // Scoped to the add row: while the words are being edited every chip is a
+    // field too, and the first input in the list is one of those.
+    fireEvent.change(row.querySelector('.contact-add input')!, { target: { value: word } })
     settle()
     click(row.querySelector('.contact-add-btn'))
   }
   const stored = () => JSON.parse(localStorage.getItem('peri_aliases') ?? '{}')
+  const seedDrinks = (words: string[]) => {
+    localStorage.setItem('peri_aliases', JSON.stringify({ lists: { drinks: words }, hidden: [] }))
+    renderApp()
+    openAliases()
+  }
   const storedLists = () => stored().lists ?? {}
   const storedHidden = () => stored().hidden ?? []
   const cellTexts = () => cells().map(c => c.textContent)
@@ -1258,6 +1280,7 @@ describe('aliases', () => {
     addTo('contacts', 'Mum')
     expect(wordsIn('contacts')).toEqual(['Mum'])
 
+    editWords('contacts')
     click(list('contacts').querySelector('.alias-word .contact-remove'))
     expect(wordsIn('contacts')).toEqual([])
   })
@@ -1268,6 +1291,7 @@ describe('aliases', () => {
     renderApp()
     openAliases()
     const before = wordsIn('pronouns')
+    editWords('pronouns')
     click(list('pronouns').querySelector('.alias-word .contact-remove'))
 
     expect(wordsIn('pronouns')).toEqual(before.slice(1))
@@ -1410,11 +1434,7 @@ describe('aliases', () => {
   // the words were put in. A–Z is a view — the order underneath it is left
   // alone, so going to A–Z and back is not a way to lose an arrangement.
   describe('the order the words come in', () => {
-    const seed = (words: string[]) => {
-      localStorage.setItem('peri_aliases', JSON.stringify({ lists: { drinks: words }, hidden: [] }))
-      renderApp()
-      openAliases()
-    }
+    const seed = seedDrinks
     const tool = (label: string) => {
       openList('drinks')
       return [...list('drinks').querySelectorAll('.alias-tool')].find(t =>
@@ -1486,11 +1506,13 @@ describe('aliases', () => {
     // never be both at once: a dwell meant to put a word down would delete it.
     it('offers no remove while a list is being arranged', () => {
       seed(['tea', 'coffee'])
-      openList('drinks')
+      editWords('drinks')
       expect(list('drinks').querySelector('.alias-word .contact-remove')).not.toBeNull()
 
       click(tool('Arrange'))
       expect(list('drinks').querySelector('.alias-word .contact-remove')).toBeNull()
+      // And the mode it replaced has let go rather than sitting underneath it.
+      expect(listTool('drinks', 'edit').getAttribute('aria-pressed')).toBe('false')
     })
 
     // Closing the list puts down whatever is in the air; without it the word
@@ -1503,6 +1525,155 @@ describe('aliases', () => {
       openList('drinks')
 
       expect(tool('Arrange').getAttribute('aria-pressed')).toBe('false')
+    })
+  })
+
+  // A word is text to read until the pencil says otherwise. The × used to sit on
+  // every chip in every state, which put a delete under the pointer of somebody
+  // reading their own words — and a gaze that rests is a gaze that fires.
+  describe('editing the words in a list', () => {
+    const chipFor = (word: string) =>
+      [...list('drinks').querySelectorAll('.alias-word')].find(
+        c =>
+          c.querySelector<HTMLInputElement>('.alias-word-name')?.value === word ||
+          c.querySelector('.alias-word-text')?.textContent === word,
+      )!
+    const removeControl = (word: string) => chipFor(word).querySelector('.contact-remove')
+    const reword = (from: string, to: string) => {
+      const field = chipFor(from).querySelector('input')!
+      fireEvent.change(field, { target: { value: to } })
+      fireEvent.blur(field)
+      settle()
+    }
+    const drinks = () => storedLists().drinks
+    const undo = () => listTool('drinks', 'undo')
+
+    it('offers nothing to delete until the pencil is on', () => {
+      seedDrinks(['tea', 'coffee'])
+      openList('drinks')
+      expect(list('drinks').querySelectorAll('.contact-remove')).toHaveLength(0)
+
+      editWords('drinks')
+      expect(list('drinks').querySelectorAll('.contact-remove')).toHaveLength(2)
+    })
+
+    it('rewords a word where it stands', () => {
+      seedDrinks(['tea', 'coffee', 'beer'])
+      editWords('drinks')
+      reword('coffee', 'cocoa')
+
+      expect(drinks()).toEqual(['tea', 'cocoa', 'beer'])
+    })
+
+    // A word is what comes out of the speaker, so it is kept exactly as typed —
+    // unlike a list's name, which is the key a slot looks up and is folded down.
+    it('keeps the case a word is typed in', () => {
+      seedDrinks(['mum'])
+      editWords('drinks')
+      reword('mum', 'Mum')
+
+      expect(drinks()).toEqual(['Mum'])
+    })
+
+    // Two chips reading the same thing is one word nobody can tell from the
+    // other, and a slot offering it twice.
+    it('refuses a word the list already has', () => {
+      seedDrinks(['tea', 'coffee'])
+      editWords('drinks')
+      reword('coffee', 'tea')
+
+      expect(drinks()).toEqual(['tea', 'coffee'])
+    })
+
+    // Deleting is the one edit here with nothing to show for it afterwards: a
+    // word that is gone leaves no chip to fix.
+    it('puts the last deleted word back where it was', () => {
+      seedDrinks(['tea', 'coffee', 'beer'])
+      editWords('drinks')
+      click(removeControl('coffee'))
+      expect(drinks()).toEqual(['tea', 'beer'])
+
+      click(undo())
+      expect(drinks()).toEqual(['tea', 'coffee', 'beer'])
+    })
+
+    it('goes back through several deletions, newest first', () => {
+      seedDrinks(['tea', 'coffee', 'beer'])
+      editWords('drinks')
+      click(removeControl('tea'))
+      click(removeControl('beer'))
+      expect(drinks()).toEqual(['coffee'])
+
+      click(undo())
+      expect(drinks()).toEqual(['coffee', 'beer'])
+      click(undo())
+      expect(drinks()).toEqual(['tea', 'coffee', 'beer'])
+    })
+
+    // Quiet rather than away with nothing to put back: a control that comes and
+    // goes moves the three beside it, and these are aimed at rather than read.
+    it('has nothing to put back until something is deleted', () => {
+      seedDrinks(['tea', 'coffee'])
+      editWords('drinks')
+      expect(undo().getAttribute('aria-disabled')).toBe('true')
+
+      click(removeControl('tea'))
+      expect(undo().getAttribute('aria-disabled')).toBeNull()
+
+      click(undo())
+      expect(drinks()).toEqual(['tea', 'coffee'])
+      expect(undo().getAttribute('aria-disabled')).toBe('true')
+    })
+
+    // The removal remembers where the word sat in the order underneath, not in
+    // the one on show — otherwise an undo out of A–Z rearranges the list it is
+    // meant to be repairing.
+    it('puts a word back into the order underneath, not the one on show', () => {
+      seedDrinks(['beer', 'tea', 'coffee'])
+      click(listTool('drinks', 'sort')) // A–Z: beer, coffee, tea
+      editWords('drinks')
+      click(removeControl('coffee'))
+
+      click(undo())
+      // Taken from the shown order, coffee would have gone back at index 1.
+      expect(drinks()).toEqual(['beer', 'tea', 'coffee'])
+    })
+
+    // Typed back in by hand in the meantime: the removal is spent either way,
+    // and putting it back again would leave the word on the list twice.
+    it('does not double a word that came back by hand', () => {
+      seedDrinks(['tea'])
+      editWords('drinks')
+      click(removeControl('tea'))
+      addTo('drinks', 'tea')
+
+      click(undo())
+      expect(drinks()).toEqual(['tea'])
+    })
+
+    // The two modes a chip can be in are never both on: a chip that is a field,
+    // a delete and a handle at once is three targets in one place.
+    it('puts down what arranging had in the air', () => {
+      seedDrinks(['tea', 'coffee'])
+      click(listTool('drinks', 'arrange'))
+      click(chipFor('tea'))
+      expect(chipFor('tea').className).toMatch(/is-held/)
+
+      editWords('drinks')
+      expect(listTool('drinks', 'arrange').getAttribute('aria-pressed')).toBe('false')
+
+      click(listTool('drinks', 'arrange'))
+      expect(list('drinks').querySelector('.is-held'), 'a word was still in the air').toBeNull()
+    })
+
+    // Closing the list puts the mode away with it, exactly as it does arranging.
+    it('stops editing when the list is closed', () => {
+      seedDrinks(['tea', 'coffee'])
+      editWords('drinks')
+      click(list('drinks').querySelector('.alias-list-head'))
+      openList('drinks')
+
+      expect(listTool('drinks', 'edit').getAttribute('aria-pressed')).toBe('false')
     })
   })
 
