@@ -467,18 +467,15 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
     },
   })
 
+  // The one place a held word is put down. Both ways through: switching the mode
+  // off would otherwise leave the word held across the round trip, and switching
+  // it back on would drop the forgotten one under the next dwell rather than
+  // lifting the chip the pointer is over. Turning the *pencil* on needs nothing
+  // of its own — it turns arranging off, and nothing can be held while it is.
   const toggleArrange = useCallback(() => {
     release()
     onToggleArrange()
   }, [release, onToggleArrange])
-
-  // Turning the fields on puts down whatever arranging had in the air, for the
-  // reason turning arranging off does: a word left held would be dropped by the
-  // next dwell, somewhere nobody asked for.
-  const toggleEdit = useCallback(() => {
-    release()
-    onToggleEditWords()
-  }, [release, onToggleEditWords])
 
   /**
    * What has been taken off the list, newest last, each with where it was.
@@ -597,7 +594,7 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
               className="alias-edit"
               label={editingWords ? `Done editing the words in ${name}` : `Edit the words in ${name}`}
               pressed={editingWords}
-              onActivate={toggleEdit}
+              onActivate={onToggleEditWords}
             >
               <EditIcon />
             </ListTool>
