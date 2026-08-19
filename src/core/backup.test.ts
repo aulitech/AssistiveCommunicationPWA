@@ -15,7 +15,7 @@ import {
   type Backup,
 } from './backup'
 import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from './store'
-import { EMPTY_ALIASES, type Aliases } from './phrases'
+import { EMPTY_ALIASES, type AliasStore } from './phrases'
 import { saveElevenLabs, saveSent } from './store'
 
 // A store with something of the user's in every field, and the map of ids to
@@ -36,11 +36,14 @@ function fixture(): { state: AppState; categoryById: Map<string, string> } {
     categorySort: 'custom',
     emergencyOrder: ['em-2', 'em-0'],
   }
-  const aliases: Aliases = {
-    'name.given': ['Ada'],
-    'name.surname': ['Lovelace'],
-    name: ['Ada Lovelace'],
-    contacts: ['Mum', 'Charles'],
+  const aliases: AliasStore = {
+    lists: {
+      'name.given': ['Ada'],
+      'name.surname': ['Lovelace'],
+      name: ['Ada Lovelace'],
+      contacts: ['Mum', 'Charles'],
+    },
+    hidden: ['clothes'],
   }
   const categoryById = new Map([
     ['custom-1', 'Food'],
@@ -83,7 +86,7 @@ describe('building a backup', () => {
     expect(backup.categories.renamed).toEqual({ Feelings: 'Moods' })
     expect(backup.categories.order).toEqual(['Home', 'Food', 'Moods'])
     expect(backup.categories.sort).toBe('custom')
-    expect(backup.aliases?.contacts).toEqual(['Mum', 'Charles'])
+    expect(backup.aliases?.lists.contacts).toEqual(['Mum', 'Charles'])
     expect(backup.settings?.phraseDwellMs).toBe(2200)
   })
 
@@ -337,7 +340,7 @@ describe('restoring onto a fresh device', () => {
     expect(next.store.categoryOrder).toEqual(['Home', 'Food', 'Moods'])
     expect(next.store.categorySort).toBe('custom')
     expect(next.store.emergencyOrder).toEqual(['em-2', 'em-0'])
-    expect(next.aliases.contacts).toEqual(['Mum', 'Charles'])
+    expect(next.aliases.lists.contacts).toEqual(['Mum', 'Charles'])
     expect(next.settings.phraseDwellMs).toBe(2200)
   })
 
@@ -358,7 +361,7 @@ describe('merging into a device that is already in use', () => {
       categoryOrder: ['Food'],
       emergencyOrder: ['em-4'],
     },
-    aliases: { 'name.nickname': ['Bee'], contacts: ['Sam'] },
+    aliases: { lists: { 'name.nickname': ['Bee'], contacts: ['Sam'] }, hidden: [] },
     settings: { ...DEFAULT_SETTINGS, rate: 1.6 },
   })
 
@@ -390,7 +393,7 @@ describe('merging into a device that is already in use', () => {
     expect(next.store.custom.map(p => p.id)).toEqual(['custom-1', 'custom-2'])
     expect(next.store.overrides).toEqual({ 'built-1': "I'm knackered" })
     expect(next.store.hidden).toEqual(['built-2'])
-    expect(next.aliases.contacts).toEqual(['Mum', 'Charles'])
+    expect(next.aliases.lists.contacts).toEqual(['Mum', 'Charles'])
   })
 
   // Everything a file covering a few categories says nothing about would go.
@@ -449,10 +452,17 @@ describe('merging into a device that is already in use', () => {
 
   it('fills in lists the device is missing without emptying the ones it has', () => {
     const next = applyBackup(exportAll(), local(), 'merge')
-    expect(next.aliases['name.given']).toEqual(['Ada'])
+    expect(next.aliases.lists['name.given']).toEqual(['Ada'])
     // The device's own nickname is untouched: the file said nothing about it.
-    expect(next.aliases['name.nickname']).toEqual(['Bee'])
-    expect(next.aliases.contacts).toEqual(['Sam', 'Mum', 'Charles'])
+    expect(next.aliases.lists['name.nickname']).toEqual(['Bee'])
+    expect(next.aliases.lists.contacts).toEqual(['Sam', 'Mum', 'Charles'])
+    // And the file's removals are not applied at all. Hiding a list is a
+    // removal, and a file somebody else made must not take one off your device.
+    expect(next.aliases.hidden).toEqual([])
+  })
+
+  it('applies the removals only when replacing', () => {
+    expect(applyBackup(exportAll(), local(), 'replace').aliases.hidden).toEqual(['clothes'])
   })
 
   it('leaves the lists and settings alone when the file has none', () => {

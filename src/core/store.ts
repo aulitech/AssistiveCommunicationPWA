@@ -5,7 +5,7 @@
 // the first time one of them changed, and an export that no longer matches the
 // store is a backup that silently restores nothing.
 
-import { EMPTY_ALIASES, type Aliases } from './phrases'
+import { EMPTY_ALIASES, type AliasStore, type Aliases } from './phrases'
 
 // Four of these storage keys still say `dwellspeak_`, the app's former name.
 // They are deliberately not renamed: everything a user has — their phrases,
@@ -237,8 +237,8 @@ export function savePhraseStore(s: PhraseStore) {
 // and only what they changed is stored: a key that is absent follows the table.
 
 /** Anything that is not a list of non-empty strings is not a list. */
-export function readAliases(raw: unknown): Aliases {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return EMPTY_ALIASES
+function readLists(raw: unknown): Aliases {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
   const out: Aliases = {}
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (!Array.isArray(value)) continue
@@ -249,35 +249,56 @@ export function readAliases(raw: unknown): Aliases {
   return out
 }
 
+const readNames = (raw: unknown) =>
+  Array.isArray(raw)
+    ? [...new Set(raw.filter((n): n is string => typeof n === 'string' && n.trim() !== '').map(n => n.trim().toLowerCase()))]
+    : []
+
+/**
+ * The store, from whatever is on disk.
+ *
+ * **A bare object of lists is read as one too.** That is the shape this was
+ * before a list could be deleted, and it is what a backup written then carries.
+ */
+export function readAliases(raw: unknown): AliasStore {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return EMPTY_ALIASES
+  const record = raw as Record<string, unknown>
+  const looksLikeStore = 'lists' in record || 'hidden' in record
+  return looksLikeStore
+    ? { lists: readLists(record.lists), hidden: readNames(record.hidden) }
+    : { lists: readLists(record), hidden: [] }
+}
+
 /**
  * The three name fields and the contact list somebody entered under **My
  * details**, which is what this panel used to be, read as the alias lists they
  * always were behind the scenes. Run once, when there is no alias store yet —
  * losing somebody's contacts to a renamed menu item would be unforgivable.
  */
-export function aliasesFromProfile(raw: unknown): Aliases {
+export function aliasesFromProfile(raw: unknown): AliasStore {
   const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   const name = (source.name && typeof source.name === 'object' ? source.name : {}) as Record<string, unknown>
   const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
-  const out: Aliases = {}
+  const lists: Aliases = {}
+  const out = { lists, hidden: [] as string[] }
 
   const contacts = Array.isArray(source.contacts) ? source.contacts.map(str).filter(Boolean) : []
-  if (contacts.length) out.contacts = contacts
+  if (contacts.length) lists.contacts = contacts
 
   const given = str(name.given)
   const surname = str(name.surname)
   const nickname = str(name.nickname)
-  if (given) out['name.given'] = [given]
-  if (surname) out['name.surname'] = [surname]
-  if (nickname) out['name.nickname'] = [nickname]
+  if (given) lists['name.given'] = [given]
+  if (surname) lists['name.surname'] = [surname]
+  if (nickname) lists['name.nickname'] = [nickname]
   // A bare {name} read as the fullest form on offer, and still should.
   const full = [given, surname].filter(Boolean).join(' ') || nickname || given
-  if (full) out.name = [full]
+  if (full) lists.name = [full]
 
   return out
 }
 
-export function loadAliases(): Aliases {
+export function loadAliases(): AliasStore {
   try {
     const stored = localStorage.getItem(ALIASES_KEY)
     if (stored !== null) return readAliases(JSON.parse(stored))
@@ -292,7 +313,7 @@ export function loadAliases(): Aliases {
   }
 }
 
-export function saveAliases(a: Aliases) {
+export function saveAliases(a: AliasStore) {
   localStorage.setItem(ALIASES_KEY, JSON.stringify(a))
 }
 

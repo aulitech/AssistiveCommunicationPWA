@@ -16,7 +16,7 @@ import {
   compose,
   parseSegments,
   type Phrase,
-  type Aliases,
+  type AliasStore,
 } from '../core/phrases'
 import { stripMarkdown } from '../core/markdown'
 import { audioKey, warmAudio } from '../voice/audio-cache'
@@ -43,7 +43,7 @@ const newPhraseId = () => `custom-${Date.now()}-${Math.random().toString(36).sli
 
 export function useBoard() {
   const [store, setStore] = useState<PhraseStore>(loadPhraseStore)
-  const [aliases, setAliases] = useState<Aliases>(loadAliases)
+  const [aliases, setAliases] = useState<AliasStore>(loadAliases)
 
   const updateStore = useCallback((patch: Partial<PhraseStore>) => {
     setStore(s => {
@@ -53,7 +53,7 @@ export function useBoard() {
     })
   }, [])
 
-  const changeAliases = useCallback((next: Aliases) => {
+  const changeAliases = useCallback((next: AliasStore) => {
     saveAliases(next)
     setAliases(next)
   }, [])
@@ -301,7 +301,7 @@ export function useBoard() {
    * moment where the grid is showing half of somebody's backup.
    */
   const restore = useCallback(
-    (nextStore: PhraseStore, nextAliases: Aliases) => {
+    (nextStore: PhraseStore, nextAliases: AliasStore) => {
       updateStore(nextStore)
       changeAliases(nextAliases)
     },

@@ -4,7 +4,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
-import { type Aliases } from '../core/phrases'
+import { type AliasStore } from '../core/phrases'
 import { type PhraseStore } from '../core/store'
 import {
   applyBackup,
@@ -33,7 +33,7 @@ function describeScope(scope: string[] | null): string {
 
 export function BackupPanel({ store, aliases, categories, categoryById, onRestore }: {
   store: PhraseStore
-  aliases: Aliases
+  aliases: AliasStore
   /** Every category that can be exported on its own, in the order shown. */
   categories: string[]
   categoryById: Map<string, string>

@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
-import { tableAliases, type Aliases } from '../core/phrases'
+import { tableAliases, type AliasStore, type Aliases } from '../core/phrases'
 import { moveInOrder, loadAliasSort, saveAliasSort } from '../core/store'
 import { CustomOrderIcon, EditIcon, PlusIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
@@ -179,9 +179,9 @@ function AddRow({ label, placeholder, onAdd }: {
  * rename is a change of key, and rewriting it letter by letter would leave a
  * list called "d", then "dr", then "dri" — and take the focus with it each time.
  *
- * Only a list the user made has one. A name the table ships is written into the
- * phrases that use it — rename `pronouns` and every phrase saying `{pronouns}`
- * quietly resolves to nothing — so those are shown and not offered.
+ * Every list has one, the table's included. Renaming one the table ships is a
+ * real change of meaning — the phrases that say `{pronouns}` resolve to nothing
+ * afterwards — but the board is the user's, and so are the words on it.
  */
 function NameField({ name, onRename }: { name: string; onRename: (next: string) => void }) {
   const [draft, setDraft] = useState(name)
@@ -222,16 +222,22 @@ function NameField({ name, onRename }: { name: string; onRename: (next: string) 
 }
 
 export function AliasesPanel({ aliases, onChange }: {
-  aliases: Aliases
-  onChange: (next: Aliases) => void
+  aliases: AliasStore
+  onChange: (next: AliasStore) => void
 }) {
   // What the table ships under what the user has made of it. The table's lists
   // are the seed; a key the user has touched wins outright, empty included.
   const shipped = useMemo(() => tableAliases(), [])
+  const { lists, hidden } = aliases
   const names = useMemo(
-    () => [...new Set([...Object.keys(shipped), ...Object.keys(aliases)])].sort((a, b) => a.localeCompare(b)),
-    [shipped, aliases],
+    () =>
+      [...new Set([...Object.keys(shipped).filter(n => !hidden.includes(n)), ...Object.keys(lists)])].sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    [shipped, lists, hidden],
   )
+  /** What a list holds: the user's words where they have them, the table's otherwise. */
+  const wordsOf = useCallback((name: string) => lists[name] ?? shipped[name] ?? [], [lists, shipped])
 
   // One open at a time, and the first open on arrival — the same bargain the
   // guide's headings strike. Folded, the panel is a list of what it can offer,
@@ -258,8 +264,8 @@ export function AliasesPanel({ aliases, onChange }: {
 
   /** Writing any list writes the whole list, which is what makes a removal stick. */
   const setList = useCallback(
-    (name: string, words: string[]) => onChange({ ...aliases, [name]: words }),
-    [aliases, onChange],
+    (name: string, words: string[]) => onChange({ ...aliases, lists: { ...lists, [name]: words } }),
+    [aliases, lists, onChange],
   )
 
   /**
@@ -271,31 +277,38 @@ export function AliasesPanel({ aliases, onChange }: {
    */
   const addList = useCallback(() => {
     let name = 'new-list'
-    for (let n = 2; name in shipped || name in aliases; n++) name = `new-list-${n}`
-    onChange({ ...aliases, [name]: [] })
+    for (let n = 2; names.includes(name); n++) name = `new-list-${n}`
+    onChange({ ...aliases, lists: { ...lists, [name]: [] } })
     setOpenName(name)
     setEditingNames(true)
-  }, [aliases, shipped, onChange])
+  }, [aliases, lists, names, onChange])
 
+  /**
+   * Renaming carries the words to the new name, and — where the old name is one
+   * the table ships — hides the old one. Leaving it out of `lists` is not
+   * enough: the table would put it straight back on the next render.
+   */
   const renameList = useCallback(
     (from: string, to: string) => {
-      if (to in shipped || to in aliases) return
-      const next: Aliases = {}
-      for (const [key, words] of Object.entries(aliases)) next[key === from ? to : key] = words
-      onChange(next)
+      if (names.includes(to)) return
+      const next: Aliases = { ...lists }
+      delete next[from]
+      next[to] = wordsOf(from)
+      onChange({ lists: next, hidden: from in shipped ? [...new Set([...hidden, from])] : hidden })
       setOpenName(current => (current === from ? to : current))
     },
-    [aliases, shipped, onChange],
+    [lists, hidden, names, shipped, wordsOf, onChange],
   )
 
   const dropList = useCallback(
     (name: string) => {
-      const next = { ...aliases }
+      const next = { ...lists }
       delete next[name]
-      onChange(next)
+      // One the table ships has to be said out loud, or it simply comes back.
+      onChange({ lists: next, hidden: name in shipped ? [...new Set([...hidden, name])] : hidden })
       setOpenName(null)
     },
-    [aliases, onChange],
+    [lists, hidden, shipped, onChange],
   )
 
   const open = useCallback((name: string) => {
@@ -303,9 +316,6 @@ export function AliasesPanel({ aliases, onChange }: {
     setOpenName(current => (current === name ? null : name))
   }, [])
 
-  // Nothing to edit the names of until there is a list of their own: the
-  // table's are fixed, being written into the phrases that use them.
-  const canEditNames = names.some(name => !(name in shipped))
 
   return (
     <div className="settings-panel">
@@ -327,7 +337,6 @@ export function AliasesPanel({ aliases, onChange }: {
             className="alias-rename"
             label={editingNames ? 'Done editing list names' : 'Edit list names'}
             pressed={editingNames}
-            disabled={!canEditNames}
             onActivate={() => setEditingNames(e => !e)}
           >
             <EditIcon />
@@ -338,20 +347,16 @@ export function AliasesPanel({ aliases, onChange }: {
           <AliasList
             key={name}
             name={name}
-            words={aliases[name] ?? shipped[name] ?? []}
+            words={wordsOf(name)}
             isOpen={openName === name}
             onOpen={() => open(name)}
             sort={sort}
             onToggleSort={toggleSort}
             arranging={arranging}
             onToggleArrange={() => setArranging(a => !a)}
-            /**
-             * Only a list of their own can be renamed or deleted. A name the
-             * table ships is written into the phrases that use it.
-             */
-            editingName={editingNames && !(name in shipped)}
+            editingName={editingNames}
             onRename={next => renameList(name, next)}
-            onDrop={name in shipped ? undefined : () => dropList(name)}
+            onDrop={() => dropList(name)}
             onWords={next => setList(name, next)}
             onSorted={() => applySort('custom')}
           />
@@ -374,8 +379,7 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
   arranging: boolean
   onToggleArrange: () => void
   onWords: (next: string[]) => void
-  /** Absent for a list the table ships, which can be emptied but not removed. */
-  onDrop?: () => void
+  onDrop: () => void
   /** An arrangement made while A–Z was showing is now the arrangement. */
   onSorted: () => void
 }) {
@@ -420,13 +424,11 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
         // targets in one place, which is the worst thing to hand a gaze.
         <div className="alias-list-head is-editing">
           <NameField name={name} onRename={onRename} />
-          {onDrop && (
-            <ListTool className="alias-delete" label={`Delete the ${name} list`} onActivate={onDrop}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="14" height="14" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </ListTool>
-          )}
+          <ListTool className="alias-delete" label={`Delete the ${name} list`} onActivate={onDrop}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="14" height="14" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </ListTool>
         </div>
       ) : (
         <div

@@ -1152,6 +1152,8 @@ describe('aliases', () => {
     click(row.querySelector('.contact-add-btn'))
   }
   const stored = () => JSON.parse(localStorage.getItem('peri_aliases') ?? '{}')
+  const storedLists = () => stored().lists ?? {}
+  const storedHidden = () => stored().hidden ?? []
   const cellTexts = () => cells().map(c => c.textContent)
 
   it('opens from the menu, seeded with every list the table ships', () => {
@@ -1266,7 +1268,7 @@ describe('aliases', () => {
     click(list('pronouns').querySelector('.alias-word .contact-remove'))
 
     expect(wordsIn('pronouns')).toEqual(before.slice(1))
-    expect(stored().pronouns).toEqual(before.slice(1))
+    expect(storedLists().pronouns).toEqual(before.slice(1))
   })
 
   it('refuses blank and duplicate words', () => {
@@ -1302,13 +1304,13 @@ describe('aliases', () => {
     openAliases()
     click(panelTool('Add a list'))
 
-    expect(stored()['new-list']).toEqual([])
+    expect(storedLists()['new-list']).toEqual([])
     expect(nameField('new-list')).not.toBeNull()
 
     rename('new-list', 'Drinks')
     // Lower-cased, because that is how a slot looks one up.
-    expect(stored().drinks).toEqual([])
-    expect(stored()['new-list']).toBeUndefined()
+    expect(storedLists().drinks).toEqual([])
+    expect(storedLists()['new-list']).toBeUndefined()
   })
 
   // Without a name of its own the second one would land on the first, and the
@@ -1319,7 +1321,7 @@ describe('aliases', () => {
     click(panelTool('Add a list'))
     click(panelTool('Add a list'))
 
-    expect(Object.keys(stored()).sort()).toEqual(['new-list', 'new-list-2'])
+    expect(Object.keys(storedLists()).sort()).toEqual(['new-list', 'new-list-2'])
   })
 
   it('keeps the words when a list is renamed', () => {
@@ -1332,7 +1334,7 @@ describe('aliases', () => {
     click(panelTool('Edit list names'))
     rename('new-list', 'drinks')
 
-    expect(stored().drinks).toEqual(['tea'])
+    expect(storedLists().drinks).toEqual(['tea'])
   })
 
   // Two lists called the same thing would be one list nobody could reach.
@@ -1342,40 +1344,63 @@ describe('aliases', () => {
     click(panelTool('Add a list'))
     rename('new-list', 'pronouns')
 
-    expect(stored()['new-list']).toEqual([])
-    expect(stored().pronouns).toBeUndefined()
+    expect(storedLists()['new-list']).toEqual([])
+    expect(storedLists().pronouns).toBeUndefined()
   })
 
-  // A name the table ships is written into the phrases that use it: rename
-  // `pronouns` and every phrase saying {pronouns} resolves to nothing.
-  it('leaves the names the table ships alone', () => {
+  it('deletes a list of its own', () => {
     renderApp()
     openAliases()
     click(panelTool('Add a list'))
-
-    expect(nameField('pronouns')).toBeNull()
-    expect(nameField('new-list')).not.toBeNull()
-  })
-
-  // A list the table ships can be emptied but not removed — the phrases that
-  // name it would have nothing to look up.
-  it('offers to delete only a list of its own', () => {
-    renderApp()
-    openAliases()
-    click(panelTool('Add a list'))
-
-    expect(list('pronouns').querySelector('[aria-label^="Delete"]')).toBeNull()
 
     click(list('new-list').querySelector('[aria-label^="Delete"]'))
     expect($$('.alias-list').find(l => l.getAttribute('aria-label') === 'new-list')).toBeUndefined()
-    expect(stored()['new-list']).toBeUndefined()
+    expect(storedLists()['new-list']).toBeUndefined()
   })
 
-  // Nothing to edit the names of until there is a list of their own.
-  it("offers no name editing while every list is the table's", () => {
+  // One the table ships cannot go by being left out of the lists — the table
+  // would put it straight back — so a removal is written down as its own fact.
+  it('deletes a list the table ships, and it stays gone', () => {
     renderApp()
     openAliases()
-    expect(panelTool('Edit list names').getAttribute('aria-disabled')).toBe('true')
+    click(panelTool('Edit list names'))
+    click(list('pronouns').querySelector('[aria-label^="Delete"]'))
+
+    expect($$('.alias-list').find(l => l.getAttribute('aria-label') === 'pronouns')).toBeUndefined()
+    expect(storedHidden()).toContain('pronouns')
+
+    cleanup()
+    renderApp()
+    openAliases()
+    expect($$('.alias-list').find(l => l.getAttribute('aria-label') === 'pronouns')).toBeUndefined()
+  })
+
+  // And the phrases that named it read as a blank rather than falling back to
+  // the words that are no longer on the board. A slot with options draws its
+  // label — "pronoun" — and one with none draws nothing at all.
+  it('leaves the phrases that named a deleted list with nothing to offer', () => {
+    renderApp()
+    const usingPronouns = () => cells().filter(c => c.textContent?.includes('pronoun')).length
+    expect(usingPronouns(), 'no phrase in the table uses {pronouns}').toBeGreaterThan(0)
+
+    openAliases()
+    click(panelTool('Edit list names'))
+    click(list('pronouns').querySelector('[aria-label^="Delete"]'))
+
+    expect(usingPronouns()).toBe(0)
+  })
+
+  // Renaming one the table ships carries its words across and hides the old
+  // name, which is the same removal written the same way.
+  it('renames a list the table ships', () => {
+    renderApp()
+    openAliases()
+    click(panelTool('Edit list names'))
+    rename('pronouns', 'people')
+
+    expect(storedLists().people).toContain('they')
+    expect(storedHidden()).toContain('pronouns')
+    expect($$('.alias-list').find(l => l.getAttribute('aria-label') === 'pronouns')).toBeUndefined()
   })
 
   // Two arrangements, the same pair the category tabs offer: A–Z, or the order
@@ -1383,7 +1408,7 @@ describe('aliases', () => {
   // alone, so going to A–Z and back is not a way to lose an arrangement.
   describe('the order the words come in', () => {
     const seed = (words: string[]) => {
-      localStorage.setItem('peri_aliases', JSON.stringify({ drinks: words }))
+      localStorage.setItem('peri_aliases', JSON.stringify({ lists: { drinks: words }, hidden: [] }))
       renderApp()
       openAliases()
     }
@@ -1409,7 +1434,7 @@ describe('aliases', () => {
       expect(chips()).toEqual(['beer', 'coffee', 'tea'])
 
       // And the arrangement underneath is untouched.
-      expect(JSON.parse(localStorage.getItem('peri_aliases')!).drinks).toEqual(['tea', 'coffee', 'beer'])
+      expect(JSON.parse(localStorage.getItem('peri_aliases')!).lists.drinks).toEqual(['tea', 'coffee', 'beer'])
     })
 
     it('remembers which arrangement is showing', () => {
@@ -1434,7 +1459,7 @@ describe('aliases', () => {
       click(chipFor('tea'))
 
       expect(chips()).toEqual(['beer', 'tea', 'coffee'])
-      expect(JSON.parse(localStorage.getItem('peri_aliases')!).drinks).toEqual(['beer', 'tea', 'coffee'])
+      expect(JSON.parse(localStorage.getItem('peri_aliases')!).lists.drinks).toEqual(['beer', 'tea', 'coffee'])
     })
 
     // Arranging while A–Z is showing captures the order that was on screen —
@@ -1450,7 +1475,7 @@ describe('aliases', () => {
       // The A–Z order with the move applied. Applied to the order underneath —
       // tea, coffee, beer — the same move would have landed on
       // ['coffee', 'beer', 'tea'], which is the point of the test.
-      expect(JSON.parse(localStorage.getItem('peri_aliases')!).drinks).toEqual(['tea', 'beer', 'coffee'])
+      expect(JSON.parse(localStorage.getItem('peri_aliases')!).lists.drinks).toEqual(['tea', 'beer', 'coffee'])
       expect(localStorage.getItem('peri_alias_sort')).toBe('custom')
     })
 
@@ -1483,7 +1508,7 @@ describe('aliases', () => {
     openAliases()
     addTo('name.nickname', 'Ada')
 
-    expect(stored()['name.nickname']).toEqual(['Ada'])
+    expect(storedLists()['name.nickname']).toEqual(['Ada'])
   })
 
   // Renaming a menu item must not lose somebody their contacts. The old panel
@@ -1496,7 +1521,7 @@ describe('aliases', () => {
     renderApp()
 
     expect(cellTexts().some(t => t?.includes('call Mum'))).toBe(true)
-    expect(stored()).toMatchObject({ contacts: ['Mum'], name: ['Ada Lovelace'], 'name.nickname': ['Ada'] })
+    expect(storedLists()).toMatchObject({ contacts: ['Mum'], name: ['Ada Lovelace'], 'name.nickname': ['Ada'] })
   })
 })
 

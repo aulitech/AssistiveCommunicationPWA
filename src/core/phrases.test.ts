@@ -205,8 +205,10 @@ describe('the shipped phrase table', () => {
 })
 
 describe("the user's own alias lists", () => {
-  const withAliases = (raw: string, aliases: Record<string, string[]>) =>
-    compose(parseSegments(raw, aliasOverlay(aliases)))
+  /** A store from just its lists, which is all most of these care about. */
+  const of = (lists: Record<string, string[]>, hidden: string[] = []) => ({ lists, hidden })
+  const withAliases = (raw: string, lists: Record<string, string[]>) =>
+    compose(parseSegments(raw, aliasOverlay(of(lists))))
 
   it('leaves phrases as blanks when nothing is filled in', () => {
     expect(withAliases('This is {name.nickname}', {})).toBe(`This is ${BLANK}`)
@@ -214,7 +216,7 @@ describe("the user's own alias lists", () => {
   })
 
   it('drops a single value straight in, with no picker step', () => {
-    const segments = parseSegments('This is {name.nickname}', aliasOverlay({ 'name.nickname': ['Sam'] }))
+    const segments = parseSegments('This is {name.nickname}', aliasOverlay(of({ 'name.nickname': ['Sam'] })))
 
     expect(compose(segments)).toBe('This is Sam')
     expect(hasChoices(segments)).toBe(false)
@@ -222,7 +224,7 @@ describe("the user's own alias lists", () => {
   })
 
   it('offers a picker once there is more than one contact', () => {
-    const segments = parseSegments('I am going to call {contact}', aliasOverlay({ contacts: ['Mum', 'Dad'] }))
+    const segments = parseSegments('I am going to call {contact}', aliasOverlay(of({ contacts: ['Mum', 'Dad'] })))
 
     expect(hasChoices(segments)).toBe(true)
     expect(choosableSlots(segments)[0].options).toEqual(['Mum', 'Dad'])
@@ -237,23 +239,23 @@ describe("the user's own alias lists", () => {
   // emptied has to stay empty rather than falling back to the shipped words —
   // taking a word off a list is the whole of what "editable" means here.
   it('honours a list the user has emptied', () => {
-    const segments = parseSegments('Do you like {pronouns}?', aliasOverlay({ pronouns: [] }))
+    const segments = parseSegments('Do you like {pronouns}?', aliasOverlay(of({ pronouns: [] })))
     expect(choosableSlots(segments)).toHaveLength(0)
     expect(compose(segments)).toBe(`Do you like ${BLANK}?`)
   })
 
   it('replaces a shipped list rather than adding to it', () => {
-    const segments = parseSegments('Do you like {pronouns}?', aliasOverlay({ pronouns: ['ze', 'zir'] }))
+    const segments = parseSegments('Do you like {pronouns}?', aliasOverlay(of({ pronouns: ['ze', 'zir'] })))
     expect(choosableSlots(segments)[0].options).toEqual(['ze', 'zir'])
   })
 
   it('resolves a list the user invented, by the name they gave it', () => {
-    const segments = parseSegments('I would like a {drinks}', aliasOverlay({ drinks: ['tea', 'coffee'] }))
+    const segments = parseSegments('I would like a {drinks}', aliasOverlay(of({ drinks: ['tea', 'coffee'] })))
     expect(choosableSlots(segments)[0].options).toEqual(['tea', 'coffee'])
   })
 
   it('does not disturb lists the table already provides', () => {
-    const [pronouns] = parseSegments('Do you like {pronouns}?', aliasOverlay({ contacts: ['Mum'] }))
+    const [pronouns] = parseSegments('Do you like {pronouns}?', aliasOverlay(of({ contacts: ['Mum'] })))
       .filter(s => s.kind === 'slot')
       .map(s => (s.kind === 'slot' ? s.options : []))
     expect(pronouns).toContain('they')
@@ -315,6 +317,8 @@ describe('tableAliases', () => {
 })
 
 describe('buildPhrases', () => {
+  const of = (lists: Record<string, string[]>, hidden: string[] = []) => ({ lists, hidden })
+
   it('matches the default export when given no lists', () => {
     expect(buildPhrases().length).toBe(PHRASES.length)
   })
@@ -322,12 +326,12 @@ describe('buildPhrases', () => {
   it('keeps phrase ids stable when a list changes', () => {
     // Ids hash the source text, so saved edits survive an alias edit.
     const before = buildPhrases()
-    const after = buildPhrases({ contacts: ['Mum', 'Dad'] })
+    const after = buildPhrases(of({ contacts: ['Mum', 'Dad'] }))
     expect(after.map(p => p.id)).toEqual(before.map(p => p.id))
   })
 
   it('resolves the phrases that used to be dead for want of a name', () => {
-    const filled = buildPhrases({ 'name.nickname': ['Ada'], contacts: ['Mum', 'Dad'] })
+    const filled = buildPhrases(of({ 'name.nickname': ['Ada'], contacts: ['Mum', 'Dad'] }))
     const texts = filled.map(p => p.text)
 
     expect(texts).toContain('This is Ada')
@@ -339,7 +343,7 @@ describe('buildPhrases', () => {
 
   it('still leaves genuinely anonymous blanks alone', () => {
     // "Did you see {}" names no alias, so there is nothing to fill it with.
-    const filled = buildPhrases({ 'name.nickname': ['Ada'], contacts: ['Mum'] })
+    const filled = buildPhrases(of({ 'name.nickname': ['Ada'], contacts: ['Mum'] }))
     expect(filled.some(p => hasBlank(p.segments))).toBe(true)
   })
 })
