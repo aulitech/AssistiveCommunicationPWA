@@ -221,13 +221,15 @@ export function useCaretDwell(
       el.setSelectionRange(0, el.value.length)
     }
 
-    if (!selectOnHold) return
+    // No branch on `selectOnHold` here, and none needed: without it there is no
+    // repeat, so this runs once per arrival and the step never leaves nought.
+    // The repeat is what makes a hold — see `repeatMs` below.
     step.current = next
     // A bar that fills promises a firing, so at the end of the hold it has to
     // stop rather than keep filling towards a step that would do nothing.
     if (next > LAST_HOLD) cancelRef.current()
     else restartFill(el)
-  }, [fieldRef, selectOnHold])
+  }, [fieldRef])
 
   const { active, start, cancel, props } = useDwellControl(durationMs, placeCaret, {
     disabled,
