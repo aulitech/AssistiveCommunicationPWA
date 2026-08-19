@@ -106,6 +106,13 @@ describe('the word around the caret', () => {
     expect(wordAt('tea and coffee', 3)).toEqual([0, 3])
   })
 
+  // A run of spaces is the gap after a word rather than a word of its own.
+  // Without this the hold has a step that selects nothing at all, which reads as
+  // the feature simply not working.
+  it('takes the word behind a caret inside a run of spaces', () => {
+    expect(wordAt('tea  and', 4)).toEqual([0, 3])
+  })
+
   it('takes the last word for a caret past the end', () => {
     expect(wordAt('tea and coffee', 14)).toEqual([8, 14])
   })
