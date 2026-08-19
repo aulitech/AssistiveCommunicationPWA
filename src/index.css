@@ -2147,41 +2147,136 @@ body {
 }
 
 /* ── Aliases panel ── */
-/* A list per alias, each a row of words with the control that takes one off. */
+/* One list per alias, folded up. Folded, the panel is a list of what it can
+   offer — which is how somebody finds the one they came for, rather than
+   scrolling past fifty body parts to reach it. */
 .alias-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px 0;
+  padding: 6px 0;
   border-bottom: 1px solid var(--border);
 }
 
+/* No padding of its own while folded: the tighter the list of headings, the more
+   of it is on screen, which is the point of folding it. */
 .alias-list-head {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
 }
 
-/* Wrapping, because `bodyparts` is fifty words and a row that scrolls sideways
-   would hide most of them behind a control a gaze user has to find first. */
-.alias-words {
+.alias-list-head .setting-label { flex: 1; }
+
+.alias-count {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.alias-caret {
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--text-muted);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.alias-list.is-open .alias-caret { transform: rotate(90deg); }
+
+/* The tools an open list carries: which arrangement, arranging, and — for a list
+   the user made — deleting it. */
+.alias-tools {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+}
+
+.alias-tool {
+  position: relative;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-muted);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.alias-tool svg { width: 1.1rem; height: 1.1rem; }
+.alias-tool.is-on { color: var(--accent); border-color: var(--accent); }
+.alias-tool[aria-disabled='true'] { opacity: 0.35; cursor: default; }
+.alias-tool .dwell-bar { background: var(--accent); }
+.alias-delete { color: var(--danger); }
+.alias-delete .dwell-bar { background: var(--danger); }
+
+/* A grid rather than a wrapped row. Fifty chips in a paragraph is a wall to
+   read; columns give the eye something to travel down. Sized in `ch` so a column
+   holds a word rather than a fixed number of pixels of one. */
+.alias-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12ch, 1fr));
   gap: 6px;
+  padding: 0 4px;
 }
 
 .alias-word {
+  position: relative;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   padding: 4px 6px 4px 10px;
   background: var(--cell);
   border: 1px solid var(--border);
   border-radius: 999px;
   font-size: 0.9rem;
+  overflow: hidden;
 }
 
-.alias-word-text { color: var(--text); }
+.alias-word-text {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alias-word.reorderable { cursor: grab; }
+.alias-word.dwelling .dwell-bar { background: var(--accent); }
+
+/* The word in the air — the loudest thing in the grid, because it is what the
+   user is holding. The same blue the category tabs and the emergency bar use,
+   for the same reason: it must not be mistaken for a word simply selected. */
+.alias-word.is-held {
+  cursor: grabbing;
+  background: var(--held);
+  border-color: var(--held);
+  color: #000;
+  transform: translateY(-2px);
+}
+
+.alias-word.is-held .alias-word-text { color: #000; }
+
+/* Every other word, while one is in the air. */
+.alias-word.is-drop-zone {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--held) 70%, transparent);
+}
+
+.alias-word.is-drop-target {
+  border-color: var(--accent);
+  box-shadow: -3px 0 0 var(--accent);
+}
 /* ── Profile panel ── */
 /* Supplies the {contact} and {name} values the phrase table ships empty.
    Typed rather than dwelled — one-off setup, usually by whoever configures

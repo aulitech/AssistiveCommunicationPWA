@@ -16,6 +16,7 @@ const SETTINGS_KEY = 'dwellspeak_settings'
 const PHRASE_STORE_KEY = 'dwellspeak_phrase_store_v2'
 const PROFILE_KEY = 'dwellspeak_profile' // read once, to carry an old profile forward
 const ALIASES_KEY = 'peri_aliases'
+const ALIAS_SORT_KEY = 'peri_alias_sort'
 const USER_KEY = 'dwellspeak_user'
 const ELEVENLABS_KEY = 'peri_elevenlabs'
 const SENT_KEY = 'peri_sent'
@@ -295,6 +296,22 @@ export function saveAliases(a: Aliases) {
   localStorage.setItem(ALIASES_KEY, JSON.stringify(a))
 }
 
+/**
+ * Which arrangement the Aliases panel is showing, exactly as `categorySort`
+ * does for the tabs: A–Z, or the order the user put the words in.
+ *
+ * A view rather than content, which is why it is its own small key and not part
+ * of `Aliases` — the *order* is content and travels in a backup as the order of
+ * each list; which of the two is being looked at does not.
+ */
+export function loadAliasSort(): 'custom' | 'alpha' {
+  return localStorage.getItem(ALIAS_SORT_KEY) === 'alpha' ? 'alpha' : 'custom'
+}
+
+export function saveAliasSort(sort: 'custom' | 'alpha') {
+  localStorage.setItem(ALIAS_SORT_KEY, sort)
+}
+
 // ── Messages already said ─────────────────────────────────────────────────────
 // A conversation repeats itself, and rebuilding a sentence word by word is the
 // slowest thing this app asks of anyone. What was said once is kept so it can be
@@ -460,6 +477,7 @@ const RESETTABLE_KEYS = [
   PHRASE_STORE_KEY,
   PROFILE_KEY,
   ALIASES_KEY,
+  ALIAS_SORT_KEY,
   ELEVENLABS_KEY,
   SENT_KEY,
   RECENT_KEY,
