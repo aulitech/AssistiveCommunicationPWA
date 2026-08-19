@@ -185,6 +185,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'With one word on a list it is filled in for you; with several, you are asked which one you mean. Take words off any list, add your own, or make a new list and write its name in a phrase.',
       ),
+      text(
+        'Choose a heading to open that list; the others fold away. An open list shows its words as a grid, with two buttons above it: one switches between A to Z and the order you put the words in, and the other lets you arrange them — choose a word to pick it up, then choose where it should go.',
+      ),
     ],
   },
   {

@@ -1135,9 +1135,17 @@ describe('aliases', () => {
     click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Aliases'))
   }
   const list = (name: string) => $$('.alias-list').find(l => l.getAttribute('aria-label') === name)!
-  const wordsIn = (name: string) =>
-    [...list(name).querySelectorAll('.alias-word-text')].map(w => w.textContent)
+  /** The lists are folded; only the open one draws its words. */
+  const openList = (name: string) => {
+    const head = list(name).querySelector('.alias-list-head')!
+    if (head.getAttribute('aria-expanded') !== 'true') click(head)
+  }
+  const wordsIn = (name: string) => {
+    openList(name)
+    return [...list(name).querySelectorAll('.alias-word-text')].map(w => w.textContent)
+  }
   const addTo = (name: string, word: string) => {
+    openList(name)
     const row = list(name)
     fireEvent.change(row.querySelector('input')!, { target: { value: word } })
     settle()
@@ -1154,6 +1162,49 @@ describe('aliases', () => {
     expect(wordsIn('pronouns')).toContain('they')
     // The two the table ships empty, listed so they can be filled in.
     expect(wordsIn('contacts')).toEqual([])
+  })
+
+  // Folded, the panel is a list of what it can offer — which is how somebody
+  // finds the one they came for. `bodyparts` alone is fifty words to scroll
+  // past otherwise.
+  it('folds every list up, one open at a time', () => {
+    renderApp()
+    openAliases()
+
+    const open = () => $$('.alias-list.is-open').map(l => l.getAttribute('aria-label'))
+    // The first is open on arrival, so the panel is not a wall of headings.
+    expect(open()).toHaveLength(1)
+
+    openList('pronouns')
+    expect(open()).toEqual(['pronouns'])
+    // Folded means the words are out of the tree, not merely hidden: nine lists
+    // left open would have a screen reader read out three hundred words nobody
+    // asked for.
+    expect(list('clothes').querySelectorAll('.alias-word')).toHaveLength(0)
+
+    openList('clothes')
+    expect(open()).toEqual(['clothes'])
+    expect(list('pronouns').querySelectorAll('.alias-word')).toHaveLength(0)
+  })
+
+  // The same effect the guide's headings have: what was just chosen is the
+  // first thing on screen rather than left below the fold.
+  it('brings the list it opens to the top of the pane', () => {
+    renderApp()
+    openAliases()
+    scrolledIntoView.length = 0
+
+    openList('clothes')
+    expect(scrolledIntoView).toContain(list('clothes'))
+  })
+
+  it('closes the one that is open when it is chosen again', () => {
+    renderApp()
+    openAliases()
+    openList('clothes')
+
+    click(list('clothes').querySelector('.alias-list-head'))
+    expect($$('.alias-list.is-open')).toHaveLength(0)
   })
 
   it('fills in a name phrase that was previously a blank', () => {
@@ -1202,7 +1253,7 @@ describe('aliases', () => {
     addTo('contacts', 'Mum')
     expect(wordsIn('contacts')).toEqual(['Mum'])
 
-    click(list('contacts').querySelector('.contact-remove'))
+    click(list('contacts').querySelector('.alias-word .contact-remove'))
     expect(wordsIn('contacts')).toEqual([])
   })
 
@@ -1212,7 +1263,7 @@ describe('aliases', () => {
     renderApp()
     openAliases()
     const before = wordsIn('pronouns')
-    click(list('pronouns').querySelector('.contact-remove'))
+    click(list('pronouns').querySelector('.alias-word .contact-remove'))
 
     expect(wordsIn('pronouns')).toEqual(before.slice(1))
     expect(stored().pronouns).toEqual(before.slice(1))
@@ -1222,6 +1273,7 @@ describe('aliases', () => {
     renderApp()
     openAliases()
 
+    openList('contacts')
     click(list('contacts').querySelector('.contact-add-btn'))
     expect(wordsIn('contacts')).toEqual([])
 
@@ -1250,6 +1302,7 @@ describe('aliases', () => {
   it('offers to delete only a list of its own', () => {
     renderApp()
     openAliases()
+    openList('pronouns')
     expect(list('pronouns').querySelector('[aria-label^="Delete"]')).toBeNull()
 
     const newList = $$('.alias-list').find(l => l.getAttribute('aria-label') === 'New list')!
@@ -1257,9 +1310,110 @@ describe('aliases', () => {
     settle()
     click(newList.querySelector('.contact-add-btn'))
 
+    openList('drinks')
     click(list('drinks').querySelector('[aria-label^="Delete"]'))
     expect($$('.alias-list').find(l => l.getAttribute('aria-label') === 'drinks')).toBeUndefined()
     expect(stored().drinks).toBeUndefined()
+  })
+
+  // Two arrangements, the same pair the category tabs offer: A–Z, or the order
+  // the words were put in. A–Z is a view — the order underneath it is left
+  // alone, so going to A–Z and back is not a way to lose an arrangement.
+  describe('the order the words come in', () => {
+    const seed = (words: string[]) => {
+      localStorage.setItem('peri_aliases', JSON.stringify({ drinks: words }))
+      renderApp()
+      openAliases()
+    }
+    const tool = (label: string) => {
+      openList('drinks')
+      return [...list('drinks').querySelectorAll('.alias-tool')].find(t =>
+        (t.getAttribute('aria-label') ?? '').startsWith(label),
+      )!
+    }
+    const chipFor = (word: string) => {
+      openList('drinks')
+      return [...list('drinks').querySelectorAll('.alias-word')].find(
+        c => c.querySelector('.alias-word-text')?.textContent === word,
+      )!
+    }
+    const chips = () => wordsIn('drinks')
+
+    it('shows the order they were put in, until asked for A to Z', () => {
+      seed(['tea', 'coffee', 'beer'])
+      expect(chips()).toEqual(['tea', 'coffee', 'beer'])
+
+      click(tool('Your own order'))
+      expect(chips()).toEqual(['beer', 'coffee', 'tea'])
+
+      // And the arrangement underneath is untouched.
+      expect(JSON.parse(localStorage.getItem('peri_aliases')!).drinks).toEqual(['tea', 'coffee', 'beer'])
+    })
+
+    it('remembers which arrangement is showing', () => {
+      seed(['tea', 'coffee', 'beer'])
+      click(tool('Your own order'))
+      expect(localStorage.getItem('peri_alias_sort')).toBe('alpha')
+
+      click(tool('Sorted A to Z'))
+      expect(localStorage.getItem('peri_alias_sort')).toBe('custom')
+      expect(chips()).toEqual(['tea', 'coffee', 'beer'])
+    })
+
+    // One dwell picks a word up, a second on another drops it there — the
+    // gesture the category tabs and the emergency bar both use, because a
+    // pointer-drag needs a button held down while the pointer moves.
+    it('arranges by picking a word up and putting it down', () => {
+      seed(['tea', 'coffee', 'beer'])
+      click(tool('Arrange'))
+
+      click(chipFor('beer'))
+      expect(chipFor('beer').className).toMatch(/is-held/)
+      click(chipFor('tea'))
+
+      expect(chips()).toEqual(['beer', 'tea', 'coffee'])
+      expect(JSON.parse(localStorage.getItem('peri_aliases')!).drinks).toEqual(['beer', 'tea', 'coffee'])
+    })
+
+    // Arranging while A–Z is showing captures the order that was on screen —
+    // otherwise the move lands somewhere the user could not see.
+    it('makes the shown order theirs when arranged out of A to Z', () => {
+      seed(['tea', 'coffee', 'beer'])
+      click(tool('Your own order')) // to A–Z: beer, coffee, tea
+      click(tool('Arrange'))
+
+      click(chipFor('tea'))
+      click(chipFor('beer'))
+
+      // The A–Z order with the move applied. Applied to the order underneath —
+      // tea, coffee, beer — the same move would have landed on
+      // ['coffee', 'beer', 'tea'], which is the point of the test.
+      expect(JSON.parse(localStorage.getItem('peri_aliases')!).drinks).toEqual(['tea', 'beer', 'coffee'])
+      expect(localStorage.getItem('peri_alias_sort')).toBe('custom')
+    })
+
+    // A word chip is the remove control and the thing being moved, and it must
+    // never be both at once: a dwell meant to put a word down would delete it.
+    it('offers no remove while a list is being arranged', () => {
+      seed(['tea', 'coffee'])
+      openList('drinks')
+      expect(list('drinks').querySelector('.alias-word .contact-remove')).not.toBeNull()
+
+      click(tool('Arrange'))
+      expect(list('drinks').querySelector('.alias-word .contact-remove')).toBeNull()
+    })
+
+    // Closing the list puts down whatever is in the air; without it the word
+    // stays held across the round trip and the next dwell drops the forgotten
+    // one instead of lifting the chip under the pointer.
+    it('stops arranging when the list is closed', () => {
+      seed(['tea', 'coffee'])
+      click(tool('Arrange'))
+      click(list('drinks').querySelector('.alias-list-head'))
+      openList('drinks')
+
+      expect(tool('Arrange').getAttribute('aria-pressed')).toBe('false')
+    })
   })
 
   it('persists across a reload', () => {

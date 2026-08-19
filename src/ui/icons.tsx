@@ -208,5 +208,35 @@ export function TrashIcon() {
   )
 }
 
+/* The two arrangements, drawn as what they are, by the category bar and by the
+   Aliases panel — which is why they live here rather than beside either of them.
+   Alphabetical is tidy lines
+   descending in length under an A-to-Z arrow; the user's own is the same lines
+   jumbled, beside a grip. Neither can be mistaken for the reorder button's
+   opposing arrows, which sits right next to them. */
+
+export function SortAlphaIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="4" y1="6" x2="13" y2="6" /><line x1="4" y1="12" x2="11" y2="12" /><line x1="4" y1="18" x2="9" y2="18" />
+      <polyline points="17 6 20 3 23 6" /><line x1="20" y1="3" x2="20" y2="21" />
+    </svg>
+  )
+}
+
+export function CustomOrderIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="4" y1="6" x2="11" y2="6" /><line x1="4" y1="12" x2="15" y2="12" /><line x1="4" y1="18" x2="8" y2="18" />
+      {[6, 12, 18].map(y => (
+        <g key={y}>
+          <circle cx="18.5" cy={y} r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="22" cy={y} r="1.4" fill="currentColor" stroke="none" />
+        </g>
+      ))}
+    </svg>
+  )
+}
+
 // ── DwellCursor ───────────────────────────────────────────────────────────────
 // Isolated component — updates DOM directly, never re-renders the tree.
