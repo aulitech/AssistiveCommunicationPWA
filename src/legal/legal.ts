@@ -1,15 +1,21 @@
 // Privacy policy and terms of service, served at /privacy and /terms.
 //
 // These describe what the app actually does today: everything is stored on the
-// device and nothing is sent to a server we run, because there is no server we
-// run. If that ever changes — a sync backend, analytics, crash reporting — this
-// file has to change in the same commit, or it becomes a false claim.
+// device, and the one thing that ever leaves it — a synchronized board — is
+// encrypted here first, under a passphrase we do not have and cannot reset. If
+// anything else ever changes — analytics, crash reporting, a server that can
+// read something — this file has to change in the same commit, or it becomes a
+// false claim.
+//
+// The three places that have to agree about synchronizing are the Synchronize
+// row in Settings, the **Synchronizing** section of the guide, and the section
+// below. Change one and change all three.
 //
 // Not written by a lawyer. Accurate, but worth review before it is relied on.
 
 import { type ProseDocument, list, text } from '../core/prose'
 
-const UPDATED = '9 August 2026'
+const UPDATED = '20 August 2026'
 const CONTACT = 'spero@auli.tech'
 const ENTITY = 'Autonomous Living Technologies, Inc.'
 
@@ -17,24 +23,48 @@ export const PRIVACY: ProseDocument = {
   title: 'Privacy Policy',
   updated: UPDATED,
   intro:
-    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device, unless you choose to link an ElevenLabs account for its voices — in which case the words you speak are sent to ElevenLabs to be turned into audio. Nothing goes to us either way.',
+    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device. Two things are exceptions, and both are yours to switch on: linking an ElevenLabs account sends the words you speak to ElevenLabs to be turned into audio, and turning on Synchronize puts an encrypted copy of your board on our server so your other devices can fetch it. We cannot read that copy.',
   sections: [
     {
       title: 'What we collect',
       blocks: [
         text(
-          'Nothing. We operate no servers, no database and no analytics, so there is nowhere for your information to be sent.',
+          'Nothing you can read. We run no analytics and no tracking, and the one server we do run stores encrypted blocks it has no way to open.',
         ),
         text('Everything the app remembers is stored in your browser, on your device:'),
         list(
           'The phrases you add, edit or hide.',
           'Your settings — dwell times, voice, volume and speed.',
-          'Your details — your name and the contacts you enter.',
+          'Your word lists — names, contacts and anything else you add under Aliases.',
           'Which account you last signed in with, if any.',
           'Your ElevenLabs API key, if you linked an account.',
+          'Your Synchronize passphrase, if you turned that on.',
         ),
         text(
-          'This information never leaves your device. We cannot see it, and we could not retrieve it for you if you lost it. Your ElevenLabs key is not included in a backup file, so sharing a backup does not share your account.',
+          'None of this leaves your device unless you turn on Synchronize, and what leaves then is encrypted — see the next section. Neither your ElevenLabs key nor your Synchronize passphrase is included in a backup file, so sharing a backup does not share your account or your other devices.',
+        ),
+      ],
+    },
+    {
+      title: 'Synchronizing',
+      blocks: [
+        text(
+          'Synchronize is off until you turn it on. While it is on, a copy of your board — your phrases, categories, word lists and settings — is kept on a server we run, so that the other devices you sign in to can fetch it.',
+        ),
+        text(
+          'That copy is encrypted on your device before it is sent, using a key made from the passphrase you choose. We never receive the passphrase, and the key is never sent anywhere. We hold a block of bytes we cannot open, and neither can anyone who obtains it from us.',
+        ),
+        text('What we can see, and it is worth being exact about it:'),
+        list(
+          'That some board exists, stored under a 64-character address. The address is derived from your passphrase, so it is not your name, your email or your account — we cannot connect it to a person, and we cannot list one from the other.',
+          'When it was last written, and an eight-character label naming which of your own devices wrote it. Both are needed for your devices to tell whose copy is newer.',
+          'How large it is, and the usual request information any web server records — see Hosting below.',
+        ),
+        text(
+          'We cannot see a single phrase, category, contact or setting. We cannot reset the passphrase, recover the board without it, or tell you whether you have typed it correctly. If you lose it, the copy on the server is lost with it — your devices keep their own boards, and you start again with a new passphrase.',
+        ),
+        text(
+          'Turning the setting off stops the exchange and leaves the copy where it is. "Stop and erase the copy", in the same row, deletes it from the server. A factory reset removes the passphrase from this device but does not erase the copy — use the button first if you want both.',
         ),
       ],
     },
@@ -45,7 +75,10 @@ export const PRIVACY: ProseDocument = {
           'Signing in with Google, Apple or Facebook is optional — the app works fully as a guest, and does exactly the same things either way.',
         ),
         text(
-          'If you do sign in, that provider gives us your name, email address and profile picture. We store them on your device to show in the menu, and we discard the access token immediately. We do not send them anywhere, and we do not use them to identify you across devices.',
+          'If you do sign in, that provider gives us your name, email address, profile picture and the account number they use for you. We store them on your device to show in the menu, and we discard the access token immediately. We do not send any of it anywhere.',
+        ),
+        text(
+          'The account number is used for one thing: with Synchronize on, it is mixed into your passphrase to work out the address your encrypted board is stored under. It is never sent to us and never leaves your device — what leaves is the address, which cannot be turned back into it.',
         ),
         text(
           'Using a sign-in button means that provider knows you signed in to this app. What they do with that is governed by their own privacy policy, not this one.',
@@ -92,7 +125,10 @@ export const PRIVACY: ProseDocument = {
       title: 'Deleting your information',
       blocks: [
         text(
-          'Because everything is on your device, you remove it by clearing this site’s data in your browser settings, or by uninstalling the app if you installed it to a home screen. There is nothing on our side to delete, and no request you need to send us.',
+          'Everything on your device goes when you clear this site’s data in your browser settings, or uninstall the app if you installed it to a home screen.',
+        ),
+        text(
+          'If you turned on Synchronize, there is one thing that is not on your device: the encrypted copy. Erase it with "Stop and erase the copy" in the Settings row, which is instant and needs no request to us. There is nothing else on our side to delete — and because we cannot connect an address to a person, a request to us could not find it either.',
         ),
         text('Signing out removes the account details from the device but leaves your phrases and settings in place.'),
       ],
@@ -156,7 +192,10 @@ export const TERMS: ProseDocument = {
           'The app is provided as is, without warranty of any kind. We do not promise that it will be available, that it will work on your device, that speech will sound the way you expect, or that your saved phrases will survive a browser update.',
         ),
         text(
-          'Because everything is stored on your device and nowhere else, we cannot recover your phrases or settings if they are lost. If they matter, write them down somewhere else too.',
+          'Your phrases and settings are stored on your device. We cannot recover them if they are lost, and turning on Synchronize does not change that: the copy on our server is encrypted with a passphrase we do not hold, so we cannot open it, reset it, or restore it for you. Synchronize is a way to keep devices alike, not a backup service — save a backup file if your board matters, which it does.',
+        ),
+        text(
+          'We do not promise that the synchronizing service will stay available, or that a copy stored on it will still be there tomorrow. Nothing on it is anything but a copy of what is already on your devices.',
         ),
       ],
     },

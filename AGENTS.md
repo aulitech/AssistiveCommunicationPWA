@@ -18,7 +18,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 |---|---|---|
 | 1 | `core/` | What Peri knows and keeps. No React, no network, no screens |
 | 2 | `ui/` | The controls and contexts every screen is built from |
-| 3 | `voice/` | Making sound come out, and the control for choosing which |
+| 3 | `voice/` `sync/` | The two that talk to something outside this device |
 | 4 | `menu/` | The panel that slides down, and everything reached from it |
 | 5 | `talk/` `signin/` `legal/` | The three screens |
 | 6 | *(root)* | `App.tsx`, `main.tsx`, and the tests that drive the whole app |
@@ -33,6 +33,8 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `core/markdown.ts` - The markup a phrase may carry, and taking it back off. `layout` for drawing, `stripMarkdown` for everything a phrase is *not* drawn into — spoken, searched, announced
 - `core/links.ts` - Reading a URL and a label out of a paste or a drop, and writing them as `[label](url)`. A clipboard and a drag carry the same shape, so one reader serves both
 - `core/prose.ts` - The blocks long-form text is written in
+- `core/crypto.ts` - Locking a board before it leaves the device. One passphrase derives two things through HKDF off a single PBKDF2 run: the AES-GCM key the board is sealed with, and **the address it is stored under**. The account is the salt
+- `core/sync.ts` - What travels between two devices and which way it goes: the envelope the server holds, `decideSync`, and `hasOwnBoard`. Pure, so the Netlify function imports it too and both ends validate identically
 
 **ui/** — the shared vocabulary
 
@@ -52,6 +54,11 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `voice/picker.tsx` - Choosing a voice. One control, used by Settings for the app's voice and by the edit strip for a single phrase's. It sits above `ui/` in the layering for that reason — it is built out of `ui` controls, so `voice` cannot be beside it
 - `voice/groups.ts` - Cutting a long voice list down: device voices by language, an account's by the collection it files them under
 - `voice/elevenlabs.ts` - A linked ElevenLabs account: validating a key, fetching its voices, fetching audio, and the cache in front of it
+
+**sync/**
+
+- `sync/client.ts` - The four calls to `/api/sync`. **Nothing throws** — a board works offline, and a device that cannot reach the server has lost nothing at all, so every failure is a value and the worst case is a line of text under a setting
+- `sync/use-sync.ts` - The hook that decides when: on arrival, a debounced moment after any change, on the tab being looked at again, on the network coming back, and a slow beat behind all of it
 
 **menu/**
 
@@ -96,7 +103,8 @@ The arrow dividers are keyed off **which side of the scroller** an arrow is on (
 - `public/` - Served at the site root: PWA manifest, icons, `robots.txt`, and `sw.js` (the offline service worker)
 - `package.json` - Project dependencies and the Vite build, development, preview, test, and formatting scripts
 - `vite.config.ts` - Vite and Vitest configuration: React, Tailwind CSS v4, the `@` alias for `src`, and the `test` block
-- `netlify.toml` - The deploy: build command, SPA fallback, and cache headers
+- `netlify/functions/sync.mts` - **The one piece of Peri that runs on a server.** A locked box with a number on it: `GET`, `PUT` and `DELETE` against an address, with `@netlify/blobs` behind it. It imports `src/core/sync.ts` rather than restating the envelope, and `netlify/functions/sync.test.ts` drives the real handler over a map
+- `netlify.toml` - The deploy: build command, the `/api/sync` redirect (**above** the SPA catch-all, which would otherwise swallow it), SPA fallback, and cache headers
 - `eslint.config.js` - Lint rules; `react-hooks/exhaustive-deps` is an error here, not a warning
 - `.mise.toml` - Toolchain versions for Node.js and pnpm
 
@@ -132,6 +140,10 @@ Unit tests sit beside what they cover; tests that drive the whole app through `A
 - `voice/groups.test.ts` - The voice filters, and that the two kinds never answer to each other's groups
 - `ui/dwell.test.tsx` - The dwell hook: timing, tap, keyboard, disabled, and repeat
 - `ui/caret.test.tsx` - Which of the two caret APIs is trusted, when neither is, and the one claim about the hook the app tests cannot make — that it reports where it put the caret
+- `core/crypto.test.ts` - The lock: that two devices agree, that two accounts do not, that the same board never seals the same way twice, and that a wrong key or an altered byte opens nothing
+- `core/sync.test.ts` - `decideSync` in every branch, both parsers against damage, and the property that stops a device pushing for ever — a backup built at `SYNC_EPOCH` is byte-identical when nothing has changed
+- `sync/use-sync.test.tsx` - Two devices and the box between them, driven through **the real Netlify function** with only the blob store replaced. A second device is this device with its memory wiped and the server left standing
+- `netlify/functions/sync.test.ts` - The handler itself: revisions, the 409 and what comes back with it, and every way a body can be refused
 - `src/App.test.tsx` - Whole-app flows driven through the real DOM
 - `src/categories.test.tsx` - Adding, renaming, deleting and ordering category tabs, and paging the bar — the page arithmetic, the order the arrows sit in, and that a page repeats while held. **Paging tests have to supply the geometry** (`clientWidth`, `clientHeight`), since jsdom lays nothing out and a page measured from nothing is a page of nothing. The portrait rule is asserted against the text of `index.css`, which is all jsdom allows — whether it *takes effect* is a question for the deploy preview
 - `src/emergency.test.tsx` - Arranging the emergency bar, and the two things that must not follow from it: a phrase moved out of reach of the order it was stored under, and a bar left in reorder mode when somebody needs to speak
@@ -281,6 +293,20 @@ Six numeric values, a voice, and a linked account. **`zoom` is the text size**, 
 - **Every settable value carries a revert**, at the end of its spinner, which goes quiet at the default rather than away — a row that changed width as a value crossed its default would move the two buttons beside it. `SettingSpinner` takes `defaultValue` **in the units it displays**, so Volume and Speed scale theirs the same way they scale `value`. `ResetIcon` is a closed loop, deliberately not the open hook `UndoIcon` draws: undo means "put back the last thing I did" — the message in the topbar, a deleted word in the Aliases panel — while reset means "put this back to how it shipped", and the two must not be learnt as one control.
 - **Reset to Factory Defaults takes everything**, not just the settings — phrases, categories, the emergency arrangement, details, the sent list, the linked account. So it asks first, in a dialog **portalled and centred** for the same reason the Sign-out one is, and the first thing that dialog offers is a backup to keep. It **leaves the user signed in**: signing out is its own item with its own confirmation.
 - **The reset clears storage and reloads.** Nothing in the panel can reach the React state holding the same values — the board, the composer, the sent list, its own account row — and a screen still offering phrases that no longer exist is worse than no reset at all. `RESETTABLE_KEYS` is a list rather than `localStorage.clear()`, because the origin may hold something Peri did not put there; a key added to the store and forgotten there is a key the reset leaves behind.
+
+## Synchronizing
+
+Off until somebody turns it on, and then two devices signed in to the same account keep the same board. **What is on the server is ciphertext and an address, and neither can be connected to a person.**
+
+- **The payload is a backup.** The same document `buildBackup` writes and `applyBackup` reads — already a diff against the phrase table, already versioned, already tested against damage. Built with `SYNC_EPOCH` rather than today, because `buildBackup` stamps the moment it ran and a stamp that moves every render is a board that looks edited every render; the device would push for ever. When it was written down is `Snapshot.updatedAt`.
+- **One passphrase does two jobs.** PBKDF2 (310k, SHA-256, salted with the account) gives a master; HKDF expands it into the AES-GCM key *and* the 64-hex address the blob is stored under. So **the address is the credential**: a server that has it cannot derive the key, and somebody who does not know the passphrase cannot even find the blob. The alternative was keeping an OAuth token on each device and verifying it server-side — a stronger door, at the price of long-lived provider tokens in `localStorage` on a device left in a day room.
+- **What that leaves open, and it is written in the function's own header:** anyone who learns an address can read the ciphertext and overwrite it, and writes are capped by shape and size and nothing else. The revision is optimistic rather than atomic — Blobs has no compare-and-swap — and the loser of a race reconciles on its next poll.
+- **The last change wins, whole.** Not field by field: a board is a diff, and half of one merged with half of another is a board neither device ever had. Merging is what the *import* screen does, because a file from somebody else must never delete a phrase — but between your own devices a deletion has to travel, or the feature is a machine for resurrecting phrases you just threw away. What it costs is stated in the guide rather than hidden.
+- **The first exchange is the exception, and it is the one moment sync will not decide by itself.** Clocks are worthless there: a device joining an account carries an `updatedAt` from whenever it was last edited, which may be years after the board it is joining. So — nothing on the server, this device publishes; nothing of the user's on this device (`hasOwnBoard`), it takes what is there silently; **both**, and it asks, in the settings row, and touches neither board until answered. `joined` is what remembers, and turning the setting off and straight back on with the same passphrase is not a join.
+- **A mistyped passphrase is silent by construction** — a different address is a different board, so nothing arrives and, the part that matters, nothing is overwritten. That is indistinguishable from sync being broken, which is why the row shows a six-character **code**: two devices showing the same one agree.
+- **The passphrase and the flag are never in a backup**, under `peri_sync` and outside the three things `buildBackup` reads — the ElevenLabs rule, for a larger reason. The key opens every device on the account, and a restored file must not switch a stranger's device on and start it writing to a server.
+- **Nothing throws.** A board works offline; a device that cannot reach the server has lost nothing and carries on exactly as Peri always has.
+- **Three documents have to agree** about what leaves the device: the Synchronize row in Settings, *Keeping two devices the same* in the guide, and the Synchronizing section of the privacy policy. Change one and change all three — the same rule the ElevenLabs disclosure follows.
 
 ## Backups
 

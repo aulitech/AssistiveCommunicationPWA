@@ -15,6 +15,18 @@
   NODE_VERSION = "22"
   PNPM_VERSION = "11.20.0"
 
+[functions]
+  directory = "netlify/functions"
+
+# The sync endpoint, and it has to come first: the catch-all below rewrites
+# everything that is not a file on disk to the app, this included. Redirects are
+# read in order, so the specific rule earns its place at the top rather than by
+# being cleverer.
+[[redirects]]
+  from = "/api/sync"
+  to = "/.netlify/functions/sync"
+  status = 200
+
 # Single-page app: there is no router, but a deep link should still land on the
 # app rather than a 404. Netlify serves real files first, so this only catches
 # paths that do not exist on disk.

@@ -292,6 +292,34 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Keeping two devices the same',
+    blocks: [
+      text(
+        'A tablet by the bed and a phone in a wheelchair can hold the same board. Sign in with the same account on both, open Settings, and turn on Synchronize. Anything you change on one appears on the other within a minute or so.',
+      ),
+      text(
+        'It asks for a passphrase, and this is not a password to an account. It is the key your board is locked with before it leaves the device, and it is what the other device needs to unlock it. Choose the same one on every device, and write it down somewhere safe.',
+      ),
+      list(
+        'The Code under the setting is six characters worked out from your passphrase. Two devices showing the same code agree; two showing different codes have different passphrases, and will never see each other.',
+        'A passphrase typed differently is not an error message. It is simply a different board, so nothing arrives and nothing is lost.',
+        'Nobody can reset it for you. We cannot read your board and cannot help you open it.',
+      ),
+      text(
+        'The first device to turn it on publishes what it has. When a second device joins and already has phrases of its own, it asks which board to keep — nothing is replaced until you answer.',
+      ),
+      text(
+        'After that, the last change wins. Edit on two devices without letting them meet in between and the earlier edit is the one that goes, so it is worth letting each device settle before picking up the other.',
+      ),
+      text(
+        'Synchronize is not a backup. It keeps devices alike, which means a phrase deleted on one is deleted on the others — that is the point of it, and it is also why a saved backup file is still worth having.',
+      ),
+      text(
+        'Turn it off and this device stops sending and receiving; the copy stays where it is for the other devices. Stop and erase the copy removes it from the server as well.',
+      ),
+    ],
+  },
+  {
     title: 'Backup and sharing',
     blocks: [
       text(

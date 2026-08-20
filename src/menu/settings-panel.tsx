@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { linkAccount, REMOTE_PREFIX } from '../voice/elevenlabs'
+import type { SyncControl } from '../sync/use-sync'
 import { VoicePicker } from '../voice/picker'
 import { clearAudioCache } from '../voice/audio-cache'
 import { type AliasStore } from '../core/phrases'
@@ -93,11 +94,12 @@ function VoiceRow() {
   )
 }
 
-export function SettingsPanel({ store, aliases, categoryById }: {
+export function SettingsPanel({ store, aliases, categoryById, sync }: {
   /** Only so the reset confirmation can offer a backup before it wipes them. */
   store: PhraseStore
   aliases: AliasStore
   categoryById: Map<string, string>
+  sync: SyncControl
 }) {
   const { settings, update } = useSettings()
   const [account, setLinked] = useState<ElevenLabsAccount | null>(loadElevenLabs)
@@ -220,6 +222,7 @@ export function SettingsPanel({ store, aliases, categoryById }: {
           />
         </SettingRow>
         <VoiceRow />
+        <SyncRow sync={sync} />
         <ElevenLabsRow account={account} onChange={setAccount} />
 
         {/* Last, and away from the values it undoes. Every revert above puts one
@@ -242,6 +245,166 @@ export function SettingsPanel({ store, aliases, categoryById }: {
         />
       )}
     </div>
+  )
+}
+
+/**
+ * Synchronizing this board with the other devices signed in to the same account.
+ *
+ * Off until somebody asks for it, and it asks for a passphrase before it will
+ * start. That is not a login — there is no account on the server and nothing to
+ * log in to. The passphrase is the key the board is locked with **and** the
+ * address it is stored under, so a server holding it holds ciphertext at a
+ * location it cannot connect to anybody. See `core/crypto`.
+ *
+ * The consequence somebody has to be told about, and the reason for the code:
+ * a passphrase typed differently on the second device is not an error, it is a
+ * different board. Nothing arrives, nothing is lost, and it looks exactly like
+ * sync being broken. Two devices showing the same six characters agree.
+ */
+function SyncRow({ sync }: { sync: SyncControl }) {
+  const [passphrase, setPassphrase] = useState('')
+  const [confirmingForget, setConfirmingForget] = useState(false)
+
+  const turnOn = useCallback(() => {
+    sync.enable(passphrase)
+    setPassphrase('')
+  }, [sync, passphrase])
+
+  const said = () => {
+    // Before anything else: with no account there is nothing to synchronize
+    // *with*, whether or not the setting has been turned on. The field beside
+    // this is disabled for the same reason, and a disabled control that explains
+    // nothing is a control that reads as broken.
+    if (!sync.available) {
+      return 'Sign in with Google, Apple or Facebook to synchronize. A guest is only ever this device.'
+    }
+    switch (sync.status) {
+      case 'unavailable':
+        return 'Sign in with Google, Apple or Facebook to synchronize. A guest is only ever this device.'
+      case 'working':
+        return 'Synchronizing…'
+      case 'synced':
+        return sync.lastSyncedAt
+          ? `Up to date · last synchronized at ${new Date(sync.lastSyncedAt).toLocaleTimeString()}${
+            sync.lastFrom ? ` · last change from device ${sync.lastFrom}` : ''
+          }`
+          : 'Up to date'
+      case 'choose':
+        return 'This account already has a board, and so does this device. Only one of them can be kept.'
+      case 'locked':
+      case 'error':
+        return sync.error ?? 'Not synchronizing'
+      default:
+        return 'Off. This board stays on this device.'
+    }
+  }
+
+  return (
+    <div className="setting-row sync-row">
+      <span className="setting-label">Synchronize</span>
+      <div className="setting-control sync-control">
+        {sync.enabled ? (
+          <>
+            <span className="sync-status">
+              {sync.code && <span className="sync-code">Code {sync.code}</span>}
+            </span>
+            <PanelButton kind="danger" label="Turn off" onActivate={sync.disable} />
+          </>
+        ) : (
+          <>
+            <input
+              className="profile-input sync-passphrase"
+              type="password"
+              value={passphrase}
+              onChange={e => setPassphrase(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && passphrase.trim()) {
+                  e.preventDefault()
+                  turnOn()
+                }
+              }}
+              placeholder="Choose a passphrase"
+              aria-label="Synchronize passphrase"
+              autoComplete="off"
+              spellCheck={false}
+              disabled={!sync.available}
+            />
+            <PanelButton
+              kind="primary"
+              label="Turn on"
+              onActivate={turnOn}
+              disabled={!sync.available || passphrase.trim() === ''}
+            />
+          </>
+        )}
+
+        <p className={sync.status === 'error' || sync.status === 'locked' ? 'eleven-error' : 'eleven-note'} role={sync.status === 'error' || sync.status === 'locked' ? 'alert' : undefined}>
+          {said()}
+        </p>
+
+        {/* The one moment sync will not decide by itself. Both boards cannot be
+            kept, and quietly choosing either is a way to lose somebody's
+            phrases — so it is put in front of them, in their words, and nothing
+            happens until one is chosen. */}
+        {sync.status === 'choose' && (
+          <div className="sync-actions">
+            <PanelButton kind="primary" label="Keep this device's board" onActivate={sync.keepMine} />
+            <PanelButton kind="plain" label="Use the synchronized board" onActivate={sync.takeTheirs} />
+          </div>
+        )}
+
+        {sync.enabled && sync.status !== 'choose' && (
+          <div className="sync-actions">
+            <PanelButton kind="plain" label="Synchronize now" onActivate={sync.syncNow} />
+            <PanelButton kind="danger" label="Stop and erase the copy" onActivate={() => setConfirmingForget(true)} />
+          </div>
+        )}
+
+        <p className="eleven-note">
+          {sync.status === 'choose'
+            ? 'Keeping this device\'s board replaces the synchronized one on every other device. Using the synchronized board replaces what is on this device. Nothing has changed yet.'
+            : sync.enabled
+            ? 'Every device signed in to this account and given the same passphrase keeps the same board. The last change wins, so editing on two devices at once loses the earlier edit. The copy on the server is encrypted before it leaves this device and cannot be read without the passphrase — which nobody can reset for you.'
+            : 'Optional. Keeps your phrases, categories and settings the same on every device you sign in to. The copy is encrypted here first, so the passphrase is the only thing that can open it — write it down somewhere safe.'}
+        </p>
+      </div>
+
+      {confirmingForget && (
+        <ConfirmForgetSync
+          onConfirm={() => {
+            setConfirmingForget(false)
+            sync.forget()
+          }}
+          onCancel={() => setConfirmingForget(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * In front of erasing the synchronized copy, and portalled for the reason every
+ * other confirmation here is: a pointer rests where it last fired, so a "yes"
+ * drawn under the button that asked would be answered by the pointer already
+ * sitting on it.
+ */
+function ConfirmForgetSync({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return createPortal(
+    <div className="confirm-scrim">
+      <div className="confirm-dialog" role="dialog" aria-modal="true" aria-label="Stop synchronizing">
+        <h3 className="confirm-title">Stop synchronizing?</h3>
+        <p className="confirm-text">
+          This device keeps its board. The encrypted copy on the server is erased, and any other device still
+          synchronizing will put its own copy back up the next time it looks.
+        </p>
+        <div className="confirm-actions">
+          <PanelButton kind="plain" label="Cancel" onActivate={onCancel} />
+          <PanelButton kind="danger" label="Stop and erase" onActivate={onConfirm} />
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 

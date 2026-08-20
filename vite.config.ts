@@ -17,7 +17,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}'],
+    // The function under `netlify/` is tested too. It is the one piece of this
+    // app that runs anywhere but the user's own device, so leaving it outside
+    // the suite would put the only exposed surface beyond the one gate — see
+    // `netlify.toml`, where the build is `pnpm check && pnpm build`.
+    include: ['src/**/*.test.{ts,tsx}', 'netlify/**/*.test.{ts,tsx}'],
     restoreMocks: true,
     // Vite loads .env.local during tests too, so without this the suite would
     // depend on whether the developer happens to have configured OAuth — green

@@ -14,7 +14,10 @@ import { soleLink } from '../core/markdown'
 import { openLink } from '../core/links'
 import { search } from '../core/search'
 import { loadRecent, saveRecent, type User } from '../core/store'
-import { type AppState } from '../core/backup'
+import { applyBackup, buildBackup, type AppState, type Backup } from '../core/backup'
+import { accountId } from '../core/store'
+import { SYNC_EPOCH } from '../core/sync'
+import { useSync } from '../sync/use-sync'
 import { speak, warmVoice } from '../voice/speech'
 import { cx } from '../ui/style'
 import { DwellCursor } from '../ui/controls'
@@ -368,6 +371,36 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     [board, update, flashToast],
   )
 
+  // ── Synchronizing ──────────────────────────────────────────────────────────
+  // The board as a backup, which is the document sync ships. **A fixed date**,
+  // because `buildBackup` stamps the moment it was called and a stamp that moves
+  // every render is a board that looks changed every render — which would push
+  // for ever. When it was written down is the snapshot's business, not the
+  // document's.
+  const syncBackup = useMemo(
+    () => buildBackup({ store, aliases: board.aliases, settings, categoryById: board.categoryById, now: SYNC_EPOCH }),
+    [store, board.aliases, settings, board.categoryById],
+  )
+
+  // A board that arrived from another device lands exactly as a restored backup
+  // does — in one go, with a line saying where it came from, because a grid that
+  // rearranges itself under somebody with no explanation is alarming.
+  const applyFromSync = useCallback(
+    (incoming: Backup, from: string) => {
+      const next = applyBackup(incoming, { store, aliases: board.aliases, settings }, 'replace')
+      board.restore(next.store, next.aliases)
+      update(next.settings)
+      flashToast(`Board updated from your other device (${from})`)
+    },
+    [board, store, settings, update, flashToast],
+  )
+
+  const sync = useSync({
+    accountId: accountId(user),
+    backup: syncBackup,
+    onApply: applyFromSync,
+  })
+
   // `editor.open` is stable, which matters: this value reaches every one of a
   // couple of thousand memoised phrase cells.
   const editCtx: EditCtxValue = useMemo(
@@ -452,6 +485,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             categories={backupCategories}
             categoryById={board.categoryById}
             onRestore={handleRestore}
+            sync={sync}
           />
 
           <DwellCursor />

@@ -52,6 +52,14 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
 
+  // Synchronizing is never cached and never answered from a cache. Everything
+  // else served from this origin is a build artefact — it changes only when the
+  // app does, which is what makes cache-first safe — but this one answers with
+  // whatever another device wrote a minute ago. Cached once, a device would be
+  // told for ever that its board is what it was this morning, and the failure
+  // would look exactly like the feature not working.
+  if (url.pathname.startsWith('/api/')) return
+
   if (request.mode === 'navigate') {
     event.respondWith(
       (async () => {

@@ -12,6 +12,7 @@ import { cx, dwellVar } from '../ui/style'
 import { NavItem, PanelButton } from '../ui/controls'
 import { SettingsPanel } from './settings-panel'
 import { AliasesPanel } from './aliases-panel'
+import type { SyncControl } from '../sync/use-sync'
 import { BackupPanel } from './backup-panel'
 import { HelpPanel } from './help-panel'
 
@@ -100,7 +101,7 @@ type PanelView = 'menu' | 'settings' | 'aliases' | 'backup' | 'help'
  */
 const REOPEN_GUARD_MS = 1000
 
-export function TopPanel({ open, user, onClose, onSignOut, aliases, onAliasesChange, store, categories, categoryById, onRestore }: {
+export function TopPanel({ open, user, onClose, onSignOut, aliases, onAliasesChange, store, categories, categoryById, onRestore, sync }: {
   open: boolean
   user: User
   onClose: () => void
@@ -111,6 +112,8 @@ export function TopPanel({ open, user, onClose, onSignOut, aliases, onAliasesCha
   categories: string[]
   categoryById: Map<string, string>
   onRestore: (next: AppState, message: string) => void
+  /** Driven in `talk`, where the board it synchronizes lives. */
+  sync: SyncControl
 }) {
   const [confirmingSignOut, setConfirmingSignOut] = useState(false)
 
@@ -191,7 +194,7 @@ export function TopPanel({ open, user, onClose, onSignOut, aliases, onAliasesCha
         {view !== 'menu' ? (
           <>
             {view === 'settings' && (
-              <SettingsPanel store={store} aliases={aliases} categoryById={categoryById} />
+              <SettingsPanel store={store} aliases={aliases} categoryById={categoryById} sync={sync} />
             )}
             {view === 'aliases' && <AliasesPanel aliases={aliases} onChange={onAliasesChange} />}
             {view === 'backup' && (
