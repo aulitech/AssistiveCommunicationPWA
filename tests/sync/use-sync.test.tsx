@@ -13,8 +13,9 @@ import { cleanup, render, waitFor, act } from '@testing-library/react'
 import { useEffect, useState } from 'react'
 import { useSync, type SyncControl } from '../../src/sync/use-sync'
 import { deriveSyncKeys, open, seal } from '../../src/core/crypto'
-import { SYNC_FORMAT, SYNC_VERSION, parseSnapshot, type Envelope } from '../../src/core/sync'
+import { SYNC_FORMAT, SYNC_VERSION, parseSnapshot, type Envelope, type SyncPayload } from '../../src/core/sync'
 import type { Backup } from '../../src/core/backup'
+import type { ElevenLabsAccount } from '../../src/core/store'
 
 const blobs = new Map<string, unknown>()
 
@@ -71,19 +72,24 @@ async function boardOnServer(passphrase = PASSPHRASE, account = ACCOUNT) {
 }
 
 let control: SyncControl
-let applied: { backup: Backup; from: string }[] = []
+let applied: { backup: Backup; account: ElevenLabsAccount | null; from: string }[] = []
 
 /** One device. Its board changes only when the test says so. */
-function Device({ account = ACCOUNT as string | null, start }: { account?: string | null; start?: string }) {
-  const [mine, setMine] = useState(() => board(start))
+function Device({ account = ACCOUNT as string | null, start, linked = null }: {
+  account?: string | null
+  start?: string
+  /** The ElevenLabs account this device has linked, if any. */
+  linked?: ElevenLabsAccount | null
+}) {
+  const [mine, setMine] = useState<SyncPayload>(() => ({ backup: board(start), account: linked }))
   const sync = useSync({
     accountId: account,
-    backup: mine,
+    payload: mine,
     onApply: (incoming, from) => {
-      applied.push({ backup: incoming, from })
-      // What the screen does: the board on this device becomes the one that
-      // arrived. Without it the hook would be tested against a device that
-      // ignores everything it is sent.
+      applied.push({ backup: incoming.backup, account: incoming.account, from })
+      // What the screen does: what is on this device becomes what arrived.
+      // Without it the hook would be tested against a device that ignores
+      // everything it is sent.
       setMine(incoming)
     },
   })
@@ -92,10 +98,11 @@ function Device({ account = ACCOUNT as string | null, start }: { account?: strin
   useEffect(() => {
     control = sync
   })
-  return <button onClick={() => setMine(board('an edit'))}>edit</button>
+  return <button onClick={() => setMine(current => ({ ...current, backup: board('an edit') }))}>edit</button>
 }
 
-const show = (props: { account?: string | null; start?: string } = {}) => render(<Device {...props} />)
+type Props = { account?: string | null; start?: string; linked?: ElevenLabsAccount | null }
+const show = (props: Props = {}) => render(<Device {...props} />)
 
 /**
  * The other device, writing while this one is not looking. Sealed with the same
@@ -105,7 +112,7 @@ const show = (props: { account?: string | null; start?: string } = {}) => render
 async function writeAsAnotherDevice(phrase: string, updatedAt: number) {
   const { address, key } = await deriveSyncKeys(PASSPHRASE, ACCOUNT)
   const slot = blobs.get(address) as { revision: number } | undefined
-  const sealed = await seal(key, { updatedAt, device: 'otherdev', backup: board(phrase) })
+  const sealed = await seal(key, { updatedAt, device: 'otherdev', backup: board(phrase), account: null })
   const res = await handler(
     new Request('https://peri.test/api/sync', {
       method: 'PUT',
@@ -127,7 +134,7 @@ async function writeAsAnotherDevice(phrase: string, updatedAt: number) {
 }
 
 /** Wipe the device but leave the server standing. */
-function secondDevice(props: { account?: string | null; start?: string } = {}) {
+function secondDevice(props: Props = {}) {
   cleanup()
   localStorage.clear()
   applied = []
@@ -298,6 +305,95 @@ describe('a second device joining', () => {
     // Nothing arrived, and — the part that matters — nothing was overwritten.
     expect(says((await boardOnServer())?.backup)).toEqual(['from the tablet'])
     expect(says((await boardOnServer('the cat sat dowm'))?.backup)).toEqual(['from the phone'])
+  })
+})
+
+/**
+ * The ElevenLabs key, which a **backup file** deliberately never carries.
+ *
+ * The two are different questions with different answers: a backup is a file
+ * made to be handed to somebody else, and the key in one hands over the
+ * account. A snapshot is sealed with the user's own passphrase and reaches
+ * their own devices and nowhere else.
+ */
+describe('the linked account', () => {
+  const KEY: ElevenLabsAccount = { apiKey: 'sk-secret-key', voices: [{ id: 'v1', name: 'Rachel' }] }
+
+  it('travels to the other device', async () => {
+    show({ start: 'from the tablet', linked: KEY })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    secondDevice()
+    act(() => control.enable(PASSPHRASE))
+
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(applied[0].account).toEqual(KEY)
+  })
+
+  // It is inside the lock like everything else. The server holds bytes.
+  it('is not readable on the server', async () => {
+    show({ start: 'from the tablet', linked: KEY })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    expect(JSON.stringify([...blobs.values()])).not.toContain('sk-secret-key')
+    expect((await boardOnServer())?.account).toEqual(KEY)
+  })
+
+  // Unlinking is a change like any other, and the other device follows. Said
+  // explicitly rather than by omission — see the test after this one.
+  it('goes when the board it arrives with has none', async () => {
+    show({ start: 'from the tablet', linked: null })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    secondDevice({ linked: KEY })
+    act(() => control.enable(PASSPHRASE))
+
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(applied[0].account, 'the account outlived the board that had none').toBeNull()
+  })
+
+  /**
+   * A snapshot written before the account travelled says nothing about one, and
+   * nothing said is not the same as "no account". Taking it as an unlink would
+   * have the first device on an older release strip the account off the others.
+   */
+  it('is left alone by a snapshot that says nothing about it', async () => {
+    show({ start: 'mine', linked: KEY })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    const { address, key } = await deriveSyncKeys(PASSPHRASE, ACCOUNT)
+    const slot = blobs.get(address) as { revision: number }
+    const sealed = await seal(key, {
+      updatedAt: Date.now() + 5_000,
+      device: 'olddev',
+      backup: board('from an older release'),
+    })
+    await handler(
+      new Request('https://peri.test/api/sync', {
+        method: 'PUT',
+        body: JSON.stringify({
+          address,
+          revision: slot.revision,
+          envelope: {
+            format: SYNC_FORMAT,
+            version: SYNC_VERSION,
+            updatedAt: Date.now() + 5_000,
+            device: 'olddev',
+            iv: sealed.iv,
+            data: sealed.data,
+          },
+        }),
+      }),
+    )
+
+    act(() => control.syncNow())
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(says(applied[0].backup)).toEqual(['from an older release'])
+    expect(applied[0].account, 'an older snapshot unlinked the account').toEqual(KEY)
   })
 })
 

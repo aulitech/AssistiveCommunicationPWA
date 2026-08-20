@@ -271,7 +271,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'Choosing one of these voices means the words you speak are sent to ElevenLabs to be turned into audio. Unlink the account, or pick a device voice, and nothing is sent.',
       ),
-      text('Your key is kept on this device and is never put in a backup file, so sharing a backup does not share your account.'),
+      text(
+        'Your key is never put in a backup file, so sharing a backup does not share your account. It does travel between your own devices if you have Synchronize on — locked with your passphrase like everything else — so the voices work on all of them without pasting the key again.',
+      ),
       text(
         'It is hidden once it is linked, with Show and Copy beside it. ElevenLabs only shows a key at the moment you make it, so this is how you get the same one onto another device without going back to them for a new one.',
       ),

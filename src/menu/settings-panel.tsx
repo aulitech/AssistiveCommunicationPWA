@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { linkAccount, REMOTE_PREFIX } from '../voice/elevenlabs'
+import { linkAccount } from '../voice/elevenlabs'
 import type { SyncControl } from '../sync/use-sync'
 import { VoicePicker } from '../voice/picker'
 import { clearAudioCache } from '../voice/audio-cache'
@@ -11,7 +11,7 @@ import { type AliasStore } from '../core/phrases'
 import { buildBackup } from '../core/backup'
 import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
 import { useSettings } from '../ui/settings'
-import { DEFAULT_SETTINGS, factoryReset, loadElevenLabs, loadRecent, saveElevenLabs, saveRecent } from '../core/store'
+import { DEFAULT_SETTINGS, factoryReset } from '../core/store'
 import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
 import { downloadBackup } from './backup-file'
 
@@ -94,15 +94,21 @@ function VoiceRow() {
   )
 }
 
-export function SettingsPanel({ store, aliases, categoryById, sync }: {
+export function SettingsPanel({ store, aliases, categoryById, sync, account, onAccountChange }: {
   /** Only so the reset confirmation can offer a backup before it wipes them. */
   store: PhraseStore
   aliases: AliasStore
   categoryById: Map<string, string>
   sync: SyncControl
+  /**
+   * Held in `talk` rather than here, because it is part of what synchronizing
+   * sends — and a row holding its own copy would go stale the moment a board
+   * arrived from another device carrying a different account.
+   */
+  account: ElevenLabsAccount | null
+  onAccountChange: (next: ElevenLabsAccount | null) => void
 }) {
   const { settings, update } = useSettings()
-  const [account, setLinked] = useState<ElevenLabsAccount | null>(loadElevenLabs)
   const [confirmingReset, setConfirmingReset] = useState(false)
 
   const exportEverything = useCallback(
@@ -119,22 +125,6 @@ export function SettingsPanel({ store, aliases, categoryById, sync }: {
     factoryReset()
     clearAudioCache()
     location.reload()
-  }, [])
-
-  // Written straight through, and `speak` reads it back per utterance, so there
-  // is no second copy to keep in step. The cache goes with it: audio fetched on
-  // one account's credits is not another's to use, and a voice re-linked may
-  // well be a different one under the same name.
-  const setAccount = useCallback((next: ElevenLabsAccount | null) => {
-    saveElevenLabs(next)
-    clearAudioCache()
-    // A remembered voice from the account that has just gone would seed the next
-    // new phrase with one that no longer exists.
-    if (next === null) {
-      const recent = loadRecent()
-      if (recent.voice?.startsWith(REMOTE_PREFIX)) saveRecent({ ...recent, voice: undefined })
-    }
-    setLinked(next)
   }, [])
 
   return (
@@ -223,7 +213,7 @@ export function SettingsPanel({ store, aliases, categoryById, sync }: {
         </SettingRow>
         <VoiceRow />
         <SyncRow sync={sync} />
-        <ElevenLabsRow account={account} onChange={setAccount} />
+        <ElevenLabsRow account={account} onChange={onAccountChange} />
 
         {/* Last, and away from the values it undoes. Every revert above puts one
             setting back; this puts the whole device back, and the two should not
@@ -547,7 +537,7 @@ function ElevenLabsRow({ account, onChange }: {
         <p className="eleven-note">
           {account
             ? 'These voices need the internet and use your ElevenLabs credits. Peri falls back to the device voice if one cannot be fetched, and the emergency bar always uses the device voice.'
-            : 'Optional. Adds the voices from your ElevenLabs account. The key stays on this device and is never put in a backup.'}
+            : 'Optional. Adds the voices from your ElevenLabs account. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
         </p>
       </div>
     </div>

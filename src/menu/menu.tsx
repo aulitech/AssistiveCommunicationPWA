@@ -13,6 +13,7 @@ import { NavItem, PanelButton } from '../ui/controls'
 import { SettingsPanel } from './settings-panel'
 import { AliasesPanel } from './aliases-panel'
 import type { SyncControl } from '../sync/use-sync'
+import type { ElevenLabsAccount } from '../core/store'
 import { BackupPanel } from './backup-panel'
 import { HelpPanel } from './help-panel'
 
@@ -101,7 +102,7 @@ type PanelView = 'menu' | 'settings' | 'aliases' | 'backup' | 'help'
  */
 const REOPEN_GUARD_MS = 1000
 
-export function TopPanel({ open, user, onClose, onSignOut, aliases, onAliasesChange, store, categories, categoryById, onRestore, sync }: {
+export function TopPanel({ open, user, onClose, onSignOut, aliases, onAliasesChange, store, categories, categoryById, onRestore, sync, account, onAccountChange }: {
   open: boolean
   user: User
   onClose: () => void
@@ -114,6 +115,9 @@ export function TopPanel({ open, user, onClose, onSignOut, aliases, onAliasesCha
   onRestore: (next: AppState, message: string) => void
   /** Driven in `talk`, where the board it synchronizes lives. */
   sync: SyncControl
+  /** Held in `talk` too: it is part of what synchronizing sends. */
+  account: ElevenLabsAccount | null
+  onAccountChange: (next: ElevenLabsAccount | null) => void
 }) {
   const [confirmingSignOut, setConfirmingSignOut] = useState(false)
 
@@ -194,7 +198,14 @@ export function TopPanel({ open, user, onClose, onSignOut, aliases, onAliasesCha
         {view !== 'menu' ? (
           <>
             {view === 'settings' && (
-              <SettingsPanel store={store} aliases={aliases} categoryById={categoryById} sync={sync} />
+              <SettingsPanel
+                store={store}
+                aliases={aliases}
+                categoryById={categoryById}
+                sync={sync}
+                account={account}
+                onAccountChange={onAccountChange}
+              />
             )}
             {view === 'aliases' && <AliasesPanel aliases={aliases} onChange={onAliasesChange} />}
             {view === 'backup' && (

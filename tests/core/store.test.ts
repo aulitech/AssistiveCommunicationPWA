@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { moveInOrder, orderEmergency } from '../../src/core/store'
+import { moveInOrder, orderEmergency, sameAccount } from '../../src/core/store'
 
 // The arithmetic behind arranging things by hand. The two bars that use it are
 // driven through the DOM — the tabs in categories.test.tsx, the emergency bar in
@@ -56,5 +56,42 @@ describe('moving one thing to where another sits', () => {
 
   it('never loses or duplicates anything', () => {
     expect([...moveInOrder(list, 'b', 'd')].sort()).toEqual(list)
+  })
+})
+
+/**
+ * Asked before an account is written, because writing one throws away the audio
+ * cached under it — and a board arriving from another device carries the
+ * account whether or not that is what changed.
+ */
+describe('telling two linked accounts apart', () => {
+  const account = (apiKey: string, voices: { id: string; name: string }[] = [{ id: 'v1', name: 'Rachel' }]) => ({
+    apiKey,
+    voices,
+  })
+
+  it('says nothing is the same account as nothing', () => {
+    expect(sameAccount(null, null)).toBe(true)
+  })
+
+  it('tells an account from no account', () => {
+    expect(sameAccount(account('sk-a'), null)).toBe(false)
+    expect(sameAccount(null, account('sk-a'))).toBe(false)
+  })
+
+  it('takes two copies of the same one as the same one', () => {
+    expect(sameAccount(account('sk-a'), account('sk-a'))).toBe(true)
+  })
+
+  it('tells two keys apart', () => {
+    expect(sameAccount(account('sk-a'), account('sk-b'))).toBe(false)
+  })
+
+  // A key re-linked can name a different set, and a picker offering voices the
+  // account no longer has is a phrase that will not speak.
+  it('tells the same key with different voices apart', () => {
+    expect(sameAccount(account('sk-a'), account('sk-a', []))).toBe(false)
+    expect(sameAccount(account('sk-a'), account('sk-a', [{ id: 'v2', name: 'Rachel' }]))).toBe(false)
+    expect(sameAccount(account('sk-a'), account('sk-a', [{ id: 'v1', name: 'Adam' }]))).toBe(false)
   })
 })
