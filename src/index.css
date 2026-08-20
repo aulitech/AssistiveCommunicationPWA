@@ -1432,6 +1432,44 @@ body {
 .eleven-error { color: #f87171; }
 .eleven-note { color: var(--text-muted); }
 
+/* Synchronizing. The same shape as the row above it, because they are the same
+   kind of thing to set up: a field, a button, and a line saying where it got to.
+   The code is monospaced and spaced out — it exists to be compared across two
+   screens, or read down a phone line to whoever set the other device up. */
+.sync-row { align-items: flex-start; }
+
+.sync-control {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.sync-passphrase {
+  flex: 1;
+  min-width: 140px;
+  font-size: 0.9rem;
+}
+
+.sync-status {
+  flex: 1;
+  min-width: 120px;
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.sync-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+}
+
+.sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-basis: 100%;
+}
+
 /* One shape for every control that opens a full-screen grid — a voice, a
    category, a set of categories to export. The trigger stays in the row it
    belongs to; the choosing happens full screen. Each keeps a name of its own

@@ -60,8 +60,27 @@ describe('the privacy policy', () => {
 
   // These claims are the whole point of the document. If the app ever starts
   // collecting anything, these tests should be what forces the policy to change.
-  it('states that nothing is collected', () => {
-    expect(says(/no servers|operate no servers|Nothing\./i)).toBe(true)
+  // They did: the policy said "we operate no servers" until synchronizing gave
+  // it one, and this test failed rather than letting the claim quietly go stale.
+  it('states that nothing readable is collected', () => {
+    expect(says(/nothing you can read|no way to open|cannot read/i)).toBe(true)
+  })
+
+  // The one thing that leaves the device, and the four things that have to be
+  // said about it: that it is optional, that it is encrypted first, that we
+  // cannot read it, and that nobody can reset the passphrase.
+  it('discloses what synchronizing sends, and what it does not', () => {
+    expect(says(/Synchronize is off until you turn it on/i), 'that it is off by default').toBe(true)
+    expect(says(/encrypted on your device before it is sent/i), 'that it is encrypted first').toBe(true)
+    expect(says(/cannot see a single phrase/i), 'that we cannot read it').toBe(true)
+    expect(says(/cannot reset the passphrase/i), 'that it cannot be reset').toBe(true)
+  })
+
+  // What we *can* see. A policy that only lists what it cannot see is a policy
+  // that has left something out.
+  it('is exact about the metadata a synchronized board leaves behind', () => {
+    expect(says(/64-character address/i)).toBe(true)
+    expect(says(/when it was last written/i)).toBe(true)
   })
 
   it('states that data stays on the device', () => {
@@ -82,7 +101,9 @@ describe('the privacy policy', () => {
   })
 
   it('explains how to delete everything', () => {
-    expect(says(/clearing this site|uninstalling/i)).toBe(true)
+    expect(says(/clearing this site|uninstall/i)).toBe(true)
+    // Including the one thing that is not on the device.
+    expect(says(/Stop and erase the copy/i), 'the copy on the server has its own way out').toBe(true)
   })
 
   it('states there is no tracking or analytics', () => {

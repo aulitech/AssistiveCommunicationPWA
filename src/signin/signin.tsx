@@ -44,6 +44,11 @@ export function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
           email: oauthUser.email,
           provider: oauthUser.provider,
           avatar: oauthUser.avatar,
+          // The provider's own id, kept because it is the only thing that means
+          // "the same account" on a second device — see `accountId`. Nothing is
+          // sent anywhere: it is hashed on this device into the address a
+          // synchronized board is stored under.
+          sub: oauthUser.sub,
         })
       } catch (err) {
         // Closing the popup is a decision, not a failure — say nothing.

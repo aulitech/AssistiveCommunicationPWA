@@ -3376,6 +3376,90 @@ describe('signing out', () => {
   })
 })
 
+// Synchronizing. The exchange itself is driven in `src/sync/use-sync.test.tsx`,
+// against the real Netlify function; what is left for here is the wiring — that
+// the row is in Settings, that it knows a guest is not an account, and that
+// turning it on writes down what the next load needs.
+describe('the synchronize setting', () => {
+  const openSettings = () => {
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+  }
+  const row = () => $('.sync-row')!
+  const note = () => [...row().querySelectorAll('p')].map(p => p.textContent).join(' ')
+  const stored = () => JSON.parse(localStorage.getItem('peri_sync') ?? 'null')
+
+  /**
+   * Signed in properly, which is what "the same account" needs — `renderApp`
+   * seeds a guest, and a guest has no account for a second device to share.
+   */
+  const renderSignedIn = () => {
+    localStorage.setItem(
+      'dwellspeak_user',
+      JSON.stringify({ name: 'Ada', email: 'ada@example.com', provider: 'google', sub: '1234' }),
+    )
+    container = render(<App />).container
+    settle()
+  }
+
+  it('is off, and says so, on a board nobody has asked to synchronize', () => {
+    renderSignedIn()
+    openSettings()
+
+    expect(row(), 'the setting is not in the panel').not.toBeNull()
+    expect(note()).toContain('This board stays on this device')
+    expect(stored()?.enabled ?? false).toBe(false)
+  })
+
+  // A guest is only ever this device: there is no account for a second one to
+  // share, so the row says what to do rather than offering a passphrase that
+  // would mean nothing.
+  it('has nothing to synchronize with for a guest', () => {
+    renderApp()
+    openSettings()
+
+    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Turn on'))
+    expect(note()).toContain('Sign in')
+    expect(stored()?.enabled ?? false).toBe(false)
+  })
+
+  it('takes a passphrase and remembers it', () => {
+    renderSignedIn()
+    openSettings()
+
+    const field = row().querySelector('input')!
+    expect(field.type, 'a passphrase is not for reading over a shoulder').toBe('password')
+    writeIn(field, 'the cat sat down')
+    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Turn on'))
+
+    expect(stored().enabled).toBe(true)
+    expect(stored().passphrase).toBe('the cat sat down')
+    // And the device has a name of its own, which is what says who wrote last.
+    expect(stored().device).toMatch(/^[0-9a-f]{8}$/)
+  })
+
+  // The passphrase is the key and the address both. A file made to be handed to
+  // somebody else must not carry either — the same rule the ElevenLabs key
+  // follows, for a larger reason: this one opens every device on the account.
+  it('keeps the passphrase out of a backup', () => {
+    renderSignedIn()
+    openSettings()
+    writeIn(row().querySelector('input')!, 'the cat sat down')
+    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Turn on'))
+
+    // Back to the menu, and past the second it is deaf for — a panel closing
+    // leaves the pointer sitting over the item that comes back.
+    click($('.panel-back'))
+    act(() => void vi.advanceTimersByTime(1100))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Backup & sharing'))
+    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Save a file'))
+    settle()
+
+    expect(downloads.length).toBeGreaterThan(0)
+    expect(downloads[downloads.length - 1].text).not.toContain('the cat sat down')
+  })
+})
+
 describe('reaching all of a panel that has grown', () => {
   const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
   const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)

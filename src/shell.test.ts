@@ -75,6 +75,38 @@ describe('the manifest', () => {
   })
 })
 
+/**
+ * The service worker serves every same-origin GET from its cache first, which is
+ * right for build artefacts and catastrophic for the one path whose answer
+ * changes without the app being rebuilt. Cached once, a device would be told for
+ * ever that its board is what it was this morning — and it would look exactly
+ * like synchronizing not working.
+ *
+ * Nothing in jsdom runs a service worker, so what can be checked here is that
+ * the rule is written. Whether it takes effect is a question for a real install.
+ */
+describe('the service worker', () => {
+  const sw = read('public/sw.js')
+
+  it('leaves the sync endpoint alone', () => {
+    expect(sw).toMatch(/pathname\.startsWith\('\/api\//)
+  })
+
+  // Inside the fetch handler, and before the cache-first branch — an exemption
+  // written after the lookup exempts nothing at all. Measured from the handler
+  // rather than the file, which opens a cache while it is still installing.
+  it('says so before it reaches for the cache', () => {
+    const handler = sw.slice(sw.indexOf("addEventListener('fetch'"))
+    expect(handler).toContain("'/api/")
+    expect(handler.indexOf("'/api/")).toBeLessThan(handler.indexOf('cache.match(request)'))
+  })
+
+  // The endpoint the app actually calls has to be the one that is exempt.
+  it('names the path the client calls', () => {
+    expect(read('src/sync/client.ts')).toContain("'/api/sync'")
+  })
+})
+
 // robots.txt and the robots meta tag say the same thing to different readers.
 // Changing one alone leaves the site half-hidden, which is the kind of thing
 // nobody notices for months.
