@@ -26,7 +26,7 @@ vi.mock('@netlify/blobs', () => ({
   }),
 }))
 
-const { default: handler } = await import('../../netlify/functions/sync.mts')
+const { default: handler } = await import('../../netlify/functions/sync.ts')
 
 const ACCOUNT = 'google:1234'
 const PASSPHRASE = 'the cat sat down'
