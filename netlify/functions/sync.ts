@@ -1,5 +1,11 @@
 // The one piece of Peri that runs on a server.
 //
+// **`.ts`, not `.mts`.** It was written as `.mts` and Netlify simply did not
+// pick it up: the build went green, no function was deployed, and `/api/sync`
+// fell through the redirect to the app shell — a 200 with HTML in it, which is
+// the one failure shape a client checking `res.ok` cannot see. `sync/client.ts`
+// now refuses an answer that is not JSON for exactly that reason.
+//
 // It is a locked box with a number on it. A device asks for the box at an
 // address, or puts a new one there; the address is 32 bytes of hex that only a
 // device holding the passphrase can work out, and what goes in the box is

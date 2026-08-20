@@ -38,12 +38,33 @@ function readSlot(body: unknown): Slot | null {
 }
 
 const offline = 'Could not reach the server'
+const missing = 'Synchronizing is not available on this server'
+
+/**
+ * The answer, or null when it is not JSON at all.
+ *
+ * A missing function is not a 404 here. The app's own catch-all rewrites
+ * anything that is not a file on disk to `index.html`, so a sync endpoint that
+ * was never deployed answers **200 with the app in it** — and a client that
+ * checks `res.ok` sees success and then throws on the first `{` it does not
+ * find. That happened, so it is checked rather than assumed.
+ */
+async function readJson(res: Response): Promise<unknown | null> {
+  if (!res.headers.get('content-type')?.includes('json')) return null
+  try {
+    return await res.json()
+  } catch {
+    return null
+  }
+}
 
 export async function pull(address: string): Promise<PullResult> {
   try {
     const res = await fetch(`${ENDPOINT}?a=${address}`, { cache: 'no-store' })
     if (!res.ok) return { status: 'error', error: `Server said ${res.status}` }
-    const slot = readSlot(await res.json())
+    const body = await readJson(res)
+    if (body === null) return { status: 'error', error: missing }
+    const slot = readSlot(body)
     return slot ? { status: 'ok', slot } : { status: 'error', error: 'Unreadable answer' }
   } catch {
     return { status: 'error', error: offline }
@@ -63,11 +84,13 @@ export async function push(address: string, envelope: Envelope, revision: number
       body,
     })
     if (res.status === 409) {
-      const slot = readSlot(await res.json())
+      const body = await readJson(res)
+      const slot = body === null ? null : readSlot(body)
       return slot ? { status: 'stale', slot } : { status: 'error', error: 'Unreadable answer' }
     }
     if (!res.ok) return { status: 'error', error: `Server said ${res.status}` }
-    const answer = (await res.json()) as { revision?: unknown }
+    const answer = (await readJson(res)) as { revision?: unknown } | null
+    if (answer === null) return { status: 'error', error: missing }
     return typeof answer.revision === 'number'
       ? { status: 'ok', revision: answer.revision }
       : { status: 'error', error: 'Unreadable answer' }

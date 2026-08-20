@@ -16,7 +16,7 @@ vi.mock('@netlify/blobs', () => ({
   }),
 }))
 
-const { default: handler } = await import('../../netlify/functions/sync.mts')
+const { default: handler } = await import('../../netlify/functions/sync.ts')
 
 const ADDRESS = 'a'.repeat(64)
 const OTHER = 'b'.repeat(64)

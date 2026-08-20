@@ -57,7 +57,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 
 **sync/**
 
-- `sync/client.ts` - The four calls to `/api/sync`. **Nothing throws** — a board works offline, and a device that cannot reach the server has lost nothing at all, so every failure is a value and the worst case is a line of text under a setting
+- `sync/client.ts` - The four calls to `/api/sync`. **An answer that is not JSON is refused**, because a missing endpoint here is not a 404: the SPA catch-all rewrites it to the app, so the answer is 200 with HTML in it and a client trusting `res.ok` crashes on the first `{` it cannot find. **Nothing throws** — a board works offline, and a device that cannot reach the server has lost nothing at all, so every failure is a value and the worst case is a line of text under a setting
 - `sync/use-sync.ts` - The hook that decides when: on arrival, a debounced moment after any change, on the tab being looked at again, on the network coming back, and a slow beat behind all of it
 
 **menu/**
@@ -103,7 +103,7 @@ The arrow dividers are keyed off **which side of the scroller** an arrow is on (
 - `public/` - Served at the site root: PWA manifest, icons, `robots.txt`, and `sw.js` (the offline service worker)
 - `package.json` - Project dependencies and the Vite build, development, preview, test, and formatting scripts
 - `vite.config.ts` - Vite and Vitest configuration: React, Tailwind CSS v4, the `@` alias for `src`, and the `test` block
-- `netlify/functions/sync.mts` - **The one piece of Peri that runs on a server.** A locked box with a number on it: `GET`, `PUT` and `DELETE` against an address, with `@netlify/blobs` behind it. It imports `src/core/sync.ts` rather than restating the envelope, and `tests/functions/sync.test.ts` drives the real handler over a map. **Nothing else may live in this directory** — every file in it is published as a function
+- `netlify/functions/sync.ts` - **The one piece of Peri that runs on a server.** **`.ts`, not `.mts`** — written as `.mts` it was silently not deployed, the build went green, and `/api/sync` fell through the redirect to the app shell. A locked box with a number on it: `GET`, `PUT` and `DELETE` against an address, with `@netlify/blobs` behind it. `@netlify/blobs` is a *runtime* dependency for the same reason it exists at all — the deployed function imports it. It takes `src/core/sync.ts` rather than restating the envelope, and `tests/functions/sync.test.ts` drives the real handler over a map. **Nothing else may live in this directory** — every file in it is published as a function
 - `netlify.toml` - The deploy: build command, the `/api/sync` redirect (**above** the SPA catch-all, which would otherwise swallow it), SPA fallback, and cache headers
 - `eslint.config.js` - Lint rules; `react-hooks/exhaustive-deps` is an error here, not a warning
 - `.mise.toml` - Toolchain versions for Node.js and pnpm
@@ -144,6 +144,7 @@ Paths below are relative to `tests/`.
 - `ui/caret.test.tsx` - Which of the two caret APIs is trusted, when neither is, and the one claim about the hook the app tests cannot make — that it reports where it put the caret
 - `core/crypto.test.ts` - The lock: that two devices agree, that two accounts do not, that the same board never seals the same way twice, and that a wrong key or an altered byte opens nothing
 - `core/sync.test.ts` - `decideSync` in every branch, both parsers against damage, and the property that stops a device pushing for ever — a backup built at `SYNC_EPOCH` is byte-identical when nothing has changed
+- `sync/client.test.ts` - The answers a server can give that the function never would: the app's own HTML at 200, a truncated body, a 500
 - `sync/use-sync.test.tsx` - Two devices and the box between them, driven through **the real Netlify function** with only the blob store replaced. A second device is this device with its memory wiped and the server left standing
 - `functions/sync.test.ts` - The handler itself: revisions, the 409 and what comes back with it, and every way a body can be refused
 - `app/App.test.tsx` - Whole-app flows driven through the real DOM
