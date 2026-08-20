@@ -1407,12 +1407,26 @@ body {
   padding-top: 2px;
 }
 
-.eleven-key {
+/* A value typed once and needed again later — the ElevenLabs key, the
+   Synchronize passphrase. It takes a line of its own: a field and two buttons
+   will not sit beside a label on a phone, and these are read character by
+   character, which is what the monospace is for. */
+.secret-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex-basis: 100%;
+}
+
+.secret-input {
   flex: 1;
   min-width: 140px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.9rem;
 }
+
+.secret-said { flex-basis: 100%; }
 
 .eleven-status {
   flex: 1;
@@ -1443,12 +1457,6 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   padding-top: 2px;
-}
-
-.sync-passphrase {
-  flex: 1;
-  min-width: 140px;
-  font-size: 0.9rem;
 }
 
 .sync-status {

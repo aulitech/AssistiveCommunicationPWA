@@ -3438,6 +3438,74 @@ describe('the synchronize setting', () => {
     expect(stored().device).toMatch(/^[0-9a-f]{8}$/)
   })
 
+  /**
+   * The passphrase is wanted on the *second* device, and nobody — including us —
+   * can work it out from anything else. A board whose passphrase is forgotten is
+   * a board that cannot be reached, so it can be read back off the device that
+   * has it.
+   */
+  describe('reading the passphrase back', () => {
+    const field = () => row().querySelector<HTMLInputElement>('.secret-input')!
+    const btn = (label: string) =>
+      [...row().querySelectorAll('.panel-btn')].find(b => b.getAttribute('aria-label') === label)
+
+    const turnedOn = () => {
+      renderSignedIn()
+      openSettings()
+      writeIn(field(), 'the cat sat down')
+      click(btn('Turn on'))
+    }
+
+    it('hides it until it is asked for, and puts it back', () => {
+      turnedOn()
+
+      expect(field().type, 'the passphrase was on screen from the start').toBe('password')
+      expect(field().value).toBe('the cat sat down')
+
+      click(btn('Show the passphrase'))
+      expect(field().type).toBe('text')
+
+      click(btn('Hide the passphrase'))
+      expect(field().type).toBe('password')
+    })
+
+    // The usual case: it is wanted on another device, not on this screen. A panel
+    // that spans the viewport is a poor place to display it in a room with other
+    // people in it, so copying must not require showing.
+    it('copies it without showing it', async () => {
+      turnedOn()
+
+      click(btn('Copy the passphrase'))
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('the cat sat down')
+      // After the copy has finished, not before — the reveal it must not do
+      // would land with the promise, and an assertion made first sees nothing.
+      await act(async () => {})
+      expect(row().textContent).toContain('Copied the passphrase')
+      expect(field().type, 'copying revealed it').toBe('password')
+    })
+
+    // Reading and writing the clipboard both need permission, and a dwell is a
+    // timer with no key press in it — so a refusal is common enough to say out
+    // loud rather than swallow.
+    it('says so when the clipboard refuses', async () => {
+      turnedOn()
+      vi.mocked(navigator.clipboard.writeText).mockRejectedValueOnce(new Error('denied'))
+
+      click(btn('Copy the passphrase'))
+      await act(async () => {})
+      expect(row().textContent).toContain('could not reach the clipboard')
+    })
+
+    // Nothing to show and nothing to copy before one is typed.
+    it('offers neither until there is something there', () => {
+      renderSignedIn()
+      openSettings()
+
+      expect(btn('Show the passphrase')!.getAttribute('aria-disabled')).toBe('true')
+      expect(btn('Copy the passphrase')!.getAttribute('aria-disabled')).toBe('true')
+    })
+  })
+
   // The passphrase is the key and the address both. A file made to be handed to
   // somebody else must not carry either — the same rule the ElevenLabs key
   // follows, for a larger reason: this one opens every device on the account.
@@ -3897,15 +3965,56 @@ describe('linking an ElevenLabs account', () => {
     settle()
   }
 
-  it('is offered in settings, unlinked, with the key never on screen', () => {
+  it('is offered in settings, unlinked, with the key hidden as it is typed', () => {
     renderApp()
     openSettings()
 
     expect(keyField()).not.toBeNull()
-    // A key is a credential; a support call over a shared screen should not
-    // leak it, and it is pasted rather than read back.
+    // A key is a credential, and this panel spans the whole screen. Hidden
+    // unless somebody asks for it — see the Show button, below.
     expect(keyField()?.type).toBe('password')
     expect(btn('Link')?.getAttribute('aria-disabled')).toBe('true')
+  })
+
+  /**
+   * ElevenLabs shows a key once, at the moment it is made. A second device
+   * needs the same one, so the device that has it has to be able to give it
+   * back — which used to be impossible, the key being write-only here.
+   */
+  describe('reading the key back once it is linked', () => {
+    const linked = () => {
+      localStorage.setItem(
+        'peri_elevenlabs',
+        JSON.stringify({ apiKey: 'sk-secret-key', voices: [{ id: 'v1', name: 'Rachel' }] }),
+      )
+      renderApp()
+      openSettings()
+    }
+
+    it('holds the key hidden, and shows it when asked', () => {
+      linked()
+
+      expect(keyField()?.value).toBe('sk-secret-key')
+      expect(keyField()?.type).toBe('password')
+
+      click(btn('Show the API key'))
+      expect(keyField()?.type).toBe('text')
+    })
+
+    it('copies it without showing it', async () => {
+      linked()
+
+      click(btn('Copy the API key'))
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('sk-secret-key')
+      await act(async () => {})
+      expect(keyField()?.type, 'copying revealed it').toBe('password')
+    })
+
+    // It is the account's key, not a phrase — nothing here may write to it.
+    it('cannot be typed over', () => {
+      linked()
+      expect(keyField()?.readOnly).toBe(true)
+    })
   })
 
   it('adds the account voices to the picker, above the device ones', async () => {
