@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { addSent, loadSent, saveSent, type SentMessage } from './store'
+import { addSent, loadSent, saveSent, type SentMessage } from '../../src/core/store'
 
 // The list of what was said. Driven through the app in App.test.tsx; this is the
 // arithmetic underneath, including the parts the buttons cannot reach because

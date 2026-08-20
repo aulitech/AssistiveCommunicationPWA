@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { moveInOrder, orderEmergency } from './store'
+import { moveInOrder, orderEmergency } from '../../src/core/store'
 
 // The arithmetic behind arranging things by hand. The two bars that use it are
 // driven through the DOM — the tabs in categories.test.tsx, the emergency bar in

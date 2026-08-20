@@ -18,5 +18,5 @@
     "strict": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "netlify", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "netlify", "tests", "vite.config.ts", "vitest.config.ts"]
 }

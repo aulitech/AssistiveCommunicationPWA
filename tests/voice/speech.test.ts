@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { speak, warmVoice } from './speech'
-import { remoteVoiceURI } from './elevenlabs'
-import { audioKey, cachedAudio, clearAudioCache, rememberAudio } from './audio-cache'
-import { saveElevenLabs } from '../core/store'
-import { spoken, lastUtterance, played, setAudioPlays } from '../test/setup'
+import { speak, warmVoice } from '../../src/voice/speech'
+import { remoteVoiceURI } from '../../src/voice/elevenlabs'
+import { audioKey, cachedAudio, clearAudioCache, rememberAudio } from '../../src/voice/audio-cache'
+import { saveElevenLabs } from '../../src/core/store'
+import { spoken, lastUtterance, played, setAudioPlays } from '../setup'
 
 // Which of the two voices a phrase comes out of, and — the point of all of it —
 // that it always comes out of one of them. Somebody's only way of speaking does

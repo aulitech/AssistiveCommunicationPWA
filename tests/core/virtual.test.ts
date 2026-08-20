@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { needsMore, windowSize } from './virtual'
+import { needsMore, windowSize } from '../../src/core/virtual'
 
 // The arithmetic behind how much of the grid is rendered. The wiring is tested
 // through the DOM in App.test.tsx; this is the part that decides the numbers.

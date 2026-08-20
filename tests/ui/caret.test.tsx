@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, act } from '@testing-library/react'
 import { useRef } from 'react'
-import { caretIndexAt, movedAway, useCaretDwell, wordAt } from './caret'
+import { caretIndexAt, movedAway, useCaretDwell, wordAt } from '../../src/ui/caret'
 
 // Which character sits under the pointer. jsdom implements neither of the two
 // APIs that answer this, so each is stubbed here — what is under test is which

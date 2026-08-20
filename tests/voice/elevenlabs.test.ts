@@ -5,9 +5,9 @@ import {
   remoteVoiceId,
   remoteVoiceURI,
   synthesize,
-} from './elevenlabs'
-import { cachedCount, clearAudioCache } from './audio-cache'
-import { type ElevenLabsAccount } from '../core/store'
+} from '../../src/voice/elevenlabs'
+import { cachedCount, clearAudioCache } from '../../src/voice/audio-cache'
+import { type ElevenLabsAccount } from '../../src/core/store'
 
 const ACCOUNT: ElevenLabsAccount = { apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }
 

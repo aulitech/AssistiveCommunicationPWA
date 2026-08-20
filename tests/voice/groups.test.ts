@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { inGroup, voiceGroups, voiceLabel, type VoiceChoice } from './groups'
+import { inGroup, voiceGroups, voiceLabel, type VoiceChoice } from '../../src/voice/groups'
 
 // Cutting a long list down. Device voices divide by language, an account's
 // voices by the collection it files them under, and a voice belongs to one or

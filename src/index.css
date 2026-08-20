@@ -4,9 +4,9 @@
    finds them in prose: `container.querySelector` in AGENTS.md was shipping a
    real `.container` rule and five media queries to every user, and `relative`
    from a node:path import added another. Only the files that can carry a class
-   are scanned — components, and not their tests. */
+   are scanned, and only under `src` — which is also why no exclusion for tests
+   is needed here: they live under `tests/`, outside the scan entirely. */
 @source "./**/*.tsx";
-@source not "./**/*.test.tsx";
 
 :root {
   /* System stack rather than a webfont: the app has to work with no network,

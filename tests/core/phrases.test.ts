@@ -12,8 +12,8 @@ import {
   plainPhrase,
   aliasOverlay,
   tableAliases,
-} from './phrases'
-import table from './imports/phrasetable.json'
+} from '../../src/core/phrases'
+import table from '../../src/core/imports/phrasetable.json'
 
 // The source rows, before parsing. Some faults are only visible in what the
 // table says — a parsed phrase has already lost the mistake.

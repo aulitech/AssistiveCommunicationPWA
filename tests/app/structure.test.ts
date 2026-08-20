@@ -30,12 +30,24 @@ const LAYERS: string[][] = [
 
 const layerOf = (dir: string) => LAYERS.findIndex(names => names.includes(dir))
 
-/** Every source file, tests included — a test may not sneak round the rule. */
+/**
+ * Every file that ships. Tests are not among them any more — they live under
+ * `tests/`, mirroring this tree — so the layering below is a rule about the app
+ * rather than about the suite, which is what it was always for.
+ */
 function sources(dir = SRC): string[] {
   return readdirSync(dir).flatMap(name => {
     const path = join(dir, name)
-    if (statSync(path).isDirectory()) return name === 'test' ? [] : sources(path)
+    if (statSync(path).isDirectory()) return sources(path)
     return /\.tsx?$/.test(name) ? [path] : []
+  })
+}
+
+/** Every file under a directory, whatever its extension. */
+function walk(dir: string): string[] {
+  return readdirSync(dir).flatMap(name => {
+    const path = join(dir, name)
+    return statSync(path).isDirectory() ? walk(path) : [path]
   })
 }
 
@@ -69,13 +81,13 @@ describe('the shape of the source tree', () => {
   })
 
   // The root is a layer, so a module dropped there would sit above everything
-  // and answer to none of the rules below. Only the shell and the tests that
-  // drive the whole app through it belong at this level.
+  // and answer to none of the rules below. Only the shell belongs at this level;
+  // the tests that drive the whole app through it are under `tests/app/`.
   it('keeps modules out of the root', () => {
     const loose = sources()
       .filter(p => directoryOf(p) === '.')
       .map(p => relative(SRC, p))
-      .filter(name => !/^(App\.tsx|main\.tsx|vite-env\.d\.ts)$/.test(name) && !name.includes('.test.'))
+      .filter(name => !/^(App\.tsx|main\.tsx|vite-env\.d\.ts)$/.test(name))
     expect(loose, 'put it in a layer, or say why it belongs beside App').toEqual([])
   })
 
@@ -124,7 +136,24 @@ describe('the shape of the source tree', () => {
     const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
     expect(css).toMatch(/@import ['"]tailwindcss['"] source\(none\)/)
     expect(css).toMatch(/@source ["']\.\/\*\*\/\*\.tsx["']/)
-    expect(css).toMatch(/@source not ["']\.\/\*\*\/\*\.test\.tsx["']/)
+  })
+
+  /**
+   * **Every test lives under `tests/`.** Not a matter of taste, and not a style
+   * this file is enforcing for tidiness: `netlify/functions/` is a directory
+   * where every file is published as a function, so a test written beside the
+   * code it covered was deployed as one — and the deploy failed rather than the
+   * suite, which is the worst place to find out.
+   *
+   * `src/` is in the same list for a smaller reason: the app is what ships, and
+   * a test in it is a test in the bundle's dependency graph.
+   */
+  it('keeps every test out of what ships', () => {
+    const stray = ['src', 'netlify']
+      .flatMap(dir => walk(resolve(process.cwd(), dir)))
+      .filter(path => /\.test\.tsx?$/.test(path))
+      .map(path => relative(process.cwd(), path))
+    expect(stray, 'move it under tests/, mirroring the directory it covers').toEqual([])
   })
 
   // A NUL byte makes a file *binary* to grep, ripgrep and most review tools —
@@ -154,9 +183,7 @@ describe('the shape of the source tree', () => {
     expect(inPixels).toEqual([])
 
     // And the handful set from a component, where a bare number means pixels.
-    // Tests are left out: this one names the property to look for it.
     const inline = sources()
-      .filter(path => !path.includes('.test.'))
       .flatMap(path =>
         [...readFileSync(path, 'utf8').matchAll(/fontSize: *([^,}]+)/g)].map(m => [path, m[1]] as const),
       )

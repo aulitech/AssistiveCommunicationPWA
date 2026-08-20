@@ -11,10 +11,10 @@ import {
   readAddress,
   readRevision,
   type Envelope,
-} from './sync'
-import { buildBackup } from './backup'
-import { DEFAULT_SETTINGS, emptyStore } from './store'
-import { EMPTY_ALIASES } from './phrases'
+} from '../../src/core/sync'
+import { buildBackup } from '../../src/core/backup'
+import { DEFAULT_SETTINGS, emptyStore } from '../../src/core/store'
+import { EMPTY_ALIASES } from '../../src/core/phrases'
 
 const envelope = (over: Partial<Envelope> = {}): Envelope => ({
   format: SYNC_FORMAT,

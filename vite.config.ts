@@ -16,12 +16,13 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    // The function under `netlify/` is tested too. It is the one piece of this
-    // app that runs anywhere but the user's own device, so leaving it outside
-    // the suite would put the only exposed surface beyond the one gate — see
-    // `netlify.toml`, where the build is `pnpm check && pnpm build`.
-    include: ['src/**/*.test.{ts,tsx}', 'netlify/**/*.test.{ts,tsx}'],
+    setupFiles: ['./tests/setup.ts'],
+    // Every test lives under `tests/`, mirroring the tree it covers. Not a
+    // matter of taste: `netlify/functions/` is a directory where **every file
+    // becomes a deployed function**, so a test sitting beside the code it
+    // covered was published as one and took the deploy down with it. Keeping
+    // them all in one place is the rule that has no exception to forget.
+    include: ['tests/**/*.test.{ts,tsx}'],
     restoreMocks: true,
     // Vite loads .env.local during tests too, so without this the suite would
     // depend on whether the developer happens to have configured OAuth — green
