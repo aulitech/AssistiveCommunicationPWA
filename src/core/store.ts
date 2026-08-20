@@ -432,6 +432,24 @@ export interface ElevenLabsAccount {
   voices: RemoteVoice[]
 }
 
+/**
+ * Whether two accounts are the same one, voices and all.
+ *
+ * Asked before writing one, because writing an account throws away the audio
+ * cached under it — and a board arriving from another device carries the
+ * account whether or not that is what changed. Without this, an edit to a
+ * phrase on the tablet empties the phone's cache: every clip re-fetched, on the
+ * user's own credits, for nothing.
+ *
+ * The voices count. A key re-linked can name a different set, and a picker
+ * offering voices the account no longer has is a phrase that will not speak.
+ */
+export function sameAccount(a: ElevenLabsAccount | null, b: ElevenLabsAccount | null): boolean {
+  if (a === null || b === null) return a === b
+  if (a.apiKey !== b.apiKey || a.voices.length !== b.voices.length) return false
+  return a.voices.every((voice, i) => voice.id === b.voices[i].id && voice.name === b.voices[i].name)
+}
+
 export function loadElevenLabs(): ElevenLabsAccount | null {
   try {
     const raw = JSON.parse(localStorage.getItem(ELEVENLABS_KEY) ?? 'null')

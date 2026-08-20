@@ -13,7 +13,7 @@ import {
   type Envelope,
 } from '../../src/core/sync'
 import { buildBackup } from '../../src/core/backup'
-import { DEFAULT_SETTINGS, emptyStore } from '../../src/core/store'
+import { DEFAULT_SETTINGS, emptyStore, loadElevenLabs, saveElevenLabs } from '../../src/core/store'
 import { EMPTY_ALIASES } from '../../src/core/phrases'
 
 const envelope = (over: Partial<Envelope> = {}): Envelope => ({
@@ -108,15 +108,70 @@ describe('reading an envelope', () => {
 })
 
 describe('reading a snapshot', () => {
+  const base = { updatedAt: 5, device: 'aa11bb22', backup: { format: 'peri-backup' } }
+
   it('takes one', () => {
-    const snapshot = { updatedAt: 5, device: 'aa11bb22', backup: { format: 'peri-backup' } }
-    expect(parseSnapshot(snapshot)).toEqual(snapshot)
+    expect(parseSnapshot(base)).toEqual(base)
   })
 
   it('refuses one with nothing in it', () => {
     expect(parseSnapshot({ updatedAt: 5, device: 'a' })).toBeNull()
     expect(parseSnapshot({ updatedAt: 'soon', device: 'a', backup: {} })).toBeNull()
     expect(parseSnapshot(null)).toBeNull()
+  })
+
+  /**
+   * The account has **three** states and only two of them are instructions.
+   * A snapshot written before the account travelled says nothing about one, and
+   * taking that as an unlink would have a device on an older release strip the
+   * account off every other device on the account.
+   */
+  describe('the account it may carry', () => {
+    const account = { apiKey: 'sk-key', voices: [{ id: 'v1', name: 'Rachel' }] }
+
+    it('takes an account', () => {
+      expect(parseSnapshot({ ...base, account })?.account).toEqual(account)
+    })
+
+    it('takes an explicit "no account" as an instruction', () => {
+      expect(parseSnapshot({ ...base, account: null })?.account).toBeNull()
+    })
+
+    it('leaves it out entirely where the snapshot said nothing', () => {
+      const parsed = parseSnapshot(base)
+      expect(parsed).not.toBeNull()
+      expect('account' in parsed!, 'silence was turned into an unlink').toBe(false)
+    })
+
+    it('says nothing rather than taking half an account', () => {
+      expect(parseSnapshot({ ...base, account: { voices: [] } })?.account).toBeUndefined()
+      expect(parseSnapshot({ ...base, account: { apiKey: '', voices: [] } })?.account).toBeUndefined()
+      expect(parseSnapshot({ ...base, account: { apiKey: 'sk-key' } })?.account).toBeUndefined()
+    })
+  })
+})
+
+/**
+ * The one thing sync carries that a backup file will not, and the reason it can:
+ * a backup is made to be handed to somebody else, and the key in one hands over
+ * the account. A snapshot is sealed with the user's own passphrase and reaches
+ * their own devices and nowhere else.
+ */
+describe('what a snapshot carries and a backup does not', () => {
+  it('keeps the ElevenLabs key out of the exported document', () => {
+    saveElevenLabs({ apiKey: 'sk-secret-key', voices: [{ id: 'v1', name: 'Rachel' }] })
+    const backup = buildBackup({
+      store: emptyStore(),
+      aliases: EMPTY_ALIASES,
+      settings: DEFAULT_SETTINGS,
+      categoryById: new Map<string, string>(),
+      now: SYNC_EPOCH,
+    })
+
+    expect(JSON.stringify(backup)).not.toContain('sk-secret-key')
+    // And the snapshot is where it does travel — beside the backup, never in it.
+    const snapshot = { updatedAt: 1, device: 'aa11bb22', backup, account: loadElevenLabs() }
+    expect(parseSnapshot(snapshot)?.account?.apiKey).toBe('sk-secret-key')
   })
 })
 

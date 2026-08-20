@@ -28,8 +28,8 @@ import {
   SYNC_VERSION,
   type Envelope,
   type Snapshot,
+  type SyncPayload,
 } from '../core/sync'
-import type { Backup } from '../core/backup'
 import { drop, pull, push, type Slot } from './client'
 
 /** How long after a change before it is sent. Long enough to gather a burst. */
@@ -86,16 +86,17 @@ export interface SyncControl {
   forget: () => void
 }
 
-export function useSync({ accountId, backup, onApply }: {
+export function useSync({ accountId, payload, onApply }: {
   accountId: string | null
   /**
-   * The whole board as a backup. Must be memoised **and stable** — built with a
-   * fixed `now`, or every render would look like a change and this would push
-   * for ever.
+   * Everything that travels: the board as a backup, and the linked ElevenLabs
+   * account, which a backup file deliberately never carries. Must be memoised
+   * **and stable** — the backup built with a fixed `now`, or every render would
+   * look like a change and this would push for ever.
    */
-  backup: Backup
-  /** Put a board that arrived from another device on the screen. */
-  onApply: (backup: Backup, from: string) => void
+  payload: SyncPayload
+  /** Put what arrived from another device on the screen. */
+  onApply: (payload: SyncPayload, from: string) => void
 }): SyncControl {
   const [config, setConfigState] = useState<SyncConfig>(loadSync)
   const [status, setStatus] = useState<SyncStatus>('off')
@@ -109,7 +110,7 @@ export function useSync({ accountId, backup, onApply }: {
   // write the wrong thing back.
   const configRef = useRef(config)
   const keysRef = useRef(keys)
-  const backupRef = useRef(backup)
+  const payloadRef = useRef(payload)
   const applyRef = useRef(onApply)
   const busyRef = useRef(false)
   /** What the account already had, held while the question above is open. */
@@ -117,7 +118,7 @@ export function useSync({ accountId, backup, onApply }: {
   useEffect(() => {
     configRef.current = config
     keysRef.current = keys
-    backupRef.current = backup
+    payloadRef.current = payload
     applyRef.current = onApply
   })
 
@@ -176,7 +177,7 @@ export function useSync({ accountId, backup, onApply }: {
   // The board is compared with itself as it was, rather than every edit calling
   // in. One place to be right, and nothing in `use-board` has to know that sync
   // exists at all.
-  const serialised = useMemo(() => JSON.stringify(backup), [backup])
+  const serialised = useMemo(() => JSON.stringify(payload), [payload])
   const seenRef = useRef(serialised)
   // Set while a board that arrived from elsewhere is being taken on board. The
   // change it causes is not this device's news, and marking it as such would
@@ -225,7 +226,16 @@ export function useSync({ accountId, backup, onApply }: {
       if (!snapshot) return fail('The board on the server could not be read')
 
       adoptRef.current = true
-      applyRef.current(snapshot.backup, snapshot.device)
+      applyRef.current(
+        {
+          backup: snapshot.backup,
+          // Nothing said about the account is not the same as "no account" —
+          // a snapshot from a release before this carried one says nothing, and
+          // taking that as an unlink would strip the account off every device.
+          account: snapshot.account === undefined ? payloadRef.current.account : snapshot.account,
+        },
+        snapshot.device,
+      )
       setLastFrom(snapshot.device === configRef.current.device ? null : snapshot.device)
       writeConfig({ updatedAt: snapshot.updatedAt, dirty: false, revision, lastSyncedAt: Date.now() })
       setStatus('synced')
@@ -241,7 +251,8 @@ export function useSync({ accountId, backup, onApply }: {
       const snapshot: Snapshot = {
         updatedAt: now,
         device: configRef.current.device,
-        backup: backupRef.current,
+        backup: payloadRef.current.backup,
+        account: payloadRef.current.account,
       }
       const sealed = await seal(keySet.key, snapshot)
       const envelope: Envelope = {
@@ -309,7 +320,7 @@ export function useSync({ accountId, backup, onApply }: {
           // board from now on.
           await send(slot.revision, keySet)
           writeConfig({ joined: true })
-        } else if (!hasOwnBoard(backupRef.current)) {
+        } else if (!hasOwnBoard(payloadRef.current.backup)) {
           // Nothing here worth keeping — Peri as it ships. Take what the account
           // has without troubling anybody about it.
           await take(remote, slot.revision, keySet.key)

@@ -41,7 +41,7 @@ export const PRIVACY: ProseDocument = {
           'Your Synchronize passphrase, if you turned that on.',
         ),
         text(
-          'None of this leaves your device unless you turn on Synchronize, and what leaves then is encrypted — see the next section. Neither your ElevenLabs key nor your Synchronize passphrase is included in a backup file, so sharing a backup does not share your account or your other devices.',
+          'None of this leaves your device unless you turn on Synchronize, and what leaves then is encrypted — see the next section. Neither your ElevenLabs key nor your Synchronize passphrase is included in a backup file, so sharing a backup does not share your account or your other devices. The passphrase never leaves your device at all; the ElevenLabs key travels between your own devices, inside the encryption, so the voices you pay for work on all of them.',
         ),
       ],
     },
@@ -49,7 +49,7 @@ export const PRIVACY: ProseDocument = {
       title: 'Synchronizing',
       blocks: [
         text(
-          'Synchronize is off until you turn it on. While it is on, a copy of your board — your phrases, categories, word lists and settings — is kept on a server we run, so that the other devices you sign in to can fetch it.',
+          'Synchronize is off until you turn it on. While it is on, a copy of your board — your phrases, categories, word lists and settings, and your ElevenLabs key if you have linked an account — is kept on a server we run, so that the other devices you sign in to can fetch it.',
         ),
         text(
           'That copy is encrypted on your device before it is sent, using a key made from the passphrase you choose. We never receive the passphrase, and the key is never sent anywhere. We hold a block of bytes we cannot open, and neither can anyone who obtains it from us.',
@@ -61,7 +61,7 @@ export const PRIVACY: ProseDocument = {
           'How large it is, and the usual request information any web server records — see Hosting below.',
         ),
         text(
-          'We cannot see a single phrase, category, contact or setting. We cannot reset the passphrase, recover the board without it, or tell you whether you have typed it correctly. If you lose it, the copy on the server is lost with it — your devices keep their own boards, and you start again with a new passphrase.',
+          'We cannot see a single phrase, category, contact, setting or key. We cannot reset the passphrase, recover the board without it, or tell you whether you have typed it correctly. If you lose it, the copy on the server is lost with it — your devices keep their own boards, and you start again with a new passphrase.',
         ),
         text(
           'Turning the setting off stops the exchange and leaves the copy where it is. "Stop and erase the copy", in the same row, deletes it from the server. A factory reset removes the passphrase from this device but does not erase the copy — use the button first if you want both.',

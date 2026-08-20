@@ -20,6 +20,7 @@
 //  * **What a conflict means.** The last change wins, whole. See `decideSync`.
 
 import type { Backup } from './backup'
+import type { ElevenLabsAccount } from './store'
 
 export const SYNC_FORMAT = 'peri-sync'
 export const SYNC_VERSION = 1
@@ -45,11 +46,37 @@ export const MAX_ENVELOPE_BYTES = 1_000_000
  */
 export const SYNC_EPOCH = new Date(0)
 
-/** What is inside the ciphertext: a whole board, and when it was that board. */
+/**
+ * Everything that travels: the board, and the things a *backup* is not allowed
+ * to carry.
+ *
+ * **The distinction is the whole point.** A backup is a file made to be handed
+ * to somebody else, so the ElevenLabs key is kept out of one — a file with the
+ * key in it hands over the account. A snapshot is sealed with the user's own
+ * passphrase and goes to their own devices and nowhere else, which is a
+ * different question with a different answer.
+ *
+ * So the account rides *beside* the backup rather than in it. Put it inside and
+ * every exported file would carry it too, and that rule is written down in four
+ * places and tested in one.
+ */
 export interface Snapshot {
   updatedAt: number
   device: string
   backup: Backup
+  /**
+   * The linked ElevenLabs account, or null for a device with none. Absent in a
+   * snapshot written before this existed, which is why it is optional — and why
+   * absent has to mean "says nothing" rather than "unlink", or the first device
+   * to sync from an older release would take the account off the others.
+   */
+  account?: ElevenLabsAccount | null
+}
+
+/** What the app hands over to be sealed, and gets back when one arrives. */
+export interface SyncPayload {
+  backup: Backup
+  account: ElevenLabsAccount | null
 }
 
 /** What sits on the server. */
@@ -97,7 +124,20 @@ export function parseSnapshot(value: unknown): Snapshot | null {
   if (typeof s.updatedAt !== 'number' || !Number.isFinite(s.updatedAt)) return null
   if (typeof s.device !== 'string') return null
   if (typeof s.backup !== 'object' || s.backup === null) return null
-  return { updatedAt: s.updatedAt, device: s.device, backup: s.backup as Backup }
+
+  const snapshot: Snapshot = { updatedAt: s.updatedAt, device: s.device, backup: s.backup as Backup }
+  // Three states, not two: an account, no account, and nothing said. Only the
+  // first two are instructions — see `Snapshot.account`.
+  if (s.account === null) snapshot.account = null
+  else if (isAccount(s.account)) snapshot.account = s.account
+  return snapshot
+}
+
+/** Enough of an account to be worth taking: a key, and a list of voices. */
+function isAccount(value: unknown): value is ElevenLabsAccount {
+  if (typeof value !== 'object' || value === null) return false
+  const a = value as Record<string, unknown>
+  return typeof a.apiKey === 'string' && a.apiKey !== '' && Array.isArray(a.voices)
 }
 
 /**

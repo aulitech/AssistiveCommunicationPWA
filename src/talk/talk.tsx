@@ -13,12 +13,22 @@ import { compose, composeWithBlank, hasChoices, parseSegments, type Phrase } fro
 import { soleLink } from '../core/markdown'
 import { openLink } from '../core/links'
 import { search } from '../core/search'
-import { loadRecent, saveRecent, type User } from '../core/store'
-import { applyBackup, buildBackup, type AppState, type Backup } from '../core/backup'
+import {
+  loadElevenLabs,
+  loadRecent,
+  sameAccount,
+  saveElevenLabs,
+  saveRecent,
+  type ElevenLabsAccount,
+  type User,
+} from '../core/store'
+import { applyBackup, buildBackup, type AppState } from '../core/backup'
 import { accountId } from '../core/store'
-import { SYNC_EPOCH } from '../core/sync'
+import { SYNC_EPOCH, type SyncPayload } from '../core/sync'
 import { useSync } from '../sync/use-sync'
 import { speak, warmVoice } from '../voice/speech'
+import { clearAudioCache } from '../voice/audio-cache'
+import { REMOTE_PREFIX } from '../voice/elevenlabs'
 import { cx } from '../ui/style'
 import { DwellCursor } from '../ui/controls'
 import { type PasteResult } from '../ui/link-input'
@@ -377,27 +387,68 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // every render is a board that looks changed every render — which would push
   // for ever. When it was written down is the snapshot's business, not the
   // document's.
+  /**
+   * The linked account lives here rather than in the settings row that edits it,
+   * for two reasons that arrived together: it is part of what synchronizing
+   * sends, and a row holding its own copy would go stale the moment a board
+   * arrived from another device carrying a different one.
+   */
+  const [account, setLinkedAccount] = useState<ElevenLabsAccount | null>(loadElevenLabs)
+
+  /**
+   * Written straight through, and `speak` reads it back per utterance, so there
+   * is no second copy to keep in step. The cache goes with it: audio fetched on
+   * one account's credits is not another's to use, and a voice re-linked may
+   * well be a different one under the same name.
+   *
+   * **Writing the same account again is not a change**, and the guard is here
+   * rather than at the one caller that needs it today. A board arriving from
+   * another device carries the account whether or not that is what changed, so
+   * without this an edit to a phrase on the tablet would empty the phone's audio
+   * cache — every clip re-fetched, on the user's own credits, for nothing. It is
+   * the sort of cost that never shows up as a bug report.
+   */
+  const setAccount = useCallback((next: ElevenLabsAccount | null) => {
+    if (sameAccount(next, loadElevenLabs())) return
+    saveElevenLabs(next)
+    clearAudioCache()
+    // A remembered voice from the account that has just gone would seed the next
+    // new phrase with one that no longer exists.
+    if (next === null) {
+      const recent = loadRecent()
+      if (recent.voice?.startsWith(REMOTE_PREFIX)) saveRecent({ ...recent, voice: undefined })
+    }
+    setLinkedAccount(next)
+  }, [])
+
   const syncBackup = useMemo(
     () => buildBackup({ store, aliases: board.aliases, settings, categoryById: board.categoryById, now: SYNC_EPOCH }),
     [store, board.aliases, settings, board.categoryById],
   )
 
+  /** Everything sync carries: the board, and what a backup file may not hold. */
+  const syncPayload = useMemo(() => ({ backup: syncBackup, account }), [syncBackup, account])
+
   // A board that arrived from another device lands exactly as a restored backup
   // does — in one go, with a line saying where it came from, because a grid that
   // rearranges itself under somebody with no explanation is alarming.
   const applyFromSync = useCallback(
-    (incoming: Backup, from: string) => {
-      const next = applyBackup(incoming, { store, aliases: board.aliases, settings }, 'replace')
+    (incoming: SyncPayload, from: string) => {
+      const next = applyBackup(incoming.backup, { store, aliases: board.aliases, settings }, 'replace')
       board.restore(next.store, next.aliases)
       update(next.settings)
+      // The account travels with the board, which is what makes a phrase given
+      // an ElevenLabs voice on one device still sound like itself on the next.
+      // `setAccount` ignores one that has not changed — see there.
+      setAccount(incoming.account)
       flashToast(`Board updated from your other device (${from})`)
     },
-    [board, store, settings, update, flashToast],
+    [board, store, settings, update, flashToast, setAccount],
   )
 
   const sync = useSync({
     accountId: accountId(user),
-    backup: syncBackup,
+    payload: syncPayload,
     onApply: applyFromSync,
   })
 
@@ -486,6 +537,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             categoryById={board.categoryById}
             onRestore={handleRestore}
             sync={sync}
+            account={account}
+            onAccountChange={setAccount}
           />
 
           <DwellCursor />
