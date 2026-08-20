@@ -249,6 +249,78 @@ export function SettingsPanel({ store, aliases, categoryById, sync }: {
 }
 
 /**
+ * A value that is typed once and needed again later: the Synchronize passphrase,
+ * the ElevenLabs key.
+ *
+ * **Hidden by default, and copyable without ever being shown** — which is the
+ * usual case, because a passphrase is wanted on the *other* device rather than
+ * on this one. Showing it is a deliberate second act: this panel spans the whole
+ * screen, and these are set up in rooms with other people in them.
+ *
+ * It does not hide itself again after a moment. Somebody reading a passphrase
+ * out to whoever is holding the second device needs it to stay there, and a
+ * field that blanks mid-sentence is a field they have to start again with.
+ */
+function SecretField({ value, name, label, placeholder, onChange, onEnter }: {
+  value: string
+  /** What it is, in the words the buttons use: "the passphrase". */
+  name: string
+  /** The field's own accessible name, which is a thing rather than a phrase. */
+  label: string
+  placeholder?: string
+  /** Absent for a value already stored, which is read rather than written. */
+  onChange?: (next: string) => void
+  onEnter?: () => void
+}) {
+  const [shown, setShown] = useState(false)
+  const [said, setSaid] = useState<string | null>(null)
+
+  const copy = useCallback(() => {
+    navigator.clipboard
+      .writeText(value)
+      .then(() => setSaid(`Copied ${name}`))
+      // Reading and writing the clipboard both need permission, and a dwell is a
+      // timer with no key press in it — so this is refused often enough to be
+      // worth a sentence rather than a silence.
+      .catch(() => setSaid(`Peri could not reach the clipboard. Show ${name} and copy it by hand.`))
+  }, [value, name])
+
+  return (
+    <div className="secret-field">
+      <input
+        className="profile-input secret-input"
+        type={shown ? 'text' : 'password'}
+        value={value}
+        readOnly={!onChange}
+        onChange={e => onChange?.(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter' && onEnter) {
+            e.preventDefault()
+            onEnter()
+          }
+        }}
+        placeholder={placeholder}
+        aria-label={label}
+        autoComplete="off"
+        spellCheck={false}
+      />
+      <PanelButton
+        kind="plain"
+        label={shown ? `Hide ${name}` : `Show ${name}`}
+        onActivate={() => setShown(v => !v)}
+        disabled={value === ''}
+      />
+      <PanelButton kind="plain" label={`Copy ${name}`} onActivate={copy} disabled={value === ''} />
+      {said && (
+        <p className="eleven-note secret-said" role="status">
+          {said}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
  * Synchronizing this board with the other devices signed in to the same account.
  *
  * Off until somebody asks for it, and it asks for a passphrase before it will
@@ -310,25 +382,20 @@ function SyncRow({ sync }: { sync: SyncControl }) {
               {sync.code && <span className="sync-code">Code {sync.code}</span>}
             </span>
             <PanelButton kind="danger" label="Turn off" onActivate={sync.disable} />
+            {/* The passphrase is wanted on the second device, and nobody can
+                work it out from anything else — so it can be read back off the
+                device that has it. */}
+            <SecretField value={sync.passphrase} name="the passphrase" label="Synchronize passphrase" />
           </>
         ) : (
           <>
-            <input
-              className="profile-input sync-passphrase"
-              type="password"
+            <SecretField
               value={passphrase}
-              onChange={e => setPassphrase(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && passphrase.trim()) {
-                  e.preventDefault()
-                  turnOn()
-                }
-              }}
+              name="the passphrase"
+              label="Synchronize passphrase"
               placeholder="Choose a passphrase"
-              aria-label="Synchronize passphrase"
-              autoComplete="off"
-              spellCheck={false}
-              disabled={!sync.available}
+              onChange={setPassphrase}
+              onEnter={() => passphrase.trim() && turnOn()}
             />
             <PanelButton
               kind="primary"
@@ -454,24 +521,19 @@ function ElevenLabsRow({ account, onChange }: {
               Linked · {account.voices.length} voice{account.voices.length === 1 ? '' : 's'}
             </span>
             <PanelButton kind="danger" label="Unlink" onActivate={unlink} />
+            {/* Readable again for the reason the passphrase is: the key is
+                wanted on the next device, and ElevenLabs shows it once. */}
+            <SecretField value={account.apiKey} name="the API key" label="ElevenLabs API key" />
           </>
         ) : (
           <>
-            <input
-              className="profile-input eleven-key"
-              type="password"
+            <SecretField
               value={key}
-              onChange={e => setKey(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  link()
-                }
-              }}
+              name="the API key"
+              label="ElevenLabs API key"
               placeholder="Paste your API key"
-              aria-label="ElevenLabs API key"
-              autoComplete="off"
-              spellCheck={false}
+              onChange={setKey}
+              onEnter={link}
             />
             <PanelButton
               kind="primary"

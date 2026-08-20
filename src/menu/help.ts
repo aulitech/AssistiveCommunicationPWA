@@ -273,6 +273,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text('Your key is kept on this device and is never put in a backup file, so sharing a backup does not share your account.'),
       text(
+        'It is hidden once it is linked, with Show and Copy beside it. ElevenLabs only shows a key at the moment you make it, so this is how you get the same one onto another device without going back to them for a new one.',
+      ),
+      text(
         'With a lot of voices to choose from, the row of buttons above the grid narrows it — by collection for your ElevenLabs voices, by language for the ones on this device.',
       ),
     ],
@@ -299,6 +302,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'It asks for a passphrase, and this is not a password to an account. It is the key your board is locked with before it leaves the device, and it is what the other device needs to unlock it. Choose the same one on every device, and write it down somewhere safe.',
+      ),
+      text(
+        'The passphrase stays in that row, hidden, with Show and Copy beside it — so the device you set up first can give it to the next one. Copying does not put it on the screen, which matters in a room with other people in it.',
       ),
       list(
         'The Code under the setting is six characters worked out from your passphrase. Two devices showing the same code agree; two showing different codes have different passphrases, and will never see each other.',

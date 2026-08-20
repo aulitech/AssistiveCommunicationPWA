@@ -58,6 +58,16 @@ export interface SyncControl {
   status: SyncStatus
   /** Six characters of the address, for checking two devices agree. */
   code: string
+  /**
+   * The passphrase itself, so the settings row can show it and copy it.
+   *
+   * It is wanted on the *other* device, and nobody — including us — can work it
+   * out from anything else. A board whose passphrase has been forgotten is a
+   * board that cannot be reached, so being able to read it back off the device
+   * that has it is the difference between setting up a second device and
+   * starting again.
+   */
+  passphrase: string
   enabled: boolean
   lastSyncedAt: number
   /** Which device wrote what this one is showing, when it was not this one. */
@@ -438,6 +448,7 @@ export function useSync({ accountId, backup, onApply }: {
     () => ({
       status: shown,
       code: keys ? syncCode(keys.address) : '',
+      passphrase: config.passphrase,
       enabled: config.enabled,
       lastSyncedAt: config.lastSyncedAt,
       lastFrom,
@@ -453,6 +464,7 @@ export function useSync({ accountId, backup, onApply }: {
     [
       shown,
       keys,
+      config.passphrase,
       config.enabled,
       config.lastSyncedAt,
       lastFrom,
