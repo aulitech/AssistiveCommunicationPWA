@@ -54,7 +54,7 @@ Speech goes through `speak()` in `src/speech.ts` so the user's voice, volume, an
 
 ## Tests
 
-Unit tests live beside the code they cover — `core/phrases.test.ts`, `core/backup.test.ts`, `ui/dwell.test.tsx`. Tests that drive the whole app through `App` live at the root with it: `src/App.test.tsx`, `src/categories.test.tsx`.
+Every test lives under `tests/`, mirroring the tree it covers — `tests/core/phrases.test.ts`, `tests/ui/dwell.test.tsx`, `tests/functions/sync.test.ts`. The ones that drive the whole app through `App` are in `tests/app/`. Nothing goes beside the code it covers, and `netlify/functions/` is the reason: every file in that directory is published as a function, so a test written there was deployed as one.
 
 **When you fix a bug, prove the test earns its place**: write it, then revert your fix and confirm it fails. A regression guard that passes with the bug reintroduced is worse than no test, because it looks like coverage. Several existing tests say in a comment which defect they guard.
 
@@ -75,7 +75,7 @@ A PR description that says *why* is worth more than one that lists *what*; the d
 - **`react-hooks/exhaustive-deps` is an error, not a warning.** A stale dependency array is how the phrase grid once silently stopped refreshing after an edit. If a dependency genuinely does not belong, restructure rather than suppressing.
 - **The repo is not formatter-clean.** `oxfmt` is available but has never been run across the tree, so running it would bury your change in noise. Match the surrounding style instead.
 - **`src/App.tsx` is fifty lines and is not where UI work starts.** It answers "which screen is on" and nothing else. The talking screen is `src/talk/talk.tsx`; [AGENTS.md](AGENTS.md) lists which file owns what.
-- **`src/` is layered, and the layering is enforced.** `core/` → `ui/` and `voice/` → `menu/` → the screens. Imports point down that list and never up. `src/structure.test.ts` fails if they do, so put a new module in the lowest layer that can hold it rather than at the root.
+- **`src/` is layered, and the layering is enforced.** `core/` → `ui/` and `voice/` → `menu/` → the screens. Imports point down that list and never up. `tests/app/structure.test.ts` fails if they do, so put a new module in the lowest layer that can hold it rather than at the root.
 - **The stylesheet is deliberately one file.** Reordering its blocks changes the cascade, and no test here lays anything out. See the Styling section of [AGENTS.md](AGENTS.md).
 - **Phrase slots depend on how many options they have** — none renders a typed blank, exactly one is substituted inline with no picker, two or more opens the picker. See the phrase notes in [AGENTS.md](AGENTS.md) before touching `src/phrases.ts`.
 

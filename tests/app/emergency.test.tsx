@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, act } from '@testing-library/react'
-import App from './App'
+import App from '../../src/App'
 
 // Arranging the emergency bar. It spans the bar, the store and the backup
 // format, and the bar is the one surface somebody reaches for without reading

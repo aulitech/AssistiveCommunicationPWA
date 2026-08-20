@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import App from './App'
-import { DEFAULT_SETTINGS } from './core/store'
+import App from '../../src/App'
+import { DEFAULT_SETTINGS } from '../../src/core/store'
 
 // Category editing spans the filter bar, the rename dialog and the editor strip
 // under the message box, so it gets its own file rather than swelling

@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import { clearAudioCache } from '../voice/audio-cache'
+import { clearAudioCache } from '../src/voice/audio-cache'
 
 /** Everything spoken during a test, in order. */
 export const spoken: string[] = []

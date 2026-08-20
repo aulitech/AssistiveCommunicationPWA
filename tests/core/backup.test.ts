@@ -13,10 +13,10 @@ import {
   summarize,
   type AppState,
   type Backup,
-} from './backup'
-import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from './store'
-import { EMPTY_ALIASES, type AliasStore } from './phrases'
-import { saveElevenLabs, saveSent } from './store'
+} from '../../src/core/backup'
+import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from '../../src/core/store'
+import { EMPTY_ALIASES, type AliasStore } from '../../src/core/phrases'
+import { saveElevenLabs, saveSent } from '../../src/core/store'
 
 // A store with something of the user's in every field, and the map of ids to
 // categories the app would hand alongside it.

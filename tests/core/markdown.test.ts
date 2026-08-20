@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { hasMarkdown, layout, soleLink, stripMarkdown, type Line } from './markdown'
-import { parseSegments, type Segment } from './phrases'
+import { hasMarkdown, layout, soleLink, stripMarkdown, type Line } from '../../src/core/markdown'
+import { parseSegments, type Segment } from '../../src/core/phrases'
 
 // What a phrase's markup means. The two things built on it — what the cell draws
 // and what gets spoken or searched — walk the same parse, so the tests below

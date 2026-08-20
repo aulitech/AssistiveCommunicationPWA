@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PRIVACY, TERMS, legalDocumentFor } from './legal'
+import { PRIVACY, TERMS, legalDocumentFor } from '../../src/legal/legal'
 
 const allText = (doc: typeof PRIVACY) => [
   doc.intro ?? '',

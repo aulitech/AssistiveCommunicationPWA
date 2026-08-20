@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, act } from '@testing-library/react'
-import App from './App'
-import { spoken } from './test/setup'
+import App from '../../src/App'
+import { spoken } from '../setup'
 
 // Markdown in a phrase, driven through the real app.
 //

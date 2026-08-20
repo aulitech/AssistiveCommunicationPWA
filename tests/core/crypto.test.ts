@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deriveSyncKeys, open, seal, syncCode } from './crypto'
+import { deriveSyncKeys, open, seal, syncCode } from '../../src/core/crypto'
 
 // The lock on a synchronized board. Everything here is about one promise: what
 // leaves the device cannot be read by whatever holds it.

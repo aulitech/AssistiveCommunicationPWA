@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 async function loadAuth(env: Record<string, string | undefined>) {
   vi.resetModules()
   for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value as string)
-  return import('./auth')
+  return import('../../src/signin/auth')
 }
 
 beforeEach(() => {

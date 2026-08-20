@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { PHRASES } from './phrases'
-import { search } from './search'
+import { PHRASES } from '../../src/core/phrases'
+import { search } from '../../src/core/search'
 
 // The Texting category is the expansions of the acronyms below, and this is the
 // only place the pairing is written down — the table holds "Be right back" with

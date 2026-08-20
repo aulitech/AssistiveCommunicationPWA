@@ -11,10 +11,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup, render, waitFor, act } from '@testing-library/react'
 import { useEffect, useState } from 'react'
-import { useSync, type SyncControl } from './use-sync'
-import { deriveSyncKeys, open, seal } from '../core/crypto'
-import { SYNC_FORMAT, SYNC_VERSION, parseSnapshot, type Envelope } from '../core/sync'
-import type { Backup } from '../core/backup'
+import { useSync, type SyncControl } from '../../src/sync/use-sync'
+import { deriveSyncKeys, open, seal } from '../../src/core/crypto'
+import { SYNC_FORMAT, SYNC_VERSION, parseSnapshot, type Envelope } from '../../src/core/sync'
+import type { Backup } from '../../src/core/backup'
 
 const blobs = new Map<string, unknown>()
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { linkMarkdown, readLink } from './links'
-import { layout, stripMarkdown } from './markdown'
+import { linkMarkdown, readLink } from '../../src/core/links'
+import { layout, stripMarkdown } from '../../src/core/markdown'
 
 // Reading a link out of a paste or a drop. A clipboard and a drag carry the same
 // shape, so the fixture below stands in for both.

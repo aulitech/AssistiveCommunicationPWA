@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { HELP_SECTIONS } from './help'
+import { HELP_SECTIONS } from '../../src/menu/help'
 
 const allText = HELP_SECTIONS.flatMap(s =>
   s.blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items)),

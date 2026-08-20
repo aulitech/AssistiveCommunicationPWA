@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import App from './App'
-import { BLANK, PHRASES, composeWithBlank, hasBlank } from './core/phrases'
-import { DEFAULT_SETTINGS } from './core/store'
-import { HELP_SECTIONS } from './menu/help'
-import { parseBackup } from './core/backup'
-import { spoken, lastUtterance, downloads, played, scrolledIntoView, setClipboardText, voices } from './test/setup'
+import App from '../../src/App'
+import { BLANK, PHRASES, composeWithBlank, hasBlank } from '../../src/core/phrases'
+import { DEFAULT_SETTINGS } from '../../src/core/store'
+import { HELP_SECTIONS } from '../../src/menu/help'
+import { parseBackup } from '../../src/core/backup'
+import { spoken, lastUtterance, downloads, played, scrolledIntoView, setClipboardText, voices } from '../setup'
 
 // The grid renders every phrase, so query the DOM directly — building an
 // accessibility tree over a couple of thousand cells for each lookup is slow.
