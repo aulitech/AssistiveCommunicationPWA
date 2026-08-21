@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useDwellControl } from '../ui/dwell'
+import { useDwellControl, holdDwells } from '../ui/dwell'
 import { type AliasStore } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { type PhraseStore, type User } from '../core/store'
@@ -25,9 +25,23 @@ import { HelpPanel } from './help-panel'
  * content does — a target that has to be re-found each time is a poor one for
  * anybody aiming by gaze.
  */
+/**
+ * Back, in the same corner of every panel, and **the app goes deaf for a moment
+ * when it fires**.
+ *
+ * It is the one control that replaces the whole screen: the panel it is in goes
+ * away and a different set of controls arrives under a pointer that has not
+ * moved. The menu already guards its own items against reopening — this is the
+ * other way out, the one that lands on the board, where what is underneath is a
+ * phrase that would be spoken.
+ */
 function PanelBack({ onSelect }: { onSelect: () => void }) {
   const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onSelect)
+  const back = useCallback(() => {
+    holdDwells()
+    onSelect()
+  }, [onSelect])
+  const { active, props } = useDwellControl(settings.actionDwellMs, back)
   return (
     <div
       className={cx('panel-back', active && 'dwelling')}

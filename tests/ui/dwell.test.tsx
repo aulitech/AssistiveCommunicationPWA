@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, act } from '@testing-library/react'
-import { useDwellControl } from '../../src/ui/dwell'
+import { SETTLE_MS, holdDwells, releaseDwells, useDwellControl } from '../../src/ui/dwell'
 
 function Probe({ onActivate, durationMs = 500, disabled = false, repeatMs }: {
   onActivate: () => void
@@ -20,7 +20,10 @@ const probe = () => screen.getByRole('button', { name: 'probe' })
 const advance = (ms: number) => act(() => void vi.advanceTimersByTime(ms))
 
 beforeEach(() => vi.useFakeTimers())
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  releaseDwells()
+})
 
 describe('dwell', () => {
   it('fires once the pointer has rested for the full duration', () => {
@@ -185,5 +188,91 @@ describe('repeat mode', () => {
     fireEvent.pointerEnter(probe())
     advance(700)
     expect(probe().dataset.active).toBe('true')
+  })
+})
+
+/**
+ * Going deaf for a moment, because the screen moved under the pointer.
+ *
+ * **A pointer rests where it last fired.** Whatever arrives underneath gets a
+ * `pointerenter` of its own — the browser's doing, not a mistake — so a control
+ * that appears under a resting pointer starts dwelling on nobody's instruction.
+ * Leaving a panel and changing the text size both move everything at once.
+ */
+describe('the settle after the screen moves', () => {
+  it('will not arm while it is deaf', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    holdDwells()
+    fireEvent.pointerEnter(probe())
+    advance(SETTLE_MS)
+    expect(onActivate, 'a control that arrived under the pointer fired').not.toHaveBeenCalled()
+  })
+
+  it('arms again once the moment has passed', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    holdDwells()
+    advance(SETTLE_MS + 1)
+
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  // Pinned at both ends, or a guard of a tenth of a second passes this as well
+  // as a guard of one: still deaf just short of the second, and hearing again
+  // just after it.
+  it('is deaf for the whole second and no longer', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    holdDwells()
+    advance(SETTLE_MS - 1)
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate).not.toHaveBeenCalled()
+
+    fireEvent.pointerLeave(probe())
+    advance(2)
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * A control somebody is already resting on is one they are deliberately
+   * working. What the guard is for is the opposite case — something that
+   * *arrives* under a pointer that has not moved.
+   */
+  it('leaves a control already being held alone', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    fireEvent.pointerEnter(probe())
+    advance(400)
+    holdDwells()
+    advance(100)
+    expect(onActivate, 'the hold in progress was thrown away').toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * The one control that changes the text size is a repeating one, and a repeat
+   * fires from its own interval rather than by arming. Without that, holding the
+   * text-size control would stop itself with every step it took.
+   */
+  it('leaves a repeat already running alone', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} repeatMs={200} />)
+
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+
+    holdDwells()
+    advance(600)
+    expect(onActivate.mock.calls.length, 'the repeat stopped itself').toBeGreaterThan(1)
   })
 })

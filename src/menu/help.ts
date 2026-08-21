@@ -320,6 +320,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'After that, the last change wins. Edit on two devices without letting them meet in between and the earlier edit is the one that goes, so it is worth letting each device settle before picking up the other.',
       ),
       text(
+        'Text size and volume are left alone. They belong to the screen and the speaker in front of you — a phone at arm\'s length and a tablet on a mount want different numbers — so each device keeps its own. Everything else follows you: dwell times, the voice, your phrases and lists.',
+      ),
+      text(
         'Synchronize is not a backup. It keeps devices alike, which means a phrase deleted on one is deleted on the others — that is the point of it, and it is also why a saved backup file is still worth having.',
       ),
       text(

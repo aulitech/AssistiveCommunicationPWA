@@ -4,8 +4,11 @@ import {
   SYNC_EPOCH,
   SYNC_FORMAT,
   SYNC_VERSION,
+  DEVICE_LOCAL_SETTINGS,
   decideSync,
+  keepDeviceSettings,
   newDeviceId,
+  portableSettings,
   parseEnvelope,
   parseSnapshot,
   readAddress,
@@ -256,6 +259,64 @@ describe('the document sync ships', () => {
   // stamped date must not be today's.
   it('carries no moving date', () => {
     expect(buildBackup({ ...board(), now: SYNC_EPOCH }).exported).toBe(SYNC_EPOCH.toISOString())
+  })
+})
+
+/**
+ * The settings that belong to a device rather than to a person.
+ *
+ * A phone at arm's length and a tablet on a wheelchair mount want different
+ * text sizes, and a quiet handset and a loud tablet want different volumes —
+ * while the dwell times are about somebody's motor control and the voice is how
+ * they want to sound, which follow them from device to device.
+ */
+describe('the settings that do not travel', () => {
+  const mine = { ...DEFAULT_SETTINGS, zoom: 1.8, volume: 0.2, phraseDwellMs: 2500, voiceURI: 'mine' }
+  const theirs = { ...DEFAULT_SETTINGS, zoom: 0.6, volume: 1, phraseDwellMs: 900, voiceURI: 'theirs' }
+
+  it('names text size and volume, and nothing else', () => {
+    expect([...DEVICE_LOCAL_SETTINGS]).toEqual(['zoom', 'volume'])
+  })
+
+  describe('on the way out', () => {
+    // Blanked rather than merely ignored on arrival: left in, turning the text
+    // size up would count as news and land on the other device as "board
+    // updated" — a notice about something that did not happen to the board.
+    it('sends the defaults in their place', () => {
+      const sent = portableSettings(mine)
+      expect(sent.zoom).toBe(DEFAULT_SETTINGS.zoom)
+      expect(sent.volume).toBe(DEFAULT_SETTINGS.volume)
+    })
+
+    it('sends everything else exactly as it is', () => {
+      const sent = portableSettings(mine)
+      expect(sent.phraseDwellMs).toBe(2500)
+      expect(sent.voiceURI).toBe('mine')
+    })
+
+    // Which is what makes changing the text size not a change at all.
+    it('is the same document whatever the text size is', () => {
+      expect(portableSettings({ ...mine, zoom: 0.5, volume: 0 })).toEqual(portableSettings(mine))
+    })
+
+    it('leaves the settings it was given alone', () => {
+      portableSettings(mine)
+      expect(mine.zoom).toBe(1.8)
+    })
+  })
+
+  describe('on the way in', () => {
+    it("keeps this device's own text size and volume", () => {
+      const kept = keepDeviceSettings(theirs, mine)
+      expect(kept.zoom).toBe(1.8)
+      expect(kept.volume).toBe(0.2)
+    })
+
+    it('takes everything else from the board that arrived', () => {
+      const kept = keepDeviceSettings(theirs, mine)
+      expect(kept.phraseDwellMs).toBe(900)
+      expect(kept.voiceURI).toBe('theirs')
+    })
   })
 })
 

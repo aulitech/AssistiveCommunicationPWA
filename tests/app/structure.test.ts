@@ -139,6 +139,31 @@ describe('the shape of the source tree', () => {
   })
 
   /**
+   * The Netlify function is bundled and shipped to a Lambda, and it takes
+   * `src/core/envelope.ts` out of this tree to do it. That module must import
+   * nothing at all: one value taken from the store pulled in `core/phrases`,
+   * which pulled in the two and a half thousand phrases Peri ships, and a 3KB
+   * function became 418KB of phrase table it has no use for.
+   *
+   * Neither half of that is visible in a diff. Both are checked here.
+   */
+  describe('what the server is allowed to take from the app', () => {
+    it('lets the wire format stand alone', () => {
+      const wire = readFileSync(resolve(SRC, 'core/envelope.ts'), 'utf8')
+      const imports = [...wire.matchAll(IMPORT)].map(m => m[1])
+      expect(imports, 'the wire format must import nothing — see the function').toEqual([])
+    })
+
+    it('takes the wire format and nothing else', () => {
+      const reached = walk(resolve(process.cwd(), 'netlify'))
+        .filter(path => /\.tsx?$/.test(path))
+        .flatMap(path => [...readFileSync(path, 'utf8').matchAll(IMPORT)].map(m => m[1]))
+        .filter(spec => spec.includes('/src/'))
+      expect(reached).toEqual(['../../src/core/envelope'])
+    })
+  })
+
+  /**
    * **Every test lives under `tests/`.** Not a matter of taste, and not a style
    * this file is enforcing for tidiness: `netlify/functions/` is a directory
    * where every file is published as a function, so a test written beside the

@@ -3380,6 +3380,80 @@ describe('signing out', () => {
 // against the real Netlify function; what is left for here is the wiring — that
 // the row is in Settings, that it knows a guest is not an account, and that
 // turning it on writes down what the next load needs.
+/**
+ * A pointer rests where it last fired, and whatever arrives underneath gets a
+ * `pointerenter` of its own — so a control that appears under a resting pointer
+ * starts dwelling on nobody's instruction. These two replace the whole screen.
+ *
+ * Driven by pointer rather than by `click`, which is the only way to see it: a
+ * click goes straight to the activation and never arms anything.
+ */
+describe('settling after the screen moves', () => {
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
+
+  /** Rest on a phrase for long enough that it would be chosen. */
+  const restOnAPhrase = () => {
+    const cell = plainCell()
+    fireEvent.pointerEnter(cell)
+    act(() => void vi.advanceTimersByTime(DEFAULT_SETTINGS.phraseDwellMs + 50))
+    return cell
+  }
+
+  // The text size is applied on the way in as well as when it changes, and
+  // nothing has moved on the way in. An app that will not answer for its first
+  // second is an app that looks broken.
+  it('answers straight away when the board opens', () => {
+    renderApp({ autoSpeak: true })
+
+    restOnAPhrase()
+    expect(spoken, 'the board was deaf when it opened').toHaveLength(1)
+  })
+
+  // Back is the way out of the menu, and the way out lands on the board — where
+  // what is under the pointer is a phrase that would be spoken aloud.
+  it('says nothing when Back drops the board under the pointer', () => {
+    renderApp({ autoSpeak: true })
+    openMenu()
+
+    click($('.panel-back'))
+    restOnAPhrase()
+    expect(spoken, 'a phrase fired under a pointer that had not moved').toEqual([])
+
+    // And it is a pause, not a stop: once the second is up the board answers.
+    act(() => void vi.advanceTimersByTime(1100))
+    restOnAPhrase()
+    expect(spoken).toHaveLength(1)
+  })
+
+  // Changing the text size relays out every control on the screen around a
+  // pointer that has not moved with them.
+  it('says nothing when the text size moves everything', () => {
+    renderApp({ autoSpeak: true })
+    openMenu()
+    click(nav('Settings'))
+    const textSize = $$('.setting-row').find(r => r.textContent?.startsWith('Text size'))!
+    const bigger = [...textSize.querySelectorAll('.step-btn')].find(
+      b => b.getAttribute('aria-label') === 'Increase',
+    )!
+
+    click(bigger)
+    // A control that is not the one just used, resting under a pointer that has
+    // not moved: it must not start filling.
+    fireEvent.pointerEnter(textSize.querySelector('.setting-number')!)
+    const other = $$('.step-btn').find(b => b.getAttribute('aria-label') === 'Decrease')!
+    fireEvent.pointerEnter(other)
+    act(() => void vi.advanceTimersByTime(DEFAULT_SETTINGS.actionDwellMs + 50))
+    expect(other.className, 'a control armed while the screen was still moving').not.toMatch(/dwelling/)
+
+    // A pause, not a stop.
+    act(() => void vi.advanceTimersByTime(1100))
+    fireEvent.pointerLeave(other)
+    fireEvent.pointerEnter(other)
+    expect(other.className).toMatch(/dwelling/)
+  })
+})
+
 describe('the synchronize setting', () => {
   const openSettings = () => {
     click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))

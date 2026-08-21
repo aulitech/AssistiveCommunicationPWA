@@ -57,6 +57,47 @@ export function cancelAllDwells() {
   cancelAll()
 }
 
+/**
+ * How long nothing may fire after the screen has moved under the pointer.
+ *
+ * The same second the menu is deaf for after a panel closes, and for the same
+ * reason: **a pointer rests where it last fired.** Whatever arrives underneath
+ * it gets a `pointerenter` of its own — that is the browser's doing, not a
+ * mistake — and a control that arrives under a pointer already at rest starts
+ * dwelling on nobody's instruction.
+ */
+export const SETTLE_MS = 1000
+
+/** Nothing may arm until this moment. */
+let deafUntil = 0
+
+/**
+ * Go deaf for a moment, because what is under the pointer is about to change.
+ *
+ * Called where the screen moves rather than where a control fires: leaving a
+ * panel, and changing the text size, which relays out every control on screen
+ * around a pointer that has not moved.
+ *
+ * **It stops controls arming, and leaves a control already being held alone.**
+ * That line is where it is on purpose. A control somebody is already resting on
+ * is one they are deliberately working — the text-size spinner is exactly that,
+ * and cancelling it would mean a hold that stepped the size once and stopped,
+ * instead of repeating the way every other repeating control does. What the
+ * guard is for is the opposite case: something that *arrives* under a pointer
+ * which has not moved, and every one of those goes through `start`.
+ *
+ * Once the window passes, a pointer still resting on something stays inert
+ * until it moves. Arming happens on arrival, and it has already arrived.
+ */
+export function holdDwells(ms: number = SETTLE_MS) {
+  deafUntil = Date.now() + ms
+}
+
+/** Test seam: nothing in the app clears the guard early. */
+export function releaseDwells() {
+  deafUntil = 0
+}
+
 export interface DwellOptions {
   disabled?: boolean
   /** When set, the action repeats at this interval while the pointer stays. */
@@ -107,6 +148,9 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
 
   const start = useCallback(() => {
     if (disabledRef.current || timerRef.current || repeatRef.current) return
+    // Deaf: the screen moved under the pointer a moment ago, so whatever it is
+    // resting on now is not what it was aimed at.
+    if (Date.now() < deafUntil) return
     dwellFiredRef.current = false
     setActive(true)
     timerRef.current = setTimeout(() => {

@@ -24,7 +24,7 @@ import {
 } from '../core/store'
 import { applyBackup, buildBackup, type AppState } from '../core/backup'
 import { accountId } from '../core/store'
-import { SYNC_EPOCH, type SyncPayload } from '../core/sync'
+import { SYNC_EPOCH, keepDeviceSettings, portableSettings, type SyncPayload } from '../core/sync'
 import { useSync } from '../sync/use-sync'
 import { speak, warmVoice } from '../voice/speech'
 import { clearAudioCache } from '../voice/audio-cache'
@@ -422,7 +422,18 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   }, [])
 
   const syncBackup = useMemo(
-    () => buildBackup({ store, aliases: board.aliases, settings, categoryById: board.categoryById, now: SYNC_EPOCH }),
+    () =>
+      buildBackup({
+        store,
+        aliases: board.aliases,
+        // Text size and volume are about this screen and this speaker, not about
+        // the person — so they are blanked on the way out, which also means
+        // turning the text size up is not a change to the board at all. See
+        // `portableSettings`.
+        settings: portableSettings(settings),
+        categoryById: board.categoryById,
+        now: SYNC_EPOCH,
+      }),
     [store, board.aliases, settings, board.categoryById],
   )
 
@@ -436,7 +447,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     (incoming: SyncPayload, from: string) => {
       const next = applyBackup(incoming.backup, { store, aliases: board.aliases, settings }, 'replace')
       board.restore(next.store, next.aliases)
-      update(next.settings)
+      // Everything the person set, and this device's own text size and volume.
+      update(keepDeviceSettings(next.settings, settings))
       // The account travels with the board, which is what makes a phrase given
       // an ElevenLabs voice on one device still sound like itself on the next.
       // `setAccount` ignores one that has not changed — see there.
