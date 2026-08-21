@@ -423,7 +423,7 @@ function SyncRow({ sync }: { sync: SyncControl }) {
             ? 'Keeping this device\'s board replaces the synchronized one on every other device. Using the synchronized board replaces what is on this device. Nothing has changed yet.'
             : sync.enabled
             ? 'Every device signed in to this account and given the same passphrase keeps the same board. The last change wins, so editing on two devices at once loses the earlier edit. The copy on the server is encrypted before it leaves this device and cannot be read without the passphrase — which nobody can reset for you.'
-            : 'Optional. Keeps your phrases, categories and settings the same on every device you sign in to. The copy is encrypted here first, so the passphrase is the only thing that can open it — write it down somewhere safe.'}
+            : 'Optional. Keeps your phrases, categories and settings the same on every device you sign in to — apart from text size and volume, which stay as you set them on each one. The copy is encrypted here first, so the passphrase is the only thing that can open it — write it down somewhere safe.'}
         </p>
       </div>
 

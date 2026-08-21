@@ -20,20 +20,21 @@
 //  * **What a conflict means.** The last change wins, whole. See `decideSync`.
 
 import type { Backup } from './backup'
-import type { ElevenLabsAccount } from './store'
+import { DEFAULT_SETTINGS, type ElevenLabsAccount, type Settings } from './store'
 
-export const SYNC_FORMAT = 'peri-sync'
-export const SYNC_VERSION = 1
+// The wire format lives on its own so the Netlify function can take it without
+// taking the phrase table with it — see `envelope.ts`. Passed straight back out,
+// so a caller reaching for either half only ever needs one import.
+export {
+  MAX_ENVELOPE_BYTES,
+  SYNC_FORMAT,
+  SYNC_VERSION,
+  parseEnvelope,
+  readAddress,
+  readRevision,
+  type Envelope,
+} from './envelope'
 
-/**
- * How large an envelope may be, encrypted and encoded.
- *
- * The server is an open store — anything that knows an address may write to it —
- * so the size limit is the only thing between it and being used as somebody's
- * free disk. A board of a thousand phrases somebody wrote themselves is around a
- * tenth of this.
- */
-export const MAX_ENVELOPE_BYTES = 1_000_000
 
 /**
  * The date stamped on a backup built for sync, and it is deliberately not today.
@@ -73,49 +74,52 @@ export interface Snapshot {
   account?: ElevenLabsAccount | null
 }
 
+/**
+ * The settings that belong to a device rather than to a person.
+ *
+ * **Text size** is how big the words are on *this* screen: a phone held at
+ * arm's length and a tablet on a wheelchair mount want different numbers, and
+ * the person is the same person. **Volume** is the same question about a
+ * speaker — a quiet handset and a loud tablet, one room and another.
+ *
+ * Everything else is a preference that follows somebody about: dwell times are
+ * about their motor control, the voice is how they want to sound, and those
+ * should be the same wherever they pick up a device.
+ *
+ * A *backup* still carries all of them. Restoring one is putting a device back
+ * the way it was, usually the same device or its replacement — a different
+ * question from keeping two devices that are in use at once alike.
+ */
+export const DEVICE_LOCAL_SETTINGS = ['zoom', 'volume'] as const
+
+/**
+ * The settings as they travel: this device's own text size and volume replaced
+ * by the defaults, so that changing either is not a change to the board at all.
+ *
+ * Blanked on the way *out* as well as ignored on the way in, and the reason is
+ * the round trip: left in, turning the text size up on the tablet would count as
+ * news, push, and land on the phone as "Board updated from your other device" —
+ * a notice about something that did not happen to the board.
+ */
+export function portableSettings(settings: Settings): Settings {
+  const portable = { ...settings }
+  for (const key of DEVICE_LOCAL_SETTINGS) portable[key] = DEFAULT_SETTINGS[key]
+  return portable
+}
+
+/** Settings that arrived, with this device's own text size and volume kept. */
+export function keepDeviceSettings(incoming: Settings, mine: Settings): Settings {
+  const kept = { ...incoming }
+  for (const key of DEVICE_LOCAL_SETTINGS) kept[key] = mine[key]
+  return kept
+}
+
 /** What the app hands over to be sealed, and gets back when one arrives. */
 export interface SyncPayload {
   backup: Backup
   account: ElevenLabsAccount | null
 }
 
-/** What sits on the server. */
-export interface Envelope {
-  format: typeof SYNC_FORMAT
-  version: number
-  /** Plaintext, so a device can decide whether to pull without holding the key. */
-  updatedAt: number
-  /** Plaintext, and only ever compared — never shown, never trusted. */
-  device: string
-  iv: string
-  data: string
-}
-
-/**
- * An envelope, or null for anything that is not one.
- *
- * Used on both sides: the device will not decrypt what it cannot recognise, and
- * the server will not store it. The server has the stronger reason — it accepts
- * writes from anybody who knows an address, so "is this even the right shape" is
- * the whole of what it can check.
- */
-export function parseEnvelope(value: unknown): Envelope | null {
-  if (typeof value !== 'object' || value === null) return null
-  const e = value as Record<string, unknown>
-  if (e.format !== SYNC_FORMAT) return null
-  if (typeof e.version !== 'number' || e.version > SYNC_VERSION) return null
-  if (typeof e.updatedAt !== 'number' || !Number.isFinite(e.updatedAt)) return null
-  if (typeof e.device !== 'string' || e.device.length > 64) return null
-  if (typeof e.iv !== 'string' || typeof e.data !== 'string') return null
-  return {
-    format: SYNC_FORMAT,
-    version: e.version,
-    updatedAt: e.updatedAt,
-    device: e.device,
-    iv: e.iv,
-    data: e.data,
-  }
-}
 
 /** A snapshot, or null — the same guard, on the inside of the lock. */
 export function parseSnapshot(value: unknown): Snapshot | null {
@@ -177,23 +181,6 @@ export function hasOwnBoard(backup: Backup): boolean {
   )
 }
 
-/**
- * A valid address, or null.
- *
- * Exactly 64 lowercase hex characters — the whole of what the derivation
- * produces and nothing else. Used on the server, which has this and the shape of
- * an envelope and nothing else to go on, and on the way out of a device, so a
- * malformed address is caught before it becomes a request.
- */
-export function readAddress(value: string | null | undefined): string | null {
-  return value && /^[0-9a-f]{64}$/.test(value) ? value : null
-}
-
-/** A revision a device claims to have seen. Absent means "I have seen nothing". */
-export function readRevision(value: unknown): number | null {
-  if (value === undefined || value === null) return 0
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null
-}
 
 /** Where this device has got to. */
 export interface LocalMark {

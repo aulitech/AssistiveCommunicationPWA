@@ -37,7 +37,16 @@
 // whose write was lost sees a newer revision on its next poll and reconciles.
 
 import { getStore } from '@netlify/blobs'
-import { MAX_ENVELOPE_BYTES, parseEnvelope, readAddress, readRevision, type Envelope } from '../../src/core/sync'
+// The wire format and nothing else. `src/core/sync.ts` holds the rest — the
+// snapshot, the conflict rule, what a device does with what it finds — and
+// importing it here would put the phrase table in this Lambda.
+import {
+  MAX_ENVELOPE_BYTES,
+  parseEnvelope,
+  readAddress,
+  readRevision,
+  type Envelope,
+} from '../../src/core/envelope'
 
 const STORE = 'peri-sync'
 
