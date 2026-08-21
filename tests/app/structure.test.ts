@@ -261,4 +261,32 @@ describe('the shape of the source tree', () => {
       .map(p => relative(SRC, p))
     expect(defaults).toEqual(['App.tsx'])
   })
+
+  /**
+   * `tools/pointer-probe.html` measures the pointer stream the way `ui/dwell.ts`
+   * reads it, and restates its constants to do so — it is standalone HTML with
+   * no build step and nothing to import from.
+   *
+   * That is a copy, and a copy drifts. It is the instrument STALL_MS is meant to
+   * be tuned with, and one quietly disagreeing with the code it is tuning is
+   * worse than no instrument at all.
+   */
+  it('keeps the pointer probe telling the same numbers as the dwell hook', () => {
+    const read = (text: string) =>
+      Object.fromEntries(
+        [...text.matchAll(/const (STALL_MS|STREAM_\w+) = ([\d_]+)/g)].map(m => [m[1], m[2].replace(/_/g, '')]),
+      )
+
+    const hook = read(readFileSync(resolve(SRC, 'ui/dwell.ts'), 'utf8'))
+    const probe = read(readFileSync(resolve(process.cwd(), 'tools/pointer-probe.html'), 'utf8'))
+
+    expect(Object.keys(hook).length, 'the hook names no constants — did they move?').toBeGreaterThan(0)
+    // The probe restates only what it measures with; the hook has one more, the
+    // window the classification is remembered for, which nothing here reads.
+    for (const [name, value] of Object.entries(probe)) {
+      expect(hook[name], `${name} is not a constant of the dwell hook`).toBeDefined()
+      expect(value, `the probe and the dwell hook disagree about ${name}`).toBe(hook[name])
+    }
+    expect(Object.keys(probe)).toContain('STALL_MS')
+  })
 })

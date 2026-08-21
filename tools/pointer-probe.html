@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peri pointer probe</title>
+<!--
+  What a browser will and will not tell a page about the pointer.
+
+  Standalone on purpose: no build step, no imports, open it straight from disk
+  (`pnpm probe`). It is not in `public/`, because everything there ships to
+  production and is indexed.
+
+  It exists because of one measured failure. On macOS Safari, with the Apple
+  Accessibility Keyboard, moving the pointer from the page to the keyboard sends
+  the page **nothing at all** — no pointerout, no pointerleave, no blur — and the
+  dwell underneath fires into an empty room. `src/ui/dwell.ts` answers that by
+  reading the pointer's own stream instead, and the numbers it reads it with are
+  mirrored below. `tests/app/structure.test.ts` fails if the two drift apart.
+
+  Two jobs:
+    1. Characterise a browser. Run the trip, read the log.
+    2. Tune STALL_MS. Read the largest gap the stream shows in ordinary use, and
+       what a blocked main thread does to it.
+-->
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 1rem; background: #111; color: #eee;
+    font: 16px/1.5 -apple-system, system-ui, sans-serif;
+    display: grid; gap: 1rem; grid-template-columns: minmax(340px, 1fr) minmax(360px, 1.1fr);
+    min-height: 100vh; align-items: start;
+  }
+  @media (max-width: 860px) { body { grid-template-columns: 1fr; } }
+  h1 { font-size: 1.1rem; margin: 0 0 .35rem; }
+  h2 { font-size: .95rem; margin: 1.3rem 0 .4rem; color: #b0b0b0; }
+  p { margin: .35rem 0; }
+  ol { padding-left: 1.2rem; margin: .4rem 0; }
+  li { margin: .3rem 0; }
+  .panel { background: #1b1b1b; border: 1px solid #333; border-radius: .6rem; padding: 1rem; }
+  small { color: #b0b0b0; }
+
+  #target {
+    margin: 1rem 0; height: 165px; border-radius: .6rem;
+    display: grid; place-items: center; text-align: center;
+    background: #24303f; border: 2px solid #3d5a80;
+    font-size: 1.05rem; position: relative; overflow: hidden;
+  }
+  #target:hover { background: #2f4460; border-color: #7fb0e0; }
+  #target .fill { position: absolute; inset: auto 0 0 0; height: 6px; background: #7fb0e0; width: 0; }
+  #target.armed .fill { animation: fill var(--dwell) linear forwards; }
+  @keyframes fill { from { width: 0 } to { width: 100% } }
+
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+  td { padding: 2px 0; border-bottom: 1px solid #262626; }
+  td:first-child { color: #b0b0b0; }
+  td:last-child { text-align: right; font-family: ui-monospace, Menlo, monospace; color: #eee; }
+  .verdict-yes { color: #9ae6a0; }
+  .verdict-no  { color: #ffd479; }
+
+  #log { font: 12px/1.45 ui-monospace, Menlo, monospace; max-height: 68vh; overflow: auto; }
+  #log div { padding: 1px 0; border-bottom: 1px solid #222; white-space: pre-wrap; }
+  .t, .n { color: #777; }
+  .ev-fire { color: #ff8b8b; font-weight: 700; }
+  .ev-arm { color: #ffd479; }
+  .ev-cancel { color: #9ae6a0; }
+  .ev-key { color: #8fd0ff; }
+  .ev-poll { color: #c9a0ff; }
+  .ev-focus { color: #ffc48f; }
+  .ev-ptr { color: #999; }
+
+  button { font: inherit; padding: .4rem .7rem; border-radius: .4rem; border: 1px solid #444; background: #2a2a2a; color: #eee; }
+  .row { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+  textarea { width: 100%; height: 140px; background: #0d0d0d; color: #ccc; border: 1px solid #333; border-radius: .4rem; font: 11px/1.4 ui-monospace, Menlo, monospace; }
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <h1>Peri pointer probe</h1>
+  <p><small>What this browser will and will not say about the pointer.</small></p>
+
+  <div id="target" style="--dwell:3000ms">
+    <span>Rest the pointer here.<br><small>3&nbsp;second dwell</small></span>
+    <span class="fill"></span>
+  </div>
+
+  <h2>The trip — does leaving get reported?</h2>
+  <ol>
+    <li>Rest on the box. The bar starts filling.</li>
+    <li><b>Before it finishes</b>, move to the on-screen keyboard.</li>
+    <li>Type <b>1</b> — that stamps the log and proves keystrokes still arrive.</li>
+    <li>Come back and read the log.</li>
+  </ol>
+  <p><small>Repeat with <b>2</b> for the menu bar and <b>3</b> for another app's window:
+  being covered by a floating panel and leaving the window outright need not behave alike.</small></p>
+
+  <h2>The stream — what STALL_MS has to clear</h2>
+  <table>
+    <tr><td>moves seen</td><td id="s-count">0</td></tr>
+    <tr><td>cadence (median gap)</td><td id="s-median">—</td></tr>
+    <tr><td><b>largest gap</b></td><td id="s-max">—</td></tr>
+    <tr><td>drift per move</td><td id="s-drift">—</td></tr>
+    <tr><td>signature holds now</td><td id="s-sig">—</td></tr>
+    <tr><td>silent for</td><td id="s-silent">—</td></tr>
+    <tr><td>:hover</td><td id="s-hover">—</td></tr>
+    <tr><td>hasFocus / hidden</td><td id="s-focus">—</td></tr>
+  </table>
+  <p style="margin-top:.6rem"><small>Use the app normally with this open, then read <b>largest gap</b>.
+  It is the number STALL_MS has to sit above. Reset it first, and keep the pointer
+  inside the window — a trip away registers as a gap of its own.</small></p>
+  <p class="row"><button id="reset-max">Reset largest gap</button></p>
+
+  <h2>A blocked main thread</h2>
+  <p><small>The one thing that could make a present pointer look absent. Peri's
+  longest single task is the grid rail's jump-to-bottom, which renders the whole
+  table at once — roughly 50ms.</small></p>
+  <p class="row">
+    <button data-block="50">block 50ms</button>
+    <button data-block="150">block 150ms</button>
+    <button data-block="400">block 400ms</button>
+  </p>
+
+  <h2>Get the log out</h2>
+  <p class="row"><button id="copy">Copy log</button> <span id="copied" style="color:#9ae6a0"></span></p>
+  <textarea id="dump" readonly></textarea>
+</div>
+
+<div class="panel">
+  <h2 style="margin-top:0">Log — newest first</h2>
+  <div id="log"></div>
+</div>
+
+<script>
+(function () {
+  // Mirrored from src/ui/dwell.ts. tests/app/structure.test.ts fails if these
+  // drift apart — a tool that quietly disagrees with the code it is tuning is
+  // worse than no tool.
+  const STALL_MS = 150
+  const STREAM_GAP_MS = 120
+  const STREAM_WINDOW_MS = 1500
+  const STREAM_MIN_MOVES = 20
+  const STREAM_MAX_DRIFT = 3
+
+  const DWELL_MS = 3000
+
+  const t0 = performance.now()
+  const entries = []
+  const logEl = document.getElementById('log')
+  const dumpEl = document.getElementById('dump')
+  const target = document.getElementById('target')
+
+  const desc = node => {
+    if (node === null || node === undefined) return 'null'
+    if (node === window) return 'window'
+    if (node === document) return 'document'
+    if (!(node instanceof Node)) return String(node)
+    if (node.nodeType !== 1) return node.nodeName
+    return node.id ? '#' + node.id : node.tagName.toLowerCase()
+  }
+
+  let pending = false
+  function render() {
+    if (pending) return
+    pending = true
+    requestAnimationFrame(() => {
+      pending = false
+      let html = '', text = ''
+      for (const e of entries) {
+        const n = e.count > 1 ? ' ×' + e.count : ''
+        html += '<div><span class="t">' + String(e.t).padStart(6) + 'ms</span> <span class="' +
+                e.cls + '">' + e.type + '</span><span class="n">' + n + '</span> ' + e.detail + '</div>'
+        text += String(e.t).padStart(6) + 'ms  ' + e.type + n + '  ' + e.detail + '\n'
+      }
+      logEl.innerHTML = html
+      dumpEl.value = text
+    })
+  }
+
+  function add(type, detail, cls) {
+    const t = Math.round(performance.now() - t0)
+    const last = entries[0]
+    if (last && last.type === type && last.detail === detail) {
+      last.count++; last.t = t; render(); return
+    }
+    entries.unshift({ t, type, detail, count: 1, cls: cls || 'ev-ptr' })
+    if (entries.length > 500) entries.pop()
+    render()
+  }
+
+  // ── every event that could say "the pointer has gone" ────────────────────
+  const watched = ['pointerover','pointerout','pointerdown','pointerup','pointercancel','pointermove',
+                   'mouseover','mouseout','mousemove','mousedown','mouseup']
+  for (const name of watched) {
+    window.addEventListener(name, e => {
+      let d = 'target=' + desc(e.target)
+      if ('relatedTarget' in e) d += '  related=' + desc(e.relatedTarget)
+      if (e.clientX !== undefined) d += '  (' + Math.round(e.clientX) + ',' + Math.round(e.clientY) + ')'
+      add(name, d, 'ev-ptr')
+    }, { capture: true, passive: true })
+  }
+  for (const name of ['pointerenter','pointerleave','mouseenter','mouseleave']) {
+    document.documentElement.addEventListener(name, e =>
+      add('html:' + name, 'related=' + desc(e.relatedTarget), 'ev-cancel'))
+  }
+  for (const name of ['blur','focus']) {
+    window.addEventListener(name, () => add('window:' + name, '', 'ev-focus'))
+  }
+  for (const name of ['focusin','focusout']) {
+    document.addEventListener(name, e => add(name, 'target=' + desc(e.target), 'ev-focus'))
+  }
+  document.addEventListener('visibilitychange', () =>
+    add('visibilitychange', 'hidden=' + document.hidden, 'ev-focus'))
+  window.addEventListener('keydown', e =>
+    add('KEYDOWN', '"' + e.key + '"  target=' + desc(e.target) + '  — a keystroke reached the page', 'ev-key'))
+
+  // ── the stream, measured the way dwell.ts reads it ───────────────────────
+  let moves = []          // the current run, trimmed to STREAM_WINDOW_MS
+  let lastMoveAt = 0
+  let count = 0
+  let gaps = []           // every gap, for the median
+  let maxGap = 0
+  let maxGapAt = 0
+
+  window.addEventListener('pointermove', e => {
+    const t = Date.now()
+    if (lastMoveAt) {
+      const gap = t - lastMoveAt
+      gaps.push(gap)
+      if (gaps.length > 4000) gaps.shift()
+      if (gap > maxGap) {
+        maxGap = gap
+        maxGapAt = Math.round(performance.now() - t0)
+        if (gap > STALL_MS) add('△ gap', gap + 'ms — longer than STALL_MS (' + STALL_MS + 'ms)', 'ev-poll')
+      }
+    }
+    if (t - lastMoveAt > STREAM_GAP_MS) moves = []
+    lastMoveAt = t
+    count++
+    moves.push({ t, x: e.clientX, y: e.clientY })
+    while (moves.length && t - moves[0].t > STREAM_WINDOW_MS) moves.shift()
+  }, { capture: true, passive: true })
+
+  function drift() {
+    if (moves.length < 2) return null
+    let path = 0
+    for (let i = 1; i < moves.length; i++) {
+      path += Math.abs(moves[i].x - moves[i - 1].x) + Math.abs(moves[i].y - moves[i - 1].y)
+    }
+    return path / moves.length
+  }
+
+  const signatureHolds = () => {
+    const d = drift()
+    return moves.length >= STREAM_MIN_MOVES && d !== null && d <= STREAM_MAX_DRIFT
+  }
+
+  const median = () => {
+    if (!gaps.length) return null
+    const sorted = [...gaps].sort((a, b) => a - b)
+    return sorted[Math.floor(sorted.length / 2)]
+  }
+
+  const set = (id, text, cls) => {
+    const el = document.getElementById(id)
+    el.textContent = text
+    el.className = cls || ''
+  }
+
+  let lastHover = null, lastFocus = null
+  setInterval(() => {
+    const m = median(), d = drift()
+    set('s-count', String(count))
+    set('s-median', m === null ? '—' : m + 'ms')
+    set('s-max', maxGap ? maxGap + 'ms  (at ' + maxGapAt + 'ms)' : '—',
+        maxGap > STALL_MS ? 'verdict-no' : maxGap ? 'verdict-yes' : '')
+    set('s-drift', d === null ? '—' : d.toFixed(2) + 'px')
+    const holds = signatureHolds()
+    set('s-sig', holds ? 'yes — read as a tracker' : 'no — read as a mouse',
+        holds ? 'verdict-yes' : 'verdict-no')
+    set('s-silent', lastMoveAt ? (Date.now() - lastMoveAt) + 'ms' : '—')
+
+    const chain = [...document.querySelectorAll(':hover')].map(desc).join(' > ') || '(nothing)'
+    set('s-hover', chain)
+    if (chain !== lastHover) { lastHover = chain; add('poll :hover', chain, 'ev-poll') }
+
+    const f = document.hasFocus()
+    set('s-focus', f + ' / ' + document.hidden)
+    if (f !== lastFocus) { lastFocus = f; add('poll hasFocus', String(f), 'ev-poll') }
+  }, 200)
+
+  document.getElementById('reset-max').addEventListener('click', () => {
+    maxGap = 0; maxGapAt = 0; gaps = []
+    add('↺ reset', 'largest gap cleared', 'ev-poll')
+  })
+
+  for (const btn of document.querySelectorAll('[data-block]')) {
+    btn.addEventListener('click', () => {
+      const ms = Number(btn.dataset.block)
+      add('■ blocking', ms + 'ms of main thread', 'ev-arm')
+      const until = performance.now() + ms
+      while (performance.now() < until) { /* deliberately */ }
+      add('□ unblocked', 'after ' + ms + 'ms — watch the gap above', 'ev-arm')
+    })
+  }
+
+  // ── the dwell itself, the same shape as the app's ─────────────────────────
+  let timer = null
+  target.addEventListener('pointerenter', () => {
+    if (timer) return
+    target.classList.remove('armed'); void target.offsetWidth; target.classList.add('armed')
+    add('▶ ARMED', 'dwell started (' + DWELL_MS + 'ms)', 'ev-arm')
+    timer = setTimeout(() => {
+      timer = null
+      target.classList.remove('armed')
+      const here = target.matches(':hover')
+      const silent = Date.now() - lastMoveAt
+      add('🔥 FIRED', here
+        ? 'pointer still on the target (:hover true), silent ' + silent + 'ms'
+        : 'POINTER IS NOT ON THE TARGET (:hover false) — THIS IS THE BUG', 'ev-fire')
+    }, DWELL_MS)
+  })
+  target.addEventListener('pointerleave', () => {
+    if (!timer) return
+    clearTimeout(timer); timer = null
+    target.classList.remove('armed')
+    add('■ CANCELLED', 'pointerleave arrived — working correctly', 'ev-cancel')
+  })
+
+  document.getElementById('copy').addEventListener('click', () => {
+    dumpEl.select()
+    let ok = false
+    try { ok = document.execCommand('copy') } catch (err) { ok = false }
+    if (!ok && navigator.clipboard) navigator.clipboard.writeText(dumpEl.value)
+    document.getElementById('copied').textContent = 'copied'
+    setTimeout(() => { document.getElementById('copied').textContent = '' }, 2000)
+  })
+
+  add('probe ready', navigator.userAgent, 'ev-poll')
+})()
+</script>
+</body>
+</html>

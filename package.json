@@ -9,6 +9,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
+    "probe": "open tools/pointer-probe.html",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
