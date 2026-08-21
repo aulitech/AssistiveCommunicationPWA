@@ -17,7 +17,7 @@
 // top-centre of the message box, which now answers to a mode rather than to the
 // caret. Rest was already there, so that surface was never entirely the box's.
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSettings } from '../ui/settings'
 import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
@@ -153,7 +153,6 @@ export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, on
   // One box, two things in it: the message being composed, and — in edit mode —
   // the phrase being written. Which one is showing decides everything below,
   // because a keystroke has to go to the right one of the two.
-  const value = editMode ? draft.text : text
   const write = editMode ? setDraftText : setText
 
   // The same dwell either way, and enabled in both modes now. The box used to be
@@ -165,6 +164,41 @@ export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, on
   const caret = useCaretDwell(textareaRef, settings.actionDwellMs, {
     onPlace: editMode ? undefined : setCursor,
   })
+
+  /**
+   * The box grows with what is in it, up to a few lines.
+   *
+   * It was one line, fixed, with the overflow scrolled and the scrollbar hidden
+   * — so a message longer than the box went above the fold and stayed there.
+   * Every other surface in this app has dwell controls for scrolling; this one
+   * has none, and nothing to hang them on, so what scrolls out of it is gone as
+   * far as a gaze user is concerned.
+   *
+   * Measured rather than counted: a line is however many characters fit at this
+   * text size and this width, which is not a number this can know. The cap is in
+   * the stylesheet, where `max-height` clamps whatever is set here — so the box
+   * cannot eat the board however long the message gets.
+   *
+   * **Where nothing can be measured, nothing is set.** `scrollHeight` is 0 in
+   * jsdom, and a box set to nought is a box nobody can see; the same fallback
+   * the grid's windowing makes, for the same reason.
+   */
+  const value = editMode ? draft.text : text
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    const fit = () => {
+      // Back to one line first, or the box only ever grows: `scrollHeight`
+      // includes whatever height it is already holding.
+      el.style.height = ''
+      if (el.scrollHeight) el.style.height = `${el.scrollHeight}px`
+    }
+    fit()
+    // The width decides where the lines break, and the width changes with the
+    // window — a phone turned on its side rewraps every line in the box.
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [value, textareaRef, settings.zoom])
 
   // A link pasted or dropped here becomes `[label](url)`, so the message reads
   // as the page's name and still carries the address when it is copied out. Into

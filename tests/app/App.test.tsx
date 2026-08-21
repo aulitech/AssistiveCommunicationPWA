@@ -3388,6 +3388,72 @@ describe('signing out', () => {
  * Driven by pointer rather than by `click`, which is the only way to see it: a
  * click goes straight to the activation and never arms anything.
  */
+/**
+ * The message box grows with what is in it.
+ *
+ * It was one line, fixed, with the overflow scrolled and the scrollbar hidden —
+ * so a message longer than the box went above the fold and stayed there. Every
+ * other surface here has dwell controls for scrolling; this one has none and
+ * nothing to hang them on, so what scrolls out of it is gone.
+ *
+ * jsdom lays nothing out, so the measurement is supplied — the same bargain the
+ * paging tests make. What is under test is what the app does with it.
+ */
+describe('the message box growing', () => {
+  /** A box that reports one height while empty and another once it has text. */
+  const measures = (empty: number, full: number) =>
+    Object.defineProperty(box(), 'scrollHeight', {
+      configurable: true,
+      get(this: HTMLTextAreaElement) {
+        // Read after the height has been cleared, which is the only way to
+        // measure text that is already being given room for itself.
+        return this.style.height === '' ? (this.value ? full : empty) : 999
+      },
+    })
+
+  it('takes the height of the text in it', () => {
+    renderApp()
+    measures(56, 112)
+
+    writePhrase('a message long enough to wrap onto a second line')
+    expect(box().style.height).toBe('112px')
+  })
+
+  // Without clearing the height first the box only ever grows: `scrollHeight`
+  // includes whatever room it is already being given.
+  it('measures from one line rather than from its own height', () => {
+    renderApp()
+    measures(56, 112)
+
+    writePhrase('two lines of message')
+    expect(box().style.height).toBe('112px')
+    writePhrase('')
+    expect(box().style.height, 'the box kept the room it no longer needs').toBe('56px')
+  })
+
+  // The same fallback the grid's windowing makes: what cannot be measured is
+  // left to the stylesheet, and a box set to nought is a box nobody can see.
+  it('sets no height where nothing can be measured', () => {
+    renderApp()
+    writePhrase('a message')
+    expect(box().style.height).toBe('')
+  })
+
+  // The board underneath is what somebody is speaking with. A message box that
+  // ate it would be a box with nothing to put in it.
+  it('is capped in the stylesheet, which is where the board is protected', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const rule = css.slice(css.indexOf('.text-display {'))
+    const box = rule.slice(0, rule.indexOf('}'))
+    expect(box).toMatch(/max-height:\s*min\(/)
+    // In `rem` and `dvh`: a cap in pixels stops growing at the one text size it
+    // was written for, and `vh` on a phone is the viewport with the browser
+    // chrome hidden.
+    expect(box).toMatch(/rem/)
+    expect(box).toMatch(/dvh/)
+  })
+})
+
 describe('settling after the screen moves', () => {
   const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
   const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
