@@ -44,6 +44,7 @@ function subscribe(cancel: Cancel): () => void {
   inFlight.add(cancel)
   if (!listening) {
     window.addEventListener('pointerout', onPointerOut, { passive: true })
+    window.addEventListener('pointermove', notePointerMove, { passive: true, capture: true })
     window.addEventListener('blur', cancelAll)
     listening = true
   }
@@ -55,6 +56,90 @@ function subscribe(cancel: Cancel): () => void {
 /** Abort every in-flight dwell — used when a modal or panel takes over. */
 export function cancelAllDwells() {
   cancelAll()
+}
+
+// ── The pointer that never holds still ─────────────────────────────────────
+//
+// **Safari sends nothing at all when the pointer leaves for another window.**
+// Not `pointerout`, not `pointerleave`, not `pointercancel`, not `blur`;
+// `:hover` stays true on the element underneath and `document.hasFocus()` never
+// changes. Measured against the macOS Accessibility Keyboard — which floats
+// over the page and is deliberately non-activating, so there is no focus change
+// to hang anything on — the page went silent for 2.7 seconds, and the dwell
+// underneath fired 1.6 seconds into that silence and spoke a phrase nobody had
+// chosen. Chrome sends a `pointerout` with a null `relatedTarget` there, which
+// is the whole reason this has never shown up on it.
+//
+// With no event to wait for, the only thing left is the stream itself. A head-
+// or eye-tracked pointer is a **continuous** device: it emits a `pointermove`
+// every ~33ms for as long as it exists, drifting a pixel or two even while its
+// owner holds perfectly still. A mouse is the exact opposite — at rest it emits
+// nothing whatsoever.
+//
+// That difference is the whole of the answer. A pointer that has been streaming
+// and then stops dead has left the window. A pointer that was never streaming is
+// a mouse being still, and **nothing here touches it** — which is the property
+// that matters most, because suppressing a mouse user's dwell would leave them
+// with no working control at all.
+//
+// The signature is deliberately narrow: continuous movement that *goes nowhere*.
+// A mouse crossing the screen moves continuously but covers ground; a mouse at
+// rest covers no ground but sends nothing. Only a tracker does both at once.
+
+/** No event for this long, from a pointer that streams, means it has gone. */
+const STALL_MS = 150
+/** A longer gap than this ends a run of movement. */
+const STREAM_GAP_MS = 120
+/** How much history the signature is read from. */
+const STREAM_WINDOW_MS = 1500
+/** Moves needed inside that window before anything is claimed. */
+const STREAM_MIN_MOVES = 20
+/** Average pixels per move, above which the pointer is travelling, not resting. */
+const STREAM_MAX_DRIFT = 3
+/** How long the classification outlives the last time it was seen. */
+const STREAM_MEMORY_MS = 10_000
+
+interface Move {
+  t: number
+  x: number
+  y: number
+}
+
+let moves: Move[] = []
+let lastMoveAt = 0
+let streamingSeenAt = 0
+
+function notePointerMove(e: PointerEvent) {
+  const t = Date.now()
+  // A gap ends the run: what is being looked for is *uninterrupted* movement.
+  if (t - lastMoveAt > STREAM_GAP_MS) moves = []
+  lastMoveAt = t
+  moves.push({ t, x: e.clientX, y: e.clientY })
+  while (moves.length > 0 && t - moves[0].t > STREAM_WINDOW_MS) moves.shift()
+  if (moves.length < STREAM_MIN_MOVES) return
+
+  let path = 0
+  for (let i = 1; i < moves.length; i++) {
+    path += Math.abs(moves[i].x - moves[i - 1].x) + Math.abs(moves[i].y - moves[i - 1].y)
+  }
+  if (path <= moves.length * STREAM_MAX_DRIFT) streamingSeenAt = t
+}
+
+/** Whether the pointer has stopped sending, having lately been one that does not. */
+function pointerStalled(): boolean {
+  if (streamingSeenAt === 0) return false
+  const t = Date.now()
+  // Long enough since anything looked like a tracker that this is some other
+  // device now. Nothing is claimed about a pointer that has not been watched.
+  if (t - streamingSeenAt > STREAM_MEMORY_MS) return false
+  return t - lastMoveAt > STALL_MS
+}
+
+/** Test seam: the stream is module state, exactly as the settle guard is. */
+export function forgetPointerStream() {
+  moves = []
+  lastMoveAt = 0
+  streamingSeenAt = 0
 }
 
 /**
@@ -118,6 +203,8 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const repeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const dwellFiredRef = useRef(false)
+  /** Held back because the pointer went quiet. Movement is what lets it go. */
+  const stalledRef = useRef(false)
 
   // The running timer reads the latest callback and timings through refs so
   // that a re-render mid-dwell doesn't restart it. Syncing them in an effect
@@ -146,28 +233,56 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     setActive(false)
   }, [])
 
+  /** The pointer has gone quiet. Hold, and wait to be told it is back. */
+  const stall = useCallback(() => {
+    stalledRef.current = true
+    cancel()
+  }, [cancel])
+
   const start = useCallback(() => {
     if (disabledRef.current || timerRef.current || repeatRef.current) return
     // Deaf: the screen moved under the pointer a moment ago, so whatever it is
     // resting on now is not what it was aimed at.
     if (Date.now() < deafUntil) return
     dwellFiredRef.current = false
+    stalledRef.current = false
     setActive(true)
     timerRef.current = setTimeout(() => {
       timerRef.current = null
+      // Gone quiet, and it is not the kind of pointer that goes quiet while it
+      // is still there. Firing now would activate whatever it happened to be
+      // over on its way out of the window.
+      if (pointerStalled()) return stall()
       dwellFiredRef.current = true
       const repeat = repeatMsRef.current
       // Repeating controls keep their fill lit for as long as the pointer rests.
       if (!repeat) setActive(false)
       activateRef.current()
-      if (repeat) repeatRef.current = setInterval(() => activateRef.current(), repeat)
+      if (repeat) {
+        repeatRef.current = setInterval(() => {
+          // Checked every tick as well: a repeat left running by a pointer that
+          // has gone is the worst version of this, since it does not stop.
+          if (pointerStalled()) return stall()
+          activateRef.current()
+        }, repeat)
+      }
     }, durationRef.current)
-  }, [])
+  }, [stall])
 
   const onPointerLeave = useCallback(() => {
     cancel()
     dwellFiredRef.current = false
+    stalledRef.current = false
   }, [cancel])
+
+  const onPointerMove = useCallback(() => {
+    // The only way back. Nothing fires when the pointer returns either — the
+    // browser never noticed it leave, so the element is still `:hover` and no
+    // `pointerenter` is coming. Movement is the whole of the news.
+    if (!stalledRef.current) return
+    stalledRef.current = false
+    start()
+  }, [start])
 
   const onClick = useCallback(() => {
     // The dwell already handled this hover; don't count the click as a second hit.
@@ -194,6 +309,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
   const props = {
     tabIndex: disabled ? -1 : 0,
     onPointerEnter: disabled ? undefined : start,
+    onPointerMove: disabled ? undefined : onPointerMove,
     onPointerLeave,
     onClick,
     onKeyDown,

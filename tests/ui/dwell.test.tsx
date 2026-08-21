@@ -276,3 +276,187 @@ describe('the settle after the screen moves', () => {
     expect(onActivate.mock.calls.length, 'the repeat stopped itself').toBeGreaterThan(1)
   })
 })
+
+/**
+ * Going quiet, because the pointer left the window and nothing said so.
+ *
+ * **Safari sends no event whatsoever** when the pointer moves to another
+ * window — measured against the macOS Accessibility Keyboard, which floats over
+ * the page and never takes focus. No `pointerout`, no `pointerleave`, no
+ * `blur`; `:hover` stays true and the dwell underneath fires into an empty
+ * room. The stream itself is the only thing left to read: a tracked pointer
+ * emits a move every ~33ms even while its owner holds still, so silence from
+ * one of those means it has gone.
+ *
+ * A mouse is silent at rest and must never be caught by any of this, which is
+ * what most of these tests are about.
+ */
+describe('the pointer going quiet', () => {
+  /** A tracked pointer: a move every 33ms, drifting a pixel, going nowhere. */
+  const streamInPlace = (target: Element | Window, ms: number) => {
+    for (let elapsed = 0; elapsed < ms; elapsed += 33) {
+      fireEvent.pointerMove(target, { clientX: 400 + (elapsed % 2), clientY: 300 })
+      advance(33)
+    }
+  }
+
+  /** A mouse crossing the screen: just as continuous, but covering ground. */
+  const streamAcross = (target: Element | Window, ms: number) => {
+    let x = 0
+    for (let elapsed = 0; elapsed < ms; elapsed += 33) {
+      x += 30
+      fireEvent.pointerMove(target, { clientX: x, clientY: 300 })
+      advance(33)
+    }
+  }
+
+  it('holds back a dwell whose pointer stopped sending', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    streamInPlace(window, 1500)
+    fireEvent.pointerEnter(probe())
+    advance(500)
+
+    expect(onActivate, 'fired at a pointer that had left the window').not.toHaveBeenCalled()
+  })
+
+  it('fires normally while the stream is still running', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    streamInPlace(window, 1500)
+    fireEvent.pointerEnter(probe())
+    streamInPlace(probe(), 600)
+
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * The one that matters most. A mouse at rest sends nothing at all, so silence
+   * is its normal state — and a mouse user whose dwells were held back would be
+   * left with no working control to undo it with.
+   */
+  it('leaves a pointer that never streamed alone', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    // A few moves and then stillness: a mouse arriving and being put down.
+    fireEvent.pointerMove(window, { clientX: 400, clientY: 300 })
+    advance(20)
+    fireEvent.pointerMove(window, { clientX: 401, clientY: 300 })
+    fireEvent.pointerEnter(probe())
+    advance(500)
+
+    expect(onActivate, 'a resting mouse was mistaken for an absent pointer').toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * Continuous movement is not enough on its own — a mouse crossing the screen
+   * is continuous too. It is continuous movement *going nowhere* that no mouse
+   * produces, because a mouse at rest produces nothing.
+   */
+  it('leaves a mouse that travelled and then stopped alone', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    streamAcross(window, 1500)
+    fireEvent.pointerEnter(probe())
+    advance(500)
+
+    expect(onActivate, 'a mouse in transit was taken for a tracker').toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * Movement is the only way back. The browser never noticed the pointer leave,
+   * so the control is still `:hover` and no `pointerenter` is coming — without
+   * this, a control held back once could never fire again.
+   */
+  it('arms again when the stream comes back', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    streamInPlace(window, 1500)
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate).not.toHaveBeenCalled()
+
+    streamInPlace(probe(), 600)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops the hold when the pointer properly leaves', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    streamInPlace(window, 1500)
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    fireEvent.pointerLeave(probe())
+
+    // Arriving again is an arrival, not a return: it arms from nothing.
+    streamInPlace(probe(), 100)
+    fireEvent.pointerEnter(probe())
+    streamInPlace(probe(), 600)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * The worst version of the bug, because it does not stop: a repeating control
+   * left running by a pointer that has gone scrolls to the end of the grid, or
+   * drives the text size to its limit, with nobody watching.
+   */
+  it('stops a repeat whose pointer stopped sending', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} repeatMs={100} />)
+
+    streamInPlace(window, 1500)
+    fireEvent.pointerEnter(probe())
+    streamInPlace(probe(), 600)
+    const whileStreaming = onActivate.mock.calls.length
+    expect(whileStreaming).toBeGreaterThan(0)
+
+    // A tick that lands inside the stall threshold still fires — at 100ms
+    // against 150ms exactly one does. What must not happen is the repeat
+    // carrying on, which over this second would be ten more.
+    advance(1000)
+    const afterOneSecond = onActivate.mock.calls.length
+    expect(afterOneSecond, 'the repeat ran on without a pointer').toBeLessThanOrEqual(whileStreaming + 1)
+
+    advance(2000)
+    expect(onActivate.mock.calls.length, 'the repeat came back to life').toBe(afterOneSecond)
+  })
+
+  /**
+   * Uninterrupted is part of the signature. Twenty nudges spread over a second
+   * and a half, with pauses between them, is somebody positioning a mouse by
+   * hand — and their pointer is silent between the nudges, which is exactly the
+   * state this must never read as absence.
+   */
+  it('leaves a pointer that moves in nudges alone', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    for (let burst = 0; burst < 2; burst++) {
+      for (let i = 0; i < 10; i++) {
+        fireEvent.pointerMove(window, { clientX: 400 + (i % 2), clientY: 300 })
+        advance(33)
+      }
+      advance(400)
+    }
+
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate, 'a hand nudging a mouse was taken for a tracker').toHaveBeenCalledTimes(1)
+  })
+
+  it('stops promising a firing it is not going to make', () => {
+    render(<Probe onActivate={vi.fn()} />)
+
+    streamInPlace(window, 1500)
+    fireEvent.pointerEnter(probe())
+    advance(500)
+
+    expect(probe().dataset.active).toBe('false')
+  })
+})
