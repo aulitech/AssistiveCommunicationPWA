@@ -4,7 +4,7 @@ Assistive communication driven entirely by gaze and dwell. React + Vite + Tailwi
 
 ## Development server
 
-`pnpm dev` starts Vite on http://localhost:5173 with hot reload. `pnpm build` writes `dist/`, and `pnpm preview` serves that build.
+`pnpm dev` starts Vite on http://localhost:5173 with hot reload. `pnpm build` writes `dist/`, and `pnpm preview` serves that build. `pnpm probe` opens the pointer probe — see `tools/` below.
 
 Nothing starts a server for you — this project was scaffolded by Figma Make and no longer is, so there is no harness running one in the background.
 
@@ -107,6 +107,7 @@ The arrow dividers are keyed off **which side of the scroller** an arrow is on (
 - `netlify/functions/sync.ts` - **The one piece of Peri that runs on a server.** **`.ts`, not `.mts`** — written as `.mts` it was silently not deployed, the build went green, and `/api/sync` fell through the redirect to the app shell. A locked box with a number on it: `GET`, `PUT` and `DELETE` against an address, with `@netlify/blobs` behind it. `@netlify/blobs` is a *runtime* dependency for the same reason it exists at all — the deployed function imports it. It takes `src/core/sync.ts` rather than restating the envelope, and `tests/functions/sync.test.ts` drives the real handler over a map. **Nothing else may live in this directory** — every file in it is published as a function
 - `netlify.toml` - The deploy: build command, the `/api/sync` redirect (**above** the SPA catch-all, which would otherwise swallow it), SPA fallback, and cache headers
 - `eslint.config.js` - Lint rules; `react-hooks/exhaustive-deps` is an error here, not a warning
+- `tools/pointer-probe.html` - **The pointer probe**, opened with `pnpm probe`. Standalone HTML, no build step, deliberately **not** in `public/` — everything there ships to production and is indexed. It does two jobs: it says what a browser will and will not tell a page about the pointer (run the trip, read the log), and it measures the stream so `STALL_MS` can be tuned against real hardware rather than estimated. It restates the constants from `ui/dwell.ts` to do the second, and `tests/app/structure.test.ts` fails if the two ever disagree — an instrument quietly at odds with the code it is tuning is worse than none. The **block the main thread** buttons are there for the one thing that could make a present pointer look absent; Peri's longest single task is the rail's jump-to-bottom, which renders the whole table at once for roughly 50ms
 - `.mise.toml` - Toolchain versions for Node.js and pnpm
 
 The site is **indexed**: `public/robots.txt` allows everything and `index.html` carries no `robots` meta tag. The two are a pair — if either ever says no, the other has to as well, or the site ends up half-hidden. `tests/app/shell.test.ts` fails if they disagree.
@@ -155,6 +156,7 @@ Paths below are relative to `tests/`.
 - `app/markdown.test.tsx` - Where the markup ends up once a phrase is used: drawn on the board, gone from what is spoken and searched, kept in the message box and on the clipboard. **Scope the grid to the seeded category first** — the board also holds the two and a half thousand phrases Peri ships, several of which begin with "Help"
 - `app/shell.test.ts` - `index.html` and the manifest: the parts of the app no component renders
 - `app/structure.test.ts` - The layering above, plus the things about the stylesheet a diff cannot show — a `font-size` left in pixels, a text colour that does not clear 7:1 on every surface — plus the four ways the layering quietly rots: a module dropped at the root, Tailwind widening its scan back to the whole project, a test finding its way back into `src/` or `netlify/`, and **a NUL byte making a file binary to grep** — `core/backup.ts` used one as a map-key separator, and every search across the tree skipped that file without saying so. The character is right for the job; it has to be written as an escape
+- `app/structure.test.ts` also holds `tools/pointer-probe.html` to the same pointer constants as `ui/dwell.ts`
 - `setup.ts` - Stubs for the platform APIs jsdom lacks (speech synthesis, `ResizeObserver`, scrolling, clipboard, audio playback). `scrolledIntoView` records what asked to be brought into view — jsdom has no layout and so no `scrollIntoView` at all, which is a missing function rather than one that quietly does nothing
 
 Two things worth knowing when adding to them:
@@ -315,7 +317,7 @@ Both of the existing cancellations are defeated at once. The control's own `onPo
 - **It is a claim about a device, so it expires.** Ten seconds after anything last looked like a tracker, nothing is claimed — a tracker unplugged in favour of a mouse must not leave every dwell held back for good.
 - **Movement is the only way back.** Nothing fires when the pointer *returns* either: the browser never noticed it leave, so the element is still `:hover` and no `pointerenter` is coming. A held-back control arms again on the next `pointermove` over it, which is why `onPointerMove` is in the props at all — and why it is guarded, since a streaming pointer resting on a control would otherwise re-arm it thirty times a second.
 - **The repeat is checked on every tick**, not only at the first firing. A repeating control left running by a pointer that has gone is the worst version of this, because it does not stop — a scroll arrow reaches the end of the grid, a spinner drives the text size to its limit. A tick landing inside the 150ms threshold still fires; at a repeat faster than that, exactly one does.
-- **150ms is provisional.** It is twelve times the observed 33ms cadence and it suppressed the measured failure with 1.2 seconds to spare, but it was picked against one device. The direct way to settle it is to record the largest legitimate gap in the stream across a session of ordinary use — the longest single task in the app is the rail's jump-to-bottom, which renders the whole table at once and costs roughly 50ms.
+- **150ms is provisional.** It is twelve times the observed 33ms cadence and it suppressed the measured failure with 1.2 seconds to spare, but it was picked against one device. `tools/pointer-probe.html` is what to tune it with: leave it open through a session of ordinary use and read the **largest gap** — that is the number `STALL_MS` has to sit above — and use its *block the main thread* buttons for the one thing that could make a present pointer look absent.
 - Like the settle guard it is module state, and `tests/setup.ts` clears it between tests.
 
 ## Waiting
