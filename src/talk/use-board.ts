@@ -9,7 +9,7 @@
 // screen decides what to say, so the same operation can be silent when the
 // screen already shows the result.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import {
   EMERGENCY_PHRASES,
   buildPhrases,
@@ -53,9 +53,15 @@ export function useBoard() {
     })
   }, [])
 
+  // Re-parsing the whole table is the one piece of work here somebody can watch
+  // happen — a couple of thousand phrases, whose slot options are resolved at
+  // parse time. Through a transition, so the waiting indicator is painted first
+  // and the board catches up behind it rather than the screen simply stopping.
+  const [rebuilding, startRebuild] = useTransition()
+
   const changeAliases = useCallback((next: AliasStore) => {
     saveAliases(next)
-    setAliases(next)
+    startRebuild(() => setAliases(next))
   }, [])
 
   // Overrides and user-authored phrases are re-parsed, so they behave like any
@@ -312,6 +318,8 @@ export function useBoard() {
     store,
     aliases,
     changeAliases,
+    /** True while the table is being parsed again after an alias edit. */
+    rebuilding,
     mainPhrases,
     emergencyPhrases,
     allCategories,

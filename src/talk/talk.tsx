@@ -30,7 +30,7 @@ import { speak, warmVoice } from '../voice/speech'
 import { clearAudioCache } from '../voice/audio-cache'
 import { REMOTE_PREFIX } from '../voice/elevenlabs'
 import { cx } from '../ui/style'
-import { DwellCursor } from '../ui/controls'
+import { BusyIndicator, DwellCursor } from '../ui/controls'
 import { type PasteResult } from '../ui/link-input'
 import { Topbar } from './topbar'
 import { PhraseGrid } from './grid'
@@ -554,6 +554,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
           />
 
           <DwellCursor />
+
+          <BusyIndicator
+            busy={board.rebuilding || sync.status === 'working'}
+            label={board.rebuilding ? 'Rebuilding the board' : 'Synchronizing'}
+          />
 
           <div className="toast-region" role="status" aria-live="polite">
             {toast && <div className="toast">{toast}</div>}

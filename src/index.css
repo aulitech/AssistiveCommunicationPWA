@@ -2189,6 +2189,44 @@ body {
   box-shadow: 0 8px 30px rgba(0,0,0,0.5);
 }
 
+/* ── Waiting ── */
+/* The only thing on screen that says "wait", for the two things that can keep
+   somebody waiting: an exchange with the sync server, and re-parsing the phrase
+   table after an alias list changes. It is not a control — nothing to aim at,
+   and inert to the pointer, so a gaze passing over it is not caught. Above the
+   panels, because both of those are started from inside one. */
+.busy-region {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 600;
+  pointer-events: none;
+}
+
+.busy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+
+.busy-spinner {
+  flex-shrink: 0;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
 /* ── Focus ── */
 /* Every dwell control is also reachable by keyboard and switch access, so the
    focused one has to be obvious. */
@@ -2224,7 +2262,8 @@ body {
      dimmed behind it. */
   .rest-btn.is-resting { animation: none !important; }
 
-  .signin-spinner { animation-duration: 2s !important; }
+  .signin-spinner,
+  .busy-spinner { animation-duration: 2s !important; }
 }
 
 /* ── Aliases panel ── */

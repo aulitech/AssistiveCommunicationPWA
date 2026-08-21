@@ -4630,3 +4630,20 @@ describe('pasting by dwell', () => {
     expect(box().value).toBe('I want a drink')
   })
 })
+
+/**
+ * The waiting indicator is wired to two things that are usually instant, so
+ * what the app can be held to here is the opposite claim: a board that opens
+ * with nothing to wait for says nothing. Its own delay and its lifecycle are
+ * `tests/ui/busy.test.tsx`.
+ */
+describe('the waiting indicator', () => {
+  it('says nothing on a board with nothing to wait for', () => {
+    renderApp()
+    act(() => void vi.advanceTimersByTime(2000))
+
+    const region = $('.busy-region')
+    expect(region, 'the live region is missing, so nothing can ever be announced').not.toBeNull()
+    expect(region?.textContent, 'a fresh board claimed to be busy').toBe('')
+  })
+})
