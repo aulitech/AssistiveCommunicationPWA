@@ -3492,7 +3492,7 @@ describe('the synchronize setting', () => {
     renderApp()
     openSettings()
 
-    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Turn on'))
+    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Start'))
     expect(note()).toContain('Sign in')
     expect(stored()?.enabled ?? false).toBe(false)
   })
@@ -3504,12 +3504,43 @@ describe('the synchronize setting', () => {
     const field = row().querySelector('input')!
     expect(field.type, 'a passphrase is not for reading over a shoulder').toBe('password')
     writeIn(field, 'the cat sat down')
-    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Turn on'))
+    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Start'))
 
     expect(stored().enabled).toBe(true)
     expect(stored().passphrase).toBe('the cat sat down')
     // And the device has a name of its own, which is what says who wrote last.
     expect(stored().device).toMatch(/^[0-9a-f]{8}$/)
+  })
+
+  /**
+   * Two buttons stop it, and which is which has to be obvious at a glance: one
+   * stops this device, the other stops this device *and* erases the copy every
+   * other one is reading. They sit together, graded, so the larger is never the
+   * one nearer to hand.
+   */
+  it('offers stopping here and stopping everywhere, in that order', () => {
+    renderSignedIn()
+    openSettings()
+    writeIn(row().querySelector('.secret-input')!, 'the cat sat down')
+    click([...row().querySelectorAll('.panel-btn')].find(b => b.getAttribute('aria-label') === 'Start'))
+
+    const actions = [...row().querySelectorAll('.sync-actions .panel-btn')].map(b =>
+      b.getAttribute('aria-label'),
+    )
+    expect(actions).toEqual(['Synchronize now', 'Stop', 'Stop and erase the copy'])
+  })
+
+  // Stopping leaves the copy where it is for the other devices, and leaves the
+  // passphrase here so it can be started again without retyping it.
+  it('stops without erasing anything', () => {
+    renderSignedIn()
+    openSettings()
+    writeIn(row().querySelector('.secret-input')!, 'the cat sat down')
+    click([...row().querySelectorAll('.panel-btn')].find(b => b.getAttribute('aria-label') === 'Start'))
+
+    click([...row().querySelectorAll('.panel-btn')].find(b => b.getAttribute('aria-label') === 'Stop'))
+    expect(stored().enabled).toBe(false)
+    expect(stored().passphrase).toBe('the cat sat down')
   })
 
   /**
@@ -3520,14 +3551,18 @@ describe('the synchronize setting', () => {
    */
   describe('reading the passphrase back', () => {
     const field = () => row().querySelector<HTMLInputElement>('.secret-input')!
+    // Show and copy are icons, so they are not `.panel-btn` — the name is still
+    // on them, which is the whole reason an icon is allowed here.
     const btn = (label: string) =>
-      [...row().querySelectorAll('.panel-btn')].find(b => b.getAttribute('aria-label') === label)
+      [...row().querySelectorAll('.panel-btn, .secret-btn')].find(
+        b => b.getAttribute('aria-label') === label,
+      )
 
     const turnedOn = () => {
       renderSignedIn()
       openSettings()
       writeIn(field(), 'the cat sat down')
-      click(btn('Turn on'))
+      click(btn('Start'))
     }
 
     it('hides it until it is asked for, and puts it back', () => {
@@ -3587,7 +3622,7 @@ describe('the synchronize setting', () => {
     renderSignedIn()
     openSettings()
     writeIn(row().querySelector('input')!, 'the cat sat down')
-    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Turn on'))
+    click($$('.panel-btn').find(b => b.getAttribute('aria-label') === 'Start'))
 
     // Back to the menu, and past the second it is deaf for — a panel closing
     // leaves the pointer sitting over the item that comes back.
@@ -4024,7 +4059,8 @@ describe('linking an ElevenLabs account', () => {
     click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
   }
   const keyField = () => $<HTMLInputElement>('input[aria-label="ElevenLabs API key"]')
-  const btn = (label: string) => $$('.panel-btn').find(b => b.getAttribute('aria-label') === label)
+  const btn = (label: string) =>
+    $$('.panel-btn, .secret-btn').find(b => b.getAttribute('aria-label') === label)
   // Portalled to the body, so not under the render container.
   const voiceOptions = () => {
     click($('.voice-trigger'))

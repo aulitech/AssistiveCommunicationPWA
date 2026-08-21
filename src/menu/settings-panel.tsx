@@ -13,6 +13,9 @@ import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
 import { useSettings } from '../ui/settings'
 import { DEFAULT_SETTINGS, factoryReset } from '../core/store'
 import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
+import { useDwellControl } from '../ui/dwell'
+import { CopyIcon, EyeIcon, EyeOffIcon } from '../ui/icons'
+import { cx, dwellVar } from '../ui/style'
 import { downloadBackup } from './backup-file'
 
 /**
@@ -239,6 +242,39 @@ export function SettingsPanel({ store, aliases, categoryById, sync, account, onA
 }
 
 /**
+ * One of the two controls beside a hidden value: reveal it, or copy it.
+ *
+ * An icon rather than a word, because the field beside them is the widest thing
+ * in the panel and two labelled buttons pushed it down to nothing on a phone.
+ * **The name is still on the button** — an icon says nothing aloud, and these
+ * are the two controls in the app where getting the wrong one means either
+ * putting a credential on a shared screen or not copying it at all.
+ */
+function SecretButton({ label, pressed, disabled, onActivate, children }: {
+  label: string
+  pressed?: boolean
+  disabled?: boolean
+  onActivate: () => void
+  children: React.ReactNode
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, { disabled })
+  return (
+    <div
+      className={cx('secret-btn', active && 'dwelling', pressed && 'is-on', disabled && 'is-disabled')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      {...props}
+    >
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
+      {children}
+    </div>
+  )
+}
+
+/**
  * A value that is typed once and needed again later: the Synchronize passphrase,
  * the ElevenLabs key.
  *
@@ -294,13 +330,17 @@ function SecretField({ value, name, label, placeholder, onChange, onEnter }: {
         autoComplete="off"
         spellCheck={false}
       />
-      <PanelButton
-        kind="plain"
+      <SecretButton
         label={shown ? `Hide ${name}` : `Show ${name}`}
+        pressed={shown}
         onActivate={() => setShown(v => !v)}
         disabled={value === ''}
-      />
-      <PanelButton kind="plain" label={`Copy ${name}`} onActivate={copy} disabled={value === ''} />
+      >
+        {shown ? <EyeOffIcon /> : <EyeIcon />}
+      </SecretButton>
+      <SecretButton label={`Copy ${name}`} onActivate={copy} disabled={value === ''}>
+        <CopyIcon />
+      </SecretButton>
       {said && (
         <p className="eleven-note secret-said" role="status">
           {said}
@@ -371,7 +411,6 @@ function SyncRow({ sync }: { sync: SyncControl }) {
             <span className="sync-status">
               {sync.code && <span className="sync-code">Code {sync.code}</span>}
             </span>
-            <PanelButton kind="danger" label="Turn off" onActivate={sync.disable} />
             {/* The passphrase is wanted on the second device, and nobody can
                 work it out from anything else — so it can be read back off the
                 device that has it. */}
@@ -389,7 +428,7 @@ function SyncRow({ sync }: { sync: SyncControl }) {
             />
             <PanelButton
               kind="primary"
-              label="Turn on"
+              label="Start"
               onActivate={turnOn}
               disabled={!sync.available || passphrase.trim() === ''}
             />
@@ -408,12 +447,20 @@ function SyncRow({ sync }: { sync: SyncControl }) {
           <div className="sync-actions">
             <PanelButton kind="primary" label="Keep this device's board" onActivate={sync.keepMine} />
             <PanelButton kind="plain" label="Use the synchronized board" onActivate={sync.takeTheirs} />
+            {/* A way out of the question. Without it, the only way past a
+                question somebody does not want to answer is to leave the panel,
+                and it is waiting again the next time they open it. */}
+            <PanelButton kind="danger" label="Stop" onActivate={sync.disable} />
           </div>
         )}
 
+        {/* The two that stop it, side by side and in that order: this device,
+            then this device and the copy every other one is reading. Graded, so
+            the larger of the two is never the one nearer to hand. */}
         {sync.enabled && sync.status !== 'choose' && (
           <div className="sync-actions">
             <PanelButton kind="plain" label="Synchronize now" onActivate={sync.syncNow} />
+            <PanelButton kind="danger" label="Stop" onActivate={sync.disable} />
             <PanelButton kind="danger" label="Stop and erase the copy" onActivate={() => setConfirmingForget(true)} />
           </div>
         )}

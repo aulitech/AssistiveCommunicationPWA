@@ -1428,6 +1428,36 @@ body {
 
 .secret-said { flex-basis: 100%; }
 
+/* Reveal and copy: icons rather than words, because the field beside them is the
+   widest thing in the panel and two labelled buttons pushed it down to nothing
+   on a phone. Sized like the other icon controls in the menu, and lit the same
+   way — the eye stays lit while the value is showing, which is the only cue that
+   a credential is on screen. */
+.secret-btn {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.secret-btn svg { width: 1.1rem; height: 1.1rem; }
+.secret-btn.dwelling,
+.secret-btn.is-on { border-color: var(--accent); color: var(--accent); }
+.secret-btn.is-disabled { opacity: 0.35; cursor: default; }
+.secret-btn .dwell-bar { background: var(--accent); }
+.secret-btn.dwelling .dwell-bar {
+  animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
+}
+
 .eleven-status {
   flex: 1;
   min-width: 120px;

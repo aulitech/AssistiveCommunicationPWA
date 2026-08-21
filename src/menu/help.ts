@@ -275,7 +275,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Your key is never put in a backup file, so sharing a backup does not share your account. It does travel between your own devices if you have Synchronize on — locked with your passphrase like everything else — so the voices work on all of them without pasting the key again.',
       ),
       text(
-        'It is hidden once it is linked, with Show and Copy beside it. ElevenLabs only shows a key at the moment you make it, so this is how you get the same one onto another device without going back to them for a new one.',
+        'It is hidden once it is linked, with an eye to show it and a button to copy it. ElevenLabs only shows a key at the moment you make it, so this is how you get the same one onto another device without going back to them for a new one.',
       ),
       text(
         'With a lot of voices to choose from, the row of buttons above the grid narrows it — by collection for your ElevenLabs voices, by language for the ones on this device.',
@@ -300,13 +300,13 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Keeping two devices the same',
     blocks: [
       text(
-        'A tablet by the bed and a phone in a wheelchair can hold the same board. Sign in with the same account on both, open Settings, and turn on Synchronize. Anything you change on one appears on the other within a minute or so.',
+        'A tablet by the bed and a phone in a wheelchair can hold the same board. Sign in with the same account on both, open Settings, and press Start on the Synchronize row. Anything you change on one appears on the other within a minute or so.',
       ),
       text(
         'It asks for a passphrase, and this is not a password to an account. It is the key your board is locked with before it leaves the device, and it is what the other device needs to unlock it. Choose the same one on every device, and write it down somewhere safe.',
       ),
       text(
-        'The passphrase stays in that row, hidden, with Show and Copy beside it — so the device you set up first can give it to the next one. Copying does not put it on the screen, which matters in a room with other people in it.',
+        'The passphrase stays in that row, hidden, with an eye and a copy button beside it — so the device you set up first can give it to the next one. Copying does not put it on the screen, which matters in a room with other people in it.',
       ),
       list(
         'The Code under the setting is six characters worked out from your passphrase. Two devices showing the same code agree; two showing different codes have different passphrases, and will never see each other.',
@@ -326,7 +326,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Synchronize is not a backup. It keeps devices alike, which means a phrase deleted on one is deleted on the others — that is the point of it, and it is also why a saved backup file is still worth having.',
       ),
       text(
-        'Turn it off and this device stops sending and receiving; the copy stays where it is for the other devices. Stop and erase the copy removes it from the server as well.',
+        'Stop, and this device stops sending and receiving while the copy stays where it is for the other devices. Stop and erase the copy, beside it, removes it from the server as well. Your passphrase stays either way, so starting again does not mean typing it again.',
       ),
     ],
   },
