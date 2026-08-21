@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { clearAudioCache } from '../src/voice/audio-cache'
-import { releaseDwells } from '../src/ui/dwell'
+import { forgetPointerStream, releaseDwells } from '../src/ui/dwell'
 
 /** Everything spoken during a test, in order. */
 export const spoken: string[] = []
@@ -92,6 +92,7 @@ beforeEach(() => {
   // Module state: one test going deaf must not leave the next one unable to
   // dwell at all. See `holdDwells`.
   releaseDwells()
+  forgetPointerStream()
   localStorage.clear()
 
   installSpeechSynthesis()
