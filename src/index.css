@@ -121,7 +121,12 @@ body {
      below and the `.icon-btn` square that has to line up with them all move
      together when the root font-size does. */
   min-height: 3.5rem;
-  max-height: 3.5rem;
+  /* The box grows with what is in it — see `topbar.tsx`, which measures the
+     text and sets a height — and this is where it stops. Five lines of 1.35rem
+     at 1.4, plus the padding, and never more than a third of a short screen:
+     the board underneath is what somebody is speaking with, and a message box
+     that ate it would be a box with nothing to put in it. */
+  max-height: min(11rem, 33dvh);
   padding: 0.75rem 0.9rem;
   background: var(--bg);
   border: 1px solid var(--border);
