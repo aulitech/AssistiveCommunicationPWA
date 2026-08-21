@@ -450,6 +450,40 @@ describe('the pointer going quiet', () => {
     expect(onActivate, 'a hand nudging a mouse was taken for a tracker').toHaveBeenCalledTimes(1)
   })
 
+  /**
+   * A tracked pointer keeps sending for as long as it exists, so "there has
+   * been movement" cannot be allowed to mean "arm again" — a control rested on
+   * would fire over and over, thirty times a second.
+   */
+  it('fires once however long the stream rests on it', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    streamInPlace(window, 1500)
+    fireEvent.pointerEnter(probe())
+    streamInPlace(probe(), 3000)
+
+    expect(onActivate, 'movement re-armed a control that had already fired').toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * The classification is of a *device*, and a device can be swapped. Nothing
+   * is claimed about a pointer that has not been seen streaming lately —
+   * otherwise a tracker unplugged in favour of a mouse would leave every dwell
+   * held back for good.
+   */
+  it('forgets a pointer it has not seen stream for a long time', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    streamInPlace(window, 1500)
+    advance(11_000)
+
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate, 'a classification outlived the pointer it was made about').toHaveBeenCalledTimes(1)
+  })
+
   it('stops promising a firing it is not going to make', () => {
     render(<Probe onActivate={vi.fn()} />)
 

@@ -630,3 +630,60 @@ export function PickerFilter({ label, count, active, onSelect }: {
     </div>
   )
 }
+
+/**
+ * How long the app has to be busy before it says so.
+ *
+ * A spinner that appears for the fifty milliseconds a warm sync takes is a
+ * flicker, and a flicker costs more here than anywhere else: the pointer *is*
+ * the user's gaze, so anything that catches the eye moves it — an indicator
+ * that blinks does not just distract, it aims.
+ */
+const BUSY_DELAY_MS = 250
+
+/**
+ * True once `on` has stayed true for a moment. Going off is immediate: the
+ * delay is there to swallow flickers, not to leave one on screen after the
+ * work is done.
+ *
+ * Adjusted during render rather than in an effect, the way the grid tracks the
+ * list it windowed — a pass showing "still working" after it has stopped is the
+ * exact thing being avoided.
+ */
+function useSettled(on: boolean): boolean {
+  const [shown, setShown] = useState(false)
+  const [wasOn, setWasOn] = useState(on)
+  if (wasOn !== on) {
+    setWasOn(on)
+    if (!on) setShown(false)
+  }
+  useEffect(() => {
+    if (!on) return
+    const timer = setTimeout(() => setShown(true), BUSY_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [on])
+  return shown
+}
+
+/**
+ * The one thing on screen that says "wait".
+ *
+ * Deliberately **not a control**: no dwell, no target, nothing to aim at, and
+ * `pointer-events: none` so it cannot take a gaze that was on its way past. It
+ * is fixed above everything, because both things it reports on happen while a
+ * panel is covering the board — synchronizing from the settings row, and
+ * re-parsing the table from the Aliases panel.
+ */
+export function BusyIndicator({ busy, label }: { busy: boolean; label: string }) {
+  const shown = useSettled(busy)
+  return (
+    <div className="busy-region" role="status" aria-live="polite">
+      {shown && (
+        <div className="busy">
+          <span className="busy-spinner" aria-hidden="true" />
+          {label}
+        </div>
+      )}
+    </div>
+  )
+}
