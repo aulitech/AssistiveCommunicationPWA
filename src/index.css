@@ -2202,10 +2202,17 @@ body {
 
    Fixed and portalled, above the panels — every text field in the app is one it
    has to reach, and most of them are inside a panel. `.app` gives up the same
-   height from the bottom, so the emergency bar stays above it rather than
-   under it: the one surface somebody reaches for without reading must not be
-   the one the keyboard covers. */
-:root { --keyboard-height: 46dvh; }
+   height from the bottom, so the emergency bar stays above it rather than under
+   it: the one surface somebody reaches for without reading must not be the one
+   the keyboard covers. */
+
+/* **Height is the whole design.** Typing narrows the board to what matches, and
+   a keyboard that leaves no board leaves nothing to narrow — the point of
+   typing here is to reach a phrase in three letters rather than to write it out.
+   So four rows are squeezed into as little as they can be worked in, and the
+   spacing between them is pixels rather than rem: the keys grow with the text
+   size, the gutters between them do not need to. */
+:root { --keyboard-height: 30dvh; }
 
 .app.has-keyboard { padding-bottom: var(--keyboard-height); }
 
@@ -2218,8 +2225,8 @@ body {
   height: var(--keyboard-height);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+  gap: 4px;
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
   background: var(--surface);
   border-top: 1px solid var(--border);
   box-shadow: 0 -10px 40px rgba(0,0,0,0.55);
@@ -2228,7 +2235,7 @@ body {
 .key-row {
   display: flex;
   flex: 1;
-  gap: 6px;
+  gap: 4px;
 }
 
 .key {
@@ -2239,15 +2246,14 @@ body {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   /* A key is a cell: the same two greys the phrase grid uses, so the palette's
      contrast guarantees carry over rather than being invented again here. */
   background: var(--cell);
   color: var(--text);
-  /* The letter on the key, not the text of the app: it is read at a glance
-     from across a room, and it is in rem so it follows the text size like
-     everything else. */
-  font-size: 1.5rem;
+  /* The letter on the key, not the text of the app: read at a glance, and in
+     rem so it follows the text size like everything else. */
+  font-size: 1.25rem;
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
@@ -2259,16 +2265,23 @@ body {
 
 /* Space earns its width: it is the commonest key of all, and the only one
    whose face is a word rather than a character. */
-.key.is-wide { flex: 4; }
+.key.is-wide { flex: 7; }
 
+/* Shift and backspace are wider than a letter and flank the short row, so the
+   three letter rows come out the same width and a column stays a column. */
 .key-tool {
-  flex: 0 0 auto;
-  min-width: 4.5rem;
-  font-size: 1.15rem;
+  flex: 1.5;
+  font-size: 1.05rem;
   color: var(--text-muted);
 }
 
-.key-space { font-size: 1.05rem; color: var(--text-muted); }
+/* Where shift would be, on a layer that has nothing for it to do. */
+.key-gap {
+  flex: 1.5;
+  pointer-events: none;
+}
+
+.key-space { font-size: 0.95rem; color: var(--text-muted); }
 
 /* Shift and the symbol layer stay lit while they are on. Locked capitals are
    the accent in full, because a locked shift and a one-shot shift produce very
@@ -2279,11 +2292,13 @@ body {
 
 .key.dwelling { border-color: var(--accent); }
 
-/* A short screen has no room for four rows of this depth; a tall one has room
-   to spare. Both keep the same three-by-nine arrangement — a layout that
-   reflowed would move every letter, and these are aimed at rather than read. */
-@media (max-height: 700px) { :root { --keyboard-height: 54dvh; } }
-@media (min-height: 1000px) { :root { --keyboard-height: 40dvh; } }
+/* A short screen has to give up proportionally more, or the keys stop being
+   targets at all. A tall one gives up less, because 30dvh of an iPad is
+   already a generous key. The arrangement never changes with either — a layout
+   that reflowed would move every letter, and these are aimed at rather than
+   read. */
+@media (max-height: 700px) { :root { --keyboard-height: 42dvh; } }
+@media (min-height: 1000px) { :root { --keyboard-height: 26dvh; } }
 
 /* ── Waiting ── */
 /* The only thing on screen that says "wait", for the two things that can keep

@@ -4715,6 +4715,60 @@ describe('the keyboard Peri draws', () => {
     expect(keyboard(), 'the keyboard went away with the board behind it').not.toBeNull()
   })
 
+  /**
+   * The reason the keyboard is kept as short as it is.
+   *
+   * Typing here is not mainly for writing sentences out — it is for reaching a
+   * phrase in three letters. So the board narrowing as the keys are pressed is
+   * the feature, and a keyboard that left no board would leave nothing to
+   * narrow.
+   */
+  it('narrows the board to what is being typed', () => {
+    renderApp()
+    act(() => box().focus())
+    toggleKeyboard()
+    const before = cells().length
+
+    click(keyNamed('h'))
+    click(keyNamed('e'))
+    click(keyNamed('l'))
+
+    expect(cells().length, 'the board did not narrow to what was typed').toBeLessThan(before)
+    expect(cells()[0].textContent?.toLowerCase()).toContain('hel')
+  })
+
+  // Auto-speak is where the board ships, so this is what somebody opening Peri
+  // for the first time and typing actually gets.
+  it('narrows in auto-speak too, which is where the board opens', () => {
+    renderApp({ autoSpeak: true })
+    act(() => box().focus())
+    toggleKeyboard()
+    const before = cells().length
+
+    click(keyNamed('h'))
+    click(keyNamed('e'))
+    click(keyNamed('l'))
+    expect(cells().length).toBeLessThan(before)
+  })
+
+  /**
+   * And deliberately *not* in edit mode. There the box holds a phrase being
+   * written, and narrowing would take away the very phrases somebody opened the
+   * board to edit, letter by letter as they typed.
+   */
+  it('leaves the board alone while a phrase is being written', () => {
+    renderApp()
+    click(editToggle())
+    act(() => box().focus())
+    toggleKeyboard()
+    const before = cells().length
+
+    click(keyNamed('h'))
+    click(keyNamed('e'))
+    click(keyNamed('l'))
+    expect(cells().length, 'the phrases being edited disappeared as they were typed over').toBe(before)
+  })
+
   // The bar somebody reaches for without reading it must not be the one the
   // keyboard covers, so the app gives up the height rather than overlapping.
   it('makes room for itself rather than covering the emergency bar', () => {
