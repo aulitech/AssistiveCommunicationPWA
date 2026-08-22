@@ -169,6 +169,21 @@ describe('the symbol layer', () => {
     expect(box().value).toBe('7')
   })
 
+  /**
+   * Shift and backspace flank the short row in both layers so neither moves
+   * when the layer does — but on the symbol layer shift has nothing to do, so
+   * it is a gap rather than a key that answers to nothing. A dead target is
+   * only slightly better than a wrong one.
+   */
+  it('leaves a gap where shift would be, rather than a key that does nothing', () => {
+    typeInBox()
+    press('Numbers and punctuation')
+    expect(screen.queryByRole('button', { name: /^Shift/ })).toBeNull()
+    expect(document.querySelector('.key-gap')).not.toBeNull()
+    // Backspace has not moved with it.
+    expect(screen.getByRole('button', { name: 'Backspace' })).toBeTruthy()
+  })
+
   // Symbols are what they are: shift must not turn a full stop into anything.
   it('leaves the symbols alone while shift is on', () => {
     typeInBox()

@@ -1,116 +1,66 @@
-// The layout, as arithmetic.
+// The keys, and the shape they hold.
 //
-// A frequency layout is only worth its unfamiliarity if it actually puts the
-// common letters where the least travel reaches them, and that is a claim about
-// distances rather than about how the rows look written out.
+// A frequency layout came first — commonest letters nearest the middle, which
+// is genuinely less travel, and travel is what a gaze pointer pays for. It lost
+// to the fact that nobody has ever seen one: every letter has to be hunted for
+// until it is learnt, on a board somebody is trying to hold a conversation
+// with. So what is tested here is that the arrangement really is the familiar
+// one, and that the two layers keep the same shape as each other.
 
 import { describe, it, expect } from 'vitest'
-import {
-  BY_FREQUENCY,
-  COLUMNS,
-  LETTER_LAYOUT,
-  ROWS,
-  SYMBOL_LAYOUT,
-  afterTyping,
-  frequencyLayout,
-  nextShift,
-  shifted,
-} from '../../src/core/keys'
+import { LETTER_ROWS, SYMBOL_ROWS, afterTyping, nextShift, shifted } from '../../src/core/keys'
 
-/** How far a key sits from the middle of the board. */
-const distanceOf = (key: string) => {
-  for (let row = 0; row < ROWS; row++) {
-    const column = LETTER_LAYOUT[row].indexOf(key)
-    if (column >= 0) return Math.hypot(row - (ROWS - 1) / 2, column - (COLUMNS - 1) / 2)
-  }
-  throw new Error(`${key} is not on the board`)
-}
-
-describe('the letter layout', () => {
-  it('has every letter, once', () => {
-    const keys = LETTER_LAYOUT.flat()
-    expect(keys).toHaveLength(ROWS * COLUMNS)
-    expect(new Set(keys).size).toBe(keys.length)
-    for (const key of BY_FREQUENCY) expect(keys).toContain(key)
+describe('the letters', () => {
+  it('are the three rows everybody already knows', () => {
+    expect(LETTER_ROWS[0].join('')).toBe('qwertyuiop')
+    expect(LETTER_ROWS[1].join('')).toBe("asdfghjkl'")
+    expect(LETTER_ROWS[2].join('')).toBe('zxcvbnm')
   })
 
-  it('leaves no cell empty', () => {
-    expect(LETTER_LAYOUT.flat().filter(k => k === '')).toEqual([])
+  it('has every letter of the alphabet, once', () => {
+    const letters = LETTER_ROWS.flat().filter(k => /[a-z]/.test(k))
+    expect(letters).toHaveLength(26)
+    expect(new Set(letters).size).toBe(26)
   })
 
   /**
-   * The whole reason for the layout. A gaze pointer pays for distance in a way
-   * a finger does not, so a commoner letter must never sit further out than a
-   * rarer one.
+   * The apostrophe is on the letter layer rather than behind `?123`, where iOS
+   * keeps it. It is in "I'm", "don't", "it's" and "that's" — most of what
+   * anybody says out loud — and a layer switch either side would cost two
+   * dwells every time.
    */
-  it('never puts a commoner letter further out than a rarer one', () => {
-    const wrong: string[] = []
-    for (let i = 1; i < BY_FREQUENCY.length; i++) {
-      const nearer = BY_FREQUENCY[i - 1]
-      const further = BY_FREQUENCY[i]
-      if (distanceOf(nearer) > distanceOf(further)) wrong.push(`${nearer} is further out than ${further}`)
-    }
-    expect(wrong).toEqual([])
-  })
-
-  it('puts the commonest letter in the middle', () => {
-    expect(LETTER_LAYOUT[1][4]).toBe('e')
-  })
-
-  it('puts the rarest letters in the corners', () => {
-    const corners = [LETTER_LAYOUT[0][0], LETTER_LAYOUT[0][8], LETTER_LAYOUT[2][0], LETTER_LAYOUT[2][8]]
-    const rarest = BY_FREQUENCY.slice(-4)
-    expect([...corners].sort()).toEqual([...rarest].sort())
-  })
-
-  // Two keyboards that disagree about where a letter is are two keyboards.
-  it('is the same arrangement every time it is worked out', () => {
-    expect(frequencyLayout()).toEqual(LETTER_LAYOUT)
-    expect(frequencyLayout()).toEqual(frequencyLayout())
-  })
-
-  it('lays out whatever it is given, so the rule can be checked on its own', () => {
-    const grid = frequencyLayout(['a', 'b', 'c'])
-    // Middle first, then out along the middle row — ties are broken towards
-    // that row and then leftwards, so this is one fixed answer rather than one
-    // of several that happen to satisfy the distances.
-    expect(grid[1][4]).toBe('a')
-    expect(grid[1][3]).toBe('b')
-    expect(grid[1][5]).toBe('c')
-    expect(grid.flat().filter(Boolean)).toHaveLength(3)
+  it('keeps the apostrophe out of the layer switch', () => {
+    expect(LETTER_ROWS.flat()).toContain("'")
   })
 })
 
 describe('the symbol layer', () => {
-  /**
-   * Deliberately *not* frequency-ordered. A number is read and typed as a
-   * sequence, so the digits have to be where anybody would look for them — the
-   * argument for scattering letters does not carry over to something that is
-   * already an order.
-   */
   it('keeps the digits in the order everybody knows', () => {
-    expect(SYMBOL_LAYOUT[0]).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9'])
-    expect(SYMBOL_LAYOUT[1][0]).toBe('0')
-  })
-
-  it('is the same shape as the letters, so nothing moves under the pointer', () => {
-    expect(SYMBOL_LAYOUT).toHaveLength(ROWS)
-    for (const row of SYMBOL_LAYOUT) expect(row).toHaveLength(COLUMNS)
+    expect(SYMBOL_ROWS[0].join('')).toBe('1234567890')
   })
 
   /**
-   * Nothing on this layer has a capital form, which is what lets the keyboard
-   * put every key through `shifted` without a special case. Add a letter here
-   * and shift would start capitalising it.
+   * Nothing here has a capital form, which is what lets the keyboard put every
+   * key through `shifted` without a special case. Add a letter and shift would
+   * start capitalising it.
    */
   it('holds nothing that shift could change', () => {
-    const shiftable = SYMBOL_LAYOUT.flat().filter(key => key !== key.toUpperCase())
-    expect(shiftable).toEqual([])
+    expect(SYMBOL_ROWS.flat().filter(key => key !== key.toUpperCase())).toEqual([])
   })
 
   it('carries the punctuation a spoken sentence needs', () => {
-    const keys = SYMBOL_LAYOUT.flat()
+    const keys = SYMBOL_ROWS.flat()
     for (const key of ['.', ',', '?', '!']) expect(keys).toContain(key)
+  })
+
+  /**
+   * The structural claim, and the reason the two are written as rows rather
+   * than as one grid: switching layers must move nothing. Shift and backspace
+   * flank the short row in both, so a pointer that has learnt where backspace
+   * is finds it in the same place either way.
+   */
+  it('is the same shape as the letters, so nothing moves under the pointer', () => {
+    expect(SYMBOL_ROWS.map(r => r.length)).toEqual(LETTER_ROWS.map(r => r.length))
   })
 })
 
