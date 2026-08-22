@@ -22,7 +22,7 @@ import { useSettings } from '../ui/settings'
 import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
 import { useLinkInput, type PasteResult } from '../ui/link-input'
-import { AutoSpeakIcon, CheckIcon, ClearIcon, CopyIcon, EditIcon, MenuIcon, PasteIcon, PlusIcon, SpeakIcon, TrashIcon, UndoIcon } from '../ui/icons'
+import { AutoSpeakIcon, CheckIcon, ClearIcon, CopyIcon, EditIcon, KeyboardIcon, MenuIcon, PasteIcon, PlusIcon, SpeakIcon, TrashIcon, UndoIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { PhraseEditBar } from './editors'
 import type { Composer } from './use-composer'
@@ -121,7 +121,7 @@ function RestButton({ resting, onToggle }: { resting: boolean; onToggle: () => v
   )
 }
 
-export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak, menuOpen, onToggleMenu, resting, onToggleRest, onSavePhrase, onDeletePhrase, categories, countFor, onCreateCategory, onSpeak, onCopy, onPasted }: {
+export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak, menuOpen, onToggleMenu, keyboardOpen, onToggleKeyboard, resting, onToggleRest, onSavePhrase, onDeletePhrase, categories, countFor, onCreateCategory, onSpeak, onCopy, onPasted }: {
   composer: Composer
   /** The phrase being written, which in edit mode is what the box holds. */
   editor: Editor
@@ -131,6 +131,9 @@ export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, on
   onToggleAutoSpeak: () => void
   menuOpen: boolean
   onToggleMenu: () => void
+  /** Peri's own keyboard, for a device where nothing else can type. */
+  keyboardOpen: boolean
+  onToggleKeyboard: () => void
   resting: boolean
   onToggleRest: () => void
   /** Both of these change the board, so the screen does them, not the editor. */
@@ -266,6 +269,18 @@ export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, on
 
       <ActionButton label={menuOpen ? 'Close menu' : 'Open menu'} onSelect={onToggleMenu} className="menu-btn">
         <MenuIcon />
+      </ActionButton>
+
+      {/* Beside the menu because it is the same kind of thing: a surface the
+          whole app shares, rather than anything about the message in the box.
+          It stays put in both modes — on a device that cannot type without it,
+          a control that moved would be the worst one to have to hunt for. */}
+      <ActionButton
+        label={keyboardOpen ? 'Hide the keyboard' : 'Show the keyboard'}
+        onSelect={onToggleKeyboard}
+        className={cx('keyboard-btn', keyboardOpen && 'is-on')}
+      >
+        <KeyboardIcon />
       </ActionButton>
 
       {/* The left slot empties the box in both modes — of the message, or of the

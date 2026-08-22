@@ -4647,3 +4647,81 @@ describe('the waiting indicator', () => {
     expect(region?.textContent, 'a fresh board claimed to be busy').toBe('')
   })
 })
+
+/**
+ * Peri's own keyboard, in the app it has to serve.
+ *
+ * It exists for a device where the pointer only hovers: iOS raises its software
+ * keyboard on a gesture and presses its keys with taps, and there is neither.
+ * Without this there is no way to type a word anywhere in the app — so what is
+ * held here is the wiring, and above all that it outlasts a panel opening over
+ * the board. The fields in Aliases need it as much as the message does, and the
+ * control that opens it is behind that panel.
+ */
+describe('the keyboard Peri draws', () => {
+  const keyboard = () => document.querySelector('.keyboard')
+  const keyNamed = (name: string) =>
+    [...document.querySelectorAll('.key')].find(k => k.getAttribute('aria-label') === name)!
+  const toggleKeyboard = () => click(iconBtn('Show the keyboard') ?? iconBtn('Hide the keyboard'))
+
+  it('is not there until it is asked for', () => {
+    renderApp()
+    expect(keyboard()).toBeNull()
+  })
+
+  it('comes up on the toggle beside the menu, and goes away again', () => {
+    renderApp()
+    toggleKeyboard()
+    expect(keyboard()).not.toBeNull()
+
+    toggleKeyboard()
+    expect(keyboard()).toBeNull()
+  })
+
+  /**
+   * Reading the box back would prove only that a letter reached the DOM node.
+   * What has to be true is that it reached the app — so the message is spoken,
+   * which can only say what the composer's own state holds.
+   */
+  it('types into the message box, and the app hears it', () => {
+    renderApp()
+    act(() => box().focus())
+    toggleKeyboard()
+
+    click(keyNamed('h'))
+    click(keyNamed('i'))
+    expect(message()).toBe('hi')
+
+    click(iconBtn('Speak'))
+    expect(spoken, 'the letters never reached the composer').toContain('hi')
+  })
+
+  it('closes from its own key', () => {
+    renderApp()
+    toggleKeyboard()
+    click(keyNamed('Close the keyboard'))
+    expect(keyboard()).toBeNull()
+  })
+
+  /**
+   * The architectural claim. A panel covers the whole viewport and the toggle
+   * with it, so a keyboard that lived on the board would be unreachable exactly
+   * where half the app's text fields are.
+   */
+  it('stays up when a panel opens over the board', () => {
+    renderApp()
+    toggleKeyboard()
+    click(iconBtn('Open menu'))
+    expect(keyboard(), 'the keyboard went away with the board behind it').not.toBeNull()
+  })
+
+  // The bar somebody reaches for without reading it must not be the one the
+  // keyboard covers, so the app gives up the height rather than overlapping.
+  it('makes room for itself rather than covering the emergency bar', () => {
+    renderApp()
+    toggleKeyboard()
+    expect($('.app')?.classList.contains('has-keyboard')).toBe(true)
+    expect($('.emergency-bar')).not.toBeNull()
+  })
+})
+

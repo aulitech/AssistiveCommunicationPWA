@@ -6,6 +6,7 @@
 // say when an operation finishes.
 
 import { useCallback, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { cancelAllDwells, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
@@ -31,6 +32,7 @@ import { clearAudioCache } from '../voice/audio-cache'
 import { REMOTE_PREFIX } from '../voice/elevenlabs'
 import { cx } from '../ui/style'
 import { BusyIndicator, DwellCursor } from '../ui/controls'
+import { Keyboard } from '../ui/keyboard'
 import { type PasteResult } from '../ui/link-input'
 import { Topbar } from './topbar'
 import { PhraseGrid } from './grid'
@@ -458,6 +460,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     [board, store, settings, update, flashToast, setAccount],
   )
 
+  /**
+   * Peri's own keyboard. An app-level surface rather than anything the message
+   * box owns: it types into whatever field has the caret, so it has to outlast
+   * a panel opening over the board — the fields in Aliases need it just as much
+   * as the message does, and the control that opens it is behind that panel.
+   */
+  const [keyboardOpen, setKeyboardOpen] = useState(false)
+
   const sync = useSync({
     accountId: accountId(user),
     payload: syncPayload,
@@ -479,7 +489,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   return (
     <EditCtx.Provider value={editCtx}>
       <RestingContext.Provider value={resting}>
-        <div className={cx('app', editMode && 'edit-mode', resting && 'resting')}>
+        <div className={cx('app', editMode && 'edit-mode', resting && 'resting', keyboardOpen && 'has-keyboard')}>
           <Topbar
             composer={composer}
             editMode={editMode}
@@ -488,6 +498,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             onToggleAutoSpeak={toggleAutoSpeak}
             menuOpen={menuOpen}
             onToggleMenu={() => setMenuOpen(o => !o)}
+            keyboardOpen={keyboardOpen}
+            onToggleKeyboard={() => setKeyboardOpen(o => !o)}
             resting={resting}
             onToggleRest={toggleRest}
             editor={editor}
@@ -552,6 +564,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             account={account}
             onAccountChange={setAccount}
           />
+
+          {/* Portalled and fixed, so it is above a panel as well as above the
+              board — every field in the app is one it has to be able to type
+              into, and most of them are inside one. */}
+          {keyboardOpen && createPortal(<Keyboard onClose={() => setKeyboardOpen(false)} />, document.body)}
 
           <DwellCursor />
 

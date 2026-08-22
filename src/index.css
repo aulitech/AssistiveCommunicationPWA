@@ -666,6 +666,11 @@ body {
   margin-right: 4px;
 }
 
+/* Beside the menu, and lit while the keyboard is up — the same cue the mode
+   toggles use, because it is the same kind of claim: a surface is showing. */
+.icon-btn.keyboard-btn { margin-right: 4px; }
+.icon-btn.keyboard-btn.is-on { color: var(--accent); border-color: var(--accent); }
+
 /* ── Top panel scrim ── */
 .panel-scrim {
   position: fixed;
@@ -2188,6 +2193,97 @@ body {
   font-weight: 500;
   box-shadow: 0 8px 30px rgba(0,0,0,0.5);
 }
+
+/* ── Peri's own keyboard ── */
+/* On a device driven by hover alone there is no other keyboard at all: iOS
+   raises its own on a gesture and presses its keys with taps, and a pointer
+   that only moves has neither. So these are the keys, and they are dwell
+   controls like everything else here.
+
+   Fixed and portalled, above the panels — every text field in the app is one it
+   has to reach, and most of them are inside a panel. `.app` gives up the same
+   height from the bottom, so the emergency bar stays above it rather than
+   under it: the one surface somebody reaches for without reading must not be
+   the one the keyboard covers. */
+:root { --keyboard-height: 46dvh; }
+
+.app.has-keyboard { padding-bottom: var(--keyboard-height); }
+
+.keyboard {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 550;
+  height: var(--keyboard-height);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.55);
+}
+
+.key-row {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+}
+
+.key {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  /* A key is a cell: the same two greys the phrase grid uses, so the palette's
+     contrast guarantees carry over rather than being invented again here. */
+  background: var(--cell);
+  color: var(--text);
+  /* The letter on the key, not the text of the app: it is read at a glance
+     from across a room, and it is in rem so it follows the text size like
+     everything else. */
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.key:hover { background: var(--cell-hover); border-color: var(--accent); }
+
+/* Space earns its width: it is the commonest key of all, and the only one
+   whose face is a word rather than a character. */
+.key.is-wide { flex: 4; }
+
+.key-tool {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+  font-size: 1.15rem;
+  color: var(--text-muted);
+}
+
+.key-space { font-size: 1.05rem; color: var(--text-muted); }
+
+/* Shift and the symbol layer stay lit while they are on. Locked capitals are
+   the accent in full, because a locked shift and a one-shot shift produce very
+   different words and the difference has to be visible before typing, not
+   after. */
+.key.is-on { border-color: var(--accent); color: var(--accent); }
+.key.is-locked { background: var(--accent-dim); }
+
+.key.dwelling { border-color: var(--accent); }
+
+/* A short screen has no room for four rows of this depth; a tall one has room
+   to spare. Both keep the same three-by-nine arrangement — a layout that
+   reflowed would move every letter, and these are aimed at rather than read. */
+@media (max-height: 700px) { :root { --keyboard-height: 54dvh; } }
+@media (min-height: 1000px) { :root { --keyboard-height: 40dvh; } }
 
 /* ── Waiting ── */
 /* The only thing on screen that says "wait", for the two things that can keep
