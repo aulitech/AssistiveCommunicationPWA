@@ -10,14 +10,7 @@
 // about, which is what lets one keyboard serve all of them. See `ui/typing.ts`.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  LETTER_LAYOUT,
-  SYMBOL_LAYOUT,
-  afterTyping,
-  nextShift,
-  shifted,
-  type Shift,
-} from '../core/keys'
+import { LETTER_ROWS, SYMBOL_ROWS, afterTyping, nextShift, shifted, type Shift } from '../core/keys'
 import { useDwellControl } from './dwell'
 import { useSettings } from './settings'
 import { deleteBack, insertText, useFocusedField, type TextField } from './typing'
@@ -99,31 +92,44 @@ export function Keyboard({ onClose }: { onClose: () => void }) {
 
   const back = useCallback(() => withField(field => deleteBack(field)), [withField])
 
-  const layout = symbols ? SYMBOL_LAYOUT : LETTER_LAYOUT
+  const [top, middle, bottom] = symbols ? SYMBOL_ROWS : LETTER_ROWS
+
+  // Shift capitalises; a digit or a full stop has no capital form, so the
+  // symbol layer needs no special case. `core/keys.ts` holds that — it keeps
+  // letters off that layer.
+  const keysOf = (row: string[]) =>
+    row.map(key => {
+      const face = shifted(key, shift)
+      return <Key key={key} label={face} name={face} onPress={() => type(face)} />
+    })
 
   return (
     <div className="keyboard" role="group" aria-label="Keyboard">
-      {layout.map((row, y) => (
-        <div className="key-row" key={y}>
-          {row.map(key => {
-            // Shift capitalises; a digit or a full stop has no capital form, so
-            // the symbol layer needs no special case here. `core/keys.ts` is
-            // where that is held — it keeps letters out of that layer.
-            const face = shifted(key, shift)
-            return <Key key={key} label={face} name={face} onPress={() => type(face)} />
-          })}
-        </div>
-      ))}
+      <div className="key-row">{keysOf(top)}</div>
+      <div className="key-row">{keysOf(middle)}</div>
+
+      {/* Shift and backspace flank the short row, in both layers, so neither
+          moves when the layer does. On the symbol layer there is nothing for
+          shift to do, so it is a gap rather than a key that answers to nothing —
+          a dead target is only slightly better than a wrong one. */}
+      <div className="key-row">
+        {symbols ? (
+          <span className="key-gap" aria-hidden="true" />
+        ) : (
+          <Key
+            label="⇧"
+            name={shift === 'lock' ? 'Capitals locked' : shift === 'once' ? 'Shift' : 'Shift, off'}
+            onPress={() => setShift(nextShift(shiftRef.current))}
+            className={cx('key-tool', shift === 'lock' && 'is-locked')}
+            active={shift !== 'off'}
+          />
+        )}
+        {keysOf(bottom)}
+        <Key label="⌫" name="Backspace" onPress={back} className="key-tool" repeat />
+      </div>
 
       <div className="key-row">
         <Key label="✕" name="Close the keyboard" onPress={onClose} className="key-tool" />
-        <Key
-          label="⇧"
-          name={shift === 'lock' ? 'Capitals locked' : shift === 'once' ? 'Shift' : 'Shift, off'}
-          onPress={() => setShift(nextShift(shiftRef.current))}
-          className={cx('key-tool', shift === 'lock' && 'is-locked')}
-          active={shift !== 'off'}
-        />
         <Key
           label={symbols ? 'abc' : '?123'}
           name={symbols ? 'Letters' : 'Numbers and punctuation'}
@@ -132,7 +138,6 @@ export function Keyboard({ onClose }: { onClose: () => void }) {
           active={symbols}
         />
         <Key label="space" name="Space" onPress={() => type(' ')} className="key-space" wide />
-        <Key label="⌫" name="Backspace" onPress={back} className="key-tool" repeat />
         <Key label="⏎" name="New line" onPress={() => type('\n')} className="key-tool" />
       </div>
     </div>
