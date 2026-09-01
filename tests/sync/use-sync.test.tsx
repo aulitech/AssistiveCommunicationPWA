@@ -75,7 +75,11 @@ let control: SyncControl
 let applied: { backup: Backup; account: ElevenLabsAccount | null; from: string }[] = []
 
 /** One device. Its board changes only when the test says so. */
-function Device({ account = ACCOUNT as string | null, start, linked = null }: {
+function Device({
+  account = ACCOUNT as string | null,
+  start,
+  linked = null,
+}: {
   account?: string | null
   start?: string
   /** The ElevenLabs account this device has linked, if any. */

@@ -69,9 +69,7 @@ export const HELP_SECTIONS: ProseSection[] = [
   {
     title: 'Phrases with a choice',
     blocks: [
-      text(
-        'Some phrases have a word left open, shown underlined — for example "Please turn on/off the lights".',
-      ),
+      text('Some phrases have a word left open, shown underlined — for example "Please turn on/off the lights".'),
       text(
         'Choosing one of these opens a short chooser. Pick the word you want and the finished sentence goes into your message.',
       ),
@@ -89,10 +87,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'When you write or reword a phrase in edit mode, you can leave a word open for later. Put the choices in curly brackets, each in quotes, separated by commas:',
       ),
-      list(
-        "I want the {'red', 'blue'} one",
-        "Please turn {'on', 'off'} the lights",
-      ),
+      list("I want the {'red', 'blue'} one", "Please turn {'on', 'off'} the lights"),
       text(
         'The phrase then shows "red/blue" on the button, and choosing it asks which one you meant before putting the sentence in your message.',
       ),
@@ -159,8 +154,12 @@ export const HELP_SECTIONS: ProseSection[] = [
   {
     title: 'Changing the phrases',
     blocks: [
-      text('The pencil button to the left of the Rest bar, along the top edge of the message box, turns on edit mode. Auto-speak switches off while it is on: the two ask opposite things of a dwell on a phrase.'),
-      text('In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again, and a second strip appears along the bottom edge of the box holding the category and the voice.'),
+      text(
+        'The pencil button to the left of the Rest bar, along the top edge of the message box, turns on edit mode. Auto-speak switches off while it is on: the two ask opposite things of a dwell on a phrase.',
+      ),
+      text(
+        'In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again, and a second strip appears along the bottom edge of the box holding the category and the voice.',
+      ),
       list(
         'Choose any phrase to bring it into the box and change its wording.',
         'The tick saves what is in the box; the bin deletes the phrase it came from; the + starts a new one.',
@@ -178,7 +177,9 @@ export const HELP_SECTIONS: ProseSection[] = [
   {
     title: 'Aliases',
     blocks: [
-      text('Open the menu and choose Aliases. Each one is a named list of words, and a phrase that writes that name in curly brackets offers the list to choose from.'),
+      text(
+        'Open the menu and choose Aliases. Each one is a named list of words, and a phrase that writes that name in curly brackets offers the list to choose from.',
+      ),
       text(
         'Peri comes with nine — pronouns, directions, body parts and so on — and two of them start empty: contacts, and your name. Fill those in and phrases such as "This is …" and "I\'m going to call …" come to life.',
       ),
@@ -208,7 +209,9 @@ export const HELP_SECTIONS: ProseSection[] = [
   {
     title: 'Settings',
     blocks: [
-      text('Open the menu and choose Settings. Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.'),
+      text(
+        'Open the menu and choose Settings. Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.',
+      ),
       text('Settings and Aliases scroll if there is more than fits, using the same arrows as the phrase grid.'),
       list(
         'Text size — how big everything is written, from half again as small to twice as large. It grows the words rather than the screen, so the board keeps the same number of phrases on it.',
@@ -343,7 +346,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'After that, the last change wins. Edit on two devices without letting them meet in between and the earlier edit is the one that goes, so it is worth letting each device settle before picking up the other.',
       ),
       text(
-        'Text size and volume are left alone. They belong to the screen and the speaker in front of you — a phone at arm\'s length and a tablet on a mount want different numbers — so each device keeps its own. Everything else follows you: dwell times, the voice, your phrases and lists.',
+        "Text size and volume are left alone. They belong to the screen and the speaker in front of you — a phone at arm's length and a tablet on a mount want different numbers — so each device keeps its own. Everything else follows you: dwell times, the voice, your phrases and lists.",
       ),
       text(
         'Synchronize is not a backup. It keeps devices alike, which means a phrase deleted on one is deleted on the others — that is the point of it, and it is also why a saved backup file is still worth having.',

@@ -95,7 +95,10 @@ describe('the shape of the source tree', () => {
   it('has something in every layer', () => {
     for (const layer of LAYERS) {
       for (const dir of layer) {
-        expect(sources().some(p => directoryOf(p) === dir), `${dir} is empty`).toBe(true)
+        expect(
+          sources().some(p => directoryOf(p) === dir),
+          `${dir} is empty`,
+        ).toBe(true)
       }
     }
   })
@@ -203,9 +206,7 @@ describe('the shape of the source tree', () => {
   // nothing.
   it('sizes every piece of text in rem', () => {
     const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
-    const inPixels = [...css.matchAll(/font-size:[^;]+/g)]
-      .map(m => m[0])
-      .filter(rule => rule.includes('px'))
+    const inPixels = [...css.matchAll(/font-size:[^;]+/g)].map(m => m[0]).filter(rule => rule.includes('px'))
     expect(inPixels).toEqual([])
 
     // And the handful set from a component, where a bare number means pixels.

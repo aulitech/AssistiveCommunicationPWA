@@ -3,7 +3,12 @@ import { speak, warmVoice } from '../../src/voice/speech'
 import { remoteVoiceURI } from '../../src/voice/elevenlabs'
 import { audioKey, cachedAudio, clearAudioCache, rememberAudio } from '../../src/voice/audio-cache'
 import { saveElevenLabs } from '../../src/core/store'
-import { forgetTranslations, rememberTranslation, seedTranslations, translationFor } from '../../src/core/translation'
+import {
+  forgetTranslations,
+  rememberTranslation,
+  seedTranslations,
+  translationFor,
+} from '../../src/core/translation'
 import { spoken, lastUtterance, played, setAudioPlays, voices } from '../setup'
 
 // Which of the two voices a phrase comes out of, and — the point of all of it —
@@ -16,10 +21,13 @@ const REMOTE = { ...SETTINGS, voiceURI: remoteVoiceURI('v1') }
 const link = () => saveElevenLabs({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] })
 
 const audioReturns = (ok: boolean) =>
-  vi.stubGlobal('fetch', vi.fn(async () => {
-    if (!ok) throw new TypeError('Failed to fetch')
-    return { ok: true, status: 200, blob: async () => new Blob(['audio']) }
-  }))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      if (!ok) throw new TypeError('Failed to fetch')
+      return { ok: true, status: 200, blob: async () => new Blob(['audio']) }
+    }),
+  )
 
 /** The fetch and the play are both promises; neither waits on a timer. */
 const flush = () => new Promise(resolve => setTimeout(resolve, 0))
@@ -103,7 +111,10 @@ describe('when the account voice cannot be heard', () => {
 
   it('speaks on the device when the key has stopped working', async () => {
     link()
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 401, blob: async () => new Blob() })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 401, blob: async () => new Blob() })),
+    )
     speak('Hello', REMOTE)
     await flush()
 
@@ -151,7 +162,11 @@ describe('being interrupted', () => {
 describe("a phrase's own voice", () => {
   it('wins over the one in settings', async () => {
     link()
-    const fetcher = vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) }))
+    const fetcher = vi.fn(async (_url: string) => ({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(['audio']),
+    }))
     vi.stubGlobal('fetch', fetcher)
     speak('Hello', SETTINGS, { voiceURI: remoteVoiceURI('v1') })
     await flush()
@@ -218,7 +233,11 @@ describe('phrases that must not wait', () => {
 describe('warming a voice', () => {
   it('fetches once and leaves it in hand', async () => {
     link()
-    const fetcher = vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) }))
+    const fetcher = vi.fn(async (_url: string) => ({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(['audio']),
+    }))
     vi.stubGlobal('fetch', fetcher)
 
     expect(await warmVoice('Help me!', remoteVoiceURI('v1'))).toBe(true)
@@ -369,12 +388,16 @@ describe('speaking a translated board', () => {
 
   it('translates a phrase of your own, then keeps it', async () => {
     vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
-    vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response(JSON.stringify({ data: { translations: [{ translatedText: "J'ai froid" }] } }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
-    ))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ data: { translations: [{ translatedText: "J'ai froid" }] } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+      ),
+    )
 
     speak("I'm cold", FRENCH)
     await flush()

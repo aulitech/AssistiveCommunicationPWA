@@ -81,7 +81,10 @@ describe('building a backup', () => {
   it('carries every kind of change the user can make', () => {
     const backup = exportAll()
     expect(backup.added.map(p => p.id)).toEqual(['custom-1', 'custom-2'])
-    expect(backup.edited).toEqual([{ id: 'built-1', text: "I'm knackered" }, { id: 'built-3', category: 'Home' }])
+    expect(backup.edited).toEqual([
+      { id: 'built-1', text: "I'm knackered" },
+      { id: 'built-3', category: 'Home' },
+    ])
     expect(backup.removed).toEqual(['built-2'])
     expect(backup.categories.renamed).toEqual({ Feelings: 'Moods' })
     expect(backup.categories.order).toEqual(['Home', 'Food', 'Moods'])
@@ -226,7 +229,12 @@ describe('reading a backup back', () => {
         ],
         edited: [{ id: 'c', text: 'Kept too' }, { id: '' }],
         removed: ['d', 7, null],
-        categories: { created: ['Food', 3], renamed: { Old: 'New', Bad: 5 }, order: 'not a list', sort: 'sideways' },
+        categories: {
+          created: ['Food', 3],
+          renamed: { Old: 'New', Bad: 5 },
+          order: 'not a list',
+          sort: 'sideways',
+        },
         emergencyOrder: ['em-1', 4, '', null],
       }),
     )
@@ -312,9 +320,9 @@ describe('describing a backup', () => {
     expect(describeBackup(summarize(exportAll()))).toBe(
       '2 phrases you added, 2 edits, 1 phrase you removed, your word lists, your settings',
     )
-    expect(describeBackup(summarize(buildBackup({ ...fresh(), categoryById: new Map(), scope: ['Food'] })))).toMatch(
-      /nothing/i,
-    )
+    expect(
+      describeBackup(summarize(buildBackup({ ...fresh(), categoryById: new Map(), scope: ['Food'] }))),
+    ).toMatch(/nothing/i)
   })
 
   it('names the file after what is in it and when', () => {
@@ -495,7 +503,10 @@ describe('what a backup must never carry', () => {
    * a phrase is spoken again.
    */
   it('leaves what has been translated out of the file', () => {
-    localStorage.setItem('peri_translations', JSON.stringify({ fr: { 'My chest hurts': "J'ai mal à la poitrine" } }))
+    localStorage.setItem(
+      'peri_translations',
+      JSON.stringify({ fr: { 'My chest hurts': "J'ai mal à la poitrine" } }),
+    )
     const { state, categoryById } = fixture()
     const file = serializeBackup(buildBackup({ ...state, categoryById }))
 
@@ -505,7 +516,10 @@ describe('what a backup must never carry', () => {
   // What somebody actually said — what hurts, what they want, who they were
   // asking for — is not something to hand over with a set of phrases.
   it('leaves the record of what was said out of the file', () => {
-    saveSent([{ id: 's1', text: 'I need the toilet' }, { id: 's2', text: 'My chest hurts' }])
+    saveSent([
+      { id: 's1', text: 'I need the toilet' },
+      { id: 's2', text: 'My chest hurts' },
+    ])
     const { state, categoryById } = fixture()
     const file = serializeBackup(buildBackup({ ...state, categoryById }))
 
@@ -560,12 +574,9 @@ describe('the spoken language in a file', () => {
    * had — but a language tag is a language tag, and anything else would only
    * ever be handed straight to the synthesiser.
    */
-  it.each([['not a tag'], ['<script>alert(1)</script>'], ['e'], ['123'], [42], [null]])(
-    'refuses %s',
-    bad => {
-      expect(settingsFrom({ ...DEFAULT_SETTINGS, language: bad })?.language).toBe('')
-    },
-  )
+  it.each([['not a tag'], ['<script>alert(1)</script>'], ['e'], ['123'], [42], [null]])('refuses %s', bad => {
+    expect(settingsFrom({ ...DEFAULT_SETTINGS, language: bad })?.language).toBe('')
+  })
 
   it('keeps a tag it has never seen, since another device may well speak it', () => {
     expect(settingsFrom({ ...DEFAULT_SETTINGS, language: 'cy-GB' })?.language).toBe('cy-GB')

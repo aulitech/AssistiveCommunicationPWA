@@ -1,4 +1,3 @@
-
 // The red bar along the bottom. Always visible, on every screen of the app, and
 // spoken the moment it is chosen rather than composed into the message first.
 //
@@ -20,7 +19,11 @@ import { PlusIcon, ReorderIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { PhraseText } from './phrase-text'
 
-function EmergencyButton({ phrase, voice, reorder }: {
+function EmergencyButton({
+  phrase,
+  voice,
+  reorder,
+}: {
   phrase: Phrase
   voice?: string
   /** Present only in reorder mode. */
@@ -80,34 +83,45 @@ function EmergencyButton({ phrase, voice, reorder }: {
       style={dwellVar(settings.phraseDwellMs)}
       role="button"
       aria-label={
-        reorder
-          ? reorderLabel(reorder, spoken, 'phrase')
-          : editMode
-            ? `Edit emergency phrase: ${spoken}`
-            : spoken
+        reorder ? reorderLabel(reorder, spoken, 'phrase') : editMode ? `Edit emergency phrase: ${spoken}` : spoken
       }
       draggable={reorder ? true : undefined}
       onDragStart={reorder?.onDragStart}
-      onDragOver={reorder && (e => {
-        // Without this the browser refuses the drop outright.
-        e.preventDefault()
-        reorder.onDragOver()
-      })}
+      onDragOver={
+        reorder &&
+        (e => {
+          // Without this the browser refuses the drop outright.
+          e.preventDefault()
+          reorder.onDragOver()
+        })
+      }
       onDragEnd={reorder?.onDragEnd}
-      onDrop={reorder && (e => {
-        e.preventDefault()
-        reorder.onDrop()
-      })}
+      onDrop={
+        reorder &&
+        (e => {
+          e.preventDefault()
+          reorder.onDrop()
+        })
+      }
       {...props}
     >
-      <span className="emergency-label"><PhraseText segments={phrase.segments} /></span>
+      <span className="emergency-label">
+        <PhraseText segments={phrase.segments} />
+      </span>
       <div className="emergency-dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )
 }
 
 /** The controls at the end of the bar: add, and reorder. Edit mode only. */
-function EmergencyTool({ className, label, pressed, disabled, onActivate, children }: {
+function EmergencyTool({
+  className,
+  label,
+  pressed,
+  disabled,
+  onActivate,
+  children,
+}: {
   className: string
   label: string
   pressed?: boolean
@@ -132,7 +146,14 @@ function EmergencyTool({ className, label, pressed, disabled, onActivate, childr
   )
 }
 
-export function EmergencyBar({ phrases, voiceFor, reordering, onToggleReorder, onReorder, onLift }: {
+export function EmergencyBar({
+  phrases,
+  voiceFor,
+  reordering,
+  onToggleReorder,
+  onReorder,
+  onLift,
+}: {
   phrases: Phrase[]
   voiceFor: (id: string) => string | undefined
   /** All of the below are edit-mode only. */

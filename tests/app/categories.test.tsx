@@ -61,7 +61,8 @@ const nameField = () => $('input[aria-label="Category name"]')!
 // from a `<select>` — a native select opens a list the operating system draws,
 // which is the one control on this screen a dwell cannot reach.
 const box = () => $<HTMLTextAreaElement>('.text-display')!
-const iconBtn = (label: string) => $$<HTMLButtonElement>('.icon-btn').find(b => b.getAttribute('aria-label') === label)
+const iconBtn = (label: string) =>
+  $$<HTMLButtonElement>('.icon-btn').find(b => b.getAttribute('aria-label') === label)
 const writePhrase = (value: string) => type(box(), value)
 const savePhrase = () => click(iconBtn('Save phrase'))
 const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
@@ -772,7 +773,9 @@ describe('paging the category bar', () => {
 
     const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
     // Width alone would take the arrows off a tablet in portrait as well.
-    expect(css).toMatch(/@media \(max-width: 700px\) and \(orientation: portrait\) \{\s*\.filter-arrow-end \{\s*display: none;/)
+    expect(css).toMatch(
+      /@media \(max-width: 700px\) and \(orientation: portrait\) \{\s*\.filter-arrow-end \{\s*display: none;/,
+    )
   })
 
   it('keeps paging while the pointer stays', () => {

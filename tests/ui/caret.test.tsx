@@ -147,7 +147,11 @@ describe('aiming somewhere new', () => {
 // boxes; what is left for here is the part they cannot see, because jsdom
 // reaches the same end by a second route — see `onPlace` below.
 describe('the caret dwell', () => {
-  function Probe({ value, onPlace, disabled }: {
+  function Probe({
+    value,
+    onPlace,
+    disabled,
+  }: {
     value: string
     onPlace?: (index: number) => void
     disabled?: boolean
@@ -226,7 +230,15 @@ describe('holding still to select', () => {
     const ref = useRef<HTMLInputElement>(null)
     const caret = useCaretDwell(ref, 500, { selectOnHold: true })
     // The fill is what says another step is coming, so the test can see it stop.
-    return <input ref={ref} className={caret.active ? 'dwelling' : ''} defaultValue={value} aria-label="probe" {...caret.props} />
+    return (
+      <input
+        ref={ref}
+        className={caret.active ? 'dwelling' : ''}
+        defaultValue={value}
+        aria-label="probe"
+        {...caret.props}
+      />
+    )
   }
 
   let box: HTMLInputElement

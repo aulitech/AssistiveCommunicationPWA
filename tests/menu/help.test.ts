@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { HELP_SECTIONS } from '../../src/menu/help'
 
-const allText = HELP_SECTIONS.flatMap(s =>
-  s.blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items)),
-)
+const allText = HELP_SECTIONS.flatMap(s => s.blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items)))
 
 describe('the user guide', () => {
   it('has sections, each with content', () => {
@@ -71,7 +69,10 @@ describe('the user guide', () => {
     expect(HELP_SECTIONS[0].title).toBe('Overview')
     const overview = HELP_SECTIONS[0].blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items))
     for (const part of [/message/i, /Rest/, /categor/i, /red bar/i]) {
-      expect(overview.some(l => part.test(l)), `the overview does not mention ${part}`).toBe(true)
+      expect(
+        overview.some(l => part.test(l)),
+        `the overview does not mention ${part}`,
+      ).toBe(true)
     }
   })
 

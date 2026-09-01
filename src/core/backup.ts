@@ -172,8 +172,7 @@ export function buildBackup(input: BackupInput): Backup {
   }
 }
 
-const hasAliases = ({ lists, hidden }: AliasStore) =>
-  Object.keys(lists).length > 0 || hidden.length > 0
+const hasAliases = ({ lists, hidden }: AliasStore) => Object.keys(lists).length > 0 || hidden.length > 0
 
 // ── Reading a file back ───────────────────────────────────────────────────────
 // Anything can be dropped into a file picker, including a backup half-written by

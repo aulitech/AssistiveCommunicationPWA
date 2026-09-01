@@ -1,4 +1,3 @@
-
 // Drawing a phrase: its slots, and any markdown in it.
 //
 // One component, used by the grid cell and by the emergency bar, so a phrase
@@ -17,9 +16,7 @@ import { cx } from '../ui/style'
 function PieceEl({ piece }: { piece: Piece }) {
   if (piece.kind === 'slot') {
     return (
-      <span className={cx('phrase-slot', piece.slot.options.length === 0 && 'is-blank')}>
-        {piece.slot.label}
-      </span>
+      <span className={cx('phrase-slot', piece.slot.options.length === 0 && 'is-blank')}>{piece.slot.label}</span>
     )
   }
   const className = cx(
@@ -62,5 +59,11 @@ export function PhraseText({ segments }: { segments: Segment[] }) {
   // One unstyled line is the overwhelmingly common case, and it draws with no
   // wrapper at all — nothing for the grid's row height to notice.
   if (lines.length === 1 && lines[0].kind === 'para') return <>{pieces(lines[0])}</>
-  return <>{lines.map((line, i) => <LineEl key={i} line={line} />)}</>
+  return (
+    <>
+      {lines.map((line, i) => (
+        <LineEl key={i} line={line} />
+      ))}
+    </>
+  )
 }

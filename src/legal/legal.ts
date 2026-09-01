@@ -96,9 +96,9 @@ export const PRIVACY: ProseDocument = {
         ),
         text(
           'The same applies, deliberately and visibly, if you link an ElevenLabs account. Choosing one of its voices means that each phrase you speak is sent to ElevenLabs to be turned into audio, using your own account and your own credits. It goes from your device straight to them and does not pass through us. What they do with it is governed by their privacy policy, not this one. Unlink the account, or choose a device voice, and nothing is sent.',
-      ),
-      text(
-        'Setting a spoken language works the same way, and mostly sends nothing. The phrases Peri comes with are translated before the app is built, so speaking one of those in another language involves no request at all. Only the phrases you wrote yourself, and messages you build out of several, need translating as you go. Those are sent from your device straight to Google, once each, using our account rather than yours, and the result is kept on your device so it is not sent again. We do not see them and we keep no copy. Set the language back to your device default and nothing is sent at all.',
+        ),
+        text(
+          'Setting a spoken language works the same way, and mostly sends nothing. The phrases Peri comes with are translated before the app is built, so speaking one of those in another language involves no request at all. Only the phrases you wrote yourself, and messages you build out of several, need translating as you go. Those are sent from your device straight to Google, once each, using our account rather than yours, and the result is kept on your device so it is not sent again. We do not see them and we keep no copy. Set the language back to your device default and nothing is sent at all.',
         ),
         text(
           'The emergency bar always uses a device voice, whatever else is selected, so those phrases are spoken instantly and still work with no connection.',
@@ -133,7 +133,9 @@ export const PRIVACY: ProseDocument = {
         text(
           'If you turned on Synchronize, there is one thing that is not on your device: the encrypted copy. Erase it with "Stop and erase the copy" in the Settings row, which is instant and needs no request to us. There is nothing else on our side to delete — and because we cannot connect an address to a person, a request to us could not find it either.',
         ),
-        text('Signing out removes the account details from the device but leaves your phrases and settings in place.'),
+        text(
+          'Signing out removes the account details from the device but leaves your phrases and settings in place.',
+        ),
       ],
     },
     {

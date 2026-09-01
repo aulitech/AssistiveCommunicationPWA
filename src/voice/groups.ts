@@ -14,7 +14,6 @@ export interface VoiceChoice {
   collection?: string
 }
 
-
 /**
  * The groups a long list of voices can be cut down by. Device voices divide by
  * language, which is the only thing that reliably tells them apart; an
@@ -29,11 +28,16 @@ export function voiceGroups(items: VoiceChoice[]): { id: string; label: string; 
     const label = v.remote ? titleCase(v.collection ?? 'Other') : languageName(v.lang!)
     counts.set(id, { label, count: (counts.get(id)?.count ?? 0) + 1 })
   }
-  return [...counts]
-    .map(([id, { label, count }]) => ({ id, label, count }))
-    // Collections first, then languages, each alphabetically — the account's own
-    // voices are what somebody who linked one is looking for.
-    .sort((a, b) => Number(a.id.startsWith('lang:')) - Number(b.id.startsWith('lang:')) || a.label.localeCompare(b.label))
+  return (
+    [...counts]
+      .map(([id, { label, count }]) => ({ id, label, count }))
+      // Collections first, then languages, each alphabetically — the account's own
+      // voices are what somebody who linked one is looking for.
+      .sort(
+        (a, b) =>
+          Number(a.id.startsWith('lang:')) - Number(b.id.startsWith('lang:')) || a.label.localeCompare(b.label),
+      )
+  )
 }
 
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -56,8 +60,7 @@ export function speechLanguages(voices: { lang: string }[]): { tag: string; labe
     .map(([tag, count]) => ({ tag, label: languageName(tag), count }))
     .sort(
       (a, b) =>
-        Number(!a.tag.toLowerCase().startsWith(preferred)) -
-          Number(!b.tag.toLowerCase().startsWith(preferred)) ||
+        Number(!a.tag.toLowerCase().startsWith(preferred)) - Number(!b.tag.toLowerCase().startsWith(preferred)) ||
         a.label.localeCompare(b.label),
     )
 }

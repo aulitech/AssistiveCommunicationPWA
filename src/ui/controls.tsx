@@ -1,4 +1,3 @@
-
 // The controls every screen is built from.
 //
 // All of them are dwell-first: `useDwellControl` handles hover-and-hold, tap and
@@ -74,7 +73,13 @@ export function DwellButton({
   )
 }
 
-export function NavItem({ icon, label, sublabel, disabled, onSelect }: {
+export function NavItem({
+  icon,
+  label,
+  sublabel,
+  disabled,
+  onSelect,
+}: {
   icon: React.ReactNode
   label: string
   sublabel?: string
@@ -104,7 +109,9 @@ export function NavItem({ icon, label, sublabel, disabled, onSelect }: {
       aria-label={label}
       {...props}
     >
-      <span className="nav-item-icon" aria-hidden="true">{icon}</span>
+      <span className="nav-item-icon" aria-hidden="true">
+        {icon}
+      </span>
       <div className="nav-item-text">
         <span className="nav-item-label">{label}</span>
         {sublabel && <span className="nav-item-sub">{sublabel}</span>}
@@ -122,7 +129,11 @@ export function NavItem({ icon, label, sublabel, disabled, onSelect }: {
  * translated. It takes a line of its own below the control, which is why the
  * row it is on aligns to the top rather than to the middle of two lines.
  */
-export function SettingRow({ label, note, children }: {
+export function SettingRow({
+  label,
+  note,
+  children,
+}: {
   label: string
   note?: React.ReactNode
   children: React.ReactNode
@@ -138,7 +149,13 @@ export function SettingRow({ label, note, children }: {
   )
 }
 
-function StepBtn({ onAction, children, label, repeat = true, disabled }: {
+function StepBtn({
+  onAction,
+  children,
+  label,
+  repeat = true,
+  disabled,
+}: {
   onAction: () => void
   children: React.ReactNode
   label: string
@@ -165,7 +182,16 @@ function StepBtn({ onAction, children, label, repeat = true, disabled }: {
   )
 }
 
-export function SettingSpinner({ value, min, max, step, format, onValue, defaultValue, name }: {
+export function SettingSpinner({
+  value,
+  min,
+  max,
+  step,
+  format,
+  onValue,
+  defaultValue,
+  name,
+}: {
   value: number
   min: number
   max: number
@@ -191,7 +217,9 @@ export function SettingSpinner({ value, min, max, step, format, onValue, default
 
   return (
     <div className="setting-spinner">
-      <StepBtn onAction={dec} label="Decrease">−</StepBtn>
+      <StepBtn onAction={dec} label="Decrease">
+        −
+      </StepBtn>
       <input
         className="setting-number"
         type="number"
@@ -205,7 +233,9 @@ export function SettingSpinner({ value, min, max, step, format, onValue, default
         }}
       />
       <span className="setting-formatted">{format(value)}</span>
-      <StepBtn onAction={inc} label="Increase">+</StepBtn>
+      <StepBtn onAction={inc} label="Increase">
+        +
+      </StepBtn>
       {/* Always here, going quiet at the default rather than away. Somebody who
           has learnt where a control is should find it in the same place, and a
           row that changes width as a value crosses its default moves the two
@@ -236,9 +266,29 @@ const SCROLL_LABELS: Record<ScrollAction, string> = {
 /** Double-headed for the jumps, single for the nudges, so the pair differ at a glance. */
 function ScrollGlyph({ action }: { action: ScrollAction }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
-      {action === 'top' && <><line x1="5" y1="5" x2="19" y2="5" /><polyline points="18 16 12 10 6 16" /></>}
-      {action === 'bottom' && <><line x1="5" y1="19" x2="19" y2="19" /><polyline points="6 8 12 14 18 8" /></>}
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width="14"
+      height="14"
+      aria-hidden="true"
+    >
+      {action === 'top' && (
+        <>
+          <line x1="5" y1="5" x2="19" y2="5" />
+          <polyline points="18 16 12 10 6 16" />
+        </>
+      )}
+      {action === 'bottom' && (
+        <>
+          <line x1="5" y1="19" x2="19" y2="19" />
+          <polyline points="6 8 12 14 18 8" />
+        </>
+      )}
       {action === 'up' && <polyline points="18 15 12 9 6 15" />}
       {action === 'down' && <polyline points="6 9 12 15 18 9" />}
       {action === 'left' && <polyline points="15 18 9 12 15 6" />}
@@ -247,7 +297,11 @@ function ScrollGlyph({ action }: { action: ScrollAction }) {
   )
 }
 
-function ScrollButton({ action, onActivate, repeat }: {
+function ScrollButton({
+  action,
+  onActivate,
+  repeat,
+}: {
   action: ScrollAction
   onActivate: () => void
   repeat?: boolean
@@ -279,7 +333,12 @@ function ScrollButton({ action, onActivate, repeat }: {
  * top, nudge up, nudge down, jump to the bottom. Sixty voices or a screenful of
  * guide is a long way to travel 80 pixels at a time.
  */
-export function ScrollPane({ className = '', paneClassName = '', step = 80, children }: {
+export function ScrollPane({
+  className = '',
+  paneClassName = '',
+  step = 80,
+  children,
+}: {
   className?: string
   paneClassName?: string
   step?: number
@@ -338,7 +397,9 @@ function ProseBlocks({ blocks }: { blocks: ProseSection['blocks'] }) {
     <>
       {blocks.map((block, i) =>
         block.kind === 'text' ? (
-          <p key={i} className="help-text">{block.text}</p>
+          <p key={i} className="help-text">
+            {block.text}
+          </p>
         ) : (
           <ul key={i} className="help-list">
             {block.items.map(item => (
@@ -358,7 +419,11 @@ function ProseBlocks({ blocks }: { blocks: ProseSection['blocks'] }) {
  * fill — a heading that answered to a rest without showing the rest happening
  * would look like the guide moving on its own.
  */
-function CollapsibleSection({ section, open, onToggle }: {
+function CollapsibleSection({
+  section,
+  open,
+  onToggle,
+}: {
   section: ProseSection
   open: boolean
   onToggle: () => void
@@ -410,7 +475,10 @@ function CollapsibleSection({ section, open, onToggle }: {
  * to say behind fifteen dwells. The guide is the opposite: somebody opens it
  * looking for one thing, and a screenful of headings is how they find which.
  */
-export function ProseSections({ sections, collapsible = false }: {
+export function ProseSections({
+  sections,
+  collapsible = false,
+}: {
   sections: ProseSection[]
   collapsible?: boolean
 }) {
@@ -452,7 +520,12 @@ export function ProseSections({ sections, collapsible = false }: {
  * An action inside a panel — save, cancel, link, replace. `danger` is for the
  * ones that take something away.
  */
-export function PanelButton({ label, kind, onActivate, disabled }: {
+export function PanelButton({
+  label,
+  kind,
+  onActivate,
+  disabled,
+}: {
   label: string
   kind: 'primary' | 'plain' | 'danger'
   onActivate: () => void
@@ -495,7 +568,13 @@ export function PanelButton({ label, kind, onActivate, disabled }: {
  * one — an operating system draws a native list *outside* the page, where
  * nothing can be hovered and so nothing can be dwelled on.
  */
-export function PickerTrigger({ label, name, onOpen, open = false, className = '' }: {
+export function PickerTrigger({
+  label,
+  name,
+  onOpen,
+  open = false,
+  className = '',
+}: {
   label: string
   /** What a screen reader hears. The visible label is usually only half of it. */
   name: string
@@ -516,7 +595,17 @@ export function PickerTrigger({ label, name, onOpen, open = false, className = '
       {...props}
     >
       <span className="picker-trigger-label">{label}</span>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        width="14"
+        height="14"
+        aria-hidden="true"
+      >
         <polyline points="6 9 12 15 18 9" />
       </svg>
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
@@ -524,7 +613,14 @@ export function PickerTrigger({ label, name, onOpen, open = false, className = '
   )
 }
 
-export function PickerModal({ title, hint, filters, onDone, onCancel, children }: {
+export function PickerModal({
+  title,
+  hint,
+  filters,
+  onDone,
+  onCancel,
+  children,
+}: {
   title: string
   /** One line under the title saying how the grid behaves. */
   hint?: string
@@ -572,7 +668,13 @@ export function PickerModal({ title, hint, filters, onDone, onCancel, children }
 }
 
 /** One choice in a `PickerModal`. */
-export function PickerTile({ name, detail, selected, className, onSelect }: {
+export function PickerTile({
+  name,
+  detail,
+  selected,
+  className,
+  onSelect,
+}: {
   name: string
   /** The smaller second line — where a voice came from, what a category holds. */
   detail?: string
@@ -598,7 +700,16 @@ export function PickerTile({ name, detail, selected, className, onSelect }: {
           is a poor thing to read a whole screen by. */}
       {selected && (
         <span className="picker-tile-check" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            width="12"
+            height="12"
+          >
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </span>
@@ -641,10 +752,7 @@ export function ScrollRow({ children }: { children: React.ReactNode }) {
     }
   }, [update])
 
-  const scrollBy = useCallback(
-    (dx: number) => rowRef.current?.scrollBy({ left: dx, behavior: 'smooth' }),
-    [],
-  )
+  const scrollBy = useCallback((dx: number) => rowRef.current?.scrollBy({ left: dx, behavior: 'smooth' }), [])
 
   return (
     <div className="scroll-row">
@@ -658,7 +766,12 @@ export function ScrollRow({ children }: { children: React.ReactNode }) {
 }
 
 /** One chip in a `PickerModal`'s filter row. */
-export function PickerFilter({ label, count, active, onSelect }: {
+export function PickerFilter({
+  label,
+  count,
+  active,
+  onSelect,
+}: {
   label: string
   /** How many the chip would leave on screen, so an empty one is visibly empty. */
   count: number

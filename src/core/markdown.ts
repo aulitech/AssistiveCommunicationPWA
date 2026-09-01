@@ -43,9 +43,7 @@ export interface Style {
   link?: string
 }
 
-export type Piece =
-  | ({ kind: 'text'; text: string } & Style)
-  | { kind: 'slot'; slot: Slot }
+export type Piece = ({ kind: 'text'; text: string } & Style) | { kind: 'slot'; slot: Slot }
 
 export interface Line {
   kind: 'para' | 'heading' | 'item'
@@ -103,8 +101,7 @@ function findClose(text: string, from: number, marker: string): number {
   return -1
 }
 
-const applied = (style: Style, wanted: Style) =>
-  Object.keys(wanted).every(key => style[key as keyof Style])
+const applied = (style: Style, wanted: Style) => Object.keys(wanted).every(key => style[key as keyof Style])
 
 /**
  * A `[label](url)` starting at `at`, or null. Both halves must be there and

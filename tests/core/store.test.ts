@@ -24,8 +24,12 @@ describe('arranging the emergency bar', () => {
   // A phrase added after the bar was arranged has no place in that order. It
   // goes at the end rather than at the front, and rearranging is what moves it.
   it('files anything the order has never heard of at the end, as it came', () => {
-    expect(ids(orderEmergency(phrases('em-0', 'new-a', 'em-1', 'new-b'), ['em-1', 'em-0'])))
-      .toEqual(['em-1', 'em-0', 'new-a', 'new-b'])
+    expect(ids(orderEmergency(phrases('em-0', 'new-a', 'em-1', 'new-b'), ['em-1', 'em-0']))).toEqual([
+      'em-1',
+      'em-0',
+      'new-a',
+      'new-b',
+    ])
   })
 
   // An order outlives the phrases in it: one naming a phrase that has since been

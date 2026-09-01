@@ -31,7 +31,6 @@ const MODEL = 'eleven_flash_v2_5'
 /** Marks a voice as coming from the account rather than from the device. */
 export const REMOTE_PREFIX = 'elevenlabs:'
 
-
 export const remoteVoiceURI = (id: string) => `${REMOTE_PREFIX}${id}`
 
 /** The voice id inside a `voiceURI`, or null if it names a device voice. */
@@ -104,11 +103,7 @@ export async function linkAccount(apiKey: string): Promise<LinkResult> {
  */
 const inFlight = new Map<string, Promise<Blob>>()
 
-export async function synthesize(
-  account: ElevenLabsAccount,
-  voiceId: string,
-  text: string,
-): Promise<Blob> {
+export async function synthesize(account: ElevenLabsAccount, voiceId: string, text: string): Promise<Blob> {
   const key = audioKey(voiceId, text)
   const hit = cachedAudio(key)
   if (hit) return hit
@@ -125,13 +120,7 @@ export async function synthesize(
   }
 }
 
-async function fetchAudio(
-  account: ElevenLabsAccount,
-  voiceId: string,
-  text: string,
-  key: string,
-): Promise<Blob> {
-
+async function fetchAudio(account: ElevenLabsAccount, voiceId: string, text: string, key: string): Promise<Blob> {
   const response = await fetch(`${API}/text-to-speech/${encodeURIComponent(voiceId)}`, {
     method: 'POST',
     headers: { 'xi-api-key': account.apiKey, 'Content-Type': 'application/json' },

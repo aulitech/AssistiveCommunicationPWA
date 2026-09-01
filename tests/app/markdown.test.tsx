@@ -287,9 +287,7 @@ describe('pasting and dropping a link', () => {
     expect(spoken).toEqual(['cafe.example'])
 
     click(copyBtn())
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-      '[cafe.example](https://cafe.example/menu)',
-    )
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('[cafe.example](https://cafe.example/menu)')
   })
 
   it('takes one into a phrase being written too', () => {

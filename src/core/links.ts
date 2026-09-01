@@ -92,9 +92,7 @@ export function readLink(data: DataTransfer | null): Link | null {
   if (!url) return null
 
   const label =
-    labelFromHtml(get('text/html') || '') ??
-    labelFromMozUrl(get('text/x-moz-url') || '') ??
-    labelFromUrl(url)
+    labelFromHtml(get('text/html') || '') ?? labelFromMozUrl(get('text/x-moz-url') || '') ?? labelFromUrl(url)
 
   return { url, label: tidyLabel(label) || labelFromUrl(url) }
 }

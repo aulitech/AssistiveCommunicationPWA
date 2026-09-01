@@ -1,4 +1,3 @@
-
 // The way in. Reached before anything else, so it carries its own dwell-time
 // control: anyone who needs a slow dwell has to be able to set one before they
 // can sign in at all.
@@ -14,7 +13,11 @@ const FEATURES = [
   { icon: '👁️', title: 'Dwell selection', body: 'No tapping or clicking — hover and hold to choose.' },
   { icon: '🔊', title: 'Instant speech', body: 'Selected phrases are spoken aloud immediately.' },
   { icon: '📱', title: 'Works offline', body: 'Install it and it keeps working with no network.' },
-  { icon: '🔒', title: 'Stays on your device', body: 'Your phrases and settings are stored locally, never uploaded.' },
+  {
+    icon: '🔒',
+    title: 'Stays on your device',
+    body: 'Your phrases and settings are stored locally, never uploaded.',
+  },
 ]
 
 const PROVIDER_LABELS: Record<Provider, string> = {
@@ -71,15 +74,23 @@ export function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
           are the only way down: a dwell user has no wheel and no scrollbar. */}
       <ScrollPane paneClassName="signin-content" step={120}>
         <div className="signin-brand">
-          <div className="signin-logo"><AppLogoIcon /></div>
+          <div className="signin-logo">
+            <AppLogoIcon />
+          </div>
           <h1 className="signin-app-name">Peri</h1>
-          <p className="signin-tagline">Assistive communication,<br />driven entirely by gaze and dwell.</p>
+          <p className="signin-tagline">
+            Assistive communication,
+            <br />
+            driven entirely by gaze and dwell.
+          </p>
         </div>
 
         <div className="signin-features">
           {FEATURES.map(f => (
             <div key={f.title} className="signin-feature">
-              <span className="signin-feature-icon" aria-hidden="true">{f.icon}</span>
+              <span className="signin-feature-icon" aria-hidden="true">
+                {f.icon}
+              </span>
               <div>
                 <div className="signin-feature-title">{f.title}</div>
                 <div className="signin-feature-body">{f.body}</div>
@@ -138,16 +149,31 @@ export function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
                 </DwellButton>
               ))}
 
-              {providers.length > 0 && <div className="signin-divider"><span>or</span></div>}
+              {providers.length > 0 && (
+                <div className="signin-divider">
+                  <span>or</span>
+                </div>
+              )}
 
-              <DwellButton className="auth-btn" label="Continue as guest" onSelect={() => handleOAuth('guest')} durationMs={dwellMs}>
-                <div className="auth-btn-inner"><span className="auth-guest-icon" aria-hidden="true">👤</span><span>Continue as guest</span><div className="auth-dwell-bar" /></div>
+              <DwellButton
+                className="auth-btn"
+                label="Continue as guest"
+                onSelect={() => handleOAuth('guest')}
+                durationMs={dwellMs}
+              >
+                <div className="auth-btn-inner">
+                  <span className="auth-guest-icon" aria-hidden="true">
+                    👤
+                  </span>
+                  <span>Continue as guest</span>
+                  <div className="auth-dwell-bar" />
+                </div>
               </DwellButton>
 
               <p className="signin-legal">
                 By continuing you agree to our <a href="/terms">Terms of Service</a> and{' '}
-                <a href="/privacy">Privacy Policy</a>. Signing in only personalises this device —
-                your phrases and settings are saved locally either way, and are not uploaded anywhere.
+                <a href="/privacy">Privacy Policy</a>. Signing in only personalises this device — your phrases and
+                settings are saved locally either way, and are not uploaded anywhere.
               </p>
             </>
           )}

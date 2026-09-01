@@ -23,9 +23,7 @@ const envelope = (): Envelope => ({
 
 const answers = (body: string, init: ResponseInit = {}) =>
   vi.stubGlobal('fetch', () =>
-    Promise.resolve(
-      new Response(body, { status: 200, headers: { 'content-type': 'application/json' }, ...init }),
-    ),
+    Promise.resolve(new Response(body, { status: 200, headers: { 'content-type': 'application/json' }, ...init })),
   )
 
 afterEach(() => vi.unstubAllGlobals())

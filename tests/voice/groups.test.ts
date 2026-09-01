@@ -120,12 +120,7 @@ describe('naming a voice', () => {
  * silence — the setting would take, and nothing would change.
  */
 describe('the languages on offer', () => {
-  const voices = [
-    { lang: 'en-GB' },
-    { lang: 'en-GB' },
-    { lang: 'fr-FR' },
-    { lang: 'de-DE' },
-  ]
+  const voices = [{ lang: 'en-GB' }, { lang: 'en-GB' }, { lang: 'fr-FR' }, { lang: 'de-DE' }]
 
   it('offers each language once, with how many voices it has', () => {
     const langs = speechLanguages(voices)

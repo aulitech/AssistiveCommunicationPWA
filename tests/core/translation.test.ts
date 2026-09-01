@@ -122,7 +122,14 @@ describe('the shipped tables', () => {
   it('carries every emergency phrase, which is the one bar that cannot wait', async () => {
     for (const lang of ['es', 'fr']) {
       await loadTranslations(lang)
-      for (const phrase of ['Help me!', "I'm in pain", 'Call 911', 'Get a doctor', "I can't breathe", 'Call my family']) {
+      for (const phrase of [
+        'Help me!',
+        "I'm in pain",
+        'Call 911',
+        'Get a doctor',
+        "I can't breathe",
+        'Call my family',
+      ]) {
         expect(translationFor(phrase, lang), `${phrase} has no ${lang}`).toBeTruthy()
       }
     }
@@ -199,7 +206,14 @@ describe('a spoken variety', () => {
   it('carries every emergency phrase for both, which is the bar that cannot wait', async () => {
     for (const v of VARIETIES) {
       await loadTranslations(v.tag)
-      for (const phrase of ['Help me!', "I'm in pain", 'Call 911', 'Get a doctor', "I can't breathe", 'Call my family']) {
+      for (const phrase of [
+        'Help me!',
+        "I'm in pain",
+        'Call 911',
+        'Get a doctor',
+        "I can't breathe",
+        'Call my family',
+      ]) {
         expect(translationFor(phrase, v.tag), `${phrase} has no ${v.tag}`).toBeTruthy()
       }
     }

@@ -15,12 +15,13 @@ const KEY = 'key-1234'
 beforeEach(() => vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', KEY))
 
 const answers = (body: unknown, init: ResponseInit = {}) => {
-  const fetcher = vi.fn(async (_url: string, _init: RequestInit) =>
-    new Response(JSON.stringify(body), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-      ...init,
-    }),
+  const fetcher = vi.fn(
+    async (_url: string, _init: RequestInit) =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        ...init,
+      }),
   )
   vi.stubGlobal('fetch', fetcher)
   return fetcher
@@ -120,7 +121,10 @@ describe('every way it can fail', () => {
 
   it.each([
     [400, 'The translation key was refused — check VITE_GOOGLE_TRANSLATE_KEY reached this build'],
-    [403, 'The translation key is not allowed here — check its referrer restriction covers this site, and that Cloud Translation is enabled'],
+    [
+      403,
+      'The translation key is not allowed here — check its referrer restriction covers this site, and that Cloud Translation is enabled',
+    ],
     [429, 'Too many translations at once — try again in a moment'],
     [500, 'The translation service is having trouble'],
   ])('says what %s means', async (status, error) => {
