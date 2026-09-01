@@ -1,0 +1,14 @@
+# pnpm settings. Not a workspace — pnpm 11 stopped reading the `pnpm` field in
+# package.json and this file is where every setting lives now.
+
+# esbuild's install script links the platform binary for this machine. pnpm asks
+# before running any dependency's install script, and until something answers it
+# refuses every command with ERR_PNPM_IGNORED_BUILDS — `pnpm check` and the
+# Netlify build included, so an unanswered prompt is a broken deploy.
+#
+# Yes, because this is not a new trust decision: esbuild is already how Vite
+# builds this app, so it executes on every build whatever this file says. The
+# file is committed so that CI gets the same answer as a laptop; left untracked,
+# pnpm writes the placeholder again on the next machine and the deploy stops.
+allowBuilds:
+  esbuild: true
