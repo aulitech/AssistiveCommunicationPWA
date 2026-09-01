@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { speak, warmVoice } from '../../src/voice/speech'
 import { remoteVoiceURI } from '../../src/voice/elevenlabs'
 import { audioKey, cachedAudio, clearAudioCache, rememberAudio } from '../../src/voice/audio-cache'
-import { saveTranslateKey, saveElevenLabs } from '../../src/core/store'
+import { saveElevenLabs } from '../../src/core/store'
 import { forgetTranslations, rememberTranslation, seedTranslations, translationFor } from '../../src/core/translation'
 import { spoken, lastUtterance, played, setAudioPlays, voices } from '../setup'
 
@@ -316,7 +316,7 @@ describe('speaking a translated board', () => {
 
   beforeEach(() => {
     forgetTranslations()
-    saveTranslateKey('')
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '')
   })
 
   it('says the translation Peri ships', () => {
@@ -346,7 +346,7 @@ describe('speaking a translated board', () => {
    * the original rather than a second and a half later.
    */
   it('never waits, and never goes quiet, on the emergency bar', () => {
-    saveTranslateKey('key-1234')
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
     const fetcher = vi.fn()
     vi.stubGlobal('fetch', fetcher)
     seedTranslations('fr', { 'Help me!': 'Aidez-moi !' })
@@ -368,7 +368,7 @@ describe('speaking a translated board', () => {
   })
 
   it('translates a phrase of your own, then keeps it', async () => {
-    saveTranslateKey('key-1234')
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
     vi.stubGlobal('fetch', vi.fn(async () =>
       new Response(JSON.stringify({ data: { translations: [{ translatedText: "J'ai froid" }] } }), {
         status: 200,
@@ -383,7 +383,7 @@ describe('speaking a translated board', () => {
   })
 
   it('falls back to the written words when the translator will not answer', async () => {
-    saveTranslateKey('key-1234')
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
     speak("I'm cold", FRENCH)
     await flush()
@@ -412,7 +412,7 @@ describe('speaking a board in Jamaican Patois', () => {
 
   beforeEach(() => {
     forgetTranslations()
-    saveTranslateKey('')
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '')
   })
 
   it('says what the shipped table says', () => {
@@ -428,7 +428,7 @@ describe('speaking a board in Jamaican Patois', () => {
    * for, exactly as an untranslated board does.
    */
   it('speaks a phrase it has no translation for straight away', () => {
-    saveTranslateKey('key-1234')
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
     const fetcher = vi.fn()
     vi.stubGlobal('fetch', fetcher)
 
@@ -440,7 +440,7 @@ describe('speaking a board in Jamaican Patois', () => {
   })
 
   it('never sends a phrase anywhere, even with a key in hand', async () => {
-    saveTranslateKey('key-1234')
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
     const fetcher = vi.fn()
     vi.stubGlobal('fetch', fetcher)
 
@@ -464,7 +464,7 @@ describe('speaking a board in Puerto Rican Spanish', () => {
 
   beforeEach(() => {
     forgetTranslations()
-    saveTranslateKey('')
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '')
   })
 
   it('is spoken as Puerto Rican Spanish, not as Spanish', () => {
@@ -484,7 +484,7 @@ describe('speaking a board in Puerto Rican Spanish', () => {
    * pretending otherwise.
    */
   it('asks the service for the closest Spanish it has', async () => {
-    saveTranslateKey('key-1234')
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
     let asked = ''
     const fetcher = vi.fn(async (_url: string, init: RequestInit) => {
       asked = String(init.body)

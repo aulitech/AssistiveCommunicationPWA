@@ -14,6 +14,43 @@ import { reportFailure } from '../core/report'
 
 const ENDPOINT = 'https://translation.googleapis.com/language/translate/v2'
 
+/**
+ * **The key is Peri's, not the user's.** `VITE_GOOGLE_TRANSLATE_KEY`, out of
+ * `.env.local` in development and out of the site's environment on a deploy,
+ * inlined into the bundle by Vite.
+ *
+ * So it is public — anyone can read it out of the JavaScript — and what makes
+ * that acceptable is the restriction on the key itself rather than any secrecy
+ * about it: an HTTP-referrer restriction to this site, and an API restriction to
+ * Cloud Translation alone. What a lifted key then costs is **quota, not data**;
+ * it can translate, from this origin, and do nothing else. That is the same
+ * trade the OAuth client IDs beside it already make.
+ *
+ * It was a field in Settings, and asking somebody who communicates by gaze to
+ * open a Google Cloud account before their board can speak Spanish is not a
+ * setting, it is a wall. The ElevenLabs key stays theirs because it bills them
+ * for a voice they chose; this one bills us for a service they should not have
+ * to know exists.
+ *
+ * Read per call rather than captured at module load, so a test can stub it and
+ * so nothing here has an opinion about when the environment was decided.
+ */
+function translateKey(): string {
+  const key: unknown = import.meta.env?.VITE_GOOGLE_TRANSLATE_KEY
+  return typeof key === 'string' ? key.trim() : ''
+}
+
+/**
+ * Whether this build can translate at all.
+ *
+ * The caller needs to know *before* it starts, not after: with no key the words
+ * have to go out **in the same tick**, and a promise that resolves into the
+ * original a moment later is a phrase that arrives after somebody needed it.
+ */
+export function hasTranslateKey(): boolean {
+  return translateKey() !== ''
+}
+
 export type TranslateResult =
   | { status: 'ok'; text: string }
   | { status: 'error'; error: string }
@@ -25,8 +62,8 @@ function fail(error: string): TranslateResult {
 }
 
 function describe(status: number): string {
-  if (status === 400) return 'That translation key was refused'
-  if (status === 403) return 'That key is not allowed to translate — check it is enabled for this site'
+  if (status === 400) return 'The translation key was refused — check VITE_GOOGLE_TRANSLATE_KEY reached this build'
+  if (status === 403) return 'The translation key is not allowed here — check its referrer restriction covers this site, and that Cloud Translation is enabled'
   if (status === 429) return 'Too many translations at once — try again in a moment'
   if (status >= 500) return 'The translation service is having trouble'
   return `The translation service said ${status}`
@@ -65,8 +102,13 @@ export function decodeEntities(text: string): string {
 }
 
 /** One phrase, into one language. */
-export async function translate(text: string, tag: string, key: string): Promise<TranslateResult> {
-  if (!text.trim() || !key) return fail('Nothing to translate')
+export async function translate(text: string, tag: string): Promise<TranslateResult> {
+  if (!text.trim()) return fail('Nothing to translate')
+  // Named rather than lumped in with the rest, because this one is not a
+  // service failing: it is a build that went out without its key, and the only
+  // symptom on the board is a phrase quietly spoken in English.
+  const key = translateKey()
+  if (!key) return fail('No translation key was built into this app')
   const target = translationTarget(tag)
   if (!target) return fail(`Nothing here translates into ${tag}`)
 
@@ -97,14 +139,3 @@ export async function translate(text: string, tag: string, key: string): Promise
   }
 }
 
-/**
- * Check a key by using it, which is the only honest test of one.
- *
- * Same shape as linking an ElevenLabs account: a key that cannot translate a
- * single word is a key that will fail silently later, in the middle of a
- * sentence somebody needed.
- */
-export async function checkKey(key: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const result = await translate('Hello', 'de', key)
-  return result.status === 'ok' ? { ok: true } : { ok: false, error: result.error }
-}

@@ -1463,6 +1463,20 @@ body {
   animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
 }
 
+/* A row that has something to say about itself. The note takes a line of its
+   own, so the control has to wrap and the label sits at the top of the two lines
+   rather than beside their middle. */
+.setting-row.has-note { align-items: flex-start; }
+.setting-row.has-note .setting-control { flex-wrap: wrap; }
+
+.setting-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 .eleven-status {
   flex: 1;
   min-width: 120px;

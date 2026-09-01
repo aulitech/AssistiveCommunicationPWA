@@ -290,18 +290,18 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'The phrases Peri comes with are translated already. They are instant, they work with no internet, and nothing about them is sent anywhere.',
-        'Phrases you wrote yourself, phrases with a blank filled in, and messages you build out of several are not. Those need a translation key, which you add under Settings the same way as an ElevenLabs one.',
+        'Phrases you wrote yourself, phrases with a blank filled in, and messages you build out of several are not. Those are translated as you go, by Peri, using its own account — there is nothing to set up and nothing to pay for.',
         'Anything translated once is kept on the device, so the second time is instant and costs nothing.',
         'The red emergency bar never waits for a translation. A phrase it already has, it says in your chosen language; one it does not, it says in the words you wrote — instantly, either way.',
       ),
       text(
-        'With a key, the phrases you wrote yourself are sent to Google to be translated. The phrases Peri ships are never sent anywhere, because they are translated before the app is built. Without a key, nothing is sent and your own phrases are simply spoken as you wrote them.',
+        'The phrases you wrote yourself are sent to Google to be translated, once each, and the answer is kept on your device so they are not sent again. The phrases Peri ships are never sent anywhere, because they are translated before the app is built. Setting the language back to your device default stops all of it.',
       ),
       text(
         'Peri also picks a voice for the language, so what is said sounds like the language it is in rather than your own voice reading a foreign sentence. Choosing a particular voice yourself overrides that.',
       ),
       text(
-        'Your translation key is never put in a backup file. Like the ElevenLabs key, it travels between your own devices when Synchronize is on, locked with your passphrase.',
+        'There is nothing to link and no key to keep safe. Translating is part of the app, unlike a better voice, which is an account of your own — so if you ever see a phrase come out in English when it should not have, it is a phrase Peri could not reach the service for, not something you forgot to set up.',
       ),
     ],
   },
