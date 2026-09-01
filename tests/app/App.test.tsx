@@ -4647,3 +4647,41 @@ describe('the waiting indicator', () => {
     expect(region?.textContent, 'a fresh board claimed to be busy').toBe('')
   })
 })
+
+/**
+ * The language the board is spoken in.
+ *
+ * Its whole job is the case where no specific voice applies — including the one
+ * where a `voiceURI` arrived from another device and names nothing here. So
+ * what is asserted is what comes out of the synthesiser, not what the row says.
+ */
+describe('the spoken language', () => {
+  const openSettings = () => {
+    click(iconBtn('Open menu'))
+    click([...document.querySelectorAll('[role="button"]')].find(b => b.textContent?.includes('Settings')))
+  }
+
+  it('is a row in the settings panel, set to the device by default', () => {
+    renderApp()
+    openSettings()
+    const row = [...document.querySelectorAll('.setting-row')].find(r =>
+      r.textContent?.includes('Spoken language'),
+    )
+    expect(row, 'there is no spoken language row').toBeTruthy()
+    expect(row?.textContent).toContain('Device default')
+  })
+
+  it('is what a phrase is spoken in when no voice has been chosen', () => {
+    renderApp({ language: 'fr-FR', autoSpeak: true })
+
+    click(plainCell())
+    expect(lastUtterance?.lang).toBe('fr-FR')
+  })
+
+  it('says nothing about the language until somebody sets one', () => {
+    renderApp({ autoSpeak: true })
+    click(plainCell())
+    expect(lastUtterance?.lang).toBe('')
+  })
+})
+

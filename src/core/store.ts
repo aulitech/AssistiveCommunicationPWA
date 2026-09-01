@@ -42,6 +42,19 @@ export interface Settings {
    * until this existed.
    */
   repeatDelayMs: number
+  /**
+   * The language the board is spoken in, as a BCP-47 tag. Empty follows the
+   * device, which is what Peri did before this existed.
+   *
+   * It is what speaks when nothing more specific has been said — a chosen voice
+   * carries its own language and wins. Its real work is on the day a `voiceURI`
+   * names a voice this device has never heard of: they travel between devices
+   * and they are platform strings, so a board set up on a Mac arrives on a phone
+   * naming nothing, and without a language the phone falls back to whatever the
+   * *system* speaks. That is how an English board ends up read aloud in the
+   * voice of another language entirely.
+   */
+  language: string // empty = whatever the device speaks
   voiceURI: string // empty = default
   volume: number // 0–1
   rate: number // 0.5–2
@@ -64,6 +77,7 @@ export const DEFAULT_SETTINGS: Settings = {
   phraseDwellMs: 1500,
   actionDwellMs: 800,
   repeatDelayMs: 1000,
+  language: '',
   voiceURI: '',
   volume: 1,
   rate: 1,

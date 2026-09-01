@@ -12,10 +12,8 @@
 // the voice it opened on, which is what makes trying them free.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
-import { cx, dwellVar } from '../ui/style'
-import { PickerFilter, PickerModal, PickerTile } from '../ui/controls'
+import { PickerFilter, PickerModal, PickerTile, PickerTrigger } from '../ui/controls'
 import { loadElevenLabs } from '../core/store'
 import { remoteVoiceURI } from './elevenlabs'
 import { inGroup, voiceGroups, voiceLabel, type VoiceChoice } from './groups'
@@ -68,11 +66,15 @@ export function VoicePicker({ value, onChange, defaultLabel, sampleText }: {
   const openPicker = useCallback(() => {
     setAccount(loadElevenLabs())
     setBefore(value)
-    setGroup(null)
+    // Opens on the language the board is spoken in, where there is one and it
+    // has voices here — sixty voices in languages nobody is going to choose is
+    // the whole reason the chips exist. Only when that group is real: a
+    // language set on another device may have nothing behind it on this one,
+    // and a filter that shows an empty grid reads as a fault.
+    const chosen = settings.language ? `lang:${settings.language}` : null
+    setGroup(chosen && groups.some(g => g.id === chosen) ? chosen : null)
     setOpen(true)
-  }, [value])
-
-  const { active, props } = useDwellControl(settings.actionDwellMs, openPicker)
+  }, [value, settings.language, groups])
 
   // Applied as it is chosen, and spoken with the voice actually picked rather
   // than the one in settings — that update has not reached this render yet.
@@ -91,21 +93,13 @@ export function VoicePicker({ value, onChange, defaultLabel, sampleText }: {
 
   return (
     <>
-      <div
-        className={cx('picker-trigger voice-trigger', active && 'dwelling')}
-        style={dwellVar(settings.actionDwellMs)}
-        role="button"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={`Voice: ${voiceLabel(current)}. Choose another`}
-        {...props}
-      >
-        <span className="picker-trigger-label">{voiceLabel(current)}</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-        <div className="dwell-bar" key={active ? 'a' : 'i'} />
-      </div>
+      <PickerTrigger
+        className="voice-trigger"
+        label={voiceLabel(current)}
+        name={`Voice: ${voiceLabel(current)}. Choose another`}
+        onOpen={openPicker}
+        open={open}
+      />
 
       {open && (
         <PickerModal

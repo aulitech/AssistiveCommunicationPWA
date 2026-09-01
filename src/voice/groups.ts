@@ -38,8 +38,40 @@ export function voiceGroups(items: VoiceChoice[]): { id: string; label: string; 
 
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
+/**
+ * The languages this device can actually speak, commonest first.
+ *
+ * Built from the installed voices rather than from a list of the world's
+ * languages: offering one the device has no voice for would be offering
+ * silence. The browser's own language leads, because it is the likeliest
+ * answer and it saves reading down a list of sixty.
+ */
+export function speechLanguages(voices: { lang: string }[]): { tag: string; label: string; count: number }[] {
+  const counts = new Map<string, number>()
+  for (const v of voices) {
+    if (v.lang) counts.set(v.lang, (counts.get(v.lang) ?? 0) + 1)
+  }
+  const preferred = deviceLanguage().slice(0, 2).toLowerCase()
+  return [...counts]
+    .map(([tag, count]) => ({ tag, label: languageName(tag), count }))
+    .sort(
+      (a, b) =>
+        Number(!a.tag.toLowerCase().startsWith(preferred)) -
+          Number(!b.tag.toLowerCase().startsWith(preferred)) ||
+        a.label.localeCompare(b.label),
+    )
+}
+
+const deviceLanguage = () => {
+  try {
+    return navigator.language ?? ''
+  } catch {
+    return ''
+  }
+}
+
 /** "en-GB" reads as a product code; "English (United Kingdom)" does not. */
-function languageName(lang: string): string {
+export function languageName(lang: string): string {
   try {
     return new Intl.DisplayNames([navigator.language], { type: 'language' }).of(lang) ?? lang
   } catch {
