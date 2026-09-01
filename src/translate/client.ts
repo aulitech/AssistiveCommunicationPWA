@@ -10,12 +10,19 @@
 // than silence. Every failure is a value, exactly as in `sync/client.ts`.
 
 import { translationTarget } from '../core/translation'
+import { reportFailure } from '../core/report'
 
 const ENDPOINT = 'https://translation.googleapis.com/language/translate/v2'
 
 export type TranslateResult =
   | { status: 'ok'; text: string }
   | { status: 'error'; error: string }
+
+/** The failure as a value, and the same failure in the console. */
+function fail(error: string): TranslateResult {
+  reportFailure('translate', error)
+  return { status: 'error', error }
+}
 
 function describe(status: number): string {
   if (status === 400) return 'That translation key was refused'
@@ -59,9 +66,9 @@ export function decodeEntities(text: string): string {
 
 /** One phrase, into one language. */
 export async function translate(text: string, tag: string, key: string): Promise<TranslateResult> {
-  if (!text.trim() || !key) return { status: 'error', error: 'Nothing to translate' }
+  if (!text.trim() || !key) return fail('Nothing to translate')
   const target = translationTarget(tag)
-  if (!target) return { status: 'error', error: 'Nothing here translates into that' }
+  if (!target) return fail(`Nothing here translates into ${tag}`)
 
   try {
     const response = await fetch(ENDPOINT, {
@@ -78,15 +85,15 @@ export async function translate(text: string, tag: string, key: string): Promise
         format: 'text',
       }),
     })
-    if (!response.ok) return { status: 'error', error: describe(response.status) }
+    if (!response.ok) return fail(describe(response.status))
 
     const body = (await response.json()) as { data?: { translations?: { translatedText?: unknown }[] } }
     const first = body.data?.translations?.[0]?.translatedText
     return typeof first === 'string' && first
       ? { status: 'ok', text: decodeEntities(first) }
-      : { status: 'error', error: 'The translation service sent back nothing' }
+      : fail('The translation service sent back nothing')
   } catch {
-    return { status: 'error', error: 'Could not reach the translation service' }
+    return fail('Could not reach the translation service')
   }
 }
 

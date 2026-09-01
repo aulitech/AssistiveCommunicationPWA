@@ -6,6 +6,7 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { checkKey, decodeEntities, translate } from '../../src/translate/client'
+import { warnings } from '../setup'
 
 const KEY = 'key-1234'
 
@@ -143,7 +144,7 @@ describe('every way it can fail', () => {
     const fetcher = answers({ data: { translations: [{ translatedText: 'nonsense' }] } })
     expect(await translate('Help me!', 'jam', KEY)).toEqual({
       status: 'error',
-      error: 'Nothing here translates into that',
+      error: 'Nothing here translates into jam',
     })
     expect(fetcher).not.toHaveBeenCalled()
   })
@@ -170,5 +171,52 @@ describe('checking a key', () => {
   it('reports why one does not', async () => {
     answers({}, { status: 400 })
     expect(await checkKey('nonsense')).toEqual({ ok: false, error: 'That translation key was refused' })
+  })
+})
+
+/**
+ * Every one of these paths recovers — the caller speaks the words as they were
+ * written — and that is exactly what makes them invisible. A board that carries
+ * on working looks like a board with nothing wrong, so the failure has to say
+ * so somewhere.
+ */
+describe('what reaches the console', () => {
+  it('warns when the service refuses', async () => {
+    answers({}, { status: 403 })
+    await translate('Good morning', 'fr', KEY)
+    expect(warnings).toEqual([
+      '[Peri] translate: That key is not allowed to translate — check it is enabled for this site',
+    ])
+  })
+
+  it('warns when the service cannot be reached', async () => {
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    await translate('Good morning', 'fr', KEY)
+    expect(warnings[0]).toContain('Could not reach the translation service')
+  })
+
+  it('names the language nothing translates into, rather than saying "that"', async () => {
+    answers({ data: { translations: [] } })
+    await translate('Help me!', 'jam', KEY)
+    expect(warnings[0]).toContain('jam')
+  })
+
+  it('says nothing at all when it works', async () => {
+    answers({ data: { translations: [{ translatedText: 'Bonjour' }] } })
+    await translate('Good morning', 'fr', KEY)
+    expect(warnings).toEqual([])
+  })
+
+  /**
+   * **Never the words, and never the key.** A phrase belongs to the person who
+   * wrote it, and a console ends up in every screen-share and bug report from
+   * then on; a key in a console is a key in a screenshot.
+   */
+  it('never puts the phrase or the key in the console', async () => {
+    answers({}, { status: 403 })
+    await translate('My chest hurts', 'fr', 'key-1234-secret')
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0], 'a phrase reached the console').not.toContain('chest')
+    expect(warnings[0], 'a key reached the console').not.toContain('key-1234-secret')
   })
 })

@@ -17,6 +17,7 @@
 
 import { type ElevenLabsAccount, type RemoteVoice } from '../core/store'
 import { audioKey, cachedAudio, rememberAudio } from './audio-cache'
+import { reportFailure } from '../core/report'
 
 const API = 'https://api.elevenlabs.io/v1'
 
@@ -39,6 +40,12 @@ export const remoteVoiceId = (voiceURI: string): string | null =>
 
 export type LinkResult = { ok: true; account: ElevenLabsAccount } | { ok: false; error: string }
 
+/** The failure as a value, and the same failure in the console. */
+function linkFailed(error: string): LinkResult {
+  reportFailure('elevenlabs/link', error)
+  return { ok: false, error }
+}
+
 /** What went wrong, in words that say what to do about it. */
 function describeFailure(status: number): string {
   if (status === 401 || status === 403) return 'That key was not accepted. Check you copied all of it.'
@@ -59,9 +66,9 @@ export async function linkAccount(apiKey: string): Promise<LinkResult> {
   try {
     response = await fetch(`${API}/voices`, { headers: { 'xi-api-key': key } })
   } catch {
-    return { ok: false, error: 'Could not reach ElevenLabs. Check the connection and try again.' }
+    return linkFailed('Could not reach ElevenLabs. Check the connection and try again.')
   }
-  if (!response.ok) return { ok: false, error: describeFailure(response.status) }
+  if (!response.ok) return linkFailed(describeFailure(response.status))
 
   let voices: RemoteVoice[]
   try {
@@ -78,11 +85,11 @@ export async function linkAccount(apiKey: string): Promise<LinkResult> {
       }))
       .filter(v => v.id !== '' && v.name !== '')
   } catch {
-    return { ok: false, error: 'ElevenLabs sent something Peri could not read.' }
+    return linkFailed('ElevenLabs sent something Peri could not read.')
   }
 
   if (voices.length === 0) {
-    return { ok: false, error: 'That account has no voices in it yet. Add one at elevenlabs.io first.' }
+    return linkFailed('That account has no voices in it yet. Add one at elevenlabs.io first.')
   }
   return { ok: true, account: { apiKey: key, voices } }
 }

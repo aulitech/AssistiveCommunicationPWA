@@ -34,6 +34,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `core/markdown.ts` - The markup a phrase may carry, and taking it back off. `layout` for drawing, `stripMarkdown` for everything a phrase is *not* drawn into — spoken, searched, announced
 - `core/links.ts` - Reading a URL and a label out of a paste or a drop, and writing them as `[label](url)`. A clipboard and a drag carry the same shape, so one reader serves both
 - `core/translation.ts` - What a phrase says in another language, looked up **synchronously** — see **Speaking another language**. Two sources: the tables Peri ships, lazily loaded for whichever language is chosen, and whatever has been translated on this device before
+- `core/report.ts` - `reportFailure`, one shape for every service failure that reaches the console — see **Saying when something failed**
 - `core/prose.ts` - The blocks long-form text is written in
 - `core/crypto.ts` - Locking a board before it leaves the device. One passphrase derives two things through HKDF off a single PBKDF2 run: the AES-GCM key the board is sealed with, and **the address it is stored under**. The account is the salt
 - `core/envelope.ts` - The wire format alone: the envelope, its parser, the address and the revision. **It imports nothing, and that is load-bearing** — the Netlify function takes this and nothing else out of `src`, so both ends validate identically. One value taken from the store once pulled `core/phrases` in behind it and turned a 3KB Lambda into 418KB of phrase table
@@ -328,6 +329,16 @@ Both of the existing cancellations are defeated at once. The control's own `onPo
 - **The repeat is checked on every tick**, not only at the first firing. A repeating control left running by a pointer that has gone is the worst version of this, because it does not stop — a scroll arrow reaches the end of the grid, a spinner drives the text size to its limit. A tick landing inside the 150ms threshold still fires; at a repeat faster than that, exactly one does.
 - **150ms is provisional.** It is twelve times the observed 33ms cadence and it suppressed the measured failure with 1.2 seconds to spare, but it was picked against one device. `tools/pointer-probe.html` is what to tune it with: leave it open through a session of ordinary use and read the **largest gap** — that is the number `STALL_MS` has to sit above — and use its *block the main thread* buttons for the one thing that could make a present pointer look absent.
 - Like the settle guard it is module state, and `tests/setup.ts` clears it between tests.
+
+## Saying when something failed
+
+Every service call in this app is written so that failing changes as little as possible: sync fails into a line of text under a setting, a translation fails into the words as they were written, an ElevenLabs voice fails into the device's, a service worker that will not register leaves an app that still runs. That is the right behaviour, and it is exactly what makes these failures invisible — **a board that carries on working looks like a board with nothing wrong**, and the first question anybody debugging one has is what the service actually said.
+
+`reportFailure(where, what)` in `core/report.ts` is the one shape they all take: `[Peri] sync/pull: Server said 500`. `where` names the thing that failed the way the source tree does, so the console can be filtered and the code grepped.
+
+- **Never the words, and never the key.** What goes in is the operation and the failure Peri would already show a user — a status code, a refusal, "could not reach". A phrase belongs to the person who wrote it, and a console ends up in every screen-share and bug report from then on; a key in a console is a key in a screenshot. `tests/translate/client.test.ts` holds that line.
+- **Only what is actually a fault.** A 409 from sync is somebody else writing first, which the next poll reconciles — no warning. A parser refusing a damaged backup, a `localStorage` read finding nothing, `Intl.DisplayNames` missing: all of those are defined paths with a defined answer, and warning about them would fill the console during normal use. A *write* that fails is different, and does warn: it means data was lost.
+- **Tests capture Peri's own warnings and pass everything else through.** `warnings` in `tests/setup.ts` collects anything beginning `[Peri]` — nearly a thousand tests drive these paths deliberately — while React's warnings still reach the terminal, which is the whole point of having them.
 
 ## Waiting
 

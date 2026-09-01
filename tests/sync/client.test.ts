@@ -7,6 +7,7 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { pull, push } from '../../src/sync/client'
+import { warnings } from '../setup'
 import { SYNC_FORMAT, SYNC_VERSION, type Envelope } from '../../src/core/sync'
 
 const ADDRESS = 'a'.repeat(64)
@@ -107,5 +108,38 @@ describe('no answer', () => {
   it('says what the server said when it said something', async () => {
     answers('{}', { status: 500 })
     expect(await pull(ADDRESS)).toEqual({ status: 'error', error: 'Server said 500' })
+  })
+})
+
+/**
+ * Sync fails into a line of text under a setting, which is the right behaviour
+ * and also what makes a broken endpoint so hard to see. The console says what
+ * the server actually answered.
+ */
+describe('what reaches the console', () => {
+  it('warns when the endpoint is not there', async () => {
+    answers('<!doctype html>', { headers: { 'content-type': 'text/html' } })
+    await pull(ADDRESS)
+    expect(warnings).toEqual(['[Peri] sync/pull: Synchronizing is not available on this server'])
+  })
+
+  it('names which way it was going', async () => {
+    answers('{}', { status: 500 })
+    await push(ADDRESS, envelope(), 0)
+    expect(warnings[0]).toContain('sync/push')
+  })
+
+  // Somebody wrote first, and what they wrote came back with the refusal. The
+  // next poll reconciles it, so there is nothing wrong to report.
+  it('says nothing about losing a race, which is not a failure', async () => {
+    answers(JSON.stringify({ envelope: envelope(), revision: 7 }), { status: 409 })
+    expect((await push(ADDRESS, envelope(), 3)).status).toBe('stale')
+    expect(warnings).toEqual([])
+  })
+
+  it('says nothing when it works', async () => {
+    answers('{"envelope":null,"revision":0}')
+    await pull(ADDRESS)
+    expect(warnings).toEqual([])
   })
 })
