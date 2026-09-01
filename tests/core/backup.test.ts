@@ -16,7 +16,7 @@ import {
 } from '../../src/core/backup'
 import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from '../../src/core/store'
 import { EMPTY_ALIASES, type AliasStore } from '../../src/core/phrases'
-import { saveDeepLKey, saveElevenLabs, saveSent } from '../../src/core/store'
+import { saveTranslateKey, saveElevenLabs, saveSent } from '../../src/core/store'
 
 // A store with something of the user's in every field, and the map of ids to
 // categories the app would hand alongside it.
@@ -495,11 +495,11 @@ describe('what a backup must never carry', () => {
    * one hands over the account it bills to.
    */
   it('leaves the translation key out of the file', () => {
-    saveDeepLKey('deepl-secret-key:fx')
+    saveTranslateKey('google-secret-key')
     const { state, categoryById } = fixture()
     const file = serializeBackup(buildBackup({ ...state, categoryById }))
 
-    expect(file).not.toContain('deepl-secret-key')
+    expect(file).not.toContain('google-secret-key')
   })
 
   /**

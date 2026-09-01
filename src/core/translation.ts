@@ -49,24 +49,31 @@ export interface SpokenVariety {
   label: string
   /** What `utterance.lang` is set to — not always the tag. */
   speak: string
-  /** What DeepL is asked for, or **null when no service will do it**. */
-  deepl: string | null
+  /** What the translation service is asked for, or **null when none will do it**. */
+  target: string | null
   /** Which shipped table it reads. */
   table: string
 }
 
 export const VARIETIES: SpokenVariety[] = [
   /**
-   * DeepL has no Puerto Rican Spanish and nobody does — what it has is
-   * `ES-419`, Latin American Spanish, which is the near side of a real divide:
-   * European Spanish would give a board `vosotros` and `coger`, and the second
-   * of those means something else entirely in San Juan.
+   * Nobody has a Puerto Rican target. The table is Latin American Spanish —
+   * the near side of a real divide, since European Spanish would give a board
+   * `vosotros` and `coger`, the second of which means something else entirely
+   * in San Juan — and it is **named for the variety rather than for a
+   * provider's code**, because the provider has changed once already.
+   *
+   * Google's plain `es` is what gets asked for: its `es-419` is only on the
+   * LLM model, which wants a service account rather than a key and so cannot
+   * be called from a page. The shipped table is where the regional wording
+   * lives; the service fills the gaps around it.
    */
-  { tag: 'es-PR', label: 'Spanish (Puerto Rico)', speak: 'es-PR', deepl: 'ES-419', table: 'es-419' },
+  { tag: 'es-PR', label: 'Spanish (Puerto Rico)', speak: 'es-PR', target: 'es', table: 'es-419' },
   /**
-   * **Patois is a language, not an accent**, and no translation service
-   * supports it — DeepL carries Haitian Creole and no other. So this is the
-   * case the shipped tables exist for: the phrases Peri comes with are written
+   * **Patois is a language, not an accent**, and no translation *API* supports
+   * it. Google Translate the product added it in 2024; Cloud Translation, the
+   * one a page can call, lists Haitian Creole and no other English-based
+   * creole. So this is the case the shipped tables exist for: the phrases Peri comes with are written
    * out ahead of time, and anything somebody writes themselves is spoken as
    * they wrote it, because there is nothing to send it to.
    *
@@ -74,7 +81,7 @@ export const VARIETIES: SpokenVariety[] = [
    * Patois written down is close enough to English orthography that an English
    * voice reads it about right — a Jamaican one, where there is one, better.
    */
-  { tag: 'jam', label: 'Jamaican Patois', speak: 'en-JM', deepl: null, table: 'jam' },
+  { tag: 'jam', label: 'Jamaican Patois', speak: 'en-JM', target: null, table: 'jam' },
 ]
 
 const varietyFor = (tag: string) => VARIETIES.find(v => v.tag.toLowerCase() === tag.toLowerCase())
@@ -91,16 +98,16 @@ export const tableFor = (tag: string): string | null =>
   varietyFor(tag)?.table ?? (needsTranslation(tag) ? baseLanguage(tag) : null)
 
 /**
- * What to ask DeepL for, or **null when nothing will translate this**.
+ * What to ask the translation service for, or **null when nothing will do it**.
  *
  * Null is not a failure and not a missing case: Patois is a language no service
  * offers, so a phrase outside the shipped table is spoken as it was written and
  * nothing is sent anywhere.
  */
-export const deeplTarget = (tag: string): string | null => {
+export const translationTarget = (tag: string): string | null => {
   const variety = varietyFor(tag)
-  if (variety) return variety.deepl
-  return needsTranslation(tag) ? baseLanguage(tag).toUpperCase() : null
+  if (variety) return variety.target
+  return needsTranslation(tag) ? baseLanguage(tag) : null
 }
 
 /** What the synthesiser is told, which is not always what the setting holds. */

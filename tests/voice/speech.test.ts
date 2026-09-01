@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { speak, warmVoice } from '../../src/voice/speech'
 import { remoteVoiceURI } from '../../src/voice/elevenlabs'
 import { audioKey, cachedAudio, clearAudioCache, rememberAudio } from '../../src/voice/audio-cache'
-import { saveDeepLKey, saveElevenLabs } from '../../src/core/store'
+import { saveTranslateKey, saveElevenLabs } from '../../src/core/store'
 import { forgetTranslations, rememberTranslation, seedTranslations, translationFor } from '../../src/core/translation'
 import { spoken, lastUtterance, played, setAudioPlays, voices } from '../setup'
 
@@ -316,7 +316,7 @@ describe('speaking a translated board', () => {
 
   beforeEach(() => {
     forgetTranslations()
-    saveDeepLKey('')
+    saveTranslateKey('')
   })
 
   it('says the translation Peri ships', () => {
@@ -346,7 +346,7 @@ describe('speaking a translated board', () => {
    * the original rather than a second and a half later.
    */
   it('never waits, and never goes quiet, on the emergency bar', () => {
-    saveDeepLKey('key-1234')
+    saveTranslateKey('key-1234')
     const fetcher = vi.fn()
     vi.stubGlobal('fetch', fetcher)
     seedTranslations('fr', { 'Help me!': 'Aidez-moi !' })
@@ -368,9 +368,9 @@ describe('speaking a translated board', () => {
   })
 
   it('translates a phrase of your own, then keeps it', async () => {
-    saveDeepLKey('key-1234')
+    saveTranslateKey('key-1234')
     vi.stubGlobal('fetch', vi.fn(async () =>
-      new Response(JSON.stringify({ translations: [{ text: "J'ai froid" }] }), {
+      new Response(JSON.stringify({ data: { translations: [{ translatedText: "J'ai froid" }] } }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
@@ -383,7 +383,7 @@ describe('speaking a translated board', () => {
   })
 
   it('falls back to the written words when the translator will not answer', async () => {
-    saveDeepLKey('key-1234')
+    saveTranslateKey('key-1234')
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
     speak("I'm cold", FRENCH)
     await flush()
@@ -412,7 +412,7 @@ describe('speaking a board in Jamaican Patois', () => {
 
   beforeEach(() => {
     forgetTranslations()
-    saveDeepLKey('')
+    saveTranslateKey('')
   })
 
   it('says what the shipped table says', () => {
@@ -428,7 +428,7 @@ describe('speaking a board in Jamaican Patois', () => {
    * for, exactly as an untranslated board does.
    */
   it('speaks a phrase it has no translation for straight away', () => {
-    saveDeepLKey('key-1234')
+    saveTranslateKey('key-1234')
     const fetcher = vi.fn()
     vi.stubGlobal('fetch', fetcher)
 
@@ -440,7 +440,7 @@ describe('speaking a board in Jamaican Patois', () => {
   })
 
   it('never sends a phrase anywhere, even with a key in hand', async () => {
-    saveDeepLKey('key-1234')
+    saveTranslateKey('key-1234')
     const fetcher = vi.fn()
     vi.stubGlobal('fetch', fetcher)
 
@@ -464,7 +464,7 @@ describe('speaking a board in Puerto Rican Spanish', () => {
 
   beforeEach(() => {
     forgetTranslations()
-    saveDeepLKey('')
+    saveTranslateKey('')
   })
 
   it('is spoken as Puerto Rican Spanish, not as Spanish', () => {
@@ -473,12 +473,22 @@ describe('speaking a board in Puerto Rican Spanish', () => {
     expect(lastUtterance?.lang).toBe('es-PR')
   })
 
-  it('asks Latin America rather than Spain for anything new', async () => {
-    saveDeepLKey('key-1234')
+  /**
+   * The regional wording lives in the **shipped table**, which is Latin
+   * American Spanish. The service is asked for the closest thing it offers to
+   * a page — plain `es` — because Google's own `es-419` is on the LLM model,
+   * which wants a service account rather than a key.
+   *
+   * So a phrase Peri ships sounds Puerto Rican and one written here sounds
+   * Spanish, which is the honest state of it and worth pinning rather than
+   * pretending otherwise.
+   */
+  it('asks the service for the closest Spanish it has', async () => {
+    saveTranslateKey('key-1234')
     let asked = ''
     const fetcher = vi.fn(async (_url: string, init: RequestInit) => {
       asked = String(init.body)
-      return new Response(JSON.stringify({ translations: [{ text: 'Tengo frío' }] }), {
+      return new Response(JSON.stringify({ data: { translations: [{ translatedText: 'Tengo frío' }] } }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       })
@@ -487,7 +497,14 @@ describe('speaking a board in Puerto Rican Spanish', () => {
 
     speak("I'm cold", PUERTO_RICO)
     await flush()
-    const body = JSON.parse(asked)
-    expect(body.target_lang).toBe('ES-419')
+    expect(JSON.parse(asked).target).toBe('es')
+  })
+
+  // And the shipped table is what carries the difference.
+  it('keeps its own table, not the one plain Spanish reads', async () => {
+    seedTranslations('es-PR', { 'Get a doctor': 'Busque un doctor' })
+    seedTranslations('es-ES', { 'Get a doctor': 'Busque un médico' })
+    speak('Get a doctor', PUERTO_RICO)
+    expect(spoken).toEqual(['Busque un doctor'])
   })
 })

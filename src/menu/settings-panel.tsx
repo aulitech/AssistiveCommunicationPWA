@@ -15,7 +15,7 @@ import { type AliasStore } from '../core/phrases'
 import { buildBackup } from '../core/backup'
 import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
 import { useSettings } from '../ui/settings'
-import { DEFAULT_SETTINGS, factoryReset, loadDeepLKey, saveDeepLKey } from '../core/store'
+import { DEFAULT_SETTINGS, factoryReset, loadTranslateKey, saveTranslateKey } from '../core/store'
 import { PanelButton, PickerModal, PickerTile, PickerTrigger, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
 import { useDwellControl } from '../ui/dwell'
 import { CopyIcon, EyeIcon, EyeOffIcon } from '../ui/icons'
@@ -626,10 +626,10 @@ function ConfirmForgetSync({ onConfirm, onCancel }: { onConfirm: () => void; onC
  */
 function TranslationRow() {
   const { settings } = useSettings()
-  const [key, setKey] = useState(loadDeepLKey)
+  const [key, setKey] = useState(loadTranslateKey)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [linked, setLinked] = useState(() => loadDeepLKey() !== '')
+  const [linked, setLinked] = useState(() => loadTranslateKey() !== '')
 
   const link = useCallback(() => {
     setBusy(true)
@@ -640,14 +640,14 @@ function TranslationRow() {
         setError(result.error)
         return
       }
-      saveDeepLKey(key.trim())
+      saveTranslateKey(key.trim())
       setLinked(true)
     })
   }, [key])
 
   const unlink = useCallback(() => {
     setError(null)
-    saveDeepLKey('')
+    saveTranslateKey('')
     setKey('')
     setLinked(false)
   }, [])
@@ -660,15 +660,15 @@ function TranslationRow() {
           <>
             <span className="eleven-status">Linked</span>
             <PanelButton kind="danger" label="Unlink" onActivate={unlink} />
-            <SecretField value={key} name="the translation key" label="DeepL API key" />
+            <SecretField value={key} name="the translation key" label="Google Translate API key" />
           </>
         ) : (
           <>
             <SecretField
               value={key}
               name="the translation key"
-              label="DeepL API key"
-              placeholder="Paste your DeepL key"
+              label="Google Translate API key"
+              placeholder="Paste your Google Translate key"
               onChange={setKey}
               onEnter={link}
             />
@@ -685,7 +685,7 @@ function TranslationRow() {
           {!needsTranslation(settings.language)
             ? 'Only used when the board is set to speak a language it is not written in.'
             : linked
-              ? 'Your own phrases are sent to DeepL to be translated, once each, and kept on this device afterwards. The phrases Peri ships are translated already and never leave. The emergency bar never waits for a translation.'
+              ? 'Your own phrases are sent to Google to be translated, once each, and kept on this device afterwards. The phrases Peri ships are translated already and never leave. The emergency bar never waits for a translation.'
               : 'Optional. The phrases Peri ships are already translated; without a key, phrases you wrote yourself are spoken as they were written. The key is never put in a backup file.'}
         </p>
       </div>

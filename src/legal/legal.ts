@@ -23,7 +23,7 @@ export const PRIVACY: ProseDocument = {
   title: 'Privacy Policy',
   updated: UPDATED,
   intro:
-    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device. Three things are exceptions, and each is yours to switch on: linking an ElevenLabs account sends the words you speak to ElevenLabs to be turned into audio, adding a translation key sends the phrases you wrote yourself to DeepL to be translated, and turning on Synchronize puts an encrypted copy of your board on our server so your other devices can fetch it. We cannot read that copy.',
+    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device. Three things are exceptions, and each is yours to switch on: linking an ElevenLabs account sends the words you speak to ElevenLabs to be turned into audio, adding a translation key sends the phrases you wrote yourself to Google to be translated, and turning on Synchronize puts an encrypted copy of your board on our server so your other devices can fetch it. We cannot read that copy.',
   sections: [
     {
       title: 'What we collect',
@@ -98,7 +98,7 @@ export const PRIVACY: ProseDocument = {
           'The same applies, deliberately and visibly, if you link an ElevenLabs account. Choosing one of its voices means that each phrase you speak is sent to ElevenLabs to be turned into audio, using your own account and your own credits. It goes from your device straight to them and does not pass through us. What they do with it is governed by their privacy policy, not this one. Unlink the account, or choose a device voice, and nothing is sent.',
       ),
       text(
-        'Setting a spoken language works the same way, and mostly sends nothing. The phrases Peri comes with are translated before the app is built, so speaking one of those in another language involves no request at all. Only the phrases you wrote yourself, and messages you build out of several, need translating as you go — and only if you have added a translation key. Those are sent from your device straight to DeepL, once each, and the result is kept on your device so it is not sent again. Without a key nothing is sent and your own phrases are spoken as you wrote them.',
+        'Setting a spoken language works the same way, and mostly sends nothing. The phrases Peri comes with are translated before the app is built, so speaking one of those in another language involves no request at all. Only the phrases you wrote yourself, and messages you build out of several, need translating as you go — and only if you have added a translation key. Those are sent from your device straight to Google, once each, and the result is kept on your device so it is not sent again. Without a key nothing is sent and your own phrases are spoken as you wrote them.',
         ),
         text(
           'The emergency bar always uses a device voice, whatever else is selected, so those phrases are spoken instantly and still work with no connection.',
