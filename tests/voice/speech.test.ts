@@ -3,7 +3,7 @@ import { speak, warmVoice } from '../../src/voice/speech'
 import { remoteVoiceURI } from '../../src/voice/elevenlabs'
 import { audioKey, cachedAudio, clearAudioCache, rememberAudio } from '../../src/voice/audio-cache'
 import { saveElevenLabs } from '../../src/core/store'
-import { spoken, lastUtterance, played, setAudioPlays } from '../setup'
+import { spoken, lastUtterance, played, setAudioPlays, voices } from '../setup'
 
 // Which of the two voices a phrase comes out of, and — the point of all of it —
 // that it always comes out of one of them. Somebody's only way of speaking does
@@ -242,5 +242,58 @@ describe('warming a voice', () => {
     vi.stubGlobal('fetch', fetcher)
     expect(await warmVoice('Help me!', 'uri-Daniel')).toBe(false)
     expect(fetcher).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The language the board is spoken in.
+ *
+ * A voice is a stronger statement than a language and wins wherever there is
+ * one. What the setting is really for is the case where there is not: a
+ * `voiceURI` is a platform string and it travels between devices, so a board
+ * set up on a Mac arrives on a phone naming a voice that does not exist there.
+ * Without a language that falls all the way back to whatever the *system*
+ * speaks, and an English board gets read aloud by a Spanish voice.
+ */
+describe('the spoken language', () => {
+  const daniel = { voiceURI: 'uri-Daniel', name: 'Daniel', lang: 'en-GB' } as SpeechSynthesisVoice
+
+  beforeEach(() => {
+    voices.length = 0
+    voices.push(daniel)
+  })
+
+  it('is left to the device when nothing has been chosen', () => {
+    speak('Hello', SETTINGS)
+    expect(lastUtterance?.lang).toBe('')
+  })
+
+  it('is spoken in the chosen language when no voice has been picked', () => {
+    speak('Hello', { ...SETTINGS, language: 'fr-FR' })
+    expect(lastUtterance?.lang).toBe('fr-FR')
+  })
+
+  // The voice carries its own language, and choosing one is the more specific
+  // thing to have said.
+  it('gives way to a voice that was actually chosen', () => {
+    speak('Hello', { ...SETTINGS, voiceURI: 'uri-Daniel', language: 'fr-FR' })
+    expect(lastUtterance?.voice).toBe(daniel)
+    expect(lastUtterance?.lang).toBe('en-GB')
+  })
+
+  /**
+   * The case the setting exists for. The board names a voice this device has
+   * never heard of — it came from another one — and the language is all that is
+   * left to go on.
+   */
+  it('catches a board whose voice does not exist on this device', () => {
+    speak('Hello', { ...SETTINGS, voiceURI: 'com.microsoft.Hazel', language: 'en-GB' })
+    expect(lastUtterance?.voice).toBeFalsy()
+    expect(lastUtterance?.lang, 'fell back to whatever the system speaks').toBe('en-GB')
+  })
+
+  it('leaves it to the device when there is no language to fall back on either', () => {
+    speak('Hello', { ...SETTINGS, voiceURI: 'com.microsoft.Hazel' })
+    expect(lastUtterance?.lang).toBe('')
   })
 })

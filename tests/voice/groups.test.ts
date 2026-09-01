@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { inGroup, voiceGroups, voiceLabel, type VoiceChoice } from '../../src/voice/groups'
+import { inGroup, speechLanguages, voiceGroups, voiceLabel, type VoiceChoice } from '../../src/voice/groups'
 
 // Cutting a long list down. Device voices divide by language, an account's
 // voices by the collection it files them under, and a voice belongs to one or
@@ -109,5 +109,50 @@ describe('naming a voice', () => {
 
   it('says just the name when there is nothing to add', () => {
     expect(voiceLabel({ voiceURI: '', name: 'Default' })).toBe('Default')
+  })
+})
+
+/**
+ * The languages a device can actually speak.
+ *
+ * Built from the installed voices rather than from a list of the world's
+ * languages: offering one this device has no voice for would be offering
+ * silence — the setting would take, and nothing would change.
+ */
+describe('the languages on offer', () => {
+  const voices = [
+    { lang: 'en-GB' },
+    { lang: 'en-GB' },
+    { lang: 'fr-FR' },
+    { lang: 'de-DE' },
+  ]
+
+  it('offers each language once, with how many voices it has', () => {
+    const langs = speechLanguages(voices)
+    expect(langs.map(l => l.tag).sort()).toEqual(['de-DE', 'en-GB', 'fr-FR'])
+    expect(langs.find(l => l.tag === 'en-GB')?.count).toBe(2)
+  })
+
+  it('offers nothing for a device with no voices at all', () => {
+    expect(speechLanguages([])).toEqual([])
+  })
+
+  it('skips a voice that will not say what language it is', () => {
+    expect(speechLanguages([{ lang: '' }, { lang: 'en-US' }]).map(l => l.tag)).toEqual(['en-US'])
+  })
+
+  /**
+   * The browser's own language leads. It is the likeliest answer, and it saves
+   * reading down a list of sixty to find it.
+   */
+  it("puts the device's own language first", () => {
+    const langs = speechLanguages([{ lang: 'zu-ZA' }, { lang: 'en-US' }, { lang: 'af-ZA' }])
+    expect(langs[0].tag).toBe('en-US')
+  })
+
+  it('names a language rather than showing its code', () => {
+    const [only] = speechLanguages([{ lang: 'fr-FR' }])
+    expect(only.label).not.toBe('fr-FR')
+    expect(only.label.toLowerCase()).toContain('french')
   })
 })

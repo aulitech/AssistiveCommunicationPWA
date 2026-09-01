@@ -253,6 +253,9 @@ function readLegacyProfile(v: unknown): AliasStore | undefined {
  * someone driving Peri by gaze is the difference between a keyboard and a
  * minefield — and they would have no working control left to undo it with.
  */
+/** A BCP-47 tag: a language, optionally narrowed by script or region. */
+const LANGUAGE_TAG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/
+
 function readSettings(v: unknown): Settings | undefined {
   if (!isRecord(v)) return undefined
   const num = (x: unknown, { min, max }: { min: number; max: number }, fallback: number) =>
@@ -261,6 +264,12 @@ function readSettings(v: unknown): Settings | undefined {
     phraseDwellMs: num(v.phraseDwellMs, SETTING_LIMITS.phraseDwellMs, DEFAULT_SETTINGS.phraseDwellMs),
     actionDwellMs: num(v.actionDwellMs, SETTING_LIMITS.actionDwellMs, DEFAULT_SETTINGS.actionDwellMs),
     repeatDelayMs: num(v.repeatDelayMs, SETTING_LIMITS.repeatDelayMs, DEFAULT_SETTINGS.repeatDelayMs),
+    // Shape-checked rather than taken as written. It cannot be held to the
+    // languages *this* device speaks — the setting travels, and the device that
+    // wrote it may have voices this one has never had — but a language tag is a
+    // language tag, and anything that is not one would only ever be handed
+    // straight to the synthesiser.
+    language: LANGUAGE_TAG.test(str(v.language)) ? str(v.language) : DEFAULT_SETTINGS.language,
     voiceURI: str(v.voiceURI),
     volume: num(v.volume, SETTING_LIMITS.volume, DEFAULT_SETTINGS.volume),
     rate: num(v.rate, SETTING_LIMITS.rate, DEFAULT_SETTINGS.rate),

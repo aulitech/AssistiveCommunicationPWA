@@ -267,6 +267,7 @@ describe('reading a backup back', () => {
           volume: 99,
           rate: 40,
           voiceURI: 7,
+          language: 'Klingon, obviously',
           autoSpeak: 'yes',
           zoom: 9,
         },
@@ -279,6 +280,8 @@ describe('reading a backup back', () => {
       actionDwellMs: 300,
       repeatDelayMs: 100,
       voiceURI: '',
+      // Not the shape of a language tag, so it is not handed to a synthesiser.
+      language: '',
       volume: 1,
       rate: 2,
       // 'yes' is not a boolean, so it falls back to the default like every
@@ -504,5 +507,54 @@ describe('what a backup must never carry', () => {
     state.settings.voiceURI = 'elevenlabs:v1'
     const backup = buildBackup({ ...state, categoryById })
     expect(backup.settings?.voiceURI).toBe('elevenlabs:v1')
+  })
+})
+
+/**
+ * The spoken language travels like the voice and the dwell times: it is about
+ * the person, not about the screen in front of them. Text size and volume are
+ * the two that stay behind.
+ */
+describe('the spoken language in a file', () => {
+  /** A real file, with its settings block replaced by whatever is being tried. */
+  const settingsFrom = (settings: unknown) => {
+    const result = parseBackup(JSON.stringify({ ...exportAll(), settings }))
+    if (!result.ok) throw new Error(result.error)
+    return result.backup.settings
+  }
+
+  it('makes the round trip', () => {
+    const { state, categoryById } = fixture()
+    const written = buildBackup({
+      ...state,
+      settings: { ...DEFAULT_SETTINGS, language: 'fr-FR' },
+      categoryById,
+    })
+    const result = parseBackup(serializeBackup(written))
+    if (!result.ok) throw new Error(result.error)
+    expect(result.backup.settings?.language).toBe('fr-FR')
+  })
+
+  it('reads a file written before the setting existed as the default', () => {
+    const older: Record<string, unknown> = { ...DEFAULT_SETTINGS }
+    delete older.language
+    expect(settingsFrom(older)?.language).toBe('')
+  })
+
+  /**
+   * It cannot be held to the languages *this* device speaks — the setting
+   * travels, and the device that wrote it may have voices this one has never
+   * had — but a language tag is a language tag, and anything else would only
+   * ever be handed straight to the synthesiser.
+   */
+  it.each([['not a tag'], ['<script>alert(1)</script>'], ['e'], ['123'], [42], [null]])(
+    'refuses %s',
+    bad => {
+      expect(settingsFrom({ ...DEFAULT_SETTINGS, language: bad })?.language).toBe('')
+    },
+  )
+
+  it('keeps a tag it has never seen, since another device may well speak it', () => {
+    expect(settingsFrom({ ...DEFAULT_SETTINGS, language: 'cy-GB' })?.language).toBe('cy-GB')
   })
 })

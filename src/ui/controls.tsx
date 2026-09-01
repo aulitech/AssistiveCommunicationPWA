@@ -472,6 +472,43 @@ export function PanelButton({ label, kind, onActivate, disabled }: {
  * `position: fixed` resolve against that ancestor instead of the viewport — the
  * modal comes out squeezed inside the panel, a few hundred pixels wide.
  */
+/**
+ * The control a full-screen picker opens from: what is chosen now, and a
+ * chevron saying there is more behind it.
+ *
+ * A dwell rather than a `<select>`, for the reason every choice in this app is
+ * one — an operating system draws a native list *outside* the page, where
+ * nothing can be hovered and so nothing can be dwelled on.
+ */
+export function PickerTrigger({ label, name, onOpen, open = false, className = '' }: {
+  label: string
+  /** What a screen reader hears. The visible label is usually only half of it. */
+  name: string
+  onOpen: () => void
+  open?: boolean
+  className?: string
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onOpen)
+  return (
+    <div
+      className={cx('picker-trigger', className, active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-label={name}
+      {...props}
+    >
+      <span className="picker-trigger-label">{label}</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
+    </div>
+  )
+}
+
 export function PickerModal({ title, hint, filters, onDone, onCancel, children }: {
   title: string
   /** One line under the title saying how the grid behaves. */

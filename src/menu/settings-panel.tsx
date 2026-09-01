@@ -1,18 +1,20 @@
 
 // Menu → Settings. Dwell times, volume, speed and voice.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { linkAccount } from '../voice/elevenlabs'
 import type { SyncControl } from '../sync/use-sync'
 import { VoicePicker } from '../voice/picker'
+import { subscribeVoices } from '../voice/speech'
+import { languageName, speechLanguages } from '../voice/groups'
 import { clearAudioCache } from '../voice/audio-cache'
 import { type AliasStore } from '../core/phrases'
 import { buildBackup } from '../core/backup'
 import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
 import { useSettings } from '../ui/settings'
 import { DEFAULT_SETTINGS, factoryReset } from '../core/store'
-import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
+import { PanelButton, PickerModal, PickerTile, PickerTrigger, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
 import { useDwellControl } from '../ui/dwell'
 import { CopyIcon, EyeIcon, EyeOffIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
@@ -81,6 +83,77 @@ function ConfirmReset({ onExport, onConfirm, onCancel }: {
       </div>
     </div>,
     document.body,
+  )
+}
+
+/**
+ * The language the board is spoken in.
+ *
+ * A full-screen grid rather than a `<select>`, for the reason every other
+ * choice in this app is one: an operating system draws a native list outside
+ * the page, where nothing can be hovered and so nothing can be dwelled on.
+ *
+ * The languages offered are the ones this device has voices for. Offering one
+ * it cannot speak would be offering silence.
+ */
+function LanguageRow() {
+  const { settings, update } = useSettings()
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => subscribeVoices(setVoices), [])
+
+  const languages = useMemo(() => speechLanguages(voices), [voices])
+  const chosen = languages.find(l => l.tag === settings.language)
+  // A language set on another device may have no voices here. Naming it anyway
+  // is the honest answer — it is still what the board is set to speak.
+  const label = settings.language ? (chosen?.label ?? languageName(settings.language)) : 'Device default'
+
+  const choose = (tag: string) => {
+    // A voice is a language. Leaving an English voice selected under a board
+    // set to speak French would make the setting look broken, so a device voice
+    // that does not match is let go of — the browser then picks one in the
+    // chosen language. An ElevenLabs voice is left alone: it has no language of
+    // its own and speaks whatever it is given.
+    const voice = voices.find(v => v.voiceURI === settings.voiceURI)
+    const mismatched = Boolean(tag && voice && voice.lang !== tag)
+    update({ language: tag, ...(mismatched ? { voiceURI: '' } : {}) })
+    setOpen(false)
+  }
+
+  return (
+    <SettingRow label="Spoken language">
+      <PickerTrigger
+        label={label}
+        name={`Spoken language: ${label}. Choose another`}
+        onOpen={() => setOpen(true)}
+        open={open}
+      />
+      {open && (
+        <PickerModal
+          title="Choose a spoken language"
+          hint="The languages this device has voices for"
+          onDone={() => setOpen(false)}
+          onCancel={() => setOpen(false)}
+        >
+          <PickerTile
+            name="Device default"
+            detail="Whatever this device speaks"
+            selected={settings.language === ''}
+            onSelect={() => choose('')}
+          />
+          {languages.map(l => (
+            <PickerTile
+              key={l.tag}
+              name={l.label}
+              detail={`${l.tag} · ${l.count} ${l.count === 1 ? 'voice' : 'voices'}`}
+              selected={settings.language === l.tag}
+              onSelect={() => choose(l.tag)}
+            />
+          ))}
+        </PickerModal>
+      )}
+    </SettingRow>
   )
 }
 
@@ -214,6 +287,7 @@ export function SettingsPanel({ store, aliases, categoryById, sync, account, onA
             onValue={v => update({ rate: v / 10 })}
           />
         </SettingRow>
+        <LanguageRow />
         <VoiceRow />
         <SyncRow sync={sync} />
         <ElevenLabsRow account={account} onChange={onAccountChange} />

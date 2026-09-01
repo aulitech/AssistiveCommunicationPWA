@@ -14,6 +14,8 @@ import { audioKey, cachedAudio } from './audio-cache'
 
 export interface VoiceSettings {
   voiceURI: string // empty = browser default
+  /** BCP-47, or empty to leave the device to decide. */
+  language?: string
   volume: number // 0–1
   rate: number // 0.5–2
 }
@@ -72,6 +74,11 @@ function speakOnDevice(text: string, settings: VoiceSettings) {
       utterance.lang = voice.lang
     }
   }
+  // A voice is a stronger statement than a language, so it wins — but a
+  // `voiceURI` is a platform string, and one that travelled here from another
+  // device may name nothing at all. This is what stops that falling all the way
+  // back to whatever the *system* speaks.
+  if (!utterance.voice && settings.language) utterance.lang = settings.language
   speechSynthesis.speak(utterance)
 }
 
