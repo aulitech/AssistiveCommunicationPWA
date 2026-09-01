@@ -11,6 +11,7 @@ import { stripMarkdown } from '../core/markdown'
 import { loadElevenLabs, type ElevenLabsAccount } from '../core/store'
 import { remoteVoiceId, synthesize } from './elevenlabs'
 import { audioKey, cachedAudio } from './audio-cache'
+import { reportFailure } from '../core/report'
 import { needsTranslation, rememberTranslation, speechTag, translationFor, translationTarget } from '../core/translation'
 import { translate } from '../translate/client'
 import { loadTranslateKey } from '../core/store'
@@ -99,6 +100,9 @@ function playAudio(blob: Blob, settings: VoiceSettings, onFailure: () => void) {
   // A browser that refuses to play without a recent click is one more way of
   // ending up silent, so it is treated like any other failure.
   audio.play()?.catch?.(() => {
+    // A browser refusing to play without a recent click is the likeliest cause,
+    // and the one nobody guesses at without being told.
+    reportFailure('voice/play', 'The browser would not play the audio — falling back to the device voice')
     URL.revokeObjectURL(url)
     onFailure()
   })
@@ -181,7 +185,10 @@ function say(text: string, settings: VoiceSettings, options: SpeakOptions) {
       if (mine !== generation) return
       playAudio(blob, chosen, fallBack)
     })
-    .catch(fallBack)
+    .catch((err: unknown) => {
+      reportFailure('elevenlabs/audio', err instanceof Error ? err.message : 'Could not fetch the audio')
+      fallBack()
+    })
 }
 
 /**

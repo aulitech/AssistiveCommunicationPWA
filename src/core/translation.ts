@@ -27,6 +27,7 @@ export const SOURCE_LANGUAGE = 'en'
 const CACHE_LIMIT = 2000
 
 const KEY = 'peri_translations'
+import { reportFailure } from './report'
 
 /** A language's translations, keyed by the exact words that would be spoken. */
 export interface TranslationTable {
@@ -163,6 +164,10 @@ export async function loadTranslations(tag: string): Promise<void> {
     const loaded = (await import(`./imports/translations/${table}.json`)) as { default: TranslationTable }
     shipped.set(table, loaded.default?.of ?? {})
   } catch {
+    // Peri ships nothing for this language. Not a failure — everything simply
+    // comes from the cache or the service — but worth saying, because a
+    // language that quietly translates nothing looks like a broken setting.
+    reportFailure('translations/load', `Peri ships no translations for ${table}`)
     shipped.set(table, {})
   }
 }
@@ -197,7 +202,9 @@ export function rememberTranslation(text: string, tag: string, translated: strin
   try {
     localStorage.setItem(KEY, JSON.stringify(all))
   } catch {
-    // A full or unavailable store costs speed, never speech.
+    // A full or unavailable store costs speed, never speech — but it means
+    // every phrase is paid for again on the next reload, which is worth knowing.
+    reportFailure('translations/save', 'Could not keep the translation on this device')
   }
 }
 

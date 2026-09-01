@@ -8,6 +8,7 @@
 // the caller's worst case is a line of text under a setting.
 
 import { MAX_ENVELOPE_BYTES, parseEnvelope, type Envelope } from '../core/sync'
+import { reportFailure } from '../core/report'
 
 const ENDPOINT = '/api/sync'
 
@@ -40,6 +41,12 @@ function readSlot(body: unknown): Slot | null {
 const offline = 'Could not reach the server'
 const missing = 'Synchronizing is not available on this server'
 
+/** The failure as a value, and the same failure in the console. */
+function fail(where: string, error: string): { status: 'error'; error: string } {
+  reportFailure(`sync/${where}`, error)
+  return { status: 'error', error }
+}
+
 /**
  * The answer, or null when it is not JSON at all.
  *
@@ -61,13 +68,13 @@ async function readJson(res: Response): Promise<unknown | null> {
 export async function pull(address: string): Promise<PullResult> {
   try {
     const res = await fetch(`${ENDPOINT}?a=${address}`, { cache: 'no-store' })
-    if (!res.ok) return { status: 'error', error: `Server said ${res.status}` }
+    if (!res.ok) return fail('pull', `Server said ${res.status}`)
     const body = await readJson(res)
-    if (body === null) return { status: 'error', error: missing }
+    if (body === null) return fail('pull', missing)
     const slot = readSlot(body)
-    return slot ? { status: 'ok', slot } : { status: 'error', error: 'Unreadable answer' }
+    return slot ? { status: 'ok', slot } : fail('pull', 'Unreadable answer')
   } catch {
-    return { status: 'error', error: offline }
+    return fail('pull', offline)
   }
 }
 
@@ -75,7 +82,7 @@ export async function push(address: string, envelope: Envelope, revision: number
   const body = JSON.stringify({ address, envelope, revision })
   // Checked here as well as on the server, so a board too large to send says so
   // in the settings panel rather than as a 413 nobody sees.
-  if (body.length > MAX_ENVELOPE_BYTES) return { status: 'error', error: 'This board is too large to synchronize' }
+  if (body.length > MAX_ENVELOPE_BYTES) return fail('push', 'This board is too large to synchronize')
 
   try {
     const res = await fetch(ENDPOINT, {
@@ -86,16 +93,17 @@ export async function push(address: string, envelope: Envelope, revision: number
     if (res.status === 409) {
       const body = await readJson(res)
       const slot = body === null ? null : readSlot(body)
-      return slot ? { status: 'stale', slot } : { status: 'error', error: 'Unreadable answer' }
+      // Not a failure: somebody wrote first, and what they wrote is in hand.
+      return slot ? { status: 'stale', slot } : fail('push', 'Unreadable answer')
     }
-    if (!res.ok) return { status: 'error', error: `Server said ${res.status}` }
+    if (!res.ok) return fail('push', `Server said ${res.status}`)
     const answer = (await readJson(res)) as { revision?: unknown } | null
-    if (answer === null) return { status: 'error', error: missing }
+    if (answer === null) return fail('push', missing)
     return typeof answer.revision === 'number'
       ? { status: 'ok', revision: answer.revision }
-      : { status: 'error', error: 'Unreadable answer' }
+      : fail('push', 'Unreadable answer')
   } catch {
-    return { status: 'error', error: offline }
+    return fail('push', offline)
   }
 }
 
@@ -109,8 +117,10 @@ export async function push(address: string, envelope: Envelope, revision: number
 export async function drop(address: string): Promise<boolean> {
   try {
     const res = await fetch(`${ENDPOINT}?a=${address}`, { method: 'DELETE' })
+    if (!res.ok) reportFailure('sync/drop', `Server said ${res.status}`)
     return res.ok
   } catch {
+    reportFailure('sync/drop', offline)
     return false
   }
 }

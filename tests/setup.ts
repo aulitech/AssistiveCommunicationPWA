@@ -8,6 +8,17 @@ import { forgetPointerStream, releaseDwells } from '../src/ui/dwell'
 /** Everything spoken during a test, in order. */
 export const spoken: string[] = []
 
+/**
+ * Every failure Peri has reported to the console, in order.
+ *
+ * Peri's own warnings are captured rather than printed — nearly a thousand
+ * tests drive these failure paths deliberately, and a console full of expected
+ * warnings is a console nobody reads. **Everything else is passed through**, so
+ * React's warnings still reach the terminal, which is the whole point of
+ * having them.
+ */
+export const warnings: string[] = []
+
 /** The last utterance handed to the synthesiser, for asserting on voice/rate/volume. */
 export let lastUtterance: SpeechSynthesisUtterance | null = null
 
@@ -93,7 +104,18 @@ beforeEach(() => {
   // dwell at all. See `holdDwells`.
   releaseDwells()
   forgetPointerStream()
+  warnings.length = 0
   localStorage.clear()
+
+  const realWarn = console.warn.bind(console)
+  vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => {
+    const first = args[0]
+    if (typeof first === 'string' && first.startsWith('[Peri]')) {
+      warnings.push(first)
+      return
+    }
+    realWarn(...args)
+  })
 
   installSpeechSynthesis()
 
