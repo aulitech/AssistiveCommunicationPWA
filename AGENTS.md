@@ -128,11 +128,13 @@ The site is **indexed**: `public/robots.txt` allows everything and `index.html` 
 - Build tooling: Vite 8, TypeScript 5.7, and `@vitejs/plugin-react`
 - Testing: Vitest with jsdom and React Testing Library
 - Linting: ESLint with `typescript-eslint` and `eslint-plugin-react-hooks`
-- Formatting: oxfmt, configured by `.oxfmtrc.json`. **Pinned above 0.2**, which is not a preference: 0.2.0 dropped the `;` separators inside TypeScript type literals, turning `{ id: string; label: string }` into `{ id: string label: string }` — invalid syntax, in about ninety files, from running the documented command once. Nothing caught it, because `pnpm check` does not run the formatter
+- Formatting: oxfmt, configured by `.oxfmtrc.json`. **Pinned above 0.2**, which is not a preference: 0.2.0 dropped the `;` separators inside TypeScript type literals, turning `{ id: string; label: string }` into `{ id: string label: string }` — invalid syntax, in about ninety files, from running the documented command once. Nothing caught it, because `pnpm check` did not run the formatter — it does now, which is what stops the tree drifting back out of shape
 
 ## Testing
 
-Run `pnpm check` before handing work back — it runs `typecheck`, `lint`, and `test` in sequence. `pnpm test:watch` while iterating.
+Run `pnpm check` before handing work back — it runs `format:check`, `typecheck`, `lint`, and `test` in sequence. `pnpm test:watch` while iterating.
+
+**The format check is first because it is the cheapest.** It answers in about 20ms and names the file, so an unformatted tree fails in under a second rather than after three minutes of tests. `pnpm format` fixes whatever it reports. It takes its paths from the `format` script rather than restating them — `pnpm format --check` — so the two cannot drift apart about which directories are formatted.
 
 **Every test lives under `tests/`, mirroring the tree it covers** — `tests/core/`, `tests/ui/`, `tests/sync/`, `tests/functions/`, and `tests/app/` for the ones that drive the whole app through `App`. `tests/setup.ts` is the shared setup file.
 

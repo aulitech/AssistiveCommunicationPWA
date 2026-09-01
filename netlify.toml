@@ -7,6 +7,11 @@
   # Gate the deploy on the test suite. `vite build` succeeds on plenty of broken
   # states — every defect fixed in this repo's history compiled cleanly — so a
   # green build alone is not evidence the app works.
+  #
+  # `pnpm check` now leads with the formatter, so **an unformatted commit fails
+  # the deploy**. That is deliberate — it is what keeps the tree from drifting —
+  # but it means the fix for a red build here can be `pnpm format`, which is not
+  # where anybody looks first.
   command = "pnpm check && pnpm build"
   publish = "dist"
 

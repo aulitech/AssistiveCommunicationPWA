@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "format:check": "pnpm format --check",
+    "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
     "format": "oxfmt src tests tools netlify"
   },
   "dependencies": {
