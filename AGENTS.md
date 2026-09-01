@@ -18,10 +18,11 @@ This is the canonical project structure. Start with task-relevant files below. O
 |---|---|---|
 | 1 | `core/` | What Peri knows and keeps. No React, no network, no screens |
 | 2 | `ui/` | The controls and contexts every screen is built from |
-| 3 | `voice/` `sync/` | The two that talk to something outside this device |
-| 4 | `menu/` | The panel that slides down, and everything reached from it |
-| 5 | `talk/` `signin/` `legal/` | The three screens |
-| 6 | *(root)* | `App.tsx`, `main.tsx`, and the tests that drive the whole app |
+| 3 | `translate/` | Words into other words, which has to happen before anything says them |
+| 4 | `voice/` `sync/` | The two that talk to something outside this device |
+| 5 | `menu/` | The panel that slides down, and everything reached from it |
+| 6 | `talk/` `signin/` `legal/` | The three screens |
+| 7 | *(root)* | `App.tsx`, `main.tsx`, and the tests that drive the whole app |
 
 **core/** — readable on its own; nothing else in `src` is needed to follow it
 
@@ -32,6 +33,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `core/search.ts` - Narrowing the grid to what is being typed. Ranks a whole-phrase prefix first, then a word prefix, then the letters used as initials — which is what lets "ttyl" find "Talk to you later". Matched against the words rather than the markup, so `**Help** me` is found by typing "help"
 - `core/markdown.ts` - The markup a phrase may carry, and taking it back off. `layout` for drawing, `stripMarkdown` for everything a phrase is *not* drawn into — spoken, searched, announced
 - `core/links.ts` - Reading a URL and a label out of a paste or a drop, and writing them as `[label](url)`. A clipboard and a drag carry the same shape, so one reader serves both
+- `core/translation.ts` - What a phrase says in another language, looked up **synchronously** — see **Speaking another language**. Two sources: the tables Peri ships, lazily loaded for whichever language is chosen, and whatever has been translated on this device before
 - `core/prose.ts` - The blocks long-form text is written in
 - `core/crypto.ts` - Locking a board before it leaves the device. One passphrase derives two things through HKDF off a single PBKDF2 run: the AES-GCM key the board is sealed with, and **the address it is stored under**. The account is the salt
 - `core/envelope.ts` - The wire format alone: the envelope, its parser, the address and the revision. **It imports nothing, and that is load-bearing** — the Netlify function takes this and nothing else out of `src`, so both ends validate identically. One value taken from the store once pulled `core/phrases` in behind it and turned a 3KB Lambda into 418KB of phrase table
@@ -47,6 +49,10 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `ui/settings.ts`, `ui/edit-mode.ts` - The two React contexts. Separate from the panels that edit them, or `controls.tsx` would have to import the settings screen, which is built out of `controls.tsx`
 - `ui/style.ts` - `cx` and `dwellVar`. Not components, so not in `controls.tsx` — a module mixing the two loses fast refresh for everything importing it
 - `ui/icons.tsx` - Inline SVG. Icons used by exactly one screen stay with that screen — `ReorderIcon` is here because both bars that can be arranged draw it, `PageIcon` because both bars that can be paged do, and `SortAlphaIcon`/`CustomOrderIcon` because the category bar and the Aliases panel both offer the same two arrangements
+
+**translate/**
+
+- `translate/client.ts` - DeepL, for the phrases Peri ships no translation for. **Nothing throws** — failing to translate is not failing to speak, so every failure is a value and the caller says the words as they were written
 
 **voice/**
 
@@ -108,6 +114,7 @@ The arrow dividers are keyed off **which side of the scroller** an arrow is on (
 - `netlify.toml` - The deploy: build command, the `/api/sync` redirect (**above** the SPA catch-all, which would otherwise swallow it), SPA fallback, and cache headers
 - `eslint.config.js` - Lint rules; `react-hooks/exhaustive-deps` is an error here, not a warning
 - `tools/pointer-probe.html` - **The pointer probe**, opened with `pnpm probe`. Standalone HTML, no build step, deliberately **not** in `public/` — everything there ships to production and is indexed. It does two jobs: it says what a browser will and will not tell a page about the pointer (run the trip, read the log), and it measures the stream so `STALL_MS` can be tuned against real hardware rather than estimated. It restates the constants from `ui/dwell.ts` to do the second, and `tests/app/structure.test.ts` fails if the two ever disagree — an instrument quietly at odds with the code it is tuning is worse than none. The **block the main thread** buttons are there for the one thing that could make a present pointer look absent; Peri's longest single task is the rail's jump-to-bottom, which renders the whole table at once for roughly 50ms
+- `tools/translate-table.ts` - Translates the shipped phrase table into a file the app carries, run once per language with `pnpm translate <lang>` and a `DEEPL_KEY`. **A build step and not a runtime one** because the emergency bar must never wait on a network. It **merges** rather than replaces, so the hand-written emergency phrases are not quietly taken over by a machine, and the output is meant to be read before it is committed — these are phrases somebody will say to a nurse about their own body, and a plausible mistranslation is worse than an English sentence a listener has to work at
 - `.mise.toml` - Toolchain versions for Node.js and pnpm
 
 The site is **indexed**: `public/robots.txt` allows everything and `index.html` carries no `robots` meta tag. The two are a pair — if either ever says no, the other has to as well, or the site ends up half-hidden. `tests/app/shell.test.ts` fails if they disagree.
@@ -140,7 +147,9 @@ Paths below are relative to `tests/`.
 - `core/markdown.test.ts` - What the markup means, what stays literal, and the one invariant holding it together: `stripMarkdown` reads exactly what `layout` draws
 - `core/links.test.ts` - What a paste or a drop is carrying: which URL, which label, and the schemes that are refused
 - `voice/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
-- `voice/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them
+- `core/translation.test.ts` - The lookup, and the one property everything rests on: that it answers without waiting
+- `translate/client.test.ts` - Every way DeepL can fail, and that none of them throws
+- `voice/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them — and, once a language is set, which *words* come out
 - `voice/groups.test.ts` - The voice filters, and that the two kinds never answer to each other's groups
 - `ui/dwell.test.tsx` - The dwell hook: timing, tap, keyboard, disabled, repeat, and the pointer that stops sending — see **When the pointer leaves without saying so**. Half of those tests are about the pointers this must *not* touch
 - `ui/busy.test.tsx` - The waiting indicator, which is mostly a test of its delay: an indicator that blinks is worse than none
@@ -354,6 +363,31 @@ Off until somebody turns it on, and then two devices signed in to the same accou
 - **The passphrase and the flag are never in a backup, and never in a snapshot either** — unlike the ElevenLabs key, which travels in one. The passphrase *is* the lock on the snapshot, so putting it inside is circular; and a restored file must not switch a stranger's device on and start it writing to a server. It lives under `peri_sync`, outside the three things `buildBackup` reads.
 - **Nothing throws.** A board works offline; a device that cannot reach the server has lost nothing and carries on exactly as Peri always has.
 - **Three documents have to agree** about what leaves the device: the Synchronize row in Settings, *Keeping two devices the same* in the guide, and the Synchronizing section of the privacy policy. Change one and change all three — the same rule the ElevenLabs disclosure follows.
+
+## Speaking another language
+
+**The board stays as it was written; what comes out is translated.** Somebody goes on reading their own phrases in their own words, and a listener who does not share that language hears it in theirs. That is why translation sits in front of `speak()` rather than anywhere near the grid — and inside it, for the reason stripping markdown is: every route to the synthesiser would otherwise have to remember.
+
+`settings.language` is the trigger. Empty, or English, means no translating at all.
+
+Two sources, in order, and then a fallback:
+
+- **The tables Peri ships** — `core/imports/translations/<lang>.json`, keyed by the exact words that would be spoken, lazily loaded for whichever language is chosen and held in memory. Instant, offline, free, and **already in hand when the emergency bar is pressed**.
+- **What has been translated on this device before**, under `peri_translations`. This is where a phrase somebody wrote themselves ends up, and a composed message with it.
+- **DeepL**, for anything in neither, once each — and only with a key.
+
+Six things follow from that, and each has a test:
+
+- **The lookup is synchronous.** `translationFor` returns a string or nothing; it never returns a promise. The emergency bar speaks the moment it is pressed, and a promise there is a phrase that arrives after somebody needed it. That is also why the shipped table is loaded when the *language* changes rather than when a phrase is spoken.
+- **Never silence, and the original is not silence.** A phrase that cannot be translated — no key, no network, the service refusing — is said as it was written. A listener who has to work at it is recoverable; nothing said at all is not.
+- **`instant` never goes to the network**, exactly as with a voice. The emergency bar says what it already has in the chosen language, and everything else in the original, immediately either way.
+- **Markup comes off first**, so `**Help me!**` and `Help me!` are one translation rather than two that never match — the same reason the audio cache is keyed after stripping.
+- **A phrase carrying a slot is not in the shipped table**, and that is deliberate: what gets spoken is not known until the blank is filled, so a translation of `Please turn {control} the lights` would never be looked up. Those go to DeepL like any phrase somebody wrote.
+- **The shipped tables are built, not fetched.** `tools/translate-table.ts` writes them once per language, they are committed, and they are read before they are committed.
+
+**The key is never in a backup, and does travel in a sync snapshot** — the same two answers the ElevenLabs key gets, for the same two reasons. Neither is what has been translated: that is a record of what somebody has actually said, like the Sent list, and it costs nothing to rebuild.
+
+Sending the words somewhere is a disclosure, so it is stated in three places that must agree: the Translation row in Settings, the **Speaking another language** section of the guide, and the Speech section of the privacy policy. Change one and change all three — the same rule the ElevenLabs disclosure follows.
 
 ## Backups
 

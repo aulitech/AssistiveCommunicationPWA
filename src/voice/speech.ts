@@ -11,6 +11,9 @@ import { stripMarkdown } from '../core/markdown'
 import { loadElevenLabs, type ElevenLabsAccount } from '../core/store'
 import { remoteVoiceId, synthesize } from './elevenlabs'
 import { audioKey, cachedAudio } from './audio-cache'
+import { needsTranslation, rememberTranslation, translationFor } from '../core/translation'
+import { translate } from '../translate/client'
+import { loadDeepLKey } from '../core/store'
 
 export interface VoiceSettings {
   voiceURI: string // empty = browser default
@@ -106,10 +109,39 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   // app that says "asterisk asterisk help" out loud has failed at its only job.
   // Doing it here also means the cache is keyed by the words, so `**Help**` and
   // `Help` are the same clip rather than two.
-  const text = stripMarkdown(source)
-  if (!text.trim()) return
+  const written = stripMarkdown(source)
+  if (!written.trim()) return
   stopEverything()
 
+  const language = settings.language ?? ''
+  if (!needsTranslation(language)) return say(written, settings, options)
+
+  // Already known — shipped with the app, or translated once before. This is
+  // the path the emergency bar takes, and the only one it can take: a promise
+  // there is a phrase that arrives after somebody needed it.
+  const known = translationFor(written, language)
+  if (known) return say(known, settings, options)
+
+  const key = loadDeepLKey()
+  // Nothing to translate with, or no time to do it in. The words go out as they
+  // were written: a listener who has to work at it is recoverable, and silence
+  // is not.
+  if (!key || options.instant) return say(written, settings, options)
+
+  const mine = generation
+  void translate(written, language, key).then(result => {
+    if (mine !== generation) return
+    if (result.status === 'ok') {
+      rememberTranslation(written, language, result.text)
+      say(result.text, settings, options)
+    } else {
+      say(written, settings, options)
+    }
+  })
+}
+
+/** Everything from the words onward, once it is settled what the words are. */
+function say(text: string, settings: VoiceSettings, options: SpeakOptions) {
   // A phrase's own voice wins over the one in settings. Both are `voiceURI`s, so
   // everything downstream — the fallback, the device lookup — is unchanged.
   const chosen = { ...settings, voiceURI: options.voiceURI || settings.voiceURI }

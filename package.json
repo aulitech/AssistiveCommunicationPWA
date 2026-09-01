@@ -10,6 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "probe": "open tools/pointer-probe.html",
+    "translate": "tsx tools/translate-table.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",

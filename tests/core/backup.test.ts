@@ -16,7 +16,7 @@ import {
 } from '../../src/core/backup'
 import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from '../../src/core/store'
 import { EMPTY_ALIASES, type AliasStore } from '../../src/core/phrases'
-import { saveElevenLabs, saveSent } from '../../src/core/store'
+import { saveDeepLKey, saveElevenLabs, saveSent } from '../../src/core/store'
 
 // A store with something of the user's in every field, and the map of ids to
 // categories the app would hand alongside it.
@@ -487,6 +487,32 @@ describe('what a backup must never carry', () => {
 
     expect(file).not.toContain('sk-secret-key')
     expect(file).not.toMatch(/apiKey/i)
+  })
+
+  /**
+   * The translation key follows the ElevenLabs key exactly, and for the same
+   * reason: a backup is a file made to be handed to somebody else, and a key in
+   * one hands over the account it bills to.
+   */
+  it('leaves the translation key out of the file', () => {
+    saveDeepLKey('deepl-secret-key:fx')
+    const { state, categoryById } = fixture()
+    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+
+    expect(file).not.toContain('deepl-secret-key')
+  })
+
+  /**
+   * Nor what has been translated. It is a record of what somebody has actually
+   * said, the same as the Sent list — and it is rebuilt for nothing the moment
+   * a phrase is spoken again.
+   */
+  it('leaves what has been translated out of the file', () => {
+    localStorage.setItem('peri_translations', JSON.stringify({ fr: { 'My chest hurts': "J'ai mal à la poitrine" } }))
+    const { state, categoryById } = fixture()
+    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+
+    expect(file).not.toContain('poitrine')
   })
 
   // What somebody actually said — what hurts, what they want, who they were
