@@ -1,6 +1,6 @@
 // Translate the phrase table Peri ships, once, into a file it can carry.
 //
-//   DEEPL_KEY=… npx tsx tools/translate-table.ts es
+//   GOOGLE_TRANSLATE_KEY=… pnpm translate es
 //
 // Why this is a build step and not something the app does: a board has to speak
 // the moment it is opened, offline, and above all the **emergency bar must
@@ -19,42 +19,43 @@
 // mistranslation is worse than an English sentence the listener has to work at.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { decodeEntities } from '../src/translate/client'
 import { resolve, dirname } from 'node:path'
-import { deeplTarget, tableFor } from '../src/core/translation'
+import { tableFor, translationTarget } from '../src/core/translation'
 
 const TABLE = resolve(process.cwd(), 'src/core/imports/phrasetable.json')
 const OUT = (table: string) => resolve(process.cwd(), `src/core/imports/translations/${table}.json`)
 
-/** DeepL takes at most 50 texts per request; well under its size cap too. */
-const BATCH = 50
+/** Google takes up to 128 segments a request; this stays well inside its size cap. */
+const BATCH = 100
 
-const endpointFor = (key: string) =>
-  key.trim().endsWith(':fx') ? 'https://api-free.deepl.com/v2' : 'https://api.deepl.com/v2'
+const ENDPOINT = 'https://translation.googleapis.com/language/translate/v2'
 
 async function translateBatch(texts: string[], target: string, key: string): Promise<string[]> {
-  const response = await fetch(`${endpointFor(key)}/translate`, {
+  const response = await fetch(ENDPOINT, {
     method: 'POST',
-    headers: { Authorization: `DeepL-Auth-Key ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: texts, target_lang: target, source_lang: 'EN' }),
+    headers: { 'X-goog-api-key': key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ q: texts, target, source: 'en', format: 'text' }),
   })
-  if (!response.ok) throw new Error(`DeepL said ${response.status}: ${await response.text()}`)
-  const body = (await response.json()) as { translations: { text: string }[] }
-  return body.translations.map(t => t.text)
+  if (!response.ok) throw new Error(`Google said ${response.status}: ${await response.text()}`)
+  const body = (await response.json()) as { data: { translations: { translatedText: string }[] } }
+  // Escaped even when plain text is asked for — see `decodeEntities`.
+  return body.data.translations.map(t => decodeEntities(t.translatedText))
 }
 
 async function main() {
-  // The tag Peri stores, not the code DeepL wants — `es-PR` is asked for as
-  // `ES-419` and written to `es-419.json`, and the mapping lives in one place
+  // The tag Peri stores, not the code the service wants — `es-PR` is asked for
+  // as `es` and written to `es-419.json`, and the mapping lives in one place
   // rather than in a person's head at the command line.
   const tag = process.argv[2]
-  const key = process.env.DEEPL_KEY ?? ''
+  const key = process.env.GOOGLE_TRANSLATE_KEY ?? ''
   if (!tag || !key) {
-    console.error('usage: DEEPL_KEY=… pnpm translate <language>   (e.g. es, fr, es-PR)')
+    console.error('usage: GOOGLE_TRANSLATE_KEY=… pnpm translate <language>   (e.g. es, fr, es-PR)')
     process.exit(2)
   }
 
   const table = tableFor(tag)
-  const target = deeplTarget(tag)
+  const target = translationTarget(tag)
   if (!table) {
     console.error(`${tag} needs no translating.`)
     process.exit(2)

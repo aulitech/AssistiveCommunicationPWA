@@ -295,7 +295,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The red emergency bar never waits for a translation. A phrase it already has, it says in your chosen language; one it does not, it says in the words you wrote — instantly, either way.',
       ),
       text(
-        'With a key, the phrases you wrote yourself are sent to DeepL to be translated. The phrases Peri ships are never sent anywhere, because they are translated before the app is built. Without a key, nothing is sent and your own phrases are simply spoken as you wrote them.',
+        'With a key, the phrases you wrote yourself are sent to Google to be translated. The phrases Peri ships are never sent anywhere, because they are translated before the app is built. Without a key, nothing is sent and your own phrases are simply spoken as you wrote them.',
       ),
       text(
         'Peri also picks a voice for the language, so what is said sounds like the language it is in rather than your own voice reading a foreign sentence. Choosing a particular voice yourself overrides that.',

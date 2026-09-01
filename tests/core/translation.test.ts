@@ -9,7 +9,7 @@ import {
   SOURCE_LANGUAGE,
   VARIETIES,
   baseLanguage,
-  deeplTarget,
+  translationTarget,
   speechTag,
   tableFor,
   forgetTranslations,
@@ -40,7 +40,7 @@ describe('which languages mean translating', () => {
     expect(needsTranslation('es-MX')).toBe(true)
   })
 
-  // "es-ES" and "es" are one table, and one DeepL target.
+  // "es-ES" and "es" are one table, and one target.
   it('reads a region off a tag', () => {
     expect(baseLanguage('es-ES')).toBe('es')
     expect(baseLanguage('FR')).toBe('fr')
@@ -151,18 +151,19 @@ describe('the shipped tables', () => {
 describe('a spoken variety', () => {
   it('answers all three from the base language when Peri knows nothing special', () => {
     expect(tableFor('de-DE')).toBe('de')
-    expect(deeplTarget('de-DE')).toBe('DE')
+    expect(translationTarget('de-DE')).toBe('de')
     expect(speechTag('de-DE')).toBe('de-DE')
   })
 
   /**
-   * Nobody has a Puerto Rican target — what DeepL has is Latin American
-   * Spanish, which is the near side of a real divide. European Spanish would
-   * give a board `vosotros`, and `coger`, which means something else in San
-   * Juan.
+   * Nobody has a Puerto Rican target. The **table** is Latin American Spanish,
+   * the near side of a real divide — European Spanish would give a board
+   * `vosotros` and `coger`, which means something else in San Juan — and it is
+   * named for the variety rather than a provider's code, the provider having
+   * changed once already. The service is asked for the closest thing it has.
    */
   it('sends Puerto Rican Spanish to Latin America rather than to Spain', () => {
-    expect(deeplTarget('es-PR')).toBe('ES-419')
+    expect(translationTarget('es-PR')).toBe('es')
     expect(tableFor('es-PR')).toBe('es-419')
     expect(tableFor('es-PR')).not.toBe(tableFor('es-ES'))
   })
@@ -173,12 +174,13 @@ describe('a spoken variety', () => {
 
   /**
    * **Patois is a language, not an accent**, and no service translates into it
-   * — DeepL carries Haitian Creole and no other. Null is the answer, and it is
+   * — Google Translate the product added it in 2024, Cloud Translation did
+   * not. Null is the answer, and it is
    * not a missing case: it is what stops a phrase being sent somewhere that
    * would hand back English.
    */
   it('has nothing to send Patois to', () => {
-    expect(deeplTarget('jam')).toBeNull()
+    expect(translationTarget('jam')).toBeNull()
     expect(tableFor('jam')).toBe('jam')
     expect(needsTranslation('jam')).toBe(true)
   })

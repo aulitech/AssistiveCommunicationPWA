@@ -11,9 +11,9 @@ import { stripMarkdown } from '../core/markdown'
 import { loadElevenLabs, type ElevenLabsAccount } from '../core/store'
 import { remoteVoiceId, synthesize } from './elevenlabs'
 import { audioKey, cachedAudio } from './audio-cache'
-import { deeplTarget, needsTranslation, rememberTranslation, speechTag, translationFor } from '../core/translation'
+import { needsTranslation, rememberTranslation, speechTag, translationFor, translationTarget } from '../core/translation'
 import { translate } from '../translate/client'
-import { loadDeepLKey } from '../core/store'
+import { loadTranslateKey } from '../core/store'
 
 export interface VoiceSettings {
   voiceURI: string // empty = browser default
@@ -124,14 +124,14 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   const known = translationFor(written, language)
   if (known) return say(known, settings, options)
 
-  const key = loadDeepLKey()
+  const key = loadTranslateKey()
   // Nothing to translate with, nothing that *can* translate it, or no time to
   // do it in. The words go out as they were written: a listener who has to work
   // at it is recoverable, and silence is not.
   //
   // The middle case is Patois, which no service offers at all — so a phrase
   // outside the shipped table is spoken as it was written and nothing is sent.
-  if (!key || !deeplTarget(language) || options.instant) return say(written, settings, options)
+  if (!key || !translationTarget(language) || options.instant) return say(written, settings, options)
 
   const mine = generation
   void translate(written, language, key).then(result => {
