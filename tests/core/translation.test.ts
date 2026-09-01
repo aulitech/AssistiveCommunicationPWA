@@ -7,13 +7,18 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   SOURCE_LANGUAGE,
+  VARIETIES,
   baseLanguage,
+  deeplTarget,
+  speechTag,
+  tableFor,
   forgetTranslations,
   loadTranslations,
   needsTranslation,
   rememberTranslation,
   seedTranslations,
   translationFor,
+  varietyLabel,
 } from '../../src/core/translation'
 
 beforeEach(() => forgetTranslations())
@@ -132,5 +137,76 @@ describe('the shipped tables', () => {
   it('does not go looking for a language that needs no translating', async () => {
     await loadTranslations('en-GB')
     expect(translationFor('Help me!', 'en-GB')).toBeUndefined()
+  })
+})
+
+/**
+ * Ways of speaking that a tag alone does not describe.
+ *
+ * Three questions hide inside one — what to say it as, what to translate it
+ * with, and which shipped table it reads — and for these they have three
+ * different answers. Anything not listed answers all three from its base
+ * language, which is right for `de-DE` and wrong for both of these.
+ */
+describe('a spoken variety', () => {
+  it('answers all three from the base language when Peri knows nothing special', () => {
+    expect(tableFor('de-DE')).toBe('de')
+    expect(deeplTarget('de-DE')).toBe('DE')
+    expect(speechTag('de-DE')).toBe('de-DE')
+  })
+
+  /**
+   * Nobody has a Puerto Rican target — what DeepL has is Latin American
+   * Spanish, which is the near side of a real divide. European Spanish would
+   * give a board `vosotros`, and `coger`, which means something else in San
+   * Juan.
+   */
+  it('sends Puerto Rican Spanish to Latin America rather than to Spain', () => {
+    expect(deeplTarget('es-PR')).toBe('ES-419')
+    expect(tableFor('es-PR')).toBe('es-419')
+    expect(tableFor('es-PR')).not.toBe(tableFor('es-ES'))
+  })
+
+  it('says Puerto Rican Spanish as Puerto Rican Spanish', () => {
+    expect(speechTag('es-PR')).toBe('es-PR')
+  })
+
+  /**
+   * **Patois is a language, not an accent**, and no service translates into it
+   * — DeepL carries Haitian Creole and no other. Null is the answer, and it is
+   * not a missing case: it is what stops a phrase being sent somewhere that
+   * would hand back English.
+   */
+  it('has nothing to send Patois to', () => {
+    expect(deeplTarget('jam')).toBeNull()
+    expect(tableFor('jam')).toBe('jam')
+    expect(needsTranslation('jam')).toBe(true)
+  })
+
+  // There is no Patois voice on any device, and Patois written down is close
+  // enough to English that an English voice reads it about right.
+  it('says Patois as Jamaican English, there being no Patois voice anywhere', () => {
+    expect(speechTag('jam')).toBe('en-JM')
+  })
+
+  it('has a name of its own for each, since a tag reads as a product code', () => {
+    for (const v of VARIETIES) expect(varietyLabel(v.tag)).toBe(v.label)
+    expect(varietyLabel('de-DE')).toBeUndefined()
+  })
+
+  it('carries every emergency phrase for both, which is the bar that cannot wait', async () => {
+    for (const v of VARIETIES) {
+      await loadTranslations(v.tag)
+      for (const phrase of ['Help me!', "I'm in pain", 'Call 911', 'Get a doctor', "I can't breathe", 'Call my family']) {
+        expect(translationFor(phrase, v.tag), `${phrase} has no ${v.tag}`).toBeTruthy()
+      }
+    }
+  })
+
+  it('keeps the two Spanishes apart in what it remembers', () => {
+    rememberTranslation('Get a doctor', 'es-ES', 'Busque un médico')
+    rememberTranslation('Get a doctor', 'es-PR', 'Busque un doctor')
+    expect(translationFor('Get a doctor', 'es-ES')).toBe('Busque un médico')
+    expect(translationFor('Get a doctor', 'es-PR')).toBe('Busque un doctor')
   })
 })

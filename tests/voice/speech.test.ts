@@ -398,3 +398,96 @@ describe('speaking a translated board', () => {
     expect(spoken).toEqual(['Aidez-moi !'])
   })
 })
+
+/**
+ * Patois, which nothing translates into.
+ *
+ * The shipped table is the whole of the answer here, and the property that
+ * matters is the one that stops it going wrong quietly: a phrase outside that
+ * table must not be sent to a service that would hand back English and call it
+ * Patois.
+ */
+describe('speaking a board in Jamaican Patois', () => {
+  const PATOIS = { ...SETTINGS, language: 'jam' }
+
+  beforeEach(() => {
+    forgetTranslations()
+    saveDeepLKey('')
+  })
+
+  it('says what the shipped table says', () => {
+    seedTranslations('jam', { 'Help me!': 'Help mi!' })
+    speak('Help me!', PATOIS)
+    expect(spoken).toEqual(['Help mi!'])
+  })
+
+  /**
+   * Not merely "does not send it" but "does not go away and think about it".
+   * Asserted before anything is flushed: a language nothing translates has
+   * nothing to wait for, so the words go out in the same tick they were asked
+   * for, exactly as an untranslated board does.
+   */
+  it('speaks a phrase it has no translation for straight away', () => {
+    saveDeepLKey('key-1234')
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+
+    speak('Something nobody has said before', PATOIS)
+    expect(spoken, 'the phrase was deferred to a translation that can never come').toEqual([
+      'Something nobody has said before',
+    ])
+    expect(fetcher, 'a phrase went to a service that has no Patois').not.toHaveBeenCalled()
+  })
+
+  it('never sends a phrase anywhere, even with a key in hand', async () => {
+    saveDeepLKey('key-1234')
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+
+    speak('Something nobody has said before', PATOIS)
+    await flush()
+    expect(fetcher, 'a phrase went to a service that has no Patois').not.toHaveBeenCalled()
+    expect(spoken, 'and it was said as it was written').toEqual(['Something nobody has said before'])
+  })
+
+  // There is no Patois voice anywhere, so the synthesiser is told the nearest
+  // thing there is.
+  it('is spoken as Jamaican English', () => {
+    seedTranslations('jam', { 'Help me!': 'Help mi!' })
+    speak('Help me!', PATOIS)
+    expect(lastUtterance?.lang).toBe('en-JM')
+  })
+})
+
+describe('speaking a board in Puerto Rican Spanish', () => {
+  const PUERTO_RICO = { ...SETTINGS, language: 'es-PR' }
+
+  beforeEach(() => {
+    forgetTranslations()
+    saveDeepLKey('')
+  })
+
+  it('is spoken as Puerto Rican Spanish, not as Spanish', () => {
+    seedTranslations('es-PR', { 'Help me!': '¡Ayúdenme!' })
+    speak('Help me!', PUERTO_RICO)
+    expect(lastUtterance?.lang).toBe('es-PR')
+  })
+
+  it('asks Latin America rather than Spain for anything new', async () => {
+    saveDeepLKey('key-1234')
+    let asked = ''
+    const fetcher = vi.fn(async (_url: string, init: RequestInit) => {
+      asked = String(init.body)
+      return new Response(JSON.stringify({ translations: [{ text: 'Tengo frío' }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetcher)
+
+    speak("I'm cold", PUERTO_RICO)
+    await flush()
+    const body = JSON.parse(asked)
+    expect(body.target_lang).toBe('ES-419')
+  })
+})

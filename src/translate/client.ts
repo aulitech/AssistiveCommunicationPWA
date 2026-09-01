@@ -9,7 +9,7 @@
 // says the words as they were written and the listener gets the original rather
 // than silence. Every failure is a value, exactly as in `sync/client.ts`.
 
-import { baseLanguage } from '../core/translation'
+import { deeplTarget } from '../core/translation'
 
 const FREE = 'https://api-free.deepl.com/v2'
 const PRO = 'https://api.deepl.com/v2'
@@ -32,6 +32,8 @@ function describe(status: number): string {
 /** One phrase, into one language. */
 export async function translate(text: string, tag: string, key: string): Promise<TranslateResult> {
   if (!text.trim() || !key) return { status: 'error', error: 'Nothing to translate' }
+  const target = deeplTarget(tag)
+  if (!target) return { status: 'error', error: 'Nothing here translates into that' }
 
   try {
     const response = await fetch(`${endpointFor(key)}/translate`, {
@@ -39,7 +41,7 @@ export async function translate(text: string, tag: string, key: string): Promise
       headers: { Authorization: `DeepL-Auth-Key ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text: [text],
-        target_lang: baseLanguage(tag).toUpperCase(),
+        target_lang: target,
         // The board is written in English, and saying so is both faster and
         // better than letting six words be guessed at.
         source_lang: 'EN',

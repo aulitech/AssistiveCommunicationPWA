@@ -11,7 +11,7 @@ import { stripMarkdown } from '../core/markdown'
 import { loadElevenLabs, type ElevenLabsAccount } from '../core/store'
 import { remoteVoiceId, synthesize } from './elevenlabs'
 import { audioKey, cachedAudio } from './audio-cache'
-import { needsTranslation, rememberTranslation, translationFor } from '../core/translation'
+import { deeplTarget, needsTranslation, rememberTranslation, speechTag, translationFor } from '../core/translation'
 import { translate } from '../translate/client'
 import { loadDeepLKey } from '../core/store'
 
@@ -81,7 +81,9 @@ function speakOnDevice(text: string, settings: VoiceSettings) {
   // `voiceURI` is a platform string, and one that travelled here from another
   // device may name nothing at all. This is what stops that falling all the way
   // back to whatever the *system* speaks.
-  if (!utterance.voice && settings.language) utterance.lang = settings.language
+  // The tag the synthesiser is told is not always the one the setting holds:
+  // there is no Patois voice anywhere, so Patois is spoken as Jamaican English.
+  if (!utterance.voice && settings.language) utterance.lang = speechTag(settings.language)
   speechSynthesis.speak(utterance)
 }
 
@@ -123,10 +125,13 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   if (known) return say(known, settings, options)
 
   const key = loadDeepLKey()
-  // Nothing to translate with, or no time to do it in. The words go out as they
-  // were written: a listener who has to work at it is recoverable, and silence
-  // is not.
-  if (!key || options.instant) return say(written, settings, options)
+  // Nothing to translate with, nothing that *can* translate it, or no time to
+  // do it in. The words go out as they were written: a listener who has to work
+  // at it is recoverable, and silence is not.
+  //
+  // The middle case is Patois, which no service offers at all — so a phrase
+  // outside the shipped table is spoken as it was written and nothing is sent.
+  if (!key || !deeplTarget(language) || options.instant) return say(written, settings, options)
 
   const mine = generation
   void translate(written, language, key).then(result => {

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { linkAccount } from '../voice/elevenlabs'
 import { checkKey } from '../translate/client'
-import { needsTranslation } from '../core/translation'
+import { VARIETIES, needsTranslation, varietyLabel } from '../core/translation'
 import type { SyncControl } from '../sync/use-sync'
 import { VoicePicker } from '../voice/picker'
 import { subscribeVoices } from '../voice/speech'
@@ -105,11 +105,27 @@ function LanguageRow() {
 
   useEffect(() => subscribeVoices(setVoices), [])
 
-  const languages = useMemo(() => speechLanguages(voices), [voices])
+  /**
+   * What the device can speak, and what Peri can translate into.
+   *
+   * The rule was once "only languages this device has voices for", on the
+   * grounds that offering one it cannot speak is offering silence. That is true
+   * of a language with nothing behind it and false of one Peri ships a table
+   * for: no device has a Puerto Rican or a Patois voice, and both of those are
+   * the point. A variety Peri knows leads the list, since a device offering
+   * sixty voices offers none of these.
+   */
+  const languages = useMemo(() => {
+    const own = VARIETIES.map(v => ({ tag: v.tag, label: v.label, count: 0 }))
+    const device = speechLanguages(voices).filter(l => !own.some(o => o.tag === l.tag))
+    return [...own, ...device]
+  }, [voices])
   const chosen = languages.find(l => l.tag === settings.language)
   // A language set on another device may have no voices here. Naming it anyway
   // is the honest answer — it is still what the board is set to speak.
-  const label = settings.language ? (chosen?.label ?? languageName(settings.language)) : 'Device default'
+  const label = settings.language
+    ? (chosen?.label ?? varietyLabel(settings.language) ?? languageName(settings.language))
+    : 'Device default'
 
   const choose = (tag: string) => {
     // A voice is a language. Leaving an English voice selected under a board
@@ -148,7 +164,11 @@ function LanguageRow() {
             <PickerTile
               key={l.tag}
               name={l.label}
-              detail={`${l.tag} · ${l.count} ${l.count === 1 ? 'voice' : 'voices'}`}
+              detail={
+                l.count === 0
+                  ? 'Peri translates it · no voice on this device'
+                  : `${l.tag} · ${l.count} ${l.count === 1 ? 'voice' : 'voices'}`
+              }
               selected={settings.language === l.tag}
               onSelect={() => choose(l.tag)}
             />
