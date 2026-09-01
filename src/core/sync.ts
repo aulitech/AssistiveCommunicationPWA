@@ -35,7 +35,6 @@ export {
   type Envelope,
 } from './envelope'
 
-
 /**
  * The date stamped on a backup built for sync, and it is deliberately not today.
  *
@@ -120,7 +119,6 @@ export interface SyncPayload {
   account: ElevenLabsAccount | null
 }
 
-
 /** A snapshot, or null — the same guard, on the inside of the lock. */
 export function parseSnapshot(value: unknown): Snapshot | null {
   if (typeof value !== 'object' || value === null) return null
@@ -180,7 +178,6 @@ export function hasOwnBoard(backup: Backup): boolean {
     (backup.aliases?.hidden?.length ?? 0) > 0
   )
 }
-
 
 /** Where this device has got to. */
 export interface LocalMark {

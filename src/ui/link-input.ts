@@ -77,10 +77,7 @@ export function useLinkInput(
 
   return {
     pasteFromClipboard,
-    onPaste: useCallback(
-      (e: React.ClipboardEvent<HTMLTextAreaElement>) => drop(e.clipboardData, true, e),
-      [drop],
-    ),
+    onPaste: useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => drop(e.clipboardData, true, e), [drop]),
     onDrop: useCallback((e: React.DragEvent<HTMLTextAreaElement>) => drop(e.dataTransfer, false, e), [drop]),
     // Without this the browser refuses the drop, and the page navigates to the
     // link instead — which for somebody mid-sentence takes the board away.

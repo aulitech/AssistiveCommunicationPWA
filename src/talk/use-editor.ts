@@ -57,7 +57,12 @@ export interface Draft {
   duplicate: boolean
 }
 
-export function useEditor({ allCategories, recent, voiceFor, duplicateOf }: {
+export function useEditor({
+  allCategories,
+  recent,
+  voiceFor,
+  duplicateOf,
+}: {
   allCategories: string[]
   /** Where a new phrase starts from: the last category and voice used. */
   recent: { category?: string; voice?: string }
@@ -111,8 +116,7 @@ export function useEditor({ allCategories, recent, voiceFor, duplicateOf }: {
     // Against the category it would be filed under, which for an emergency
     // phrase is the bar rather than whatever the picker last showed.
     const duplicate =
-      text.trim() !== '' &&
-      duplicateOf(text, isEmergency ? 'Emergency' : category, phrase?.id) !== undefined
+      text.trim() !== '' && duplicateOf(text, isEmergency ? 'Emergency' : category, phrase?.id) !== undefined
     return {
       phrase,
       isEmergency,

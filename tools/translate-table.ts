@@ -84,11 +84,14 @@ async function main() {
   const sources = [...new Set(phraseTable.phrases.map(p => p.txt).filter(t => t && !t.includes('{')))]
 
   const path = OUT(table)
-  const existing: Record<string, string> =
-    existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as { of: Record<string, string> }).of : {}
+  const existing: Record<string, string> = existsSync(path)
+    ? (JSON.parse(readFileSync(path, 'utf8')) as { of: Record<string, string> }).of
+    : {}
 
   const todo = sources.filter(t => !(t in existing))
-  console.log(`${sources.length} phrases, ${sources.length - todo.length} already done, ${todo.length} to translate`)
+  console.log(
+    `${sources.length} phrases, ${sources.length - todo.length} already done, ${todo.length} to translate`,
+  )
 
   const of: Record<string, string> = { ...existing }
   for (let i = 0; i < todo.length; i += BATCH) {

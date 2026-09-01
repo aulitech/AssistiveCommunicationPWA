@@ -216,16 +216,16 @@ export function loadPhraseStore(): PhraseStore {
       overrides: raw.overrides && typeof raw.overrides === 'object' ? raw.overrides : base.overrides,
       hidden: Array.isArray(raw.hidden) ? raw.hidden : base.hidden,
       categoryRenames:
-        raw.categoryRenames && typeof raw.categoryRenames === 'object' ? raw.categoryRenames : base.categoryRenames,
+        raw.categoryRenames && typeof raw.categoryRenames === 'object'
+          ? raw.categoryRenames
+          : base.categoryRenames,
       categories: strings(raw.categories) ?? base.categories,
       categoryOverrides:
         raw.categoryOverrides && typeof raw.categoryOverrides === 'object'
           ? raw.categoryOverrides
           : base.categoryOverrides,
       voiceOverrides:
-        raw.voiceOverrides && typeof raw.voiceOverrides === 'object'
-          ? raw.voiceOverrides
-          : base.voiceOverrides,
+        raw.voiceOverrides && typeof raw.voiceOverrides === 'object' ? raw.voiceOverrides : base.voiceOverrides,
       categoryOrder,
       // Stores written before the two arrangements were told apart have an
       // order and no flag; an order they took the trouble to make is the one
@@ -268,7 +268,13 @@ function readLists(raw: unknown): Aliases {
 
 const readNames = (raw: unknown) =>
   Array.isArray(raw)
-    ? [...new Set(raw.filter((n): n is string => typeof n === 'string' && n.trim() !== '').map(n => n.trim().toLowerCase()))]
+    ? [
+        ...new Set(
+          raw
+            .filter((n): n is string => typeof n === 'string' && n.trim() !== '')
+            .map(n => n.trim().toLowerCase()),
+        ),
+      ]
     : []
 
 /**
@@ -373,8 +379,10 @@ export function loadSent(): SentMessage[] {
     const raw = JSON.parse(localStorage.getItem(SENT_KEY) ?? '[]')
     if (!Array.isArray(raw)) return []
     return raw
-      .filter((m: unknown): m is SentMessage =>
-        typeof m === 'object' && m !== null && typeof (m as SentMessage).text === 'string')
+      .filter(
+        (m: unknown): m is SentMessage =>
+          typeof m === 'object' && m !== null && typeof (m as SentMessage).text === 'string',
+      )
       .map((m: SentMessage) => ({ id: String(m.id ?? m.text), text: m.text }))
       .slice(0, SENT_LIMIT)
   } catch {
@@ -396,8 +404,10 @@ export function addSent(messages: SentMessage[], text: string): SentMessage[] {
   if (!trimmed) return messages
   const rest = messages.filter(m => m.text !== trimmed)
   const existing = messages.find(m => m.text === trimmed)
-  return [existing ?? { id: `sent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: trimmed }, ...rest]
-    .slice(0, SENT_LIMIT)
+  return [
+    existing ?? { id: `sent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: trimmed },
+    ...rest,
+  ].slice(0, SENT_LIMIT)
 }
 
 // ── The last choices made ─────────────────────────────────────────────────────
@@ -471,8 +481,10 @@ export function loadElevenLabs(): ElevenLabsAccount | null {
     if (!raw || typeof raw.apiKey !== 'string' || !raw.apiKey) return null
     const voices: RemoteVoice[] = Array.isArray(raw.voices)
       ? raw.voices
-          .filter((v: unknown): v is RemoteVoice =>
-            typeof v === 'object' && v !== null && typeof (v as RemoteVoice).id === 'string')
+          .filter(
+            (v: unknown): v is RemoteVoice =>
+              typeof v === 'object' && v !== null && typeof (v as RemoteVoice).id === 'string',
+          )
           .map((v: RemoteVoice) => ({
             id: v.id,
             name: String(v.name ?? v.id),

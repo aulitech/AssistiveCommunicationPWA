@@ -123,7 +123,10 @@ describe('Google', () => {
   it('reports a profile fetch that fails', async () => {
     const stop = autoLoadScripts()
     stubGis('ok')
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, json: async () => ({}) })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, json: async () => ({}) })),
+    )
     const auth = await loadAuth({ VITE_GOOGLE_CLIENT_ID: 'abc' })
     await expect(auth.signInWithGoogle()).rejects.toThrow(/profile/i)
     stop()

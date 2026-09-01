@@ -51,9 +51,7 @@ export function hasTranslateKey(): boolean {
   return translateKey() !== ''
 }
 
-export type TranslateResult =
-  | { status: 'ok'; text: string }
-  | { status: 'error'; error: string }
+export type TranslateResult = { status: 'ok'; text: string } | { status: 'error'; error: string }
 
 /** The failure as a value, and the same failure in the console. */
 function fail(error: string): TranslateResult {
@@ -63,7 +61,8 @@ function fail(error: string): TranslateResult {
 
 function describe(status: number): string {
   if (status === 400) return 'The translation key was refused — check VITE_GOOGLE_TRANSLATE_KEY reached this build'
-  if (status === 403) return 'The translation key is not allowed here — check its referrer restriction covers this site, and that Cloud Translation is enabled'
+  if (status === 403)
+    return 'The translation key is not allowed here — check its referrer restriction covers this site, and that Cloud Translation is enabled'
   if (status === 429) return 'Too many translations at once — try again in a moment'
   if (status >= 500) return 'The translation service is having trouble'
   return `The translation service said ${status}`
@@ -91,9 +90,10 @@ const ENTITIES: Record<string, string> = {
 export function decodeEntities(text: string): string {
   return text.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (whole, body: string) => {
     if (body.startsWith('#')) {
-      const code = body[1] === 'x' || body[1] === 'X'
-        ? Number.parseInt(body.slice(2), 16)
-        : Number.parseInt(body.slice(1), 10)
+      const code =
+        body[1] === 'x' || body[1] === 'X'
+          ? Number.parseInt(body.slice(2), 16)
+          : Number.parseInt(body.slice(1), 10)
       // A code point outside what a character can be is not an entity at all.
       return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole
     }
@@ -138,4 +138,3 @@ export async function translate(text: string, tag: string): Promise<TranslateRes
     return fail('Could not reach the translation service')
   }
 }
-

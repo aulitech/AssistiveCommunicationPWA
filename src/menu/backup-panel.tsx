@@ -1,4 +1,3 @@
-
 // Menu → Backup & sharing. The screen over the format in `backup.ts`.
 
 import { useCallback, useMemo, useState } from 'react'
@@ -23,7 +22,6 @@ import { downloadBackup } from './backup-file'
 import { cx, dwellVar } from '../ui/style'
 import { PanelButton, PickerModal, PickerTile, ScrollPane } from '../ui/controls'
 
-
 /** What the trigger says the current choice is. */
 function describeScope(scope: string[] | null): string {
   if (scope === null) return 'Everything'
@@ -31,7 +29,13 @@ function describeScope(scope: string[] | null): string {
   return `${scope.length} categories`
 }
 
-export function BackupPanel({ store, aliases, categories, categoryById, onRestore }: {
+export function BackupPanel({
+  store,
+  aliases,
+  categories,
+  categoryById,
+  onRestore,
+}: {
   store: PhraseStore
   aliases: AliasStore
   /** Every category that can be exported on its own, in the order shown. */
@@ -162,9 +166,9 @@ export function BackupPanel({ store, aliases, categories, categoryById, onRestor
     <div className="backup-panel">
       <ScrollPane className="backup-scroller" paneClassName="backup-body" step={120}>
         <p className="backup-note">
-          Your phrases live in this browser and nowhere else. A backup carries everything you
-          changed — what you added, reworded, moved or removed, your details and your settings.
-          The phrases Peri came with are already in the app, so they are not in the file.
+          Your phrases live in this browser and nowhere else. A backup carries everything you changed — what you
+          added, reworded, moved or removed, your details and your settings. The phrases Peri came with are already
+          in the app, so they are not in the file.
         </p>
 
         <span className="setting-label backup-heading">What to save</span>
@@ -178,7 +182,17 @@ export function BackupPanel({ store, aliases, categories, categoryById, onRestor
           {...scopeProps}
         >
           <span className="picker-trigger-label">{describeScope(scope)}</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            width="14"
+            height="14"
+            aria-hidden="true"
+          >
             <polyline points="6 9 12 15 18 9" />
           </svg>
           <div className="dwell-bar" key={scopeActive ? 'a' : 'i'} />
@@ -224,9 +238,7 @@ export function BackupPanel({ store, aliases, categories, categoryById, onRestor
         {incoming ? (
           <div className="backup-incoming" role="group" aria-label="Restore this backup">
             <p className="backup-summary">
-              {incoming.backup.scope
-                ? `${incoming.backup.scope.join(', ')} — `
-                : 'Whole backup — '}
+              {incoming.backup.scope ? `${incoming.backup.scope.join(', ')} — ` : 'Whole backup — '}
               {describeBackup(incoming.summary)}.
             </p>
             <div className="backup-actions">
@@ -237,8 +249,8 @@ export function BackupPanel({ store, aliases, categories, categoryById, onRestor
               <PanelButton kind="plain" label="Cancel" onActivate={() => setIncoming(null)} />
             </div>
             <p className="backup-note">
-              Adding never takes a phrase away. Replacing makes this device match the file exactly,
-              including anything the backup had removed.
+              Adding never takes a phrase away. Replacing makes this device match the file exactly, including
+              anything the backup had removed.
             </p>
           </div>
         ) : (
@@ -263,8 +275,16 @@ export function BackupPanel({ store, aliases, categories, categoryById, onRestor
           </div>
         )}
 
-        {error && <p className="backup-error" role="alert">{error}</p>}
-        {status && <p className="backup-status" role="status">{status}</p>}
+        {error && (
+          <p className="backup-error" role="alert">
+            {error}
+          </p>
+        )}
+        {status && (
+          <p className="backup-status" role="status">
+            {status}
+          </p>
+        )}
       </ScrollPane>
     </div>
   )

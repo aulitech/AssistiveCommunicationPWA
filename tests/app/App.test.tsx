@@ -62,7 +62,8 @@ const slotCell = () =>
 // In edit mode the message box *is* the phrase editor — there is no dialog any
 // more — and the rail beside it carries what were the dialog's buttons.
 const box = () => $<HTMLTextAreaElement>('.text-display')!
-const iconBtn = (label: string) => $$<HTMLButtonElement>('.icon-btn').find(b => b.getAttribute('aria-label') === label)
+const iconBtn = (label: string) =>
+  $$<HTMLButtonElement>('.icon-btn').find(b => b.getAttribute('aria-label') === label)
 const writeIn = (el: Element, value: string) => {
   fireEvent.change(el, { target: { value } })
   settle()
@@ -160,8 +161,7 @@ describe('reaching the whole sign-in page', () => {
     const scrollTo = vi.fn()
     pane().scrollBy = scrollBy
     pane().scrollTo = scrollTo
-    const control = (label: string) =>
-      $$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === label)!
+    const control = (label: string) => $$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === label)!
 
     for (const nudge of ['Scroll up', 'Scroll down']) {
       scrollBy.mockClear()
@@ -1312,9 +1312,7 @@ describe('aliases', () => {
   })
 
   const panelTool = (label: string) =>
-    [...$$('.alias-panel-tools .alias-tool')].find(t =>
-      (t.getAttribute('aria-label') ?? '').startsWith(label),
-    )!
+    [...$$('.alias-panel-tools .alias-tool')].find(t => (t.getAttribute('aria-label') ?? '').startsWith(label))!
   const nameField = (name: string) =>
     list(name).querySelector<HTMLInputElement>(`input[aria-label="Rename ${name}"]`)
   const rename = (from: string, to: string) => {
@@ -1841,7 +1839,11 @@ describe('the menu items', () => {
     renderApp()
     openMenu()
     click(nav('Sign out'))
-    click([...document.body.querySelectorAll('.panel-btn')].find(b => b.getAttribute('aria-label') === 'Stay signed in'))
+    click(
+      [...document.body.querySelectorAll('.panel-btn')].find(
+        b => b.getAttribute('aria-label') === 'Stay signed in',
+      ),
+    )
 
     click(nav('Sign out'))
     expect(document.body.querySelector('.confirm-modal'), 'it asked again on its own').toBeNull()
@@ -1906,10 +1908,8 @@ describe('help', () => {
       openMenu()
       click(nav('Help'))
     }
-    const heading = (title: string) =>
-      $$('.help-section-title').find(h => h.textContent === title)!
-    const openTitles = () =>
-      $$('.help-section.is-open .help-section-title').map(h => h.textContent)
+    const heading = (title: string) => $$('.help-section-title').find(h => h.textContent === title)!
+    const openTitles = () => $$('.help-section.is-open .help-section-title').map(h => h.textContent)
     const bodyCount = () => $$('.help-text').length + $$('.help-list').length
 
     // Open on arrival, so the guide says something rather than only listing what
@@ -2194,8 +2194,7 @@ describe('backup & sharing', () => {
   const scopeTrigger = () => $('.backup-scope-trigger')
   const tile = (name: string) =>
     inDoc('.picker-tile').find(el => (el.getAttribute('aria-label') ?? '').split(' · ')[0] === name)
-  const modalAction = (label: string) =>
-    inDoc('.panel-btn').find(b => b.getAttribute('aria-label') === label)
+  const modalAction = (label: string) => inDoc('.panel-btn').find(b => b.getAttribute('aria-label') === label)
   /** Opens the grid, ticks each name, and closes it. */
   const chooseScope = (...names: string[]) => {
     click(scopeTrigger())
@@ -2371,7 +2370,9 @@ describe('backup & sharing', () => {
     openBackup()
 
     const input = $<HTMLInputElement>('.backup-file-input')!
-    fireEvent.change(input, { target: { files: [new File([file], 'peri-backup.json', { type: 'application/json' })] } })
+    fireEvent.change(input, {
+      target: { files: [new File([file], 'peri-backup.json', { type: 'application/json' })] },
+    })
     await flush()
     click(btn("Add to what's here"))
     await flush()
@@ -2563,7 +2564,11 @@ describe('sent messages', () => {
 
   it('puts Sent to the left of All, always', () => {
     renderApp()
-    expect(tabs().map(el => el.textContent).slice(0, 2)).toEqual(['Sent', 'All'])
+    expect(
+      tabs()
+        .map(el => el.textContent)
+        .slice(0, 2),
+    ).toEqual(['Sent', 'All'])
   })
 
   it('says so rather than showing a blank panel before anything is said', () => {
@@ -2615,7 +2620,9 @@ describe('sent messages', () => {
   // so that is the moment it counts as said.
   it('keeps each phrase spoken in auto-speak', () => {
     renderApp({ autoSpeak: true })
-    const [first, second] = cells().filter(c => !c.querySelector('.phrase-slot')).slice(0, 2)
+    const [first, second] = cells()
+      .filter(c => !c.querySelector('.phrase-slot'))
+      .slice(0, 2)
     const texts = [first.textContent!, second.textContent!]
     click(first)
     click(second)
@@ -2634,7 +2641,9 @@ describe('sent messages', () => {
   // that harder, not easier.
   it('moves a repeat to the top rather than listing it twice', () => {
     renderApp({ autoSpeak: true })
-    const [first, second] = cells().filter(c => !c.querySelector('.phrase-slot')).slice(0, 2)
+    const [first, second] = cells()
+      .filter(c => !c.querySelector('.phrase-slot'))
+      .slice(0, 2)
     const texts = [first.textContent!, second.textContent!]
     click(first)
     click(second)
@@ -2752,7 +2761,11 @@ describe('the emergency bar with a linked account', () => {
       'peri_elevenlabs',
       JSON.stringify({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }),
     )
-    const fetcher = vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) }))
+    const fetcher = vi.fn(async (_url: string) => ({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(['audio']),
+    }))
     vi.stubGlobal('fetch', fetcher)
     renderApp({ voiceURI: 'elevenlabs:v1', autoSpeak: true })
 
@@ -2980,7 +2993,10 @@ describe('starting from the last choice made', () => {
       'peri_elevenlabs',
       JSON.stringify({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }),
     )
-    vi.stubGlobal('fetch', vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['a']) })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['a']) })),
+    )
     renderApp()
     enterEditMode()
 
@@ -3040,7 +3056,10 @@ describe('giving a phrase its own voice', () => {
 
   const linkAccount = () => localStorage.setItem('peri_elevenlabs', JSON.stringify(LINKED))
   const audioReplies = () =>
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) })),
+    )
   const flush = async () => {
     await act(async () => {
       await Promise.resolve()
@@ -3118,7 +3137,11 @@ describe('giving a phrase its own voice', () => {
   // fetched there and then, so saying it later costs no wait.
   it('fetches the audio the moment the voice is assigned', async () => {
     linkAccount()
-    const fetcher = vi.fn(async (_url: string) => ({ ok: true, status: 200, blob: async () => new Blob(['audio']) }))
+    const fetcher = vi.fn(async (_url: string) => ({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(['audio']),
+    }))
     vi.stubGlobal('fetch', fetcher)
     renderApp()
     enterEditMode()
@@ -3590,9 +3613,7 @@ describe('the synchronize setting', () => {
     writeIn(row().querySelector('.secret-input')!, 'the cat sat down')
     click([...row().querySelectorAll('.panel-btn')].find(b => b.getAttribute('aria-label') === 'Start'))
 
-    const actions = [...row().querySelectorAll('.sync-actions .panel-btn')].map(b =>
-      b.getAttribute('aria-label'),
-    )
+    const actions = [...row().querySelectorAll('.sync-actions .panel-btn')].map(b => b.getAttribute('aria-label'))
     expect(actions).toEqual(['Synchronize now', 'Stop', 'Stop and erase the copy'])
   })
 
@@ -3620,9 +3641,7 @@ describe('the synchronize setting', () => {
     // Show and copy are icons, so they are not `.panel-btn` — the name is still
     // on them, which is the whole reason an icon is allowed here.
     const btn = (label: string) =>
-      [...row().querySelectorAll('.panel-btn, .secret-btn')].find(
-        b => b.getAttribute('aria-label') === label,
-      )
+      [...row().querySelectorAll('.panel-btn, .secret-btn')].find(b => b.getAttribute('aria-label') === label)
 
     const turnedOn = () => {
       renderSignedIn()
@@ -4125,15 +4144,17 @@ describe('linking an ElevenLabs account', () => {
     click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
   }
   const keyField = () => $<HTMLInputElement>('input[aria-label="ElevenLabs API key"]')
-  const btn = (label: string) =>
-    $$('.panel-btn, .secret-btn').find(b => b.getAttribute('aria-label') === label)
+  const btn = (label: string) => $$('.panel-btn, .secret-btn').find(b => b.getAttribute('aria-label') === label)
   // Portalled to the body, so not under the render container.
   const voiceOptions = () => {
     click($('.voice-trigger'))
     return [...document.body.querySelectorAll('.picker-tile')].map(o => o.getAttribute('aria-label'))
   }
   const respondWith = (voices: unknown[]) =>
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ voices }) })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ voices }) })),
+    )
   const flush = async () => {
     await act(async () => {
       await Promise.resolve()
@@ -4196,7 +4217,10 @@ describe('linking an ElevenLabs account', () => {
   it('adds the account voices to the picker, above the device ones', async () => {
     renderApp()
     openSettings()
-    respondWith([{ voice_id: 'v1', name: 'Rachel' }, { voice_id: 'v2', name: 'Adam' }])
+    respondWith([
+      { voice_id: 'v1', name: 'Rachel' },
+      { voice_id: 'v2', name: 'Adam' },
+    ])
 
     fireEvent.change(keyField()!, { target: { value: 'sk-test' } })
     settle()
@@ -4227,7 +4251,10 @@ describe('linking an ElevenLabs account', () => {
   it('says what went wrong and links nothing', async () => {
     renderApp()
     openSettings()
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) })),
+    )
 
     fireEvent.change(keyField()!, { target: { value: 'wrong' } })
     settle()
@@ -4251,7 +4278,11 @@ describe('linking an ElevenLabs account', () => {
     await flush()
 
     click($('.voice-trigger'))
-    click([...document.body.querySelectorAll('.picker-tile')].find(o => o.getAttribute('aria-label')?.includes('Rachel')))
+    click(
+      [...document.body.querySelectorAll('.picker-tile')].find(o =>
+        o.getAttribute('aria-label')?.includes('Rachel'),
+      ),
+    )
     expect(JSON.parse(localStorage.getItem('dwellspeak_settings')!).voiceURI).toBe('elevenlabs:v1')
 
     click(btn('Unlink'))
@@ -4723,4 +4754,3 @@ describe('the spoken language', () => {
     expect(languageRow()?.querySelector('.setting-note')).toBeNull()
   })
 })
-

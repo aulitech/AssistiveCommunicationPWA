@@ -1,4 +1,3 @@
-
 // Menu → Aliases. The lists a phrase's slots choose from.
 //
 // A phrase can say "Please turn {control} the lights" or "I'm going to call
@@ -61,7 +60,14 @@ function DwellInput({ className, ...rest }: React.ComponentProps<'input'>) {
  * a dwell landing on the × mid-arrangement would delete the word rather than
  * drop the one in the air, and a dwell meant for the field would do the same.
  */
-function WordChip({ word, list, editing, onRename, onRemove, reorder }: {
+function WordChip({
+  word,
+  list,
+  editing,
+  onRename,
+  onRemove,
+  reorder,
+}: {
   word: string
   list: string
   /** The list is being edited: this chip is a field and a delete. */
@@ -93,16 +99,22 @@ function WordChip({ word, list, editing, onRename, onRemove, reorder }: {
       aria-label={reorder ? reorderLabel(reorder, word, 'word') : undefined}
       draggable={reorder ? true : undefined}
       onDragStart={reorder?.onDragStart}
-      onDragOver={reorder && (e => {
-        // Without this the browser refuses the drop outright.
-        e.preventDefault()
-        reorder.onDragOver()
-      })}
+      onDragOver={
+        reorder &&
+        (e => {
+          // Without this the browser refuses the drop outright.
+          e.preventDefault()
+          reorder.onDragOver()
+        })
+      }
       onDragEnd={reorder?.onDragEnd}
-      onDrop={reorder && (e => {
-        e.preventDefault()
-        reorder.onDrop()
-      })}
+      onDrop={
+        reorder &&
+        (e => {
+          e.preventDefault()
+          reorder.onDrop()
+        })
+      }
       {...(reorder ? move.props : {})}
     >
       {editing && !reorder ? (
@@ -128,8 +140,18 @@ function WordChip({ word, list, editing, onRename, onRemove, reorder }: {
           {...remove.props}
         >
           <div className="dwell-bar" key={remove.active ? 'a' : 'i'} />
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="14" height="14" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            width="14"
+            height="14"
+            aria-hidden="true"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </div>
       ) : null}
@@ -138,7 +160,14 @@ function WordChip({ word, list, editing, onRename, onRemove, reorder }: {
 }
 
 /** One of the tools in an open list's header. */
-function ListTool({ className, label, pressed, disabled, onActivate, children }: {
+function ListTool({
+  className,
+  label,
+  pressed,
+  disabled,
+  onActivate,
+  children,
+}: {
   className: string
   label: string
   pressed?: boolean
@@ -171,7 +200,11 @@ function ListTool({ className, label, pressed, disabled, onActivate, children }:
  * `+` is there because somebody driving by gaze with an on-screen keyboard has
  * no Enter key worth the name.
  */
-function AddRow({ label, placeholder, onAdd }: {
+function AddRow({
+  label,
+  placeholder,
+  onAdd,
+}: {
   label: string
   placeholder: string
   onAdd: (value: string) => void
@@ -227,7 +260,13 @@ function AddRow({ label, placeholder, onAdd }: {
  * real change of meaning — the phrases that say `{pronouns}` resolve to nothing
  * afterwards — but the board is the user's, and so are the words on it.
  */
-function NameField({ value, className, label, normalise = (raw: string) => raw.trim(), onCommit }: {
+function NameField({
+  value,
+  className,
+  label,
+  normalise = (raw: string) => raw.trim(),
+  onCommit,
+}: {
   value: string
   className: string
   label: string
@@ -272,7 +311,10 @@ function NameField({ value, className, label, normalise = (raw: string) => raw.t
   )
 }
 
-export function AliasesPanel({ aliases, onChange }: {
+export function AliasesPanel({
+  aliases,
+  onChange,
+}: {
   aliases: AliasStore
   onChange: (next: AliasStore) => void
 }) {
@@ -314,10 +356,7 @@ export function AliasesPanel({ aliases, onChange }: {
     saveAliasSort(next)
     setSort(next)
   }, [])
-  const toggleSort = useCallback(
-    () => applySort(sort === 'alpha' ? 'custom' : 'alpha'),
-    [sort, applySort],
-  )
+  const toggleSort = useCallback(() => applySort(sort === 'alpha' ? 'custom' : 'alpha'), [sort, applySort])
 
   /** Writing any list writes the whole list, which is what makes a removal stick. */
   const setList = useCallback(
@@ -415,7 +454,6 @@ export function AliasesPanel({ aliases, onChange }: {
     setOpenName(current => (current === name ? null : name))
   }, [])
 
-
   return (
     // Its own class rather than `settings-panel`: that one fills whatever it is
     // given, which for Settings is the viewport. This panel hangs down only as
@@ -425,9 +463,12 @@ export function AliasesPanel({ aliases, onChange }: {
     <div className="alias-panel">
       <ScrollPane className="settings-scroller" paneClassName="settings-body" step={100}>
         <p className="profile-hint">
-          The words a phrase offers where it leaves a blank — “Please turn{' '}
-          <em>on</em> the lights”, “I'm going to call <em>Mum</em>”. Write{' '}
-          <code>{'{'}contacts{'}'}</code> in a phrase to use one.
+          The words a phrase offers where it leaves a blank — “Please turn <em>on</em> the lights”, “I'm going to
+          call <em>Mum</em>”. Write{' '}
+          <code>
+            {'{'}contacts{'}'}
+          </code>{' '}
+          in a phrase to use one.
         </p>
 
         {/* The two things that are about the lists rather than about any one
@@ -483,7 +524,23 @@ export function AliasesPanel({ aliases, onChange }: {
   )
 }
 
-function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging, onToggleArrange, editingWords, onToggleEditWords, editingName, onRename, onWords, onDrop, onSorted }: {
+function AliasList({
+  name,
+  words,
+  isOpen,
+  onOpen,
+  sort,
+  onToggleSort,
+  arranging,
+  onToggleArrange,
+  editingWords,
+  onToggleEditWords,
+  editingName,
+  onRename,
+  onWords,
+  onDrop,
+  onSorted,
+}: {
   name: string
   words: string[]
   isOpen: boolean
@@ -587,7 +644,12 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
   )
 
   return (
-    <div ref={ref} className={cx('alias-list', 'is-collapsible', isOpen && 'is-open')} role="group" aria-label={name}>
+    <div
+      ref={ref}
+      className={cx('alias-list', 'is-collapsible', isOpen && 'is-open')}
+      role="group"
+      aria-label={name}
+    >
       {editingName ? (
         // The row is a field and a delete while names are being edited: a
         // heading that both opened the list and took a name would be two
@@ -603,8 +665,18 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
             onCommit={onRename}
           />
           <ListTool className="alias-delete" label={`Delete the ${name} list`} onActivate={onDrop}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="14" height="14" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              width="14"
+              height="14"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </ListTool>
         </div>
@@ -634,9 +706,7 @@ function AliasList({ name, words, isOpen, onOpen, sort, onToggleSort, arranging,
               // The lit state says which arrangement is on, so the icon and the
               // name say it too rather than leaving colour to carry it.
               label={
-                sort === 'alpha'
-                  ? 'Sorted A to Z. Switch to your own order'
-                  : 'Your own order. Switch to A to Z'
+                sort === 'alpha' ? 'Sorted A to Z. Switch to your own order' : 'Your own order. Switch to A to Z'
               }
               pressed={sort === 'alpha'}
               onActivate={onToggleSort}

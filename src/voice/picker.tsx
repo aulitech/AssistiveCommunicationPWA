@@ -22,7 +22,12 @@ import { speak, subscribeVoices } from './speech'
 /** Short, and it says what it is. Cached after the first time on a paid voice. */
 const SAMPLE = 'This is how I sound.'
 
-export function VoicePicker({ value, onChange, defaultLabel, sampleText }: {
+export function VoicePicker({
+  value,
+  onChange,
+  defaultLabel,
+  sampleText,
+}: {
   /** The chosen `voiceURI`; empty means whatever the default is called below. */
   value: string
   onChange: (voiceURI: string) => void

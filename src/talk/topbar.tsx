@@ -22,13 +22,31 @@ import { useSettings } from '../ui/settings'
 import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
 import { useLinkInput, type PasteResult } from '../ui/link-input'
-import { AutoSpeakIcon, CheckIcon, ClearIcon, CopyIcon, EditIcon, MenuIcon, PasteIcon, PlusIcon, SpeakIcon, TrashIcon, UndoIcon } from '../ui/icons'
+import {
+  AutoSpeakIcon,
+  CheckIcon,
+  ClearIcon,
+  CopyIcon,
+  EditIcon,
+  MenuIcon,
+  PasteIcon,
+  PlusIcon,
+  SpeakIcon,
+  TrashIcon,
+  UndoIcon,
+} from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { PhraseEditBar } from './editors'
 import type { Composer } from './use-composer'
 import type { Editor } from './use-editor'
 
-function ActionButton({ onSelect, className = '', children, label, disabled }: {
+function ActionButton({
+  onSelect,
+  className = '',
+  children,
+  label,
+  disabled,
+}: {
   onSelect: () => void
   className?: string
   children: React.ReactNode
@@ -71,7 +89,13 @@ function ActionButton({ onSelect, className = '', children, label, disabled }: {
  * painted size is small and the area answering to a pointer is larger and
  * invisible — see `.mode-btn::before`.
  */
-function ModeToggle({ on, onToggle, label, className, children }: {
+function ModeToggle({
+  on,
+  onToggle,
+  label,
+  className,
+  children,
+}: {
   on: boolean
   onToggle: () => void
   label: string
@@ -121,7 +145,26 @@ function RestButton({ resting, onToggle }: { resting: boolean; onToggle: () => v
   )
 }
 
-export function Topbar({ composer, editor, editMode, onToggleEdit, autoSpeak, onToggleAutoSpeak, menuOpen, onToggleMenu, resting, onToggleRest, onSavePhrase, onDeletePhrase, categories, countFor, onCreateCategory, onSpeak, onCopy, onPasted }: {
+export function Topbar({
+  composer,
+  editor,
+  editMode,
+  onToggleEdit,
+  autoSpeak,
+  onToggleAutoSpeak,
+  menuOpen,
+  onToggleMenu,
+  resting,
+  onToggleRest,
+  onSavePhrase,
+  onDeletePhrase,
+  categories,
+  countFor,
+  onCreateCategory,
+  onSpeak,
+  onCopy,
+  onPasted,
+}: {
   composer: Composer
   /** The phrase being written, which in edit mode is what the box holds. */
   editor: Editor

@@ -1,4 +1,3 @@
-
 // Editing what is on the board.
 //
 // The phrase editor is not here any more: in edit mode the message box *is* the
@@ -16,7 +15,12 @@ import { VoicePicker } from '../voice/picker'
 import { cx, dwellVar } from '../ui/style'
 import { type Draft } from './use-editor'
 
-function EditAction({ kind, label, onActivate, disabled }: {
+function EditAction({
+  kind,
+  label,
+  onActivate,
+  disabled,
+}: {
   kind: 'danger' | 'cancel' | 'save'
   label: string
   onActivate: () => void
@@ -47,7 +51,13 @@ function EditAction({ kind, label, onActivate, disabled }: {
  * the same shape the voice picker does — the grid is the app's answer to
  * "one out of many", and there is no reason for a user to learn two.
  */
-function CategoryPicker({ value, categories, countFor, onChange, onCreate }: {
+function CategoryPicker({
+  value,
+  categories,
+  countFor,
+  onChange,
+  onCreate,
+}: {
   value: string
   categories: string[]
   /** How many phrases each one holds, which is the second line of its tile. */
@@ -85,7 +95,17 @@ function CategoryPicker({ value, categories, countFor, onChange, onCreate }: {
         {...props}
       >
         <span className="picker-trigger-label">{value || 'Choose a category'}</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          width="14"
+          height="14"
+          aria-hidden="true"
+        >
           <polyline points="6 9 12 15 18 9" />
         </svg>
         <div className="dwell-bar" key={active ? 'a' : 'i'} />
@@ -133,7 +153,14 @@ function CategoryPicker({ value, categories, countFor, onChange, onCreate }: {
  * a full-screen grid, which is the only shape of "one out of many" a gaze user
  * can work through.
  */
-export function PhraseEditBar({ draft, categories, countFor, onCategory, onVoice, onCreateCategory }: {
+export function PhraseEditBar({
+  draft,
+  categories,
+  countFor,
+  onCategory,
+  onVoice,
+  onCreateCategory,
+}: {
   draft: Draft
   categories: string[]
   countFor: (name: string) => number
@@ -158,8 +185,12 @@ export function PhraseEditBar({ draft, categories, countFor, onCategory, onVoice
           : draft.keeping
             ? 'Keep this message'
             : draft.isNew
-              ? draft.isEmergency ? 'New emergency phrase' : 'New phrase'
-              : draft.isEmergency ? 'Editing emergency phrase' : 'Editing phrase'}
+              ? draft.isEmergency
+                ? 'New emergency phrase'
+                : 'New phrase'
+              : draft.isEmergency
+                ? 'Editing emergency phrase'
+                : 'Editing phrase'}
       </span>
 
       {/* The emergency bar is the category, so there is nothing to choose. Said
@@ -191,7 +222,14 @@ export function PhraseEditBar({ draft, categories, countFor, onCategory, onVoice
   )
 }
 
-export function CategoryModal({ name, phraseCount, existing, onSave, onDelete, onClose }: {
+export function CategoryModal({
+  name,
+  phraseCount,
+  existing,
+  onSave,
+  onDelete,
+  onClose,
+}: {
   name: string | null // null = creating a new one
   phraseCount: number
   existing: string[]
@@ -218,8 +256,18 @@ export function CategoryModal({ name, phraseCount, existing, onSave, onDelete, o
   }, [onClose])
 
   return (
-    <div className="edit-modal-scrim" onPointerDown={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="edit-modal" role="dialog" aria-modal="true" aria-label={isNew ? 'Add category' : 'Rename category'}>
+    <div
+      className="edit-modal-scrim"
+      onPointerDown={e => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div
+        className="edit-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={isNew ? 'Add category' : 'Rename category'}
+      >
         <div className="edit-modal-title">{isNew ? 'Add category' : 'Rename category'}</div>
 
         <input
@@ -240,8 +288,8 @@ export function CategoryModal({ name, phraseCount, existing, onSave, onDelete, o
         {clash && <p className="edit-modal-note">A category is already called that.</p>}
         {!isNew && phraseCount > 0 && (
           <p className="edit-modal-note">
-            {phraseCount} phrase{phraseCount === 1 ? '' : 's'} will move with it. Empty a category before
-            deleting it.
+            {phraseCount} phrase{phraseCount === 1 ? '' : 's'} will move with it. Empty a category before deleting
+            it.
           </p>
         )}
 

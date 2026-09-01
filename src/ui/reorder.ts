@@ -39,7 +39,11 @@ export interface Reorder {
   release: () => void
 }
 
-export function useReorder({ onReorder, onLift, labelOf = key => key }: {
+export function useReorder({
+  onReorder,
+  onLift,
+  labelOf = key => key,
+}: {
   /** Both routes land here with the whole move: what was picked up, and what it was dropped on. */
   onReorder?: (from: string, to: string) => void
   /** Announced when something is picked up — the styling alone says nothing aloud. */

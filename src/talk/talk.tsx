@@ -63,9 +63,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const [resting, setResting] = useState(false)
   // `forDraft` marks a category being invented from inside the phrase editor,
   // which files the phrase under it as well as creating it.
-  const [editingCategory, setEditingCategory] = useState<{ name: string | null; forDraft?: boolean } | null>(
-    null,
-  )
+  const [editingCategory, setEditingCategory] = useState<{ name: string | null; forDraft?: boolean } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
   const [recent, setRecent] = useState(loadRecent)
 
@@ -79,8 +77,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // Pulled out rather than reached through `composer`, which is a fresh object
   // every render: a callback depending on the whole of it would change identity
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
-  const { insert: insertPhrase, text: message, currentWord, copy: copyMessage, speak: speakMessage } =
-    composer
+  const { insert: insertPhrase, text: message, currentWord, copy: copyMessage, speak: speakMessage } = composer
 
   // Derived from the live phrase list so user-added categories get a tab and
   // fully-hidden categories lose theirs.
@@ -218,7 +215,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     }
     startNew()
     flashToast(
-      keeping ? 'Kept as a phrase' : phrase === null ? `Added to ${isEmergency ? 'Emergency' : category}` : 'Saved',
+      keeping
+        ? 'Kept as a phrase'
+        : phrase === null
+          ? `Added to ${isEmergency ? 'Emergency' : category}`
+          : 'Saved',
     )
   }, [draft, board, startNew, flashToast])
 
@@ -321,10 +322,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     [message, startNew, update, flashToast],
   )
 
-  const toggleEditMode = useCallback(
-    () => setMode(editMode ? 'compose' : 'edit'),
-    [editMode, setMode],
-  )
+  const toggleEditMode = useCallback(() => setMode(editMode ? 'compose' : 'edit'), [editMode, setMode])
 
   const toggleAutoSpeak = useCallback(
     () => setMode(settings.autoSpeak ? 'edit' : 'speak'),
@@ -475,10 +473,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
   // `editor.open` is stable, which matters: this value reaches every one of a
   // couple of thousand memoised phrase cells.
-  const editCtx: EditCtxValue = useMemo(
-    () => ({ editMode, openEdit: editor.open }),
-    [editMode, editor.open],
-  )
+  const editCtx: EditCtxValue = useMemo(() => ({ editMode, openEdit: editor.open }), [editMode, editor.open])
 
   const countFor = useCallback(
     (name: string) => board.phraseCountByCategory.get(name) ?? 0,
@@ -531,9 +526,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
           <PhraseGrid
             phrases={visiblePhrases}
-            emptyMessage={
-              showingSent ? 'Nothing said yet. Messages you speak or copy are kept here.' : undefined
-            }
+            emptyMessage={showingSent ? 'Nothing said yet. Messages you speak or copy are kept here.' : undefined}
             onSelect={handleSelectPhrase}
           />
 
@@ -589,9 +582,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
           {editingCategory !== null && (
             <CategoryModal
               name={editingCategory.name}
-              phraseCount={
-                editingCategory.name ? (board.phraseCountByCategory.get(editingCategory.name) ?? 0) : 0
-              }
+              phraseCount={editingCategory.name ? (board.phraseCountByCategory.get(editingCategory.name) ?? 0) : 0}
               existing={allCategories}
               onSave={handleCategorySave}
               onDelete={handleCategoryDelete}
@@ -603,5 +594,3 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     </EditCtx.Provider>
   )
 }
-
-

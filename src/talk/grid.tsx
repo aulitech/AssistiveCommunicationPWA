@@ -1,4 +1,3 @@
-
 // The phrase grid and the rail of controls beside it.
 //
 // The grid renders every phrase in the table — a couple of thousand cells — so
@@ -80,7 +79,13 @@ const SCROLL_STEP = 120
  */
 const pageBy = (extent: number) => Math.max(extent - SCROLL_STEP, SCROLL_STEP)
 
-function ScrollBtn({ onAction, repeat, label, className, children }: {
+function ScrollBtn({
+  onAction,
+  repeat,
+  label,
+  className,
+  children,
+}: {
   onAction: () => void
   repeat?: boolean
   label: string
@@ -110,13 +115,22 @@ function ScrollBtn({ onAction, repeat, label, className, children }: {
  * are in the topbar now, either side of Rest, which is the third of the three
  * and was already there.
  */
-function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
+function GridScrollBar({
+  gridRef,
+  onBeforeJumpToBottom,
+}: {
   gridRef: React.RefObject<HTMLElement | null>
   /** Renders the rest of the list, so the jump has somewhere to land. */
   onBeforeJumpToBottom: () => void
 }) {
-  const scrollTo = useCallback((pos: number) => gridRef.current?.scrollTo({ top: pos, behavior: 'smooth' }), [gridRef])
-  const scrollBy = useCallback((dy: number) => gridRef.current?.scrollBy({ top: dy, behavior: 'smooth' }), [gridRef])
+  const scrollTo = useCallback(
+    (pos: number) => gridRef.current?.scrollTo({ top: pos, behavior: 'smooth' }),
+    [gridRef],
+  )
+  const scrollBy = useCallback(
+    (dy: number) => gridRef.current?.scrollBy({ top: dy, behavior: 'smooth' }),
+    [gridRef],
+  )
   // Measured at the moment it is asked for rather than held in state: the grid
   // resizes with the keyboard, with rotation, and with the filter bar coming and
   // going, and a page is only ever wanted now.
@@ -128,8 +142,17 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
   return (
     <div className="grid-scrollbar">
       <ScrollBtn onAction={() => scrollTo(0)} label="Scroll to top">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <line x1="5" y1="6" x2="19" y2="6"/><polyline points="8 14 12 10 16 14"/>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="5" y1="6" x2="19" y2="6" />
+          <polyline points="8 14 12 10 16 14" />
         </svg>
       </ScrollBtn>
       {/* A screenful at a time, repeating while held at whatever pace the
@@ -143,13 +166,29 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
         <PageIcon direction="up" />
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollBy(-SCROLL_STEP)} repeat label="Scroll up">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="18 15 12 9 6 15"/>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="18 15 12 9 6 15" />
         </svg>
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollBy(SCROLL_STEP)} repeat label="Scroll down">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="6 9 12 15 18 9"/>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="6 9 12 15 18 9" />
         </svg>
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollPage(1)} repeat className="scroll-btn-page" label="Next page">
@@ -162,8 +201,17 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
         }}
         label="Scroll to bottom"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <line x1="5" y1="18" x2="19" y2="18"/><polyline points="8 10 12 14 16 10"/>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="5" y1="18" x2="19" y2="18" />
+          <polyline points="8 10 12 14 16 10" />
         </svg>
       </ScrollBtn>
     </div>
@@ -177,7 +225,11 @@ function GridScrollBar({ gridRef, onBeforeJumpToBottom }: {
  * Only the first `shown` cells are rendered — see `core/virtual.ts` for why the
  * window grows from the top rather than sliding.
  */
-export function PhraseGrid({ phrases, emptyMessage, onSelect }: {
+export function PhraseGrid({
+  phrases,
+  emptyMessage,
+  onSelect,
+}: {
   phrases: Phrase[]
   /** Shown when there is nothing to show, for filters that can legitimately be empty. */
   emptyMessage?: string

@@ -64,9 +64,7 @@ describe('finding the label', () => {
   // A bare URL is the common paste, and the site's name is short and speakable
   // where the address is neither.
   it('falls back to the site, without the www', () => {
-    expect(readLink(transfer({ 'text/plain': 'https://www.cafe.example/menu/today' }))?.label).toBe(
-      'cafe.example',
-    )
+    expect(readLink(transfer({ 'text/plain': 'https://www.cafe.example/menu/today' }))?.label).toBe('cafe.example')
   })
 
   it('falls back to the address for an email', () => {

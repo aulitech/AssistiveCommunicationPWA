@@ -1,11 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import {
-  REMOTE_PREFIX,
-  linkAccount,
-  remoteVoiceId,
-  remoteVoiceURI,
-  synthesize,
-} from '../../src/voice/elevenlabs'
+import { REMOTE_PREFIX, linkAccount, remoteVoiceId, remoteVoiceURI, synthesize } from '../../src/voice/elevenlabs'
 import { cachedCount, clearAudioCache } from '../../src/voice/audio-cache'
 import { type ElevenLabsAccount } from '../../src/core/store'
 
@@ -65,9 +59,12 @@ describe('linking an account', () => {
   })
 
   it('says so plainly when the network is down', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => {
-      throw new TypeError('Failed to fetch')
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch')
+      }),
+    )
     const result = await linkAccount('sk-test')
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toMatch(/could not reach/i)
@@ -90,9 +87,12 @@ describe('linking an account', () => {
   })
 
   it('drops entries it cannot read rather than the whole reply', async () => {
-    vi.stubGlobal('fetch', respondWith({
-      voices: [{ voice_id: 'v1', name: 'Rachel' }, { name: 'no id' }, { voice_id: 'v2' }, 'nonsense'],
-    }))
+    vi.stubGlobal(
+      'fetch',
+      respondWith({
+        voices: [{ voice_id: 'v1', name: 'Rachel' }, { name: 'no id' }, { voice_id: 'v2' }, 'nonsense'],
+      }),
+    )
     const result = await linkAccount('sk-test')
     expect(result.ok).toBe(true)
     if (result.ok) expect(result.account.voices).toEqual([{ id: 'v1', name: 'Rachel' }])
@@ -159,9 +159,10 @@ describe('asking for the same clip twice at once', () => {
   it('shares one request rather than paying for two', async () => {
     let resolve: (v: unknown) => void = () => {}
     const fetcher = vi.fn(
-      () => new Promise(r => {
-        resolve = r
-      }),
+      () =>
+        new Promise(r => {
+          resolve = r
+        }),
     )
     vi.stubGlobal('fetch', fetcher)
 

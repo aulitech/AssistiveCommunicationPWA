@@ -1,4 +1,3 @@
-
 // The live settings, shared with every control in the app.
 //
 // Split from the panel that edits them so that `ui.tsx` can read a dwell time

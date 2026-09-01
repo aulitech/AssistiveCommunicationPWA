@@ -12,7 +12,13 @@ import { loadElevenLabs, type ElevenLabsAccount } from '../core/store'
 import { remoteVoiceId, synthesize } from './elevenlabs'
 import { audioKey, cachedAudio } from './audio-cache'
 import { reportFailure } from '../core/report'
-import { needsTranslation, rememberTranslation, speechTag, translationFor, translationTarget } from '../core/translation'
+import {
+  needsTranslation,
+  rememberTranslation,
+  speechTag,
+  translationFor,
+  translationTarget,
+} from '../core/translation'
 import { hasTranslateKey, translate } from '../translate/client'
 
 export interface VoiceSettings {

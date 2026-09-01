@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, act } from '@testing-library/react'
 import { SETTLE_MS, holdDwells, releaseDwells, useDwellControl } from '../../src/ui/dwell'
 
-function Probe({ onActivate, durationMs = 500, disabled = false, repeatMs }: {
+function Probe({
+  onActivate,
+  durationMs = 500,
+  disabled = false,
+  repeatMs,
+}: {
   onActivate: () => void
   durationMs?: number
   disabled?: boolean

@@ -1,4 +1,3 @@
-
 // The category tabs above the grid, and the controls that arrange them.
 //
 // The tabs can be reordered by dragging with a mouse or, for a dwell user, by
@@ -13,7 +12,13 @@ import { useSettings } from '../ui/settings'
 import { CustomOrderIcon, PageIcon, PlusIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 
-function FilterTab({ label, active, onSelect, onEdit, reorder }: {
+function FilterTab({
+  label,
+  active,
+  onSelect,
+  onEdit,
+  reorder,
+}: {
   label: string
   active: boolean
   onSelect: () => void
@@ -68,16 +73,22 @@ function FilterTab({ label, active, onSelect, onEdit, reorder }: {
       }
       draggable={reorder ? true : undefined}
       onDragStart={reorder?.onDragStart}
-      onDragOver={reorder && (e => {
-        // Without this the browser refuses the drop outright.
-        e.preventDefault()
-        reorder.onDragOver()
-      })}
+      onDragOver={
+        reorder &&
+        (e => {
+          // Without this the browser refuses the drop outright.
+          e.preventDefault()
+          reorder.onDragOver()
+        })
+      }
       onDragEnd={reorder?.onDragEnd}
-      onDrop={reorder && (e => {
-        e.preventDefault()
-        reorder.onDrop()
-      })}
+      onDrop={
+        reorder &&
+        (e => {
+          e.preventDefault()
+          reorder.onDrop()
+        })
+      }
       {...props}
       tabIndex={0}
     >
@@ -88,7 +99,14 @@ function FilterTab({ label, active, onSelect, onEdit, reorder }: {
 }
 
 /** The controls at the end of the bar: add, sort, reorder. */
-function FilterBarButton({ className, label, pressed, disabled, onActivate, children }: {
+function FilterBarButton({
+  className,
+  label,
+  pressed,
+  disabled,
+  onActivate,
+  children,
+}: {
   className: string
   label: string
   pressed?: boolean
@@ -116,7 +134,13 @@ function FilterBarButton({ className, label, pressed, disabled, onActivate, chil
 /** How far a nudge moves the tabs, and the overlap a page leaves behind it. */
 const SCROLL_STEP = 200
 
-function FilterArrow({ onAction, repeat, label, className, children }: {
+function FilterArrow({
+  onAction,
+  repeat,
+  label,
+  className,
+  children,
+}: {
   onAction: () => void
   repeat?: boolean
   label: string
@@ -203,8 +227,17 @@ export function FilterBar({
   return (
     <div className="filter-bar-wrap" role="tablist" aria-label="Filter phrases by category">
       <FilterArrow onAction={() => scrollTo(0)} className="filter-arrow-end" label="Go to first category">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <line x1="5" y1="6" x2="5" y2="18"/><polyline points="19 18 11 12 19 6"/>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="5" y1="6" x2="5" y2="18" />
+          <polyline points="19 18 11 12 19 6" />
         </svg>
       </FilterArrow>
 
@@ -213,8 +246,16 @@ export function FilterBar({
       </FilterArrow>
 
       <FilterArrow onAction={() => scrollBy(-SCROLL_STEP)} repeat label="Scroll categories left">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="15 18 9 12 15 6"/>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="15 18 9 12 15 6" />
         </svg>
       </FilterArrow>
 
@@ -232,8 +273,16 @@ export function FilterBar({
       </div>
 
       <FilterArrow onAction={() => scrollBy(SCROLL_STEP)} repeat label="Scroll categories right">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="9 18 15 12 9 6"/>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="9 18 15 12 9 6" />
         </svg>
       </FilterArrow>
 
@@ -242,8 +291,17 @@ export function FilterBar({
       </FilterArrow>
 
       <FilterArrow onAction={() => scrollTo(999999)} className="filter-arrow-end" label="Go to last category">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <line x1="19" y1="6" x2="19" y2="18"/><polyline points="5 6 13 12 5 18"/>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="19" y1="6" x2="19" y2="18" />
+          <polyline points="5 6 13 12 5 18" />
         </svg>
       </FilterArrow>
 
@@ -259,30 +317,28 @@ export function FilterBar({
         <div className="filter-bar-tools">
           {reordering
             ? onToggleSort && (
-              <FilterBarButton
-                className="sort-order-tab"
-                // The green fill says which arrangement is on, so the icon and
-                // the name say it too rather than leaving colour to carry it.
-                // Both then name the switch, since neither state is "off".
-                label={
-                  isAlphabetical
-                    ? 'Sorted A to Z. Switch to your own order'
-                    : 'Your own order. Switch to A to Z'
-                }
-                pressed={isAlphabetical}
-                // Nothing to switch to until there is an arrangement of their
-                // own to come back to.
-                disabled={isAlphabetical && !canRestoreOrder}
-                onActivate={onToggleSort}
-              >
-                {isAlphabetical ? <SortAlphaIcon /> : <CustomOrderIcon />}
-              </FilterBarButton>
-            )
+                <FilterBarButton
+                  className="sort-order-tab"
+                  // The green fill says which arrangement is on, so the icon and
+                  // the name say it too rather than leaving colour to carry it.
+                  // Both then name the switch, since neither state is "off".
+                  label={
+                    isAlphabetical ? 'Sorted A to Z. Switch to your own order' : 'Your own order. Switch to A to Z'
+                  }
+                  pressed={isAlphabetical}
+                  // Nothing to switch to until there is an arrangement of their
+                  // own to come back to.
+                  disabled={isAlphabetical && !canRestoreOrder}
+                  onActivate={onToggleSort}
+                >
+                  {isAlphabetical ? <SortAlphaIcon /> : <CustomOrderIcon />}
+                </FilterBarButton>
+              )
             : onAddCategory && (
-              <FilterBarButton className="add-category-tab" label="Add category" onActivate={onAddCategory}>
-                <PlusIcon />
-              </FilterBarButton>
-            )}
+                <FilterBarButton className="add-category-tab" label="Add category" onActivate={onAddCategory}>
+                  <PlusIcon />
+                </FilterBarButton>
+              )}
 
           {onToggleReorder && (
             <FilterBarButton

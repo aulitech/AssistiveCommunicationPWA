@@ -12,16 +12,32 @@ const runs = (source: string) =>
   layout(text(source))[0].pieces.map(p =>
     p.kind === 'slot'
       ? ['{slot}', 'slot']
-      : [p.text, [p.strong && 'strong', p.em && 'em', p.strike && 'strike', p.code && 'code'].filter(Boolean).join('+')],
+      : [
+          p.text,
+          [p.strong && 'strong', p.em && 'em', p.strike && 'strike', p.code && 'code'].filter(Boolean).join('+'),
+        ],
   )
 const kinds = (lines: Line[]) => lines.map(l => (l.kind === 'heading' ? `h${l.level}` : l.kind))
 
 describe('emphasis', () => {
   it('reads bold, italic, strikethrough and code', () => {
-    expect(runs('**Help** me')).toEqual([['Help', 'strong'], [' me', '']])
-    expect(runs('I am *really* tired')).toEqual([['I am ', ''], ['really', 'em'], [' tired', '']])
-    expect(runs('~~Not~~ hungry')).toEqual([['Not', 'strike'], [' hungry', '']])
-    expect(runs('press `OK`')).toEqual([['press ', ''], ['OK', 'code']])
+    expect(runs('**Help** me')).toEqual([
+      ['Help', 'strong'],
+      [' me', ''],
+    ])
+    expect(runs('I am *really* tired')).toEqual([
+      ['I am ', ''],
+      ['really', 'em'],
+      [' tired', ''],
+    ])
+    expect(runs('~~Not~~ hungry')).toEqual([
+      ['Not', 'strike'],
+      [' hungry', ''],
+    ])
+    expect(runs('press `OK`')).toEqual([
+      ['press ', ''],
+      ['OK', 'code'],
+    ])
   })
 
   it('nests one inside another', () => {
@@ -60,8 +76,14 @@ describe('emphasis', () => {
   })
 
   it('reads underscores as emphasis too', () => {
-    expect(runs('_really_ tired')).toEqual([['really', 'em'], [' tired', '']])
-    expect(runs('__Help__ me')).toEqual([['Help', 'strong'], [' me', '']])
+    expect(runs('_really_ tired')).toEqual([
+      ['really', 'em'],
+      [' tired', ''],
+    ])
+    expect(runs('__Help__ me')).toEqual([
+      ['Help', 'strong'],
+      [' me', ''],
+    ])
     expect(runs('___now___')).toEqual([['now', 'strong+em']])
   })
 
@@ -95,7 +117,9 @@ describe('links', () => {
   /** The runs of a one-line phrase as [text, styles, url] triples. */
   const linked = (source: string) =>
     layout(text(source))[0].pieces.map(p =>
-      p.kind === 'slot' ? ['{slot}', '', ''] : [p.text, [p.strong && 'strong', p.em && 'em'].filter(Boolean).join('+'), p.link ?? ''],
+      p.kind === 'slot'
+        ? ['{slot}', '', '']
+        : [p.text, [p.strong && 'strong', p.em && 'em'].filter(Boolean).join('+'), p.link ?? ''],
     )
 
   it('reads a label and a URL', () => {
@@ -210,9 +234,7 @@ describe('line structure', () => {
   it('does not read a marker that only starts a later piece of the line', () => {
     const lines = layout(parseSegments("{['red', 'blue']} - or another"))
     expect(kinds(lines)).toEqual(['para'])
-    expect(lines[0].pieces.filter(p => p.kind === 'text')).toEqual([
-      { kind: 'text', text: ' - or another' },
-    ])
+    expect(lines[0].pieces.filter(p => p.kind === 'text')).toEqual([{ kind: 'text', text: ' - or another' }])
   })
 })
 

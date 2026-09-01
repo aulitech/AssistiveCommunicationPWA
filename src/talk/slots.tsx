@@ -1,4 +1,3 @@
-
 // Filling in a phrase's blanks. A phrase with two or more options behind a slot
 // asks for them one slot at a time before it is delivered anywhere.
 
@@ -26,7 +25,11 @@ function SlotOption({ value, onPick }: { value: string; onPick: (v: string) => v
   )
 }
 
-export function SlotPicker({ phrase, onComplete, onCancel }: {
+export function SlotPicker({
+  phrase,
+  onComplete,
+  onCancel,
+}: {
   phrase: Phrase
   onComplete: (text: string, blankAt: number) => void
   onCancel: () => void
@@ -100,7 +103,12 @@ export function SlotPicker({ phrase, onComplete, onCancel }: {
   })
 
   return (
-    <div className="slot-picker-scrim" onPointerDown={e => { if (e.target === e.currentTarget) onCancel() }}>
+    <div
+      className="slot-picker-scrim"
+      onPointerDown={e => {
+        if (e.target === e.currentTarget) onCancel()
+      }}
+    >
       <div className="slot-picker" role="dialog" aria-modal="true" aria-label="Choose wording">
         <div className="slot-picker-preview">{preview}</div>
         <div className="slot-picker-step">

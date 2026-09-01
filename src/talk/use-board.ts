@@ -78,8 +78,7 @@ export function useBoard() {
   // A phrase moved individually keeps that category; otherwise it follows any
   // rename applied to the category it came in.
   const shownCategory = useCallback(
-    (id: string, source: string) =>
-      store.categoryOverrides[id] ?? displayCategory(source, store.categoryRenames),
+    (id: string, source: string) => store.categoryOverrides[id] ?? displayCategory(source, store.categoryRenames),
     [store.categoryOverrides, store.categoryRenames],
   )
 
@@ -98,9 +97,9 @@ export function useBoard() {
   }, [store, buildPhrase, tablePhrases, shownCategory])
 
   const emergencyPhrases = useMemo(() => {
-    const base = EMERGENCY_PHRASES
-      .filter(p => !store.hidden.includes(p.id))
-      .map(p => (store.overrides[p.id] ? buildPhrase(p.id, store.overrides[p.id], p.category) : p))
+    const base = EMERGENCY_PHRASES.filter(p => !store.hidden.includes(p.id)).map(p =>
+      store.overrides[p.id] ? buildPhrase(p.id, store.overrides[p.id], p.category) : p,
+    )
     const custom = store.custom
       .filter(c => c.category === 'Emergency' && !store.hidden.includes(c.id))
       .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, 'Emergency'))
@@ -287,7 +286,13 @@ export function useBoard() {
   // before a phrase was added still names every button on the bar afterwards.
   const reorderEmergency = useCallback(
     (from: string, to: string) =>
-      updateStore({ emergencyOrder: moveInOrder(emergencyPhrases.map(p => p.id), from, to) }),
+      updateStore({
+        emergencyOrder: moveInOrder(
+          emergencyPhrases.map(p => p.id),
+          from,
+          to,
+        ),
+      }),
     [emergencyPhrases, updateStore],
   )
 

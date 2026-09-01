@@ -16,9 +16,7 @@
 
 import phraseTable from './imports/phrasetable.json'
 
-export type Segment =
-  | { kind: 'text'; text: string }
-  | { kind: 'slot'; label: string; options: string[] }
+export type Segment = { kind: 'text'; text: string } | { kind: 'slot'; label: string; options: string[] }
 
 export interface Phrase {
   id: string
@@ -357,9 +355,7 @@ export function plainPhrase(id: string, text: string, category: string): Phrase 
   return { id, text, source: text, segments: [{ kind: 'text', text }], category }
 }
 
-const PHRASE_ROWS = ((phraseTable.phrases as { txt: string; category: string }[]) ?? []).filter(p =>
-  p.txt?.trim(),
-)
+const PHRASE_ROWS = ((phraseTable.phrases as { txt: string; category: string }[]) ?? []).filter(p => p.txt?.trim())
 
 /**
  * The phrase table resolved against the user's own lists. Slot options are baked

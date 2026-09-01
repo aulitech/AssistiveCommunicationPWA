@@ -1,4 +1,3 @@
-
 // Menu → Settings. Dwell times, volume, speed and voice.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -16,7 +15,15 @@ import { buildBackup } from '../core/backup'
 import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
 import { useSettings } from '../ui/settings'
 import { DEFAULT_SETTINGS, factoryReset } from '../core/store'
-import { PanelButton, PickerModal, PickerTile, PickerTrigger, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
+import {
+  PanelButton,
+  PickerModal,
+  PickerTile,
+  PickerTrigger,
+  ScrollPane,
+  SettingRow,
+  SettingSpinner,
+} from '../ui/controls'
 import { useDwellControl } from '../ui/dwell'
 import { CopyIcon, EyeIcon, EyeOffIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
@@ -35,7 +42,11 @@ import { downloadBackup } from './backup-file'
  * offer is a file to keep. Refusing nothing: somebody who has a backup already,
  * or does not want one, can go straight past it.
  */
-function ConfirmReset({ onExport, onConfirm, onCancel }: {
+function ConfirmReset({
+  onExport,
+  onConfirm,
+  onCancel,
+}: {
   /** Reports whether the browser took the file, which decides what is said next. */
   onExport: () => { ok: true; name: string } | { ok: false }
   onConfirm: () => void
@@ -63,9 +74,9 @@ function ConfirmReset({ onExport, onConfirm, onCancel }: {
       <div className="confirm-modal" role="alertdialog" aria-modal="true" aria-label="Reset to factory defaults">
         <span className="confirm-title">Reset everything?</span>
         <p className="confirm-note">
-          Every phrase you wrote, every one you reworded or removed, your categories, your emergency
-          bar, your details, what you have said, your settings and any linked voice account will go
-          back to how Peri arrived. <strong>This cannot be undone.</strong> You stay signed in.
+          Every phrase you wrote, every one you reworded or removed, your categories, your emergency bar, your
+          details, what you have said, your settings and any linked voice account will go back to how Peri arrived.{' '}
+          <strong>This cannot be undone.</strong> You stay signed in.
         </p>
         {/* Said after the fact rather than before it, because "saved" is a claim
             only the browser can settle — a blocked download that looked like a
@@ -73,8 +84,8 @@ function ConfirmReset({ onExport, onConfirm, onCancel }: {
         {saved && <p className="confirm-note confirm-ok">Saved as {saved}. Keep it somewhere safe.</p>}
         {failed && (
           <p className="confirm-note confirm-warn">
-            Peri could not save the file. Cancel and use <strong>Backup &amp; sharing</strong>, which
-            can copy it instead.
+            Peri could not save the file. Cancel and use <strong>Backup &amp; sharing</strong>, which can copy it
+            instead.
           </p>
         )}
         <div className="confirm-actions">
@@ -201,16 +212,19 @@ function VoiceRow() {
   const { settings, update } = useSettings()
   return (
     <SettingRow label="Voice">
-      <VoicePicker
-        value={settings.voiceURI}
-        onChange={voiceURI => update({ voiceURI })}
-        defaultLabel="Default"
-      />
+      <VoicePicker value={settings.voiceURI} onChange={voiceURI => update({ voiceURI })} defaultLabel="Default" />
     </SettingRow>
   )
 }
 
-export function SettingsPanel({ store, aliases, categoryById, sync, account, onAccountChange }: {
+export function SettingsPanel({
+  store,
+  aliases,
+  categoryById,
+  sync,
+  account,
+  onAccountChange,
+}: {
   /** Only so the reset confirmation can offer a backup before it wipes them. */
   store: PhraseStore
   aliases: AliasStore
@@ -364,7 +378,13 @@ export function SettingsPanel({ store, aliases, categoryById, sync, account, onA
  * are the two controls in the app where getting the wrong one means either
  * putting a credential on a shared screen or not copying it at all.
  */
-function SecretButton({ label, pressed, disabled, onActivate, children }: {
+function SecretButton({
+  label,
+  pressed,
+  disabled,
+  onActivate,
+  children,
+}: {
   label: string
   pressed?: boolean
   disabled?: boolean
@@ -401,7 +421,14 @@ function SecretButton({ label, pressed, disabled, onActivate, children }: {
  * out to whoever is holding the second device needs it to stay there, and a
  * field that blanks mid-sentence is a field they have to start again with.
  */
-function SecretField({ value, name, label, placeholder, onChange, onEnter }: {
+function SecretField({
+  value,
+  name,
+  label,
+  placeholder,
+  onChange,
+  onEnter,
+}: {
   value: string
   /** What it is, in the words the buttons use: "the passphrase". */
   name: string
@@ -503,8 +530,8 @@ function SyncRow({ sync }: { sync: SyncControl }) {
       case 'synced':
         return sync.lastSyncedAt
           ? `Up to date · last synchronized at ${new Date(sync.lastSyncedAt).toLocaleTimeString()}${
-            sync.lastFrom ? ` · last change from device ${sync.lastFrom}` : ''
-          }`
+              sync.lastFrom ? ` · last change from device ${sync.lastFrom}` : ''
+            }`
           : 'Up to date'
       case 'choose':
         return 'This account already has a board, and so does this device. Only one of them can be kept.'
@@ -522,9 +549,7 @@ function SyncRow({ sync }: { sync: SyncControl }) {
       <div className="setting-control sync-control">
         {sync.enabled ? (
           <>
-            <span className="sync-status">
-              {sync.code && <span className="sync-code">Code {sync.code}</span>}
-            </span>
+            <span className="sync-status">{sync.code && <span className="sync-code">Code {sync.code}</span>}</span>
             {/* The passphrase is wanted on the second device, and nobody can
                 work it out from anything else — so it can be read back off the
                 device that has it. */}
@@ -549,7 +574,10 @@ function SyncRow({ sync }: { sync: SyncControl }) {
           </>
         )}
 
-        <p className={sync.status === 'error' || sync.status === 'locked' ? 'eleven-error' : 'eleven-note'} role={sync.status === 'error' || sync.status === 'locked' ? 'alert' : undefined}>
+        <p
+          className={sync.status === 'error' || sync.status === 'locked' ? 'eleven-error' : 'eleven-note'}
+          role={sync.status === 'error' || sync.status === 'locked' ? 'alert' : undefined}
+        >
           {said()}
         </p>
 
@@ -575,16 +603,20 @@ function SyncRow({ sync }: { sync: SyncControl }) {
           <div className="sync-actions">
             <PanelButton kind="plain" label="Synchronize now" onActivate={sync.syncNow} />
             <PanelButton kind="danger" label="Stop" onActivate={sync.disable} />
-            <PanelButton kind="danger" label="Stop and erase the copy" onActivate={() => setConfirmingForget(true)} />
+            <PanelButton
+              kind="danger"
+              label="Stop and erase the copy"
+              onActivate={() => setConfirmingForget(true)}
+            />
           </div>
         )}
 
         <p className="eleven-note">
           {sync.status === 'choose'
-            ? 'Keeping this device\'s board replaces the synchronized one on every other device. Using the synchronized board replaces what is on this device. Nothing has changed yet.'
+            ? "Keeping this device's board replaces the synchronized one on every other device. Using the synchronized board replaces what is on this device. Nothing has changed yet."
             : sync.enabled
-            ? 'Every device signed in to this account and given the same passphrase keeps the same board. The last change wins, so editing on two devices at once loses the earlier edit. The copy on the server is encrypted before it leaves this device and cannot be read without the passphrase — which nobody can reset for you.'
-            : 'Optional. Keeps your phrases, categories and settings the same on every device you sign in to — apart from text size and volume, which stay as you set them on each one. The copy is encrypted here first, so the passphrase is the only thing that can open it — write it down somewhere safe.'}
+              ? 'Every device signed in to this account and given the same passphrase keeps the same board. The last change wins, so editing on two devices at once loses the earlier edit. The copy on the server is encrypted before it leaves this device and cannot be read without the passphrase — which nobody can reset for you.'
+              : 'Optional. Keeps your phrases, categories and settings the same on every device you sign in to — apart from text size and volume, which stay as you set them on each one. The copy is encrypted here first, so the passphrase is the only thing that can open it — write it down somewhere safe.'}
         </p>
       </div>
 
@@ -631,7 +663,10 @@ function ConfirmForgetSync({ onConfirm, onCancel }: { onConfirm: () => void; onC
  * setup — an API key is forty characters of noise, and whoever is pasting it is
  * at a keyboard.
  */
-function ElevenLabsRow({ account, onChange }: {
+function ElevenLabsRow({
+  account,
+  onChange,
+}: {
   account: ElevenLabsAccount | null
   onChange: (account: ElevenLabsAccount | null) => void
 }) {
@@ -694,7 +729,11 @@ function ElevenLabsRow({ account, onChange }: {
             />
           </>
         )}
-        {error && <p className="eleven-error" role="alert">{error}</p>}
+        {error && (
+          <p className="eleven-error" role="alert">
+            {error}
+          </p>
+        )}
         <p className="eleven-note">
           {account
             ? 'These voices need the internet and use your ElevenLabs credits. Peri falls back to the device voice if one cannot be fetched, and the emergency bar always uses the device voice.'

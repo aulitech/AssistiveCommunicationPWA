@@ -86,7 +86,11 @@ export interface SyncControl {
   forget: () => void
 }
 
-export function useSync({ accountId, payload, onApply }: {
+export function useSync({
+  accountId,
+  payload,
+  onApply,
+}: {
   accountId: string | null
   /**
    * Everything that travels: the board as a backup, and the linked ElevenLabs
@@ -449,9 +453,9 @@ export function useSync({ accountId, payload, onApply }: {
       ? 'unavailable'
       : config.passphrase === ''
         ? 'locked'
-        // Working, rather than whatever the last exchange ended as: with a
-        // passphrase set and no keys in hand, the derivation is still running.
-        : !keys && status !== 'error' && status !== 'locked'
+        : // Working, rather than whatever the last exchange ended as: with a
+          // passphrase set and no keys in hand, the derivation is still running.
+          !keys && status !== 'error' && status !== 'locked'
           ? 'working'
           : status
 

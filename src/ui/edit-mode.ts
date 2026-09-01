@@ -1,4 +1,3 @@
-
 // Whether the app is in edit mode, and how a control asks to edit something.
 //
 // Read by the phrase cells and the emergency bar, both of which change what a

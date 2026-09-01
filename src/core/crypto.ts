@@ -45,8 +45,7 @@ const toBase64 = (bytes: Uint8Array) => {
 
 const fromBase64 = (value: string) => Uint8Array.from(atob(value), c => c.charCodeAt(0))
 
-const toHex = (bytes: Uint8Array) =>
-  [...bytes].map(b => b.toString(16).padStart(2, '0')).join('')
+const toHex = (bytes: Uint8Array) => [...bytes].map(b => b.toString(16).padStart(2, '0')).join('')
 
 /**
  * Where a board is kept and what unlocks it.

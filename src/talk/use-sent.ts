@@ -29,10 +29,7 @@ export function useSent() {
 
   const forget = useCallback((id: string) => write(loadSent().filter(m => m.id !== id)), [write])
 
-  const phrases = useMemo<Phrase[]>(
-    () => messages.map(m => plainPhrase(m.id, m.text, SENT_CATEGORY)),
-    [messages],
-  )
+  const phrases = useMemo<Phrase[]>(() => messages.map(m => plainPhrase(m.id, m.text, SENT_CATEGORY)), [messages])
 
   return { phrases, record, forget }
 }
