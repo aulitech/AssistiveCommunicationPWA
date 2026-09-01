@@ -4683,5 +4683,44 @@ describe('the spoken language', () => {
     click(plainCell())
     expect(lastUtterance?.lang).toBe('')
   })
+
+  /**
+   * **The disclosure lives on this row now.** It had a row of its own while the
+   * key was the user's to paste in; there is no key to paste, so what says that
+   * phrases leave the device has to sit on the control that starts them
+   * leaving. It is one of three documents that have to agree — this, the guide,
+   * and the privacy policy — so it is asserted rather than trusted.
+   */
+  const languageRow = () =>
+    [...document.querySelectorAll('.setting-row')].find(r => r.textContent?.includes('Spoken language'))
+
+  it('says what leaves the device once a language is set', () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
+    renderApp({ language: 'fr-FR' })
+    openSettings()
+    expect(languageRow()?.textContent).toContain('sent to Google')
+  })
+
+  /**
+   * A build that went out without its key. Invisible from the board — a phrase
+   * somebody wrote is simply spoken in English — so the row is the only place it
+   * can be said.
+   */
+  it('says so when the build carries no key, rather than promising a translation', () => {
+    renderApp({ language: 'fr-FR' })
+    openSettings()
+    const said = languageRow()?.textContent ?? ''
+    expect(said).toContain('no translation key')
+    expect(said, 'promised a translation this build cannot make').not.toContain('sent to Google')
+  })
+
+  // Nothing is sent while the board speaks the language it is written in, so
+  // there is nothing to disclose and no line of small print to read past.
+  it('says nothing at all while the language is the device default', () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
+    renderApp()
+    openSettings()
+    expect(languageRow()?.querySelector('.setting-note')).toBeNull()
+  })
 })
 

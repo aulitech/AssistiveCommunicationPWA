@@ -4,11 +4,15 @@
 // says the words as they were written, and the listener gets the original
 // rather than silence. Every failure is a value, exactly as in sync.
 
-import { describe, it, expect, afterEach, vi } from 'vitest'
-import { checkKey, decodeEntities, translate } from '../../src/translate/client'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
+import { decodeEntities, hasTranslateKey, translate } from '../../src/translate/client'
 import { warnings } from '../setup'
 
 const KEY = 'key-1234'
+
+// The key is the build's, not the user's. `tests/setup.ts` clears it for every
+// test, so anything that expects a request to go out has to put one back.
+beforeEach(() => vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', KEY))
 
 const answers = (body: unknown, init: ResponseInit = {}) => {
   const fetcher = vi.fn(async (_url: string, _init: RequestInit) =>
@@ -27,12 +31,12 @@ afterEach(() => vi.unstubAllGlobals())
 describe('a translation', () => {
   it('comes back as the translated words', async () => {
     answers({ data: { translations: [{ translatedText: 'Bonjour' }] } })
-    expect(await translate('Good morning', 'fr-FR', KEY)).toEqual({ status: 'ok', text: 'Bonjour' })
+    expect(await translate('Good morning', 'fr-FR')).toEqual({ status: 'ok', text: 'Bonjour' })
   })
 
   it('asks for the base language, not the region', async () => {
     const fetcher = answers({ data: { translations: [{ translatedText: 'Buenos días' }] } })
-    await translate('Good morning', 'es-MX', KEY)
+    await translate('Good morning', 'es-MX')
     expect(JSON.parse(String(fetcher.mock.calls[0]![1].body)).target).toBe('es')
   })
 
@@ -42,7 +46,7 @@ describe('a translation', () => {
    */
   it('says what language the board is written in', async () => {
     const fetcher = answers({ data: { translations: [{ translatedText: 'Bonjour' }] } })
-    await translate('Good morning', 'fr', KEY)
+    await translate('Good morning', 'fr')
     expect(JSON.parse(String(fetcher.mock.calls[0]![1].body)).source).toBe('en')
   })
 
@@ -52,7 +56,7 @@ describe('a translation', () => {
    */
   it('sends the key in a header rather than on the URL', async () => {
     const fetcher = answers({ data: { translations: [{ translatedText: 'Bonjour' }] } })
-    await translate('Good morning', 'fr', KEY)
+    await translate('Good morning', 'fr')
     const [url, init] = fetcher.mock.calls[0]!
     expect(String(url)).not.toContain(KEY)
     expect((init.headers as Record<string, string>)['X-goog-api-key']).toBe(KEY)
@@ -66,7 +70,7 @@ describe('a translation', () => {
    */
   it('unescapes what comes back, or a board speaks gibberish', async () => {
     answers({ data: { translations: [{ translatedText: 'J&#39;ai froid' }] } })
-    expect(await translate("I'm cold", 'fr', KEY)).toEqual({ status: 'ok', text: "J'ai froid" })
+    expect(await translate("I'm cold", 'fr')).toEqual({ status: 'ok', text: "J'ai froid" })
   })
 })
 
@@ -108,30 +112,30 @@ describe('unescaping', () => {
 describe('every way it can fail', () => {
   it('is a value, never a throw, when the network is gone', async () => {
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
-    expect(await translate('Good morning', 'fr', KEY)).toEqual({
+    expect(await translate('Good morning', 'fr')).toEqual({
       status: 'error',
       error: 'Could not reach the translation service',
     })
   })
 
   it.each([
-    [400, 'That translation key was refused'],
-    [403, 'That key is not allowed to translate — check it is enabled for this site'],
+    [400, 'The translation key was refused — check VITE_GOOGLE_TRANSLATE_KEY reached this build'],
+    [403, 'The translation key is not allowed here — check its referrer restriction covers this site, and that Cloud Translation is enabled'],
     [429, 'Too many translations at once — try again in a moment'],
     [500, 'The translation service is having trouble'],
   ])('says what %s means', async (status, error) => {
     answers({}, { status })
-    expect(await translate('Good morning', 'fr', KEY)).toEqual({ status: 'error', error })
+    expect(await translate('Good morning', 'fr')).toEqual({ status: 'error', error })
   })
 
   it('refuses an answer with no translation in it', async () => {
     answers({ data: { translations: [] } })
-    expect((await translate('Good morning', 'fr', KEY)).status).toBe('error')
+    expect((await translate('Good morning', 'fr')).status).toBe('error')
   })
 
   it('refuses an answer that is not JSON at all', async () => {
     vi.stubGlobal('fetch', async () => new Response('<html>', { status: 200 }))
-    expect((await translate('Good morning', 'fr', KEY)).status).toBe('error')
+    expect((await translate('Good morning', 'fr')).status).toBe('error')
   })
 
   /**
@@ -142,35 +146,49 @@ describe('every way it can fail', () => {
    */
   it('does not go asking for a language nothing translates into', async () => {
     const fetcher = answers({ data: { translations: [{ translatedText: 'nonsense' }] } })
-    expect(await translate('Help me!', 'jam', KEY)).toEqual({
+    expect(await translate('Help me!', 'jam')).toEqual({
       status: 'error',
       error: 'Nothing here translates into jam',
     })
     expect(fetcher).not.toHaveBeenCalled()
   })
 
-  it('does not go asking with no key, or with nothing to say', async () => {
+  it('does not go asking with nothing to say', async () => {
     const fetcher = answers({ data: { translations: [{ translatedText: 'Bonjour' }] } })
-    expect((await translate('Good morning', 'fr', '')).status).toBe('error')
-    expect((await translate('   ', 'fr', KEY)).status).toBe('error')
+    expect((await translate('   ', 'fr')).status).toBe('error')
     expect(fetcher).not.toHaveBeenCalled()
   })
 })
 
 /**
- * A key is checked by using it, which is the only honest test of one. A key
- * that cannot translate a single word is a key that would fail silently later,
- * in the middle of a sentence somebody needed.
+ * A build with no key in it.
+ *
+ * This is not a service failing, it is a deploy that went out without its
+ * environment — and the only symptom on the board is a phrase quietly spoken in
+ * English. So it is named separately, and it never reaches the network.
  */
-describe('checking a key', () => {
-  it('accepts one that works', async () => {
-    answers({ data: { translations: [{ translatedText: 'Hallo' }] } })
-    expect(await checkKey(KEY)).toEqual({ ok: true })
+describe('a build with no key', () => {
+  it('says so, and does not go asking', async () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '')
+    const fetcher = answers({ data: { translations: [{ translatedText: 'Bonjour' }] } })
+    expect(await translate('Good morning', 'fr')).toEqual({
+      status: 'error',
+      error: 'No translation key was built into this app',
+    })
+    expect(fetcher).not.toHaveBeenCalled()
   })
 
-  it('reports why one does not', async () => {
-    answers({}, { status: 400 })
-    expect(await checkKey('nonsense')).toEqual({ ok: false, error: 'That translation key was refused' })
+  it('is what `hasTranslateKey` answers, so a caller can ask before it starts', () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '')
+    expect(hasTranslateKey()).toBe(false)
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', KEY)
+    expect(hasTranslateKey()).toBe(true)
+  })
+
+  // A variable set to whitespace is a variable somebody meant to fill in.
+  it('does not count a blank one as a key', () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '   ')
+    expect(hasTranslateKey()).toBe(false)
   })
 })
 
@@ -183,27 +201,27 @@ describe('checking a key', () => {
 describe('what reaches the console', () => {
   it('warns when the service refuses', async () => {
     answers({}, { status: 403 })
-    await translate('Good morning', 'fr', KEY)
+    await translate('Good morning', 'fr')
     expect(warnings).toEqual([
-      '[Peri] translate: That key is not allowed to translate — check it is enabled for this site',
+      '[Peri] translate: The translation key is not allowed here — check its referrer restriction covers this site, and that Cloud Translation is enabled',
     ])
   })
 
   it('warns when the service cannot be reached', async () => {
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
-    await translate('Good morning', 'fr', KEY)
+    await translate('Good morning', 'fr')
     expect(warnings[0]).toContain('Could not reach the translation service')
   })
 
   it('names the language nothing translates into, rather than saying "that"', async () => {
     answers({ data: { translations: [] } })
-    await translate('Help me!', 'jam', KEY)
+    await translate('Help me!', 'jam')
     expect(warnings[0]).toContain('jam')
   })
 
   it('says nothing at all when it works', async () => {
     answers({ data: { translations: [{ translatedText: 'Bonjour' }] } })
-    await translate('Good morning', 'fr', KEY)
+    await translate('Good morning', 'fr')
     expect(warnings).toEqual([])
   })
 
@@ -214,7 +232,8 @@ describe('what reaches the console', () => {
    */
   it('never puts the phrase or the key in the console', async () => {
     answers({}, { status: 403 })
-    await translate('My chest hurts', 'fr', 'key-1234-secret')
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234-secret')
+    await translate('My chest hurts', 'fr')
     expect(warnings).toHaveLength(1)
     expect(warnings[0], 'a phrase reached the console').not.toContain('chest')
     expect(warnings[0], 'a key reached the console').not.toContain('key-1234-secret')

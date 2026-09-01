@@ -13,8 +13,7 @@ import { remoteVoiceId, synthesize } from './elevenlabs'
 import { audioKey, cachedAudio } from './audio-cache'
 import { reportFailure } from '../core/report'
 import { needsTranslation, rememberTranslation, speechTag, translationFor, translationTarget } from '../core/translation'
-import { translate } from '../translate/client'
-import { loadTranslateKey } from '../core/store'
+import { hasTranslateKey, translate } from '../translate/client'
 
 export interface VoiceSettings {
   voiceURI: string // empty = browser default
@@ -128,17 +127,22 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   const known = translationFor(written, language)
   if (known) return say(known, settings, options)
 
-  const key = loadTranslateKey()
   // Nothing to translate with, nothing that *can* translate it, or no time to
   // do it in. The words go out as they were written: a listener who has to work
   // at it is recoverable, and silence is not.
   //
   // The middle case is Patois, which no service offers at all — so a phrase
   // outside the shipped table is spoken as it was written and nothing is sent.
-  if (!key || !translationTarget(language) || options.instant) return say(written, settings, options)
+  //
+  // Asked here rather than left to the client to refuse, because all three of
+  // these have to speak **in the same tick**. A promise that resolves into the
+  // original words a moment later is a phrase that arrives after it was needed.
+  if (!hasTranslateKey() || !translationTarget(language) || options.instant) {
+    return say(written, settings, options)
+  }
 
   const mine = generation
-  void translate(written, language, key).then(result => {
+  void translate(written, language).then(result => {
     if (mine !== generation) return
     if (result.status === 'ok') {
       rememberTranslation(written, language, result.text)

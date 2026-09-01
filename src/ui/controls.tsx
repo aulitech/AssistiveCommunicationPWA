@@ -114,11 +114,26 @@ export function NavItem({ icon, label, sublabel, disabled, onSelect }: {
   )
 }
 
-export function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
+/**
+ * A setting, and optionally a line about it.
+ *
+ * `note` is for the rows that have to say what leaves the device — the spoken
+ * language does, since choosing one is what starts sending phrases to be
+ * translated. It takes a line of its own below the control, which is why the
+ * row it is on aligns to the top rather than to the middle of two lines.
+ */
+export function SettingRow({ label, note, children }: {
+  label: string
+  note?: React.ReactNode
+  children: React.ReactNode
+}) {
   return (
-    <div className="setting-row">
+    <div className={cx('setting-row', note ? 'has-note' : '')}>
       <span className="setting-label">{label}</span>
-      <div className="setting-control">{children}</div>
+      <div className="setting-control">
+        {children}
+        {note && <p className="setting-note">{note}</p>}
+      </div>
     </div>
   )
 }

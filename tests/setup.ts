@@ -107,6 +107,14 @@ beforeEach(() => {
   warnings.length = 0
   localStorage.clear()
 
+  // **Tests run with no translation key unless one is stubbed in.** Vitest
+  // loads `.env.local`, so without this a machine that has a real key runs
+  // different tests from CI — and the ones that matter most here are about what
+  // happens when there is no key: the words go out in the same tick rather than
+  // a promise later. Cleared rather than trusted, and put back by the handful of
+  // tests that are about having one.
+  vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '')
+
   const realWarn = console.warn.bind(console)
   vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => {
     const first = args[0]
@@ -168,4 +176,5 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
 })

@@ -17,6 +17,13 @@
 // The output is meant to be read before it is committed. These are phrases
 // somebody will say to a nurse about their own body, and a plausible-looking
 // mistranslation is worse than an English sentence the listener has to work at.
+//
+// **`GOOGLE_TRANSLATE_KEY`, not `VITE_GOOGLE_TRANSLATE_KEY`, and they are not
+// the same key.** The app's is restricted by HTTP referrer to the site, which
+// is the whole of what makes it safe to inline into a public bundle — and a
+// referrer is exactly what Node does not send. So this takes an unrestricted
+// key, off the command line and never out of a file, used for as long as it
+// takes to write a table and no longer.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { decodeEntities } from '../src/translate/client'
