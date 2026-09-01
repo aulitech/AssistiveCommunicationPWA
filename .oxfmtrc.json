@@ -1,0 +1,15 @@
+{
+  "semi": false,
+  "singleQuote": true,
+  "printWidth": 115,
+  "arrowParens": "avoid",
+  "objectWrap": "preserve",
+  "ignorePatterns": [
+    "src/core/imports/**",
+    "**/*.json",
+    "**/*.css",
+    "**/*.html",
+    "**/*.yaml",
+    "**/*.md"
+  ]
+}
