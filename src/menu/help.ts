@@ -283,6 +283,29 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Speaking another language',
+    blocks: [
+      text(
+        'Set a spoken language under Settings and Peri translates what you say before it says it. Your board does not change — you go on reading your own phrases in your own words — and what comes out of the speaker is the other language, for somebody listening who does not share yours.',
+      ),
+      list(
+        'The phrases Peri comes with are translated already. They are instant, they work with no internet, and nothing about them is sent anywhere.',
+        'Phrases you wrote yourself, phrases with a blank filled in, and messages you build out of several are not. Those need a translation key, which you add under Settings the same way as an ElevenLabs one.',
+        'Anything translated once is kept on the device, so the second time is instant and costs nothing.',
+        'The red emergency bar never waits for a translation. A phrase it already has, it says in your chosen language; one it does not, it says in the words you wrote — instantly, either way.',
+      ),
+      text(
+        'With a key, the phrases you wrote yourself are sent to DeepL to be translated. The phrases Peri ships are never sent anywhere, because they are translated before the app is built. Without a key, nothing is sent and your own phrases are simply spoken as you wrote them.',
+      ),
+      text(
+        'Peri also picks a voice for the language, so what is said sounds like the language it is in rather than your own voice reading a foreign sentence. Choosing a particular voice yourself overrides that.',
+      ),
+      text(
+        'Your translation key is never put in a backup file. Like the ElevenLabs key, it travels between your own devices when Synchronize is on, locked with your passphrase.',
+      ),
+    ],
+  },
+  {
     title: 'A different voice for one phrase',
     blocks: [
       text(

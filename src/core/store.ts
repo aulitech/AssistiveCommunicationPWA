@@ -20,6 +20,8 @@ const ALIASES_KEY = 'peri_aliases'
 const ALIAS_SORT_KEY = 'peri_alias_sort'
 const USER_KEY = 'dwellspeak_user'
 const ELEVENLABS_KEY = 'peri_elevenlabs'
+const DEEPL_KEY = 'peri_deepl'
+const TRANSLATIONS_KEY = 'peri_translations'
 const SENT_KEY = 'peri_sent'
 const RECENT_KEY = 'peri_recent'
 const SYNC_KEY = 'peri_sync'
@@ -489,6 +491,28 @@ export function saveElevenLabs(account: ElevenLabsAccount | null) {
   else localStorage.removeItem(ELEVENLABS_KEY)
 }
 
+/**
+ * The DeepL key, for translating what Peri ships no translation for.
+ *
+ * Its own storage key, outside the three things `buildBackup` reads, for the
+ * reason the ElevenLabs key is: **a backup is a file made to be handed to
+ * somebody else**, and a key in one hands over the account. It does travel in a
+ * sync snapshot, which reaches the user's own devices and nowhere else.
+ */
+export function loadDeepLKey(): string {
+  try {
+    const key = localStorage.getItem(DEEPL_KEY)
+    return typeof key === 'string' ? key : ''
+  } catch {
+    return ''
+  }
+}
+
+export function saveDeepLKey(key: string) {
+  if (key) localStorage.setItem(DEEPL_KEY, key)
+  else localStorage.removeItem(DEEPL_KEY)
+}
+
 // ── Who is signed in ─────────────────────────────────────────────────────────
 // Deliberately not part of a backup: a file that could sign you in as someone
 // else is a file that could sign someone else in as you.
@@ -630,6 +654,8 @@ const RESETTABLE_KEYS = [
   ALIASES_KEY,
   ALIAS_SORT_KEY,
   ELEVENLABS_KEY,
+  DEEPL_KEY,
+  TRANSLATIONS_KEY,
   SENT_KEY,
   RECENT_KEY,
   SYNC_KEY,

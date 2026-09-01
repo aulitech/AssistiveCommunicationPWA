@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { speak, warmVoice } from '../../src/voice/speech'
 import { remoteVoiceURI } from '../../src/voice/elevenlabs'
 import { audioKey, cachedAudio, clearAudioCache, rememberAudio } from '../../src/voice/audio-cache'
-import { saveElevenLabs } from '../../src/core/store'
+import { saveDeepLKey, saveElevenLabs } from '../../src/core/store'
+import { forgetTranslations, rememberTranslation, seedTranslations, translationFor } from '../../src/core/translation'
 import { spoken, lastUtterance, played, setAudioPlays, voices } from '../setup'
 
 // Which of the two voices a phrase comes out of, and — the point of all of it —
@@ -295,5 +296,105 @@ describe('the spoken language', () => {
   it('leaves it to the device when there is no language to fall back on either', () => {
     speak('Hello', { ...SETTINGS, voiceURI: 'com.microsoft.Hazel' })
     expect(lastUtterance?.lang).toBe('')
+  })
+})
+
+/**
+ * Speaking a board in a language it is not written in.
+ *
+ * The board stays as it was written — somebody reads their own phrases in their
+ * own words — and what comes out is translated, so a listener who does not
+ * share that language hears it.
+ *
+ * Two rules run through all of it. **Never silence**: a phrase that cannot be
+ * translated is said as it was written, because a listener who has to work at
+ * it is recoverable and nothing said at all is not. And **the emergency bar
+ * never waits**, which is the reason the lookup is synchronous.
+ */
+describe('speaking a translated board', () => {
+  const FRENCH = { ...SETTINGS, language: 'fr-FR' }
+
+  beforeEach(() => {
+    forgetTranslations()
+    saveDeepLKey('')
+  })
+
+  it('says the translation Peri ships', () => {
+    seedTranslations('fr', { 'Help me!': 'Aidez-moi !' })
+    speak('Help me!', FRENCH)
+    expect(spoken).toEqual(['Aidez-moi !'])
+  })
+
+  it('says one translated before, without asking again', () => {
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    rememberTranslation('Good morning', 'fr', 'Bonjour')
+    speak('Good morning', FRENCH)
+    expect(spoken).toEqual(['Bonjour'])
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('leaves the board alone when it is spoken in its own language', () => {
+    seedTranslations('fr', { 'Help me!': 'Aidez-moi !' })
+    speak('Help me!', { ...SETTINGS, language: 'en-GB' })
+    expect(spoken).toEqual(['Help me!'])
+  })
+
+  /**
+   * The emergency bar, which will not wait on a network. A phrase Peri ships a
+   * translation for is said in that language *now*; one it does not is said in
+   * the original rather than a second and a half later.
+   */
+  it('never waits, and never goes quiet, on the emergency bar', () => {
+    saveDeepLKey('key-1234')
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    seedTranslations('fr', { 'Help me!': 'Aidez-moi !' })
+
+    speak('Help me!', FRENCH, { instant: true })
+    expect(spoken).toEqual(['Aidez-moi !'])
+
+    speak('Something nobody has said before', FRENCH, { instant: true })
+    expect(spoken[1], 'the bar went quiet waiting on a translation').toBe('Something nobody has said before')
+    expect(fetcher, 'the emergency bar went to the network').not.toHaveBeenCalled()
+  })
+
+  it('says the words as written when there is no key to translate with', () => {
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    speak('Something nobody has said before', FRENCH)
+    expect(spoken).toEqual(['Something nobody has said before'])
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('translates a phrase of your own, then keeps it', async () => {
+    saveDeepLKey('key-1234')
+    vi.stubGlobal('fetch', vi.fn(async () =>
+      new Response(JSON.stringify({ translations: [{ text: "J'ai froid" }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ))
+
+    speak("I'm cold", FRENCH)
+    await flush()
+    expect(spoken).toEqual(["J'ai froid"])
+    expect(translationFor("I'm cold", 'fr')).toBe("J'ai froid")
+  })
+
+  it('falls back to the written words when the translator will not answer', async () => {
+    saveDeepLKey('key-1234')
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    speak("I'm cold", FRENCH)
+    await flush()
+    expect(spoken, 'a phrase was lost to a failed translation').toEqual(["I'm cold"])
+  })
+
+  // Markup comes off before anything is looked up, so `**Help me!**` and
+  // `Help me!` are one translation rather than two that never match.
+  it('looks up the words, not the markup', () => {
+    seedTranslations('fr', { 'Help me!': 'Aidez-moi !' })
+    speak('**Help me!**', FRENCH)
+    expect(spoken).toEqual(['Aidez-moi !'])
   })
 })

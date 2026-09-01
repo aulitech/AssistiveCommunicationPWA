@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { linkAccount } from '../voice/elevenlabs'
+import { checkKey } from '../translate/client'
+import { needsTranslation } from '../core/translation'
 import type { SyncControl } from '../sync/use-sync'
 import { VoicePicker } from '../voice/picker'
 import { subscribeVoices } from '../voice/speech'
@@ -13,7 +15,7 @@ import { type AliasStore } from '../core/phrases'
 import { buildBackup } from '../core/backup'
 import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
 import { useSettings } from '../ui/settings'
-import { DEFAULT_SETTINGS, factoryReset } from '../core/store'
+import { DEFAULT_SETTINGS, factoryReset, loadDeepLKey, saveDeepLKey } from '../core/store'
 import { PanelButton, PickerModal, PickerTile, PickerTrigger, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
 import { useDwellControl } from '../ui/dwell'
 import { CopyIcon, EyeIcon, EyeOffIcon } from '../ui/icons'
@@ -291,6 +293,7 @@ export function SettingsPanel({ store, aliases, categoryById, sync, account, onA
         <VoiceRow />
         <SyncRow sync={sync} />
         <ElevenLabsRow account={account} onChange={onAccountChange} />
+        <TranslationRow />
 
         {/* Last, and away from the values it undoes. Every revert above puts one
             setting back; this puts the whole device back, and the two should not
@@ -591,6 +594,85 @@ function ConfirmForgetSync({ onConfirm, onCancel }: { onConfirm: () => void; onC
  * setup — an API key is forty characters of noise, and whoever is pasting it is
  * at a keyboard.
  */
+/**
+ * The translation key, for the half of a board Peri ships no translation for.
+ *
+ * The phrases Peri comes with are translated ahead of time and work offline and
+ * instantly. What this is for is everything else: a phrase somebody wrote
+ * themselves, one with a blank filled in, and a message composed out of
+ * several. Without it those are spoken as they were written — which the note
+ * below says out loud, because a board that quietly stops translating halfway
+ * is worse than one that never started.
+ */
+function TranslationRow() {
+  const { settings } = useSettings()
+  const [key, setKey] = useState(loadDeepLKey)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [linked, setLinked] = useState(() => loadDeepLKey() !== '')
+
+  const link = useCallback(() => {
+    setBusy(true)
+    setError(null)
+    checkKey(key.trim()).then(result => {
+      setBusy(false)
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      saveDeepLKey(key.trim())
+      setLinked(true)
+    })
+  }, [key])
+
+  const unlink = useCallback(() => {
+    setError(null)
+    saveDeepLKey('')
+    setKey('')
+    setLinked(false)
+  }, [])
+
+  return (
+    <div className="setting-row eleven-row">
+      <span className="setting-label">Translation</span>
+      <div className="setting-control eleven-control">
+        {linked ? (
+          <>
+            <span className="eleven-status">Linked</span>
+            <PanelButton kind="danger" label="Unlink" onActivate={unlink} />
+            <SecretField value={key} name="the translation key" label="DeepL API key" />
+          </>
+        ) : (
+          <>
+            <SecretField
+              value={key}
+              name="the translation key"
+              label="DeepL API key"
+              placeholder="Paste your DeepL key"
+              onChange={setKey}
+              onEnter={link}
+            />
+            <PanelButton
+              kind="primary"
+              label={busy ? 'Checking…' : 'Link'}
+              onActivate={link}
+              disabled={busy || key.trim() === ''}
+            />
+          </>
+        )}
+        {error && <p className="eleven-error" role="alert">{error}</p>}
+        <p className="eleven-note">
+          {!needsTranslation(settings.language)
+            ? 'Only used when the board is set to speak a language it is not written in.'
+            : linked
+              ? 'Your own phrases are sent to DeepL to be translated, once each, and kept on this device afterwards. The phrases Peri ships are translated already and never leave. The emergency bar never waits for a translation.'
+              : 'Optional. The phrases Peri ships are already translated; without a key, phrases you wrote yourself are spoken as they were written. The key is never put in a backup file.'}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function ElevenLabsRow({ account, onChange }: {
   account: ElevenLabsAccount | null
   onChange: (account: ElevenLabsAccount | null) => void

@@ -5,7 +5,8 @@
 // category is showing, whether the app is in edit mode or resting, and what to
 // say when an operation finishes.
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { loadTranslations } from '../core/translation'
 import { cancelAllDwells, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
@@ -457,6 +458,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     },
     [board, store, settings, update, flashToast, setAccount],
   )
+
+  // The shipped translations for whichever language the board is spoken in,
+  // brought into memory ahead of anybody pressing anything. `translationFor` has
+  // to answer synchronously — the emergency bar will not wait on a promise — so
+  // the loading happens here rather than at the moment somebody needs it.
+  useEffect(() => {
+    void loadTranslations(settings.language)
+  }, [settings.language])
 
   const sync = useSync({
     accountId: accountId(user),
