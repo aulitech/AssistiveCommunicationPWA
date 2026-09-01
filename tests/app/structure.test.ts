@@ -291,4 +291,36 @@ describe('the shape of the source tree', () => {
     }
     expect(Object.keys(probe)).toContain('STALL_MS')
   })
+
+  /**
+   * **Every command `package.json` offers has to exist.**
+   *
+   * Two of them did not. `translate` named `tsx`, which was never a dependency,
+   * so the tool for building the shipped translation tables had never once run.
+   * `format` named a version of oxfmt that dropped the `;` separators inside
+   * type literals, so running the documented command turned ninety files into
+   * invalid syntax. Neither failure was visible in a diff, and neither was
+   * reachable from any test: a script nothing runs is a script nobody notices is
+   * broken until they need it.
+   *
+   * This does not run them — `dev` never exits and `translate` would spend
+   * somebody's money. It checks the cheaper claim underneath both failures: that
+   * the binary a script reaches for is one this project actually installs.
+   */
+  it('offers no script whose command it has not installed', () => {
+    const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>
+    }
+    const bin = new Set(readdirSync(resolve(process.cwd(), 'node_modules/.bin')))
+    // `pnpm` re-enters this same file, and `open` is macOS's own.
+    const provided = new Set(['pnpm', 'open'])
+
+    for (const [name, command] of Object.entries(pkg.scripts)) {
+      const binary = command.trim().split(/\s+/)[0]!
+      expect(
+        provided.has(binary) || bin.has(binary),
+        `\`pnpm ${name}\` runs \`${binary}\`, which is not installed — add it to devDependencies`,
+      ).toBe(true)
+    }
+  })
 })
