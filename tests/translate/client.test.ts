@@ -88,6 +88,20 @@ describe('every way it can fail', () => {
     expect((await translate('Good morning', 'fr', PRO)).status).toBe('error')
   })
 
+  /**
+   * Patois is a language DeepL does not have — it carries Haitian Creole and no
+   * other English-based creole. Asking anyway would hand back English and call
+   * it a translation, which is worse than not translating at all.
+   */
+  it('does not go asking for a language nothing translates into', async () => {
+    const fetcher = answers({ translations: [{ text: 'nonsense' }] })
+    expect(await translate('Help me!', 'jam', PRO)).toEqual({
+      status: 'error',
+      error: 'Nothing here translates into that',
+    })
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
   it('does not go asking with no key, or with nothing to say', async () => {
     const fetcher = answers({ translations: [{ text: 'Bonjour' }] })
     expect((await translate('Good morning', 'fr', '')).status).toBe('error')

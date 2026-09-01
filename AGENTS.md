@@ -368,11 +368,17 @@ Off until somebody turns it on, and then two devices signed in to the same accou
 
 **The board stays as it was written; what comes out is translated.** Somebody goes on reading their own phrases in their own words, and a listener who does not share that language hears it in theirs. That is why translation sits in front of `speak()` rather than anywhere near the grid — and inside it, for the reason stripping markdown is: every route to the synthesiser would otherwise have to remember.
 
-`settings.language` is the trigger. Empty, or English, means no translating at all.
+`settings.language` is the trigger. Empty, or plain English, means no translating at all.
+
+**A tag is not enough once regions are involved.** Three questions hide inside one — what to *say it as*, what to *translate it with*, and which shipped table it reads — and `VARIETIES` in `core/translation.ts` is where they get three different answers. Anything not listed there answers all three from its base language, which is right for `de-DE` and wrong for both of these:
+
+- **Spanish (Puerto Rico)** is `es-PR`, said as `es-PR`, translated with DeepL's **`ES-419`** and read from `es-419.json`. Nobody has a Puerto Rican target; Latin American Spanish is the near side of a real divide, and European Spanish would give a board `vosotros` and `coger` — the second of which means something else entirely in San Juan.
+- **Jamaican Patois** is `jam`, said as **`en-JM`**, and has **no DeepL target at all** — DeepL carries Haitian Creole and no other English-based creole. Patois is a language rather than an accent, so this is the case the shipped tables exist for: the phrases Peri comes with are written out ahead of time, and anything somebody writes themselves is spoken as they wrote it, because there is nowhere to send it. **`deeplTarget` returning null is load-bearing** — asking anyway would hand back English and call it a translation, which is worse than not translating. It is guarded twice, in `speak` and in the client, and the two are tested apart: the client refuses to ask, and `speak` says the words *in the same tick* rather than deferring them to a translation that can never come.
+- **There is no Patois voice on any device**, which is why the tag the synthesiser is told is not always the tag the setting holds. Patois written down is close enough to English orthography that an English voice reads it about right, and a Jamaican one better.
 
 Two sources, in order, and then a fallback:
 
-- **The tables Peri ships** — `core/imports/translations/<lang>.json`, keyed by the exact words that would be spoken, lazily loaded for whichever language is chosen and held in memory. Instant, offline, free, and **already in hand when the emergency bar is pressed**.
+- **The tables Peri ships** — `core/imports/translations/<table>.json`, named for the *table* rather than the tag (`es-PR` reads `es-419.json`), keyed by the exact words that would be spoken, lazily loaded for whichever language is chosen and held in memory. Instant, offline, free, and **already in hand when the emergency bar is pressed**.
 - **What has been translated on this device before**, under `peri_translations`. This is where a phrase somebody wrote themselves ends up, and a composed message with it.
 - **DeepL**, for anything in neither, once each — and only with a key.
 
@@ -383,7 +389,7 @@ Six things follow from that, and each has a test:
 - **`instant` never goes to the network**, exactly as with a voice. The emergency bar says what it already has in the chosen language, and everything else in the original, immediately either way.
 - **Markup comes off first**, so `**Help me!**` and `Help me!` are one translation rather than two that never match — the same reason the audio cache is keyed after stripping.
 - **A phrase carrying a slot is not in the shipped table**, and that is deliberate: what gets spoken is not known until the blank is filled, so a translation of `Please turn {control} the lights` would never be looked up. Those go to DeepL like any phrase somebody wrote.
-- **The shipped tables are built, not fetched.** `tools/translate-table.ts` writes them once per language, they are committed, and they are read before they are committed.
+- **The shipped tables are built, not fetched.** `tools/translate-table.ts` writes them once per language, they are committed, and they are read before they are committed. It takes the tag Peri stores rather than the code DeepL wants, so the mapping lives in one place instead of in somebody's head at the command line — and it **refuses a language nothing translates into**, naming the file a person has to write by hand instead. `tools/` is in the typecheck for that reason: it imports `core/translation.ts`, and a tool that disagrees with the app is worse than none.
 
 **The key is never in a backup, and does travel in a sync snapshot** — the same two answers the ElevenLabs key gets, for the same two reasons. Neither is what has been translated: that is a record of what somebody has actually said, like the Sent list, and it costs nothing to rebuild.
 
@@ -436,7 +442,7 @@ Audio is cached in memory by voice and text. An AAC board is the same phrases ov
 
 **A language is what speaks when nothing more specific has been said.** `settings.language` sets `utterance.lang`; a chosen voice carries its own and wins, because choosing a voice is the more specific thing to have done. Its real work is the case where the voice does not apply: **a `voiceURI` is a platform string and it travels between devices**, so a board set up on a Mac arrives on a phone naming a voice that does not exist there — and without a language that falls all the way back to whatever the *system* speaks, which is how an English board ends up read aloud in another language entirely. Three consequences:
 
-- **The languages offered are the ones the device has voices for**, built from `speechSynthesis.getVoices()` rather than from a list of the world's languages. Offering one it cannot speak would be offering silence: the setting would take, and nothing would change.
+- **The languages offered are the ones the device can speak *or* Peri can translate into.** That rule was once only the first half, on the grounds that offering a language with no voice is offering silence — which is true of a language with nothing behind it and false of one Peri ships a table for. No device has a Puerto Rican or a Patois voice, and both of those are the point, so `VARIETIES` leads the list and the device's own languages follow.
 - **Changing the language lets go of a device voice that does not match it.** A voice *is* a language, and an English voice left selected under a board set to speak French would make the setting look broken. An ElevenLabs voice is left alone — it has no language of its own and speaks whatever it is given.
 - **It changes nothing for ElevenLabs.** `eleven_flash_v2_5` reads the language off the text, and for a board the text *is* the language — the phrases are written in it. Forcing a `language_code` could only make a mismatch sound worse, and it would have to join the audio cache key, so changing the setting would quietly throw away a board's worth of audio somebody had paid for.
 

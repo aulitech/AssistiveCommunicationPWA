@@ -34,12 +34,80 @@ export interface TranslationTable {
   of: Record<string, string>
 }
 
-/** "es-ES" and "es" are the same table. DeepL and a shipped file both want the base. */
+/**
+ * A way of speaking that Peri knows something extra about.
+ *
+ * A tag is not enough on its own once regions are involved. Three different
+ * questions hide inside one, and for these they have three different answers:
+ * what to *say it as*, what to *translate it with*, and which shipped table it
+ * reads. Anything not listed here answers all three from its base language,
+ * which is right for `de-DE` and wrong for both of these.
+ */
+export interface SpokenVariety {
+  /** What the setting holds. */
+  tag: string
+  label: string
+  /** What `utterance.lang` is set to — not always the tag. */
+  speak: string
+  /** What DeepL is asked for, or **null when no service will do it**. */
+  deepl: string | null
+  /** Which shipped table it reads. */
+  table: string
+}
+
+export const VARIETIES: SpokenVariety[] = [
+  /**
+   * DeepL has no Puerto Rican Spanish and nobody does — what it has is
+   * `ES-419`, Latin American Spanish, which is the near side of a real divide:
+   * European Spanish would give a board `vosotros` and `coger`, and the second
+   * of those means something else entirely in San Juan.
+   */
+  { tag: 'es-PR', label: 'Spanish (Puerto Rico)', speak: 'es-PR', deepl: 'ES-419', table: 'es-419' },
+  /**
+   * **Patois is a language, not an accent**, and no translation service
+   * supports it — DeepL carries Haitian Creole and no other. So this is the
+   * case the shipped tables exist for: the phrases Peri comes with are written
+   * out ahead of time, and anything somebody writes themselves is spoken as
+   * they wrote it, because there is nothing to send it to.
+   *
+   * It is *spoken* as `en-JM`. There is no Patois voice on any device, and
+   * Patois written down is close enough to English orthography that an English
+   * voice reads it about right — a Jamaican one, where there is one, better.
+   */
+  { tag: 'jam', label: 'Jamaican Patois', speak: 'en-JM', deepl: null, table: 'jam' },
+]
+
+const varietyFor = (tag: string) => VARIETIES.find(v => v.tag.toLowerCase() === tag.toLowerCase())
+
+/** "es-ES" and "es" are the same table, for anything not listed above. */
 export const baseLanguage = (tag: string) => tag.slice(0, 2).toLowerCase()
 
-/** Whether a language means translating at all. Empty, or English, does not. */
+/** Whether a language means translating at all. Empty, or plain English, does not. */
 export const needsTranslation = (tag: string) =>
-  Boolean(tag) && baseLanguage(tag) !== SOURCE_LANGUAGE
+  Boolean(tag) && (Boolean(varietyFor(tag)) || baseLanguage(tag) !== SOURCE_LANGUAGE)
+
+/** Which shipped table a language reads, or null when it needs none. */
+export const tableFor = (tag: string): string | null =>
+  varietyFor(tag)?.table ?? (needsTranslation(tag) ? baseLanguage(tag) : null)
+
+/**
+ * What to ask DeepL for, or **null when nothing will translate this**.
+ *
+ * Null is not a failure and not a missing case: Patois is a language no service
+ * offers, so a phrase outside the shipped table is spoken as it was written and
+ * nothing is sent anywhere.
+ */
+export const deeplTarget = (tag: string): string | null => {
+  const variety = varietyFor(tag)
+  if (variety) return variety.deepl
+  return needsTranslation(tag) ? baseLanguage(tag).toUpperCase() : null
+}
+
+/** What the synthesiser is told, which is not always what the setting holds. */
+export const speechTag = (tag: string): string => varietyFor(tag)?.speak ?? tag
+
+/** How a language reads in a list, where Peri has a name of its own for it. */
+export const varietyLabel = (tag: string): string | undefined => varietyFor(tag)?.label
 
 /**
  * The shipped tables, once loaded, and the ones remembered from before.
@@ -82,13 +150,13 @@ function isTable(v: unknown): v is Record<string, Record<string, string>> {
  * translator, and it is remembered as empty so it is not asked for again.
  */
 export async function loadTranslations(tag: string): Promise<void> {
-  const base = baseLanguage(tag)
-  if (!needsTranslation(tag) || shipped.has(base)) return
+  const table = tableFor(tag)
+  if (!table || shipped.has(table)) return
   try {
-    const table = (await import(`./imports/translations/${base}.json`)) as { default: TranslationTable }
-    shipped.set(base, table.default?.of ?? {})
+    const loaded = (await import(`./imports/translations/${table}.json`)) as { default: TranslationTable }
+    shipped.set(table, loaded.default?.of ?? {})
   } catch {
-    shipped.set(base, {})
+    shipped.set(table, {})
   }
 }
 
@@ -98,17 +166,17 @@ export async function loadTranslations(tag: string): Promise<void> {
  * Synchronous on purpose — see above.
  */
 export function translationFor(text: string, tag: string): string | undefined {
-  if (!needsTranslation(tag)) return undefined
-  const base = baseLanguage(tag)
-  return shipped.get(base)?.[text] ?? cache()[base]?.[text]
+  const table = tableFor(tag)
+  if (!table) return undefined
+  return shipped.get(table)?.[text] ?? cache()[table]?.[text]
 }
 
 /** Keep a translation, so it is instant the next time and free the time after. */
 export function rememberTranslation(text: string, tag: string, translated: string) {
-  if (!needsTranslation(tag) || !translated) return
-  const base = baseLanguage(tag)
+  const table = tableFor(tag)
+  if (!table || !translated) return
   const all = cache()
-  const forLanguage = { ...(all[base] ?? {}), [text]: translated }
+  const forLanguage = { ...(all[table] ?? {}), [text]: translated }
 
   // Oldest first, which insertion order gives for free. A board is the same
   // phrases over and over, so this bites rarely and only on the ones nobody has
@@ -118,7 +186,7 @@ export function rememberTranslation(text: string, tag: string, translated: strin
     for (const old of keys.slice(0, keys.length - CACHE_LIMIT)) delete forLanguage[old]
   }
 
-  all[base] = forLanguage
+  all[table] = forLanguage
   try {
     localStorage.setItem(KEY, JSON.stringify(all))
   } catch {
@@ -139,5 +207,6 @@ export function forgetTranslations() {
 
 /** For tests and for the tool that builds the shipped tables. */
 export function seedTranslations(tag: string, of: Record<string, string>) {
-  shipped.set(baseLanguage(tag), of)
+  const table = tableFor(tag)
+  if (table) shipped.set(table, of)
 }
