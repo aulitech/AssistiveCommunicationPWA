@@ -5,6 +5,8 @@
 // promise there is a phrase that arrives after somebody needed it.
 
 import { describe, it, expect, beforeEach } from 'vitest'
+import { readdirSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   SOURCE_LANGUAGE,
   VARIETIES,
@@ -22,6 +24,21 @@ import {
 } from '../../src/core/translation'
 
 beforeEach(() => forgetTranslations())
+
+/** The six the red bar speaks. Hand-written in every table, never generated. */
+const EMERGENCY = ['Help me!', "I'm in pain", 'Call 911', 'Get a doctor', "I can't breathe", 'Call my family']
+
+/** Every table in the directory, so a language added tomorrow cannot skip the check. */
+const TABLES = readdirSync(resolve(process.cwd(), 'src/core/imports/translations'))
+  .filter(name => name.endsWith('.json'))
+  .map(name => name.replace(/\.json$/, ''))
+
+/**
+ * A table is named for the variety rather than for a tag, so `es-419.json` is
+ * reached by asking for `es-PR`. Passing the file name straight through would
+ * quietly test `es` twice and `es-419` never.
+ */
+const tagFor = (table: string) => VARIETIES.find(v => v.table === table)?.tag ?? table
 
 describe('which languages mean translating', () => {
   it('is nothing at all when none has been chosen', () => {
@@ -113,25 +130,31 @@ describe('what has been translated before', () => {
 })
 
 describe('the shipped tables', () => {
+  // Without this the loop below passes by finding nothing to loop over.
+  it('ships tables at all', () => {
+    expect(TABLES.length, 'no shipped translation tables were found').toBeGreaterThan(0)
+  })
+
   it('brings a language Peri ships into memory', async () => {
     await loadTranslations('es-ES')
     expect(translationFor('Help me!', 'es-ES')).toBe('¡Ayúdenme!')
     expect(translationFor("I can't breathe", 'es')).toBe('No puedo respirar')
   })
 
-  it('carries every emergency phrase, which is the one bar that cannot wait', async () => {
-    for (const lang of ['es', 'fr']) {
-      await loadTranslations(lang)
-      for (const phrase of [
-        'Help me!',
-        "I'm in pain",
-        'Call 911',
-        'Get a doctor',
-        "I can't breathe",
-        'Call my family',
-      ]) {
-        expect(translationFor(phrase, lang), `${phrase} has no ${lang}`).toBeTruthy()
-      }
+  /**
+   * **Every table Peri ships, not a list somebody remembers to extend.**
+   *
+   * This was `['es', 'fr']`, and Vietnamese arrived carrying none of the six.
+   * The tool generates from the phrase table, these six are not in it, and a
+   * language with no file to merge into simply gets none. Nothing threw and no
+   * test failed: the red bar just fell back to English, which is the one place
+   * in this app that must never quietly do that.
+   */
+  it.each(TABLES)('carries every emergency phrase in %s, the one bar that cannot wait', async table => {
+    const tag = tagFor(table)
+    await loadTranslations(tag)
+    for (const phrase of EMERGENCY) {
+      expect(translationFor(phrase, tag), `${phrase} has no ${table}`).toBeTruthy()
     }
   })
 
@@ -201,22 +224,6 @@ describe('a spoken variety', () => {
   it('has a name of its own for each, since a tag reads as a product code', () => {
     for (const v of VARIETIES) expect(varietyLabel(v.tag)).toBe(v.label)
     expect(varietyLabel('de-DE')).toBeUndefined()
-  })
-
-  it('carries every emergency phrase for both, which is the bar that cannot wait', async () => {
-    for (const v of VARIETIES) {
-      await loadTranslations(v.tag)
-      for (const phrase of [
-        'Help me!',
-        "I'm in pain",
-        'Call 911',
-        'Get a doctor',
-        "I can't breathe",
-        'Call my family',
-      ]) {
-        expect(translationFor(phrase, v.tag), `${phrase} has no ${v.tag}`).toBeTruthy()
-      }
-    }
   })
 
   it('keeps the two Spanishes apart in what it remembers', () => {
