@@ -24,7 +24,15 @@ import { cx, dwellVar } from './style'
  * There is no pointer-down at all on the device this exists for, so this is for
  * everybody else.
  */
-function Key({ label, name, onPress, className = '', wide = false, repeat = false, active = false }: {
+function Key({
+  label,
+  name,
+  onPress,
+  className = '',
+  wide = false,
+  repeat = false,
+  active = false,
+}: {
   label: React.ReactNode
   /** What a screen reader says, where the face of the key is a glyph. */
   name: string

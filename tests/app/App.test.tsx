@@ -4754,6 +4754,8 @@ describe('the spoken language', () => {
     expect(languageRow()?.querySelector('.setting-note')).toBeNull()
   })
 })
+
+/**
  * Peri's own keyboard, in the app it has to serve.
  *
  * It exists for a device where the pointer only hovers: iOS raises its software
@@ -4883,4 +4885,3 @@ describe('the keyboard Peri draws', () => {
     expect($('.emergency-bar')).not.toBeNull()
   })
 })
-

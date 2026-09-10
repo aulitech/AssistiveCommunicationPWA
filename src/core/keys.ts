@@ -48,8 +48,7 @@ export const SYMBOL_ROWS = [
 /** What the shift key is doing. One dwell moves it on to the next. */
 export type Shift = 'off' | 'once' | 'lock'
 
-export const nextShift = (shift: Shift): Shift =>
-  shift === 'off' ? 'once' : shift === 'once' ? 'lock' : 'off'
+export const nextShift = (shift: Shift): Shift => (shift === 'off' ? 'once' : shift === 'once' ? 'lock' : 'off')
 
 /** What a letter key types, and what is written on it. */
 export const shifted = (key: string, shift: Shift) => (shift === 'off' ? key : key.toUpperCase())

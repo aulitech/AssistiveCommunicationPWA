@@ -6,9 +6,8 @@
 // say when an operation finishes.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { loadTranslations } from '../core/translation'
-import { useCallback, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { loadTranslations } from '../core/translation'
 import { cancelAllDwells, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
