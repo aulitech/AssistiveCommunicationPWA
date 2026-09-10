@@ -276,6 +276,7 @@ describe('reading a backup back', () => {
           rate: 40,
           voiceURI: 7,
           language: 'Klingon, obviously',
+          voicesByLanguage: { 'es-PR': 'Monica', 'Klingon, obviously': 'Worf', vi: 42, '': 'Samantha' },
           autoSpeak: 'yes',
           zoom: 9,
         },
@@ -290,6 +291,10 @@ describe('reading a backup back', () => {
       voiceURI: '',
       // Not the shape of a language tag, so it is not handed to a synthesiser.
       language: '',
+      // The same check, once per key — and `''` is a real key, being the board
+      // following the device. A voice that is not a string goes with the tag
+      // that is not a tag.
+      voicesByLanguage: { 'es-PR': 'Monica', '': 'Samantha' },
       volume: 1,
       rate: 2,
       // 'yes' is not a boolean, so it falls back to the default like every
@@ -495,6 +500,50 @@ describe('what a backup must never carry', () => {
 
     expect(file).not.toContain('sk-secret-key')
     expect(file).not.toMatch(/apiKey/i)
+  })
+
+  /**
+   * **Every language's voice, not just the first.** The writer emitted the map
+   * and the parser dropped it, which cost nothing on the way out and lost every
+   * per-phrase voice on the way back in — a backup that restores a board
+   * missing something is worse than one that refuses to restore at all.
+   */
+  it('carries a voice for each language a phrase has one in, and reads them back', () => {
+    const { state, categoryById } = fixture()
+    const store: PhraseStore = {
+      ...state.store,
+      voiceOverrides: { 'custom-1': { '': 'Samantha', 'es-PR': 'Monica' }, 'built-1': { vi: 'Linh' } },
+    }
+    const file = serializeBackup(buildBackup({ ...state, store, categoryById }))
+
+    const result = parseBackup(file)
+    expect(result.ok, 'the file it just wrote did not parse').toBe(true)
+    if (!result.ok) return
+
+    const applied = applyBackup(result.backup, { ...state, store }, 'replace')
+    expect(applied.store.voiceOverrides).toEqual({
+      'custom-1': { '': 'Samantha', 'es-PR': 'Monica' },
+      'built-1': { vi: 'Linh' },
+    })
+  })
+
+  /**
+   * A file written before voices were per-language. A backup is a file people
+   * keep, so its single voice still has to arrive somewhere sensible.
+   */
+  it('reads a voice from a file written before they were per-language', () => {
+    const { state, categoryById } = fixture()
+    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+    const raw = JSON.parse(file)
+    raw.edited = [{ id: 'built-1', voice: 'Samantha' }]
+    raw.added = [{ id: 'x1', text: 'Hello', category: 'Home', voice: 'Monica' }]
+
+    const result = parseBackup(JSON.stringify(raw))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const applied = applyBackup(result.backup, state, 'replace')
+    expect(applied.store.voiceOverrides['built-1']).toEqual({ '': 'Samantha' })
+    expect(applied.store.voiceOverrides.x1).toEqual({ '': 'Monica' })
   })
 
   /**

@@ -5,6 +5,8 @@
 // ElevenLabs account files each voice under a collection. One row of chips
 // serves both, because a voice only ever belongs to one of them.
 
+import { VARIETIES, varietyLabel } from '../core/translation'
+
 export interface VoiceChoice {
   voiceURI: string
   name: string
@@ -95,4 +97,32 @@ export function inGroup(voice: VoiceChoice, group: string | null): boolean {
 export function voiceLabel(v: VoiceChoice) {
   if (v.remote) return `${v.name} · ElevenLabs`
   return v.lang ? `${v.name} · ${v.lang}` : v.name
+}
+
+/**
+ * What the board is set to speak, named for a reader rather than by its tag.
+ *
+ * A language set on another device may have no voices here, and naming it
+ * anyway is the honest answer — it is still what the board is set to speak.
+ */
+export function languageLabel(tag: string, voices: SpeechSynthesisVoice[]): string {
+  if (!tag) return 'Device default'
+  const known = speechLanguages(voices).find(l => l.tag === tag)
+  return known?.label ?? varietyLabel(tag) ?? languageName(tag)
+}
+
+/**
+ * What the device can speak, and what Peri can translate into.
+ *
+ * The rule was once "only languages this device has voices for", on the grounds
+ * that offering one it cannot speak is offering silence. That is true of a
+ * language with nothing behind it and false of one Peri ships a table for: no
+ * device has a Puerto Rican or a Patois voice, and both of those are the point.
+ * A variety Peri knows leads the list, since a device offering sixty voices
+ * offers none of these.
+ */
+export function offeredLanguages(voices: SpeechSynthesisVoice[]) {
+  const own = VARIETIES.map(v => ({ tag: v.tag, label: v.label, count: 0 }))
+  const device = speechLanguages(voices).filter(l => !own.some(o => o.tag === l.tag))
+  return [...own, ...device]
 }

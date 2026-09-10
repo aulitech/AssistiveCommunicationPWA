@@ -57,6 +57,19 @@ export interface Settings {
    */
   language: string // empty = whatever the device speaks
   voiceURI: string // empty = default
+  /**
+   * language → the voice chosen while the board was speaking it.
+   *
+   * **A voice is a language**, so switching the board between two of them used
+   * to throw the old voice away and let the browser pick. That made the setting
+   * a thing to redo every time rather than a thing to set: somebody working in
+   * two languages was choosing a voice twice a day. This remembers, and
+   * `voiceURI` becomes the voice for whichever language is on.
+   *
+   * `''` is a key like any other — the board following the device is a setting
+   * somebody chose a voice under too.
+   */
+  voicesByLanguage: Record<string, string>
   volume: number // 0–1
   rate: number // 0.5–2
   /** Speak each selected phrase immediately instead of composing a message. */
@@ -80,6 +93,7 @@ export const DEFAULT_SETTINGS: Settings = {
   repeatDelayMs: 1000,
   language: '',
   voiceURI: '',
+  voicesByLanguage: {},
   volume: 1,
   rate: 1,
   // On, so the board talks the moment it is opened. Somebody who wants to build
@@ -126,10 +140,18 @@ export const SETTING_LIMITS = {
  */
 export function loadSettings(): Settings {
   try {
+    const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}')
     return {
       ...DEFAULT_SETTINGS,
-      ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}'),
+      ...raw,
       autoSpeak: DEFAULT_SETTINGS.autoSpeak,
+      // Shape-checked rather than spread, because everything else here is read
+      // with `?? default` at the point of use and this one is iterated. A
+      // damaged value would throw where a missing one merely answers nothing.
+      voicesByLanguage:
+        raw?.voicesByLanguage && typeof raw.voicesByLanguage === 'object'
+          ? (raw.voicesByLanguage as Record<string, string>)
+          : DEFAULT_SETTINGS.voicesByLanguage,
     }
   } catch {
     return DEFAULT_SETTINGS
@@ -138,6 +160,56 @@ export function loadSettings(): Settings {
 
 export function saveSettings(s: Settings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))
+}
+
+/** Enough of a voice to say what language it is in. */
+export interface VoiceLanguage {
+  voiceURI: string
+  lang: string
+}
+
+/**
+ * Choosing a voice, which is also choosing it **for the language on now**.
+ *
+ * Both halves are written together rather than the map being caught up later,
+ * so there is no window in which the two disagree — and `voiceURI` stays the
+ * one thing everything downstream reads, which is what keeps this change out
+ * of `speak` entirely.
+ */
+export function chooseVoice(settings: Settings, voiceURI: string): Partial<Settings> {
+  const voicesByLanguage = { ...settings.voicesByLanguage }
+  // Going back to the default is a choice too, and remembering an empty string
+  // is not the way to record it — an absent key already means "no voice of its
+  // own", and a stored empty one would only be a thing to guard against later.
+  if (voiceURI) voicesByLanguage[settings.language] = voiceURI
+  else delete voicesByLanguage[settings.language]
+  return { voiceURI, voicesByLanguage }
+}
+
+/**
+ * Switching the board to another language, and to the voice it was last spoken
+ * in.
+ *
+ * **The outgoing voice is written down on the way out**, not only when it was
+ * picked. A device restored from a backup written before any of this existed
+ * has a `voiceURI` and an empty map, and without this the first switch away
+ * would throw that voice away — the exact loss the feature exists to stop.
+ *
+ * Where the new language has no voice remembered, the old rule still applies: a
+ * device voice that does not match is let go of, and the browser picks one in
+ * the chosen language. An ElevenLabs voice is left alone, having no language of
+ * its own and speaking whatever it is given.
+ */
+export function chooseLanguage(settings: Settings, tag: string, voices: VoiceLanguage[]): Partial<Settings> {
+  const voicesByLanguage = { ...settings.voicesByLanguage }
+  if (settings.voiceURI) voicesByLanguage[settings.language] = settings.voiceURI
+
+  const remembered = voicesByLanguage[tag]
+  if (remembered) return { language: tag, voiceURI: remembered, voicesByLanguage }
+
+  const voice = voices.find(v => v.voiceURI === settings.voiceURI)
+  const mismatched = Boolean(tag && voice && voice.lang !== tag)
+  return { language: tag, voicesByLanguage, ...(mismatched ? { voiceURI: '' } : {}) }
 }
 
 // ── Phrase store (user edits persisted to localStorage) ───────────────────────
@@ -165,11 +237,23 @@ export interface PhraseStore {
   /** id → category, for a single phrase moved out of the one it came in. */
   categoryOverrides: Record<string, string>
   /**
-   * id → the voice that phrase is said in, overriding the one in settings. A
-   * board can then carry more than one voice: somebody quoting another person,
-   * a child's name in their own voice, a phrase that has to cut through noise.
+   * id → language → the voice that phrase is said in, overriding the one in
+   * settings. A board can then carry more than one voice: somebody quoting
+   * another person, a child's name in their own voice, a phrase that has to cut
+   * through noise.
+   *
+   * **Keyed by language, because a voice is a language.** A board that speaks
+   * Spanish on Tuesday and English on Wednesday needs both answers kept, or
+   * choosing a Spanish voice for a phrase throws away the English one it had —
+   * and the phrase comes back on Wednesday read by a Spanish synthesiser.
+   *
+   * The key is the language tag as `settings.language` holds it, `''` included:
+   * empty is not "any language", it is the board following whatever the device
+   * speaks, which is a setting like any other and the one most boards are in.
+   * A store written before this was per-language reads its single voice into
+   * that key — see `readVoiceOverrides`.
    */
-  voiceOverrides: Record<string, string>
+  voiceOverrides: Record<string, Record<string, string>>
   /**
    * The user's own arrangement of the category tabs. Kept whether or not it is
    * the one on show, so switching to A–Z and back returns the tabs to exactly
@@ -205,6 +289,80 @@ export const emptyStore = (): PhraseStore => ({
   emergencyOrder: [],
 })
 
+/**
+ * A phrase's voices, out of a store that may predate them being per-language.
+ *
+ * The old shape was one voice per phrase, chosen with no way to say which
+ * language it was for. It is read into the `''` key — the board following the
+ * device — because that is the setting a board is in unless somebody changed
+ * it, and so is very nearly always the language that voice was picked under.
+ * The cost of being wrong is a phrase falling back to the app's voice at some
+ * other language, which is recoverable by choosing one; the cost of guessing
+ * the other way would be a Spanish phrase read by an English voice.
+ */
+export function readVoiceOverrides(raw: unknown): Record<string, Record<string, string>> | null {
+  if (!raw || typeof raw !== 'object') return null
+  const out: Record<string, Record<string, string>> = {}
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'string') {
+      if (value) out[id] = { '': value }
+    } else if (value && typeof value === 'object') {
+      const byLanguage: Record<string, string> = {}
+      for (const [tag, voice] of Object.entries(value as Record<string, unknown>)) {
+        if (typeof voice === 'string' && voice) byLanguage[tag] = voice
+      }
+      if (Object.keys(byLanguage).length > 0) out[id] = byLanguage
+    }
+  }
+  return out
+}
+
+/**
+ * Give one phrase a voice for one language, or take that language's away.
+ *
+ * **Every other language's is kept**, which is the whole of what "a voice per
+ * language" means — choosing a Spanish voice for a phrase must not throw away
+ * the English one it already had, or the board comes back on Wednesday reading
+ * English words with a Spanish synthesiser.
+ *
+ * Pure, and here rather than inside `useBoard`, because that is the only way
+ * the rule above can be tested without driving the whole app through two
+ * language changes to watch one object.
+ */
+export function setVoiceOverride(
+  overrides: Record<string, Record<string, string>>,
+  id: string,
+  language: string,
+  voiceURI: string | undefined,
+): Record<string, Record<string, string>> {
+  const byLanguage = { ...overrides[id] }
+  if (voiceURI) byLanguage[language] = voiceURI
+  else delete byLanguage[language]
+
+  const next = { ...overrides }
+  // An empty record left behind would be a phrase that reads as having a voice
+  // to everything that counts them — the audio warm-up, a backup.
+  if (Object.keys(byLanguage).length > 0) next[id] = byLanguage
+  else delete next[id]
+  return next
+}
+
+/**
+ * The voice a phrase is said in when the board speaks `language`, or nothing.
+ *
+ * **Exact, with no falling back to another language.** A phrase given an
+ * English voice has not been given a Spanish one, and reading Spanish words
+ * with an English synthesiser is worse than reading them with the board's own
+ * voice — which is what nothing here means.
+ */
+export function voiceOverrideFor(
+  overrides: Record<string, Record<string, string>>,
+  id: string,
+  language: string,
+): string | undefined {
+  return overrides[id]?.[language]
+}
+
 export function loadPhraseStore(): PhraseStore {
   try {
     const raw = JSON.parse(localStorage.getItem(PHRASE_STORE_KEY) ?? '{}')
@@ -224,8 +382,7 @@ export function loadPhraseStore(): PhraseStore {
         raw.categoryOverrides && typeof raw.categoryOverrides === 'object'
           ? raw.categoryOverrides
           : base.categoryOverrides,
-      voiceOverrides:
-        raw.voiceOverrides && typeof raw.voiceOverrides === 'object' ? raw.voiceOverrides : base.voiceOverrides,
+      voiceOverrides: readVoiceOverrides(raw.voiceOverrides) ?? base.voiceOverrides,
       categoryOrder,
       // Stores written before the two arrangements were told apart have an
       // order and no flag; an order they took the trouble to make is the one

@@ -21,6 +21,7 @@ import {
 import { stripMarkdown } from '../core/markdown'
 import { audioKey, warmAudio } from '../voice/audio-cache'
 import { remoteVoiceId } from '../voice/elevenlabs'
+import { useSettings } from '../ui/settings'
 import {
   displayCategory,
   loadPhraseStore,
@@ -31,6 +32,8 @@ import {
   renameCategory,
   saveAliases,
   savePhraseStore,
+  setVoiceOverride,
+  voiceOverrideFor,
   type PhraseStore,
 } from '../core/store'
 
@@ -42,6 +45,12 @@ const phraseKey = (text: string, category: string) =>
 const newPhraseId = () => `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
 export function useBoard() {
+  // A phrase's voice is kept per language, so the board has to know which one
+  // is being spoken to answer at all. Read here rather than passed in: every
+  // caller of `voiceFor` would otherwise have to carry the language to a
+  // question that is not about the caller.
+  const { settings } = useSettings()
+  const language = settings.language
   const [store, setStore] = useState<PhraseStore>(loadPhraseStore)
   const [aliases, setAliases] = useState<AliasStore>(loadAliases)
 
@@ -134,8 +143,15 @@ export function useBoard() {
     return map
   }, [tablePhrases, store.custom, shownCategory])
 
-  /** The voice a phrase is said in, when it has one of its own. */
-  const voiceFor = useCallback((id: string) => store.voiceOverrides[id], [store.voiceOverrides])
+  /**
+   * The voice a phrase is said in when it has one of its own **for the language
+   * the board is speaking**. Nothing where it has one for some other language:
+   * an English voice reading a Spanish phrase is worse than the board's own.
+   */
+  const voiceFor = useCallback(
+    (id: string) => voiceOverrideFor(store.voiceOverrides, id, language),
+    [store.voiceOverrides, language],
+  )
 
   // Audio for those phrases is pulled back out of storage and into memory, so
   // that after a reload they can still be said in their own voice with no wait —
@@ -145,7 +161,13 @@ export function useBoard() {
   // Already-loaded clips are skipped, so re-running on an unrelated edit costs
   // nothing.
   useEffect(() => {
-    const assigned = Object.entries(store.voiceOverrides)
+    // Only the voices for the language being spoken. Warming every language's
+    // would fetch a board's worth of audio nobody is about to hear, and the
+    // clips are paid for.
+    const assigned = Object.entries(store.voiceOverrides).flatMap(([id, byLanguage]) => {
+      const voiceURI = byLanguage[language]
+      return voiceURI ? [[id, voiceURI] as const] : []
+    })
     if (assigned.length === 0) return
     const textById = new Map([...mainPhrases, ...emergencyPhrases].map(p => [p.id, p.text]))
     const keys = assigned.flatMap(([id, voiceURI]) => {
@@ -156,7 +178,7 @@ export function useBoard() {
       return voiceId && text ? [audioKey(voiceId, stripMarkdown(text))] : []
     })
     if (keys.length > 0) void warmAudio(keys)
-  }, [store.voiceOverrides, mainPhrases, emergencyPhrases])
+  }, [store.voiceOverrides, mainPhrases, emergencyPhrases, language])
 
   /**
    * What is already on the board, by category and wording — the check behind
@@ -215,14 +237,22 @@ export function useBoard() {
     [store, updateStore],
   )
 
+  /**
+   * Give a phrase a voice **for the language the board is speaking**, or take
+   * that language's away. The other languages' are left alone, which is the
+   * whole point: choosing a Spanish voice must not throw away the English one.
+   */
+  /**
+   * Give a phrase a voice **for the language the board is speaking**, or take
+   * that language's away. The arithmetic is `setVoiceOverride`, in core, so the
+   * rule it exists for — every other language's voice is kept — can be tested
+   * without driving the app through two language changes to watch one object.
+   */
   const setVoice = useCallback(
     (id: string, voiceURI: string | undefined) => {
-      const next = { ...store.voiceOverrides }
-      if (voiceURI) next[id] = voiceURI
-      else delete next[id]
-      updateStore({ voiceOverrides: next })
+      updateStore({ voiceOverrides: setVoiceOverride(store.voiceOverrides, id, language, voiceURI) })
     },
-    [store.voiceOverrides, updateStore],
+    [store.voiceOverrides, updateStore, language],
   )
 
   const editPhrase = useCallback(

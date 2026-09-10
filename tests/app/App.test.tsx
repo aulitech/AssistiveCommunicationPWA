@@ -3112,7 +3112,9 @@ describe('giving a phrase its own voice', () => {
     const store = JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!)
     const added = store.custom.find((c: { text: string }) => c.text === 'In her voice')
     expect(added, 'the phrase was not added at all').toBeDefined()
-    expect(stored()[added.id]).toBe('elevenlabs:v1')
+    // Under `''`, the board following the device — a voice is kept per language,
+    // and that is the language this one was chosen in.
+    expect(stored()[added.id]).toEqual({ '': 'elevenlabs:v1' })
   })
 
   it('remembers the voice against that phrase alone', async () => {
@@ -3129,7 +3131,7 @@ describe('giving a phrase its own voice', () => {
     await flush()
 
     const overrides = stored()
-    expect(Object.values(overrides)).toEqual(['elevenlabs:v1'])
+    expect(Object.values(overrides)).toEqual([{ '': 'elevenlabs:v1' }])
     expect(text).not.toBe('')
   })
 
@@ -3292,6 +3294,43 @@ describe('giving a phrase its own voice', () => {
     expect(fetcher).not.toHaveBeenCalled()
   })
 
+  /**
+   * **A voice is a language**, so a phrase keeps one for each. A board that
+   * speaks Spanish on Tuesday and English on Wednesday needs both answers kept,
+   * or choosing a Spanish voice throws away the English one the phrase had and
+   * Wednesday's phrase comes out read by a Spanish synthesiser.
+   *
+   * Driven through the store rather than the language picker, because switching
+   * language in the panel is four dwells away from a grid this test is not
+   * about — what is asserted is which voice reaches the synthesiser.
+   */
+  it("keeps a phrase's voice for each language, and speaks the right one", async () => {
+    linkAccount()
+    audioReplies()
+    renderApp()
+    enterEditMode()
+    const cell = plainCell()
+    const text = cell.textContent!
+    click(cell)
+    await chooseVoice('Rachel')
+    savePhrase()
+    await flush()
+
+    const id = Object.keys(stored())[0]
+    expect(id, 'no phrase was given a voice at all').toBeDefined()
+    expect(stored()[id]).toEqual({ '': 'elevenlabs:v1' })
+
+    // The same phrase, on a board now set to speak Vietnamese. It has no voice
+    // for that language, so it must fall to the board's own rather than to an
+    // English one reading Vietnamese.
+    cleanup()
+    renderApp({ language: 'vi', autoSpeak: true })
+    played.length = 0
+    click([...document.querySelectorAll('.phrase-cell')].find(c => c.textContent === text))
+    await flush()
+    expect(played, 'a phrase spoke its English voice on a Vietnamese board').toHaveLength(0)
+  })
+
   it('carries the voice into a backup and back out again', async () => {
     linkAccount()
     audioReplies()
@@ -3310,7 +3349,9 @@ describe('giving a phrase its own voice', () => {
     const result = parseBackup(downloads[downloads.length - 1].text)
     expect(result.ok).toBe(true)
     if (result.ok) {
-      const carried = [...result.backup.added, ...result.backup.edited].some(e => e.voice === 'elevenlabs:v1')
+      const carried = [...result.backup.added, ...result.backup.edited].some(
+        e => e.voices?.[''] === 'elevenlabs:v1',
+      )
       expect(carried, 'the voice did not travel with the backup').toBe(true)
     }
   })

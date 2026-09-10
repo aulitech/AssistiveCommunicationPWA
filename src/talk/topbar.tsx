@@ -19,6 +19,9 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useSettings } from '../ui/settings'
+import { chooseLanguage, chooseVoice } from '../core/store'
+import { LanguagePicker } from '../voice/language-picker'
+import { VoicePicker } from '../voice/picker'
 import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
 import { useLinkInput, type PasteResult } from '../ui/link-input'
@@ -90,6 +93,71 @@ function ActionButton({
  * painted size is small and the area answering to a pointer is larger and
  * invisible — see `.mode-btn::before`.
  */
+/**
+ * Whether the screen has room for the language and voice controls.
+ *
+ * Asked in JavaScript rather than answered with `display: none`, so the
+ * breakpoint is written once. Hiding them in CSS would still mount them, and
+ * each subscribes to the device's voice list and builds one — work done on
+ * every phone for two controls that phone never shows.
+ */
+const WIDE_ENOUGH = '(min-width: 1100px)'
+
+function useWideScreen(): boolean {
+  const [wide, setWide] = useState(false)
+  useEffect(() => {
+    const query = window.matchMedia?.(WIDE_ENOUGH)
+    if (!query) return
+    const read = () => setWide(query.matches)
+    read()
+    query.addEventListener('change', read)
+    return () => query.removeEventListener('change', read)
+  }, [])
+  return wide
+}
+
+/**
+ * One of the two value controls at the box's upper-right corner.
+ *
+ * A face that says the value rather than a glyph that says the subject: `en-US`
+ * and `Samantha` tell somebody what the board will do, where a globe and a
+ * waveform only say which grid opens. Six rem is what a border can spare, and
+ * what does not fit is on the control for a screen reader rather than lost.
+ *
+ * `on` is *the grid is open*, not *switched on* — there is nothing to switch.
+ * It reads pressed while its grid is up for the reason every picker trigger
+ * here does: a full-screen grid covers the control that opened it, and coming
+ * back to something that never looked pressed is disorienting.
+ */
+function ChoiceButton({
+  label,
+  on,
+  onOpen,
+  children,
+}: {
+  label: string
+  on: boolean
+  onOpen: () => void
+  children: React.ReactNode
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onOpen)
+  return (
+    <div
+      className={cx('choice-btn', on && 'active', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={label}
+      aria-haspopup="dialog"
+      aria-expanded={on}
+      {...props}
+    >
+      <div className="dwell-bar" key={active ? 'a' : 'i'} />
+      <span className="choice-btn-face">{children}</span>
+    </div>
+  )
+}
+
 function ModeToggle({
   on,
   onToggle,
@@ -195,7 +263,20 @@ export function Topbar({
   /** Says what came of asking, so the screen can report a refusal out loud. */
   onPasted: (result: PasteResult) => void
 }) {
-  const { settings } = useSettings()
+  const { settings, update } = useSettings()
+  const wide = useWideScreen()
+
+  // Written through the same two helpers the settings panel uses, so the pair
+  // cannot drift about what choosing one does to the other — which matters more
+  // here than anywhere, since this is the surface built for switching often.
+  const onChooseLanguage = useCallback(
+    (tag: string, voices: SpeechSynthesisVoice[]) => update(chooseLanguage(settings, tag, voices)),
+    [settings, update],
+  )
+  const onChooseVoice = useCallback(
+    (voiceURI: string) => update(chooseVoice(settings, voiceURI)),
+    [settings, update],
+  )
   const { text, setText, showUndo, canClear, clearOrUndo, textareaRef, trackCursor, setCursor } = composer
   const { draft, isUntouched, startNew, setText: setDraftText } = editor
 
@@ -351,43 +432,87 @@ export function Topbar({
         </ActionButton>
       )}
 
-      <textarea
-        ref={textareaRef}
-        className={cx('text-display', caret.active && 'dwelling')}
-        style={dwellVar(settings.actionDwellMs)}
-        aria-label={editMode ? 'Phrase text' : 'Composed message'}
-        value={value}
-        onChange={e => {
-          write(e.target.value)
-          if (!editMode) trackCursor(e)
-        }}
-        // Only outside edit mode: the caret tracked here is the composer's, and
-        // it decides which word the grid filters on. A caret moved about in a
-        // phrase would narrow the board to a word that is not in the message.
-        onSelect={editMode ? undefined : trackCursor}
-        onPaste={linkInput.onPaste}
-        onDrop={linkInput.onDrop}
-        onDragOver={linkInput.onDragOver}
-        {...caret.props}
-        onClick={editMode ? undefined : trackCursor}
-        onKeyUp={editMode ? undefined : trackCursor}
-        placeholder={
-          editMode
-            ? 'Write a phrase, or hold one on the board to edit it…'
-            : settings.autoSpeak
-              ? 'Auto-speak is on — phrases are spoken, not collected here'
-              : 'Dwell on a phrase or type…'
-        }
-        rows={1}
-        spellCheck
-        autoCapitalize="sentences"
-        // The board opens with the caret already in the box, so somebody with a
-        // keyboard can type the first thing they want to say without having to
-        // put it there first — and putting it there is the one thing a dwell
-        // could not do until `useCaretDwell`. A programmatic focus does not
-        // raise a phone's on-screen keyboard, which needs a real gesture.
-        autoFocus
-      />
+      {/* The box and whatever rides its border. A wrapper only so the strip
+          below can be positioned against **the box**: everything else on this
+          bar is centred on the bar itself, which is 4px off the box's true
+          centre and nobody can see — but a corner found that way would be out
+          by the whole width of the action rail. */}
+      <div className="text-display-wrap">
+        <textarea
+          ref={textareaRef}
+          className={cx('text-display', caret.active && 'dwelling')}
+          style={dwellVar(settings.actionDwellMs)}
+          aria-label={editMode ? 'Phrase text' : 'Composed message'}
+          value={value}
+          onChange={e => {
+            write(e.target.value)
+            if (!editMode) trackCursor(e)
+          }}
+          // Only outside edit mode: the caret tracked here is the composer's, and
+          // it decides which word the grid filters on. A caret moved about in a
+          // phrase would narrow the board to a word that is not in the message.
+          onSelect={editMode ? undefined : trackCursor}
+          onPaste={linkInput.onPaste}
+          onDrop={linkInput.onDrop}
+          onDragOver={linkInput.onDragOver}
+          {...caret.props}
+          onClick={editMode ? undefined : trackCursor}
+          onKeyUp={editMode ? undefined : trackCursor}
+          placeholder={
+            editMode
+              ? 'Write a phrase, or hold one on the board to edit it…'
+              : settings.autoSpeak
+                ? 'Auto-speak is on — phrases are spoken, not collected here'
+                : 'Dwell on a phrase or type…'
+          }
+          rows={1}
+          spellCheck
+          autoCapitalize="sentences"
+          // The board opens with the caret already in the box, so somebody with a
+          // keyboard can type the first thing they want to say without having to
+          // put it there first — and putting it there is the one thing a dwell
+          // could not do until `useCaretDwell`. A programmatic focus does not
+          // raise a phone's on-screen keyboard, which needs a real gesture.
+          autoFocus
+        />
+
+        {/* The language and the voice, at the box's upper-right corner, riding
+            the same border the modes ride at its middle.
+
+            **Their faces are the values**: the tag itself, `en-US`, and the
+            voice's bare name. Six rem each — enough for "Samantha" and for any
+            tag there is, and past that an ellipsis, with the whole of it on the
+            control for a screen reader. Two words is what fits on a border; the
+            settings panel is where the full names are.
+
+            Its own strip, not the modes'. That one holds exactly three, found
+            by position without being read, and `tests/app/App.test.tsx` asserts
+            it — nothing may be inserted. These are a different kind of thing
+            anyway: a mode is on or off, and these are one value out of many.
+
+            Not rendered at all on a narrow screen rather than hidden: each
+            builds the device's voice list, which is real work to do for
+            something never shown. */}
+        {wide && (
+          <div className="topbar-choices">
+            <LanguagePicker value={settings.language} onChange={onChooseLanguage}>
+              {({ label, open, isOpen }) => (
+                <ChoiceButton label={`Spoken language: ${label}. Choose another`} on={isOpen} onOpen={open}>
+                  {settings.language || 'auto'}
+                </ChoiceButton>
+              )}
+            </LanguagePicker>
+
+            <VoicePicker value={settings.voiceURI} onChange={onChooseVoice} defaultLabel="Default">
+              {({ label, name, open, isOpen }) => (
+                <ChoiceButton label={`Voice: ${label}. Choose another`} on={isOpen} onOpen={open}>
+                  {name}
+                </ChoiceButton>
+              )}
+            </VoicePicker>
+          </div>
+        )}
+      </div>
 
       {/* Three on the right in both modes, in the same three places. Outside
           edit mode they are how a message leaves; inside it they are what

@@ -27,6 +27,7 @@ export function VoicePicker({
   onChange,
   defaultLabel,
   sampleText,
+  children,
 }: {
   /** The chosen `voiceURI`; empty means whatever the default is called below. */
   value: string
@@ -35,6 +36,19 @@ export function VoicePicker({
   defaultLabel: string
   /** What the preview says. A phrase previews itself; the app previews a sample. */
   sampleText?: string
+  /**
+   * Rendered in place of the default trigger, for the topbar's compact one.
+   * The grid it opens is the same grid either way — one list of voices, so no
+   * two surfaces can disagree about what this device can say.
+   */
+  children?: (props: {
+    /** The full thing — "Rachel · ElevenLabs" — for a screen reader. */
+    label: string
+    /** Just the name, for a face with six rem to say it in. */
+    name: string
+    open: () => void
+    isOpen: boolean
+  }) => React.ReactNode
 }) {
   const { settings } = useSettings()
   const [deviceVoices, setDeviceVoices] = useState<SpeechSynthesisVoice[]>([])
@@ -98,13 +112,17 @@ export function VoicePicker({
 
   return (
     <>
-      <PickerTrigger
-        className="voice-trigger"
-        label={voiceLabel(current)}
-        name={`Voice: ${voiceLabel(current)}. Choose another`}
-        onOpen={openPicker}
-        open={open}
-      />
+      {children ? (
+        children({ label: voiceLabel(current), name: current.name, open: openPicker, isOpen: open })
+      ) : (
+        <PickerTrigger
+          className="voice-trigger"
+          label={voiceLabel(current)}
+          name={`Voice: ${voiceLabel(current)}. Choose another`}
+          onOpen={openPicker}
+          open={open}
+        />
+      )}
 
       {open && (
         <PickerModal
