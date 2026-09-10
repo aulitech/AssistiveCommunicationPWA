@@ -27,8 +27,7 @@ export function isTextField(el: Element | EventTarget | null): el is TextField {
 }
 
 function writeValue(field: TextField, value: string) {
-  const proto =
-    field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
+  const proto = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
   const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
   // The fallback is for a runtime that will not hand the descriptor over. It is
   // worse — React may not hear it — but a letter that appears is better than a
