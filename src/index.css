@@ -363,6 +363,93 @@ body {
  * areas overlap more of it than they appear to. That is the arrangement asked
  * for, but it means the top-centre of the message box answers to a mode rather
  * than to the caret. */
+/* The box and whatever hangs off it. A wrapper for one reason: everything else
+   on this bar is centred on the *bar*, which is 4px off the box's true centre
+   and invisible — but a corner found that way would be out by the whole width
+   of the action rail beside it. `min-width: 0` because a flex child will not
+   shrink below its content without it, and a long message would push the
+   action buttons off the end. */
+.text-display-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+/* The language and the voice, at the box's upper-right corner, riding the same
+   border the modes ride at its middle.
+
+   Opaque for the modes' reason: it sits *on* the box, and the border and
+   whatever has been typed would otherwise show through the gap between the two
+   buttons. `top: 0` is the box's own top edge — this is positioned against the
+   box rather than the bar, which is the whole point of the wrapper.
+
+   Whether it is on screen is decided in `topbar.tsx`, not here — these are not
+   cheap to mount and hide, each building the device's voice list — so this
+   carries no breakpoint of its own. */
+.topbar-choices {
+  position: absolute;
+  top: 0;
+  right: 0.6rem;
+  transform: translateY(-50%);
+  /* The modes' layer: above the app, below the panels and dialogs meant to
+     cover it. */
+  z-index: 90;
+
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  background: #000;
+  padding: 0.2rem 0.4rem;
+  border-radius: 999px;
+}
+
+/* A face that says the value — `en-US`, `Samantha` — rather than a glyph that
+   says the subject. Six rem is what a border can spare; past that it is cut
+   with an ellipsis and the whole of it stays on the control's `aria-label`. */
+.choice-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  max-width: 6rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  overflow: hidden;
+  cursor: pointer;
+  transition: color 0.1s, border-color 0.1s;
+  border: 1px solid var(--border);
+}
+
+/* The same bargain `.mode-btn::before` strikes: painted small enough to sit on
+   a border, with an invisible area around it a head or eye tracker can hit. */
+.choice-btn::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.choice-btn-face {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choice-btn.dwelling,
+.choice-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.choice-btn .dwell-bar { background: var(--accent); }
+.choice-btn.dwelling .dwell-bar {
+  animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
+}
+
 .topbar-modes {
   position: absolute;
   /* Matches `.topbar` padding-top — see the note there. */

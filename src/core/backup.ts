@@ -23,6 +23,7 @@
 
 import { EMPTY_ALIASES, type AliasStore, type Aliases } from './phrases'
 import {
+  readVoiceOverrides,
   DEFAULT_SETTINGS,
   readAliases,
   SETTING_LIMITS,
@@ -43,8 +44,27 @@ export interface BackupPhrase {
   id: string
   text: string
   category: string
-  /** The voice it is said in, when it is not the one in settings. */
+  /**
+   * The voices it is said in, by language, where they are not the one in
+   * settings. `voice` is the same thing from a file written before voices were
+   * per-language, and is still read — a backup is a file people keep.
+   */
+  voices?: Record<string, string>
+  /** @deprecated Read, never written. Superseded by `voices`. */
   voice?: string
+}
+
+/**
+ * The voices out of one entry in a file, whichever release wrote it.
+ *
+ * A backup is a file people keep, so the single `voice` of a file written
+ * before voices were per-language is still read — into the `''` key, the board
+ * following the device, for the reason `readVoiceOverrides` gives.
+ */
+function readVoices(entry: unknown): Record<string, string> | null {
+  if (!isRecord(entry)) return null
+  const byLanguage = readVoiceOverrides({ one: entry.voices ?? entry.voice })?.one
+  return byLanguage && Object.keys(byLanguage).length > 0 ? byLanguage : null
 }
 
 /** A change to a phrase Peri ships. Either half may be absent. */
@@ -54,7 +74,13 @@ export interface BackupEdit {
   text?: string
   /** The category it was moved to. */
   category?: string
-  /** The voice it is said in, when it is not the one in settings. */
+  /**
+   * The voices it is said in, by language, where they are not the one in
+   * settings. `voice` is the same thing from a file written before voices were
+   * per-language, and is still read — a backup is a file people keep.
+   */
+  voices?: Record<string, string>
+  /** @deprecated Read, never written. Superseded by `voices`. */
   voice?: string
 }
 
@@ -122,7 +148,7 @@ export function buildBackup(input: BackupInput): Backup {
       id: p.id,
       text: store.overrides[p.id] ?? p.text,
       category: categoryOf(p.id) ?? p.category,
-      ...(store.voiceOverrides[p.id] ? { voice: store.voiceOverrides[p.id] } : {}),
+      ...(store.voiceOverrides[p.id] ? { voices: store.voiceOverrides[p.id] } : {}),
     }))
 
   const edited: BackupEdit[] = [
@@ -137,7 +163,7 @@ export function buildBackup(input: BackupInput): Backup {
       const entry: BackupEdit = { id }
       if (store.overrides[id] !== undefined) entry.text = store.overrides[id]
       if (store.categoryOverrides[id] !== undefined) entry.category = store.categoryOverrides[id]
-      if (store.voiceOverrides[id] !== undefined) entry.voice = store.voiceOverrides[id]
+      if (store.voiceOverrides[id] !== undefined) entry.voices = store.voiceOverrides[id]
       return entry
     })
 
@@ -207,7 +233,7 @@ function readAdded(v: unknown): BackupPhrase[] {
       id: str(p.id),
       text: str(p.text),
       category: str(p.category) || IMPORTED_CATEGORY,
-      ...(typeof p.voice === 'string' && p.voice ? { voice: p.voice } : {}),
+      ...(readVoices(p) ? { voices: readVoices(p)! } : {}),
     }))
     .filter(p => p.id !== '' && p.text !== '')
 }
@@ -220,10 +246,11 @@ function readEdited(v: unknown): BackupEdit[] {
       const entry: BackupEdit = { id: str(e.id) }
       if (typeof e.text === 'string' && e.text !== '') entry.text = e.text
       if (typeof e.category === 'string' && e.category !== '') entry.category = e.category
-      if (typeof e.voice === 'string' && e.voice !== '') entry.voice = e.voice
+      const voices = readVoices(e)
+      if (voices) entry.voices = voices
       return entry
     })
-    .filter(e => e.id !== '' && (e.text !== undefined || e.category !== undefined || e.voice !== undefined))
+    .filter(e => e.id !== '' && (e.text !== undefined || e.category !== undefined || e.voices !== undefined))
 }
 
 /**
@@ -270,6 +297,15 @@ function readSettings(v: unknown): Settings | undefined {
     // straight to the synthesiser.
     language: LANGUAGE_TAG.test(str(v.language)) ? str(v.language) : DEFAULT_SETTINGS.language,
     voiceURI: str(v.voiceURI),
+    // Same shape check, once per key. `''` is a real key — the board following
+    // the device — so it is allowed through where a tag is otherwise required.
+    voicesByLanguage: isRecord(v.voicesByLanguage)
+      ? Object.fromEntries(
+          Object.entries(v.voicesByLanguage).filter(
+            ([tag, voice]) => (tag === '' || LANGUAGE_TAG.test(tag)) && typeof voice === 'string' && voice,
+          ) as [string, string][],
+        )
+      : DEFAULT_SETTINGS.voicesByLanguage,
     volume: num(v.volume, SETTING_LIMITS.volume, DEFAULT_SETTINGS.volume),
     rate: num(v.rate, SETTING_LIMITS.rate, DEFAULT_SETTINGS.rate),
     // Falls back to the default like every other field rather than to false:
@@ -470,14 +506,16 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
     // mask the text just imported — the store reads the override first.
     delete overrides[phrase.id]
     delete categoryOverrides[phrase.id]
-    if (phrase.voice) voiceOverrides[phrase.id] = phrase.voice
+    const voices = readVoices(phrase)
+    if (voices) voiceOverrides[phrase.id] = voices
     else delete voiceOverrides[phrase.id]
   }
 
   for (const edit of backup.edited) {
     if (edit.text !== undefined) overrides[edit.id] = edit.text
     if (edit.category !== undefined) categoryOverrides[edit.id] = edit.category
-    if (edit.voice !== undefined) voiceOverrides[edit.id] = edit.voice
+    const editVoices = readVoices(edit)
+    if (editVoices) voiceOverrides[edit.id] = editVoices
   }
 
   const order = [...base.store.categoryOrder]
