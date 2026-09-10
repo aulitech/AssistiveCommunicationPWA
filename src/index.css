@@ -379,10 +379,12 @@ body {
 /* The language and the voice, at the box's upper-right corner, riding the same
    border the modes ride at its middle.
 
-   Opaque for the modes' reason: it sits *on* the box, and the border and
-   whatever has been typed would otherwise show through the gap between the two
-   buttons. `top: 0` is the box's own top edge — this is positioned against the
-   box rather than the bar, which is the whole point of the wrapper.
+   **No background of its own**, unlike the mode strip. That one is opaque
+   because its three controls are transparent and the box would show through
+   between them; each of these paints `--bg` and draws a border, so the only
+   thing a pill added here was a black band across the two rem that separates
+   them. `top: 0` is the box's own top edge — this is positioned against the box
+   rather than the bar, which is the whole point of the wrapper.
 
    Whether it is on screen is decided in `topbar.tsx`, not here — these are not
    cheap to mount and hide, each building the device's voice list — so this
@@ -398,11 +400,13 @@ body {
 
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-
-  background: #000;
-  padding: 0.2rem 0.4rem;
-  border-radius: 999px;
+  /* Two rem apart, which is a target-separation number rather than a spacing
+     one: these are aimed at by gaze, and two controls close enough for the
+     jitter to cross between them is one control that does the wrong thing. It
+     also clears the invisible hit area each carries — `.choice-btn::before`
+     reaches 6px past every edge, so anything under 12px would have them
+     overlapping where nothing is drawn. */
+  gap: 2rem;
 }
 
 /* A face that says the value — `en-US`, `Samantha` — rather than a glyph that
