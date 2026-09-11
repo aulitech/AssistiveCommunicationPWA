@@ -250,6 +250,29 @@ export function releaseDwells() {
   heldUntilMoved = false
 }
 
+/**
+ * Whether the screen has moved under the pointer too lately for anything to be
+ * meant by what is under it now — either guard, asked by whichever route is
+ * firing.
+ *
+ * **A tap is asked as well as a dwell**, which is not obvious and is the whole
+ * point. A gaze rig can be set to send a real left click where it rests, so on
+ * the device this app is for the click *is* the dwell — the operating system is
+ * doing the holding — and a guard that the platform walks around is not a guard.
+ * The symptom is identical either way: a phrase spoken that nobody chose.
+ *
+ * What it costs is a mouse user losing a click in the second after a panel
+ * closes or the text size changes. That is the same second their hover dwell is
+ * already deaf for, and clicking again is a thing a mouse user can do.
+ *
+ * **The keyboard is not asked.** Enter and Space are aimed by focus rather than
+ * by position, and focus follows its element when the screen moves, so there is
+ * nothing for the pointer's stillness to say about them.
+ */
+function screenJustMoved(): boolean {
+  return Date.now() < deafUntil || heldUntilMoved
+}
+
 export interface DwellOptions {
   disabled?: boolean
   /** When set, the action repeats at this interval while the pointer stays. */
@@ -309,11 +332,9 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
   const start = useCallback(() => {
     if (disabledRef.current || timerRef.current || repeatRef.current) return
     // Deaf: the screen moved under the pointer a moment ago, so whatever it is
-    // resting on now is not what it was aimed at.
-    if (Date.now() < deafUntil) return
-    // Deaf until it is aimed somewhere else — the board rearranged itself on
-    // the very dwell that rearranged it, and this is whatever landed underneath.
-    if (heldUntilMoved) return
+    // resting on now is not what it was aimed at — either for a moment, or
+    // until the pointer is aimed somewhere else.
+    if (screenJustMoved()) return
     dwellFiredRef.current = false
     stalledRef.current = false
     setActive(true)
@@ -359,6 +380,8 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
   const onClick = useCallback(() => {
     // The dwell already handled this hover; don't count the click as a second hit.
     if (disabledRef.current || dwellFiredRef.current) return
+    // And a click gets the same answer a dwell would — see `screenJustMoved`.
+    if (screenJustMoved()) return
     cancel()
     noteActivation()
     activateRef.current()
