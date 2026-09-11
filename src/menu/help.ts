@@ -64,6 +64,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'If it says it was blocked, allow clipboard access for Peri in your browser settings. Firefox does not offer the clipboard to a web page at all — there, use Ctrl+V if you have a keyboard.',
       ),
       text('The button on the left clears the message, and afterwards offers to undo the clearing.'),
+      text(
+        'The last phrase you chose stays marked on the board, so you can see which one it was and where it has moved to. The mark goes as soon as you choose anything else.',
+      ),
     ],
   },
   {

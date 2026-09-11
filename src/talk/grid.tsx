@@ -4,7 +4,7 @@
 // the cell is memoised and takes callbacks that do not change between renders.
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { holdDwells, useDwellControl } from '../ui/dwell'
+import { holdDwells, onDwellActivation, useDwellControl } from '../ui/dwell'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
 import { useEdit } from '../ui/edit-mode'
@@ -20,10 +20,17 @@ import { PhraseText } from './phrase-text'
 
 const PhraseCell = memo(function PhraseCell({
   phrase,
+  spoken: justSaid,
   reorder,
   onSelect,
 }: {
   phrase: Phrase
+  /**
+   * The last phrase chosen off the board, which stays marked until anything
+   * else fires — see `spokenId` below. A boolean rather than the id, so the
+   * memo holds for every cell but the two that actually change.
+   */
+  spoken?: boolean
   /**
    * Present only while the grid is being arranged. Undefined the rest of the
    * time, which is what keeps this memo holding over a couple of thousand cells
@@ -34,7 +41,6 @@ const PhraseCell = memo(function PhraseCell({
 }) {
   const { settings } = useSettings()
   const { editMode, openEdit } = useEdit()
-  const [flash, setFlash] = useState(false)
 
   const handleActivate = useCallback(() => {
     // Arranging takes precedence: while it is on, a cell is a thing to move
@@ -48,8 +54,6 @@ const PhraseCell = memo(function PhraseCell({
       return
     }
     onSelect(phrase)
-    setFlash(true)
-    setTimeout(() => setFlash(false), 350)
   }, [phrase, onSelect, editMode, openEdit, reorder])
 
   const { active, props } = useDwellControl(settings.phraseDwellMs, handleActivate, {
@@ -67,7 +71,7 @@ const PhraseCell = memo(function PhraseCell({
       className={cx(
         'phrase-cell',
         active && 'dwelling',
-        flash && 'selected',
+        justSaid && 'selected',
         editMode && !reorder && 'edit-mode',
         reorder && 'reorderable',
         reorder?.held && 'is-held',
@@ -78,6 +82,9 @@ const PhraseCell = memo(function PhraseCell({
       )}
       style={dwellVar(settings.phraseDwellMs)}
       role="button"
+      // Says out loud what the tint says by eye. A mark that lasts has to reach
+      // somebody reading the board rather than looking at it.
+      aria-current={justSaid || undefined}
       aria-label={
         reorder
           ? reorderLabel(reorder, spoken, 'phrase')
@@ -490,6 +497,32 @@ export function PhraseGrid({
   const gridRef = useRef<HTMLElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
 
+  /**
+   * The last phrase chosen off the board, kept marked until **anything else
+   * fires** — a scroll, a tab, a mode, the menu.
+   *
+   * It used to be a third of a second of tint on a timer, which under an order
+   * that follows use was a flash on a cell that was moving at the same moment.
+   * A mark that lasts is what says *that one, and it went there*. It ends on the
+   * next dwell rather than on a clock because what it claims — this is the last
+   * thing you did — stops being true the moment anything else happens, and
+   * because a timer would take it away while somebody was still reading the
+   * board for it.
+   *
+   * Cleared *before* each activation, so the cell that is firing right now can
+   * set its own mark afterwards rather than have it cleared out from under it.
+   */
+  const [spokenId, setSpokenId] = useState<string | null>(null)
+  useEffect(() => onDwellActivation(() => setSpokenId(null)), [])
+
+  const selectPhrase = useCallback(
+    (phrase: Phrase) => {
+      setSpokenId(phrase.id)
+      onSelect(phrase)
+    },
+    [onSelect],
+  )
+
   // A phrase is keyed by its id, so what it is called has to be looked up — and
   // through a map rather than a scan, since every cell asks what is in the air.
   // Built only while arranging: a couple of thousand entries is cheap, and the
@@ -587,8 +620,9 @@ export function PhraseGrid({
             <PhraseCell
               key={phrase.id}
               phrase={phrase}
+              spoken={phrase.id === spokenId}
               reorder={reordering ? propsFor(phrase.id) : undefined}
-              onSelect={onSelect}
+              onSelect={selectPhrase}
             />
           ))}
         </div>

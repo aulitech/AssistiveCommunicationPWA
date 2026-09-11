@@ -488,6 +488,83 @@ describe('the change under a resting pointer', () => {
   })
 })
 
+/**
+ * A flash on a timer was the wrong shape once the board could rearrange itself
+ * on the dwell that rearranged it: a third of a second of tint on a cell that is
+ * moving at the same moment. A mark that lasts says *that one, and it went
+ * there*, and it ends on the next dwell rather than on a clock — what it claims
+ * stops being true the moment anything else happens.
+ */
+describe('the mark on the last phrase said', () => {
+  const marked = () => $$('.phrase-cell.selected').map(c => c.textContent)
+  const railBtn = (label: string) => $$('.scroll-btn').find(b => b.getAttribute('aria-label') === label)
+
+  it('stays on the phrase rather than fading off a timer', () => {
+    renderApp()
+    showSorted()
+
+    click(cellFor('Apple'))
+    act(() => void vi.advanceTimersByTime(5000))
+
+    expect(marked()).toEqual(['Apple'])
+  })
+
+  // Says out loud what the tint says by eye.
+  it('says which one it is to a screen reader', () => {
+    renderApp()
+    showSorted()
+    click(cellFor('Apple'))
+
+    expect(cellFor('Apple')!.getAttribute('aria-current')).toBe('true')
+    expect(cellFor('Banana')!.getAttribute('aria-current')).toBeNull()
+  })
+
+  it('moves to the next phrase said, and marks only one', () => {
+    renderApp()
+    showSorted()
+
+    click(cellFor('Apple'))
+    click(cellFor('Banana'))
+
+    expect(marked()).toEqual(['Banana'])
+  })
+
+  it('is let go of by any other dwell', () => {
+    renderApp()
+    showSorted()
+    click(cellFor('Apple'))
+    expect(marked()).toEqual(['Apple'])
+
+    click(railBtn('Scroll to top'))
+
+    expect(marked()).toEqual([])
+  })
+
+  // Under an order that follows use the cell moves as it is marked, which is the
+  // whole reason the mark has to outlast the move.
+  it('goes with the phrase when the board rearranges under it', () => {
+    renderApp()
+    showSorted()
+    chooseOrder('Recently used')
+
+    click(cellFor('Banana'))
+
+    expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
+    expect(marked()).toEqual(['Banana'])
+  })
+
+  // Nothing was said: a cell in edit mode is a phrase being opened.
+  it('marks nothing in edit mode', () => {
+    renderApp()
+    showSorted()
+    click($('.edit-toggle'))
+
+    click(cellFor('Apple'))
+
+    expect(marked()).toEqual([])
+  })
+})
+
 describe('the Sent tab', () => {
   const showSent = () => click(tab('Sent'))
 

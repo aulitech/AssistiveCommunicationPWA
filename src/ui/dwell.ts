@@ -58,6 +58,29 @@ export function cancelAllDwells() {
   cancelAll()
 }
 
+// ── Anything at all firing ────────────────────────────────────────────────────
+// One listener set, for the things that mark "what just happened" and have to
+// stop claiming it the moment anything else does. The grid's most-recently-said
+// cell is the only one today.
+//
+// **Notified before the control's own action, not after**, so a phrase cell can
+// clear the old mark and set its own in the same breath rather than clearing the
+// one it just set.
+
+const activationListeners = new Set<() => void>()
+
+/** Called whenever any dwell control fires, by any route. Returns the unsubscribe. */
+export function onDwellActivation(listener: () => void): () => void {
+  activationListeners.add(listener)
+  return () => {
+    activationListeners.delete(listener)
+  }
+}
+
+function noteActivation() {
+  for (const listener of [...activationListeners]) listener()
+}
+
 // ── The pointer that never holds still ─────────────────────────────────────
 //
 // **Safari sends nothing at all when the pointer leaves for another window.**
@@ -304,12 +327,14 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
       const repeat = repeatMsRef.current
       // Repeating controls keep their fill lit for as long as the pointer rests.
       if (!repeat) setActive(false)
+      noteActivation()
       activateRef.current()
       if (repeat) {
         repeatRef.current = setInterval(() => {
           // Checked every tick as well: a repeat left running by a pointer that
           // has gone is the worst version of this, since it does not stop.
           if (pointerStalled()) return stall()
+          noteActivation()
           activateRef.current()
         }, repeat)
       }
@@ -335,6 +360,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     // The dwell already handled this hover; don't count the click as a second hit.
     if (disabledRef.current || dwellFiredRef.current) return
     cancel()
+    noteActivation()
     activateRef.current()
   }, [cancel])
 
@@ -344,6 +370,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
       // Space would otherwise scroll the grid out from under the user.
       e.preventDefault()
       cancel()
+      noteActivation()
       activateRef.current()
     },
     [cancel],

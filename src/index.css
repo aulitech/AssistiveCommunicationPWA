@@ -729,6 +729,13 @@ body {
   background: var(--cell-hover);
 }
 
+/* The last phrase said off the board. On every other surface this colour is a
+   flash on a timer; here it lasts until anything else fires, so that under an
+   order that follows use it says *that one, and it went there* rather than
+   blinking at a cell that is moving at the same moment. It sits after the hover
+   rule on purpose — while the marked cell is being dwelled the fill bar is the
+   feedback, and losing the mark under the pointer would be the moment it is
+   least wanted. `aria-current` says the same thing to a screen reader. */
 .phrase-cell.selected {
   background: var(--selected-flash);
   border-color: var(--accent);
