@@ -33,6 +33,13 @@ const BOARD = [
   { id: 'custom-b', text: 'Banana', category: 'Sorted' },
 ]
 
+/** For the tests about one tab's order not being another's. */
+const TWO_CATEGORIES = [
+  ...BOARD,
+  { id: 'custom-x', text: 'Xylophone', category: 'Other' },
+  { id: 'custom-y', text: 'Aardvark', category: 'Other' },
+]
+
 /** Opens the board talking, so choosing a phrase counts as using it and the message box is left alone. */
 function renderApp(custom = BOARD) {
   localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
@@ -140,13 +147,65 @@ describe('what each order does', () => {
     expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
   })
 
-  it('applies under every tab, not only the one it was chosen under', () => {
-    renderApp()
+  /**
+   * The categories are not alike. A long reference list is worth having
+   * alphabetically, a short one worth having by what gets used, and one somebody
+   * arranged by hand worth leaving as they arranged it — so the order belongs to
+   * the tab it was chosen under, and arriving at a tab brings back its own.
+   */
+  it('belongs to the tab it was chosen under', () => {
+    renderApp(TWO_CATEGORIES)
     showSorted()
     chooseOrder('A to Z')
-    click(tab('All'))
+
+    click(tab('Other'))
+
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Custom order\./)
+    expect(onBoard()).toEqual(['Xylophone', 'Aardvark'])
+  })
+
+  it('comes back to the tab it was left on', () => {
+    renderApp(TWO_CATEGORIES)
     showSorted()
+    chooseOrder('A to Z')
+    click(tab('Other'))
+    chooseOrder('Most used')
+    click(cellFor('Xylophone'))
+
+    click(tab('Sorted'))
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: A to Z\./)
     expect(onBoard()).toEqual(['Apple', 'Banana', 'Cherry'])
+
+    click(tab('Other'))
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Most used\./)
+    expect(onBoard()).toEqual(['Xylophone', 'Aardvark'])
+  })
+
+  it('remembers each tab’s own across a reload', () => {
+    renderApp(TWO_CATEGORIES)
+    showSorted()
+    chooseOrder('A to Z')
+    click(tab('Other'))
+    chooseOrder('Recently used')
+
+    cleanup()
+    container = render(<App />).container
+    settle()
+
+    click(tab('Other'))
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Recently used\./)
+    click(tab('Sorted'))
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: A to Z\./)
+  })
+
+  // All is a tab like any other here, and it is the one the board opens on.
+  it('keeps All’s own order apart from a category’s', () => {
+    renderApp(TWO_CATEGORIES)
+    chooseOrder('A to Z')
+    showSorted()
+
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Custom order\./)
+    expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
   })
 
   it('is still the chosen one after a reload', () => {
