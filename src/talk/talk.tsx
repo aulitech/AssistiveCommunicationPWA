@@ -35,7 +35,7 @@ import { accountId } from '../core/store'
 import { SYNC_EPOCH, keepDeviceSettings, portableSettings, type SyncPayload } from '../core/sync'
 import { useSync } from '../sync/use-sync'
 import { speak, warmVoice } from '../voice/speech'
-import { clearAudioCache } from '../voice/audio-cache'
+import { clearAudioCache, setRemoteClips } from '../voice/audio-cache'
 import { REMOTE_PREFIX } from '../voice/elevenlabs'
 import { cx } from '../ui/style'
 import { BusyIndicator, DwellCursor } from '../ui/controls'
@@ -584,6 +584,22 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     payload: syncPayload,
     onApply: applyFromSync,
   })
+
+  /**
+   * Tells the audio cache where the user's other devices keep their clips.
+   *
+   * **Here because this is the only place that can see both.** `voice/` and
+   * `sync/` sit on the same line of the layering, so neither may import the
+   * other, and a clip an ElevenLabs voice is about to be billed for is decided
+   * deep inside the first while the address it might already be at is worked out
+   * by the second. Null while synchronizing is off, which is where the app
+   * ships — and put back to null on the way out, or a signed-out screen would
+   * leave a stale set of keys installed in a module.
+   */
+  useEffect(() => {
+    setRemoteClips(sync.clips)
+    return () => setRemoteClips(null)
+  }, [sync.clips])
 
   // `editor.open` is stable, which matters: this value reaches every one of a
   // couple of thousand memoised phrase cells.

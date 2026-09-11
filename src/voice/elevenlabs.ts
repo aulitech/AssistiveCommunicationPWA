@@ -16,7 +16,7 @@
 //    made to be shared; a key in one hands over the account.
 
 import { type ElevenLabsAccount, type RemoteVoice } from '../core/store'
-import { audioKey, cachedAudio, rememberAudio } from './audio-cache'
+import { audioKey, cachedAudio, rememberAudio, remoteClips, storedAudio } from './audio-cache'
 import { reportFailure } from '../core/report'
 
 const API = 'https://api.elevenlabs.io/v1'
@@ -120,7 +120,31 @@ export async function synthesize(account: ElevenLabsAccount, voiceId: string, te
   }
 }
 
+/**
+ * Everywhere a clip may already be, in the order they cost least to ask.
+ *
+ * **The network is the last of four, and that ordering is the whole of what
+ * keeps the bill down.** Memory is free, IndexedDB is a clip this device already
+ * paid for in an earlier session, and the server is one another of the user's
+ * own devices paid for. Only a genuine miss reaches ElevenLabs — and what comes
+ * back from there is offered to the other devices so none of them pays again.
+ *
+ * Every layer before the last fails into the next rather than throwing, so a
+ * refused database or an unreachable server costs a clip somebody already owned,
+ * never a phrase.
+ */
 async function fetchAudio(account: ElevenLabsAccount, voiceId: string, text: string, key: string): Promise<Blob> {
+  const stored = await storedAudio(key)
+  if (stored) return stored
+
+  const remote = remoteClips()
+  const shared = remote ? await remote.get(key) : null
+  if (shared) {
+    // Into both local layers, so the next reload does not ask the server either.
+    rememberAudio(key, shared)
+    return shared
+  }
+
   const response = await fetch(`${API}/text-to-speech/${encodeURIComponent(voiceId)}`, {
     method: 'POST',
     headers: { 'xi-api-key': account.apiKey, 'Content-Type': 'application/json' },
@@ -130,5 +154,7 @@ async function fetchAudio(account: ElevenLabsAccount, voiceId: string, text: str
 
   const blob = await response.blob()
   rememberAudio(key, blob)
+  // Bought once, for every device on this account.
+  remote?.put(key, blob)
   return blob
 }

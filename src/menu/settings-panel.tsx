@@ -539,8 +539,8 @@ function SyncRow({ sync }: { sync: SyncControl }) {
           {sync.status === 'choose'
             ? "Keeping this device's board replaces the synchronized one on every other device. Using the synchronized board replaces what is on this device. Nothing has changed yet."
             : sync.enabled
-              ? 'Every device signed in to this account and given the same passphrase keeps the same board. The last change wins, so editing on two devices at once loses the earlier edit. The copy on the server is encrypted before it leaves this device and cannot be read without the passphrase — which nobody can reset for you.'
-              : 'Optional. Keeps your phrases, categories and settings the same on every device you sign in to — apart from text size and volume, which stay as you set them on each one. The copy is encrypted here first, so the passphrase is the only thing that can open it — write it down somewhere safe.'}
+              ? 'Every device signed in to this account and given the same passphrase keeps the same board. The last change wins, so editing on two devices at once loses the earlier edit. Audio from a linked ElevenLabs account waits there too, so a phrase paid for here is not paid for again elsewhere; erasing the copy takes it as well. Everything on the server is encrypted before it leaves this device and cannot be read without the passphrase — which nobody can reset for you.'
+              : 'Optional. Keeps your phrases, categories and settings the same on every device you sign in to — apart from text size and volume, which stay as you set them on each one. It also keeps the audio a linked ElevenLabs account has made, so no phrase is paid for twice. The copy is encrypted here first, so the passphrase is the only thing that can open it — write it down somewhere safe.'}
         </p>
       </div>
 
@@ -569,8 +569,9 @@ function ConfirmForgetSync({ onConfirm, onCancel }: { onConfirm: () => void; onC
       <div className="confirm-dialog" role="dialog" aria-modal="true" aria-label="Stop synchronizing">
         <h3 className="confirm-title">Stop synchronizing?</h3>
         <p className="confirm-text">
-          This device keeps its board. The encrypted copy on the server is erased, and any other device still
-          synchronizing will put its own copy back up the next time it looks.
+          This device keeps its board and its audio. The encrypted copy on the server is erased, along with every
+          clip of ElevenLabs audio kept beside it, and any other device still synchronizing will put its own copy
+          back up the next time it looks.
         </p>
         <div className="confirm-actions">
           <PanelButton kind="plain" label="Cancel" onActivate={onCancel} />
@@ -660,8 +661,8 @@ function ElevenLabsRow({
         )}
         <p className="eleven-note">
           {account
-            ? 'These voices need the internet and use your ElevenLabs credits. Peri falls back to the device voice if one cannot be fetched, and the emergency bar always uses the device voice.'
-            : 'Optional. Adds the voices from your ElevenLabs account. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
+            ? 'These voices need the internet and use your ElevenLabs credits. A phrase is paid for once: Peri keeps the audio, and with Synchronize on your other devices use the same clip rather than buying their own. Peri falls back to the device voice if one cannot be fetched, and the emergency bar always uses the device voice.'
+            : 'Optional. Adds the voices from your ElevenLabs account. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices, and so does the audio it pays for.'}
         </p>
       </div>
     </div>

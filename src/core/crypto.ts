@@ -26,9 +26,13 @@
 /** Cost of the derivation. OWASP's floor for PBKDF2-SHA256, and it is a floor. */
 export const KDF_ITERATIONS = 310_000
 
-/** What the two derived keys are for. Distinct, or they would be the same key. */
+/** What each derived value is for. Distinct, or they would be the same key. */
 const ADDRESS_INFO = 'peri-sync address'
 const DATA_INFO = 'peri-sync data'
+/** One per clip, so the words themselves choose the address. */
+const CLIP_INFO = 'peri-sync clip:'
+/** The list of them, so they can all be taken off again. */
+const CLIP_INDEX_INFO = 'peri-sync clip index'
 
 /** Namespaced so a passphrase used here derives nothing usable anywhere else. */
 const SALT_PREFIX = 'peri-sync-v1:'
@@ -45,6 +49,17 @@ const toBase64 = (bytes: Uint8Array) => {
 
 const fromBase64 = (value: string) => Uint8Array.from(atob(value), c => c.charCodeAt(0))
 
+/**
+ * Bytes as text and back, exported because audio travels this way.
+ *
+ * A clip is bytes, and everything from the envelope outwards is JSON — so the
+ * bytes are written as base64 before they are sealed, which is the same shape
+ * the ciphertext itself goes out in. It costs a third again in size twice over,
+ * and a clip is small enough that the alternative is not worth a second wire
+ * format.
+ */
+export { toBase64 as bytesToBase64, fromBase64 as base64ToBytes }
+
 const toHex = (bytes: Uint8Array) => [...bytes].map(b => b.toString(16).padStart(2, '0')).join('')
 
 /**
@@ -56,6 +71,26 @@ const toHex = (bytes: Uint8Array) => [...bytes].map(b => b.toString(16).padStart
 export interface SyncKeys {
   address: string
   key: CryptoKey
+  /**
+   * Where the list of synchronized audio clips is kept.
+   *
+   * Separate from the board on purpose: a clip is bought by speaking rather than
+   * by editing, and folding the list into the board would make saying a new
+   * phrase look like a change to it — a push, on every device, for something
+   * nobody edited.
+   */
+  clipIndexAddress: string
+  /**
+   * Where one clip is kept, from the words and the voice that say them.
+   *
+   * **Derived rather than listed**, which is what lets a second device find a
+   * clip with nothing to look it up in: it has the phrase and it has the voice,
+   * so it can work out the address itself. HKDF expansion, so it is a moment's
+   * arithmetic rather than a second run of the slow derivation above — but it is
+   * async, like everything `crypto.subtle` does, so it is never asked on the way
+   * to saying something.
+   */
+  clipAddress: (cacheKey: string) => Promise<string>
 }
 
 /**
@@ -77,7 +112,11 @@ export async function deriveSyncKeys(passphrase: string, accountId: string): Pro
   const hkdf = await crypto.subtle.importKey('raw', master, 'HKDF', false, ['deriveBits', 'deriveKey'])
   const expand = { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0) } as const
 
-  const address = await crypto.subtle.deriveBits({ ...expand, info: utf8(ADDRESS_INFO) }, hkdf, 256)
+  const addressAt = async (info: string) =>
+    toHex(new Uint8Array(await crypto.subtle.deriveBits({ ...expand, info: utf8(info) }, hkdf, 256)))
+
+  const address = await addressAt(ADDRESS_INFO)
+  const clipIndexAddress = await addressAt(CLIP_INDEX_INFO)
   const key = await crypto.subtle.deriveKey(
     { ...expand, info: utf8(DATA_INFO) },
     hkdf,
@@ -86,7 +125,13 @@ export async function deriveSyncKeys(passphrase: string, accountId: string): Pro
     ['encrypt', 'decrypt'],
   )
 
-  return { address: toHex(new Uint8Array(address)), key }
+  // The cache key is the voice and the words, so the server is handed a
+  // different 256-bit number for every clip and can tell nothing from any of
+  // them. Working one backwards means already holding the passphrase, and
+  // anybody holding that can read the board itself.
+  const clipAddress = (cacheKey: string) => addressAt(CLIP_INFO + cacheKey)
+
+  return { address, clipIndexAddress, key, clipAddress }
 }
 
 /** Ciphertext and the number used once that made it. */

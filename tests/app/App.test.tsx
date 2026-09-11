@@ -2785,7 +2785,7 @@ describe('the emergency bar with a linked account', () => {
   })
 
   // The grid does use it, or linking an account would have bought nothing.
-  it('while the grid speaks with the account voice', () => {
+  it('while the grid speaks with the account voice', async () => {
     localStorage.setItem(
       'peri_elevenlabs',
       JSON.stringify({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }),
@@ -2799,6 +2799,10 @@ describe('the emergency bar with a linked account', () => {
     renderApp({ voiceURI: 'elevenlabs:v1', autoSpeak: true })
 
     click(plainCell())
+    // The request no longer goes out in the same tick. Everywhere a clip may
+    // already be is asked first, and the nearest of those — this device's own
+    // disk — answers with a promise however empty it is.
+    await act(async () => {})
 
     expect(fetcher).toHaveBeenCalledTimes(1)
     expect(spoken).toEqual([])

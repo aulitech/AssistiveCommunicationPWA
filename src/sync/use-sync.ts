@@ -30,6 +30,7 @@ import {
   type Snapshot,
   type SyncPayload,
 } from '../core/sync'
+import { clipStore, forgetClips, type ClipStore } from './audio'
 import { drop, pull, push, type Slot } from './client'
 
 /** How long after a change before it is sent. Long enough to gather a burst. */
@@ -84,6 +85,12 @@ export interface SyncControl {
   takeTheirs: () => void
   /** Turn it off here *and* take the copy off the server. */
   forget: () => void
+  /**
+   * Where a clip may already be, because one of the user's own devices bought
+   * it. Null unless synchronizing is actually running, and handed to the audio
+   * cache by the screen that holds both — see `talk.tsx`.
+   */
+  clips: ClipStore | null
 }
 
 export function useSync({
@@ -416,11 +423,15 @@ export function useSync({
   }, [writeConfig])
 
   const forget = useCallback(() => {
-    const address = keysRef.current?.address
+    const keySet = keysRef.current
     setStatus('off')
     setError(null)
     writeConfig({ enabled: false, passphrase: '', dirty: false, revision: 0, lastSyncedAt: 0 })
-    if (address) void drop(address)
+    if (!keySet) return
+    void drop(keySet.address)
+    // The audio too. Those clips are the user's own words in their own voice,
+    // and "take it off the server" cannot mean all of it but that.
+    void forgetClips(keySet)
   }, [writeConfig])
 
   const keepMine = useCallback(() => {
@@ -459,6 +470,10 @@ export function useSync({
           ? 'working'
           : status
 
+  // Only while it is actually running: a device with no keys has no address to
+  // ask at, and one that has not joined yet has nothing to share.
+  const clips = useMemo(() => (keys ? clipStore(keys, config.device) : null), [keys, config.device])
+
   return useMemo(
     () => ({
       status: shown,
@@ -475,6 +490,7 @@ export function useSync({
       keepMine,
       takeTheirs,
       forget,
+      clips,
     }),
     [
       shown,
@@ -491,6 +507,7 @@ export function useSync({
       keepMine,
       takeTheirs,
       forget,
+      clips,
     ],
   )
 }

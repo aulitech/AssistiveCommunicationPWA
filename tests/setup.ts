@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import { clearAudioCache } from '../src/voice/audio-cache'
+import { clearAudioCache, setRemoteClips } from '../src/voice/audio-cache'
 import { forgetPointerStream, releaseDwells } from '../src/ui/dwell'
 
 /** Everything spoken during a test, in order. */
@@ -100,6 +100,9 @@ beforeEach(() => {
   // fetched by one test would answer the next one's request without a fetch.
   voices.length = 0
   clearAudioCache()
+  // Module state, like the dwell guards: a test that installs the other
+  // devices must not leave the next one talking to them.
+  setRemoteClips(null)
   // Module state: one test going deaf must not leave the next one unable to
   // dwell at all. See `holdDwells`.
   releaseDwells()
