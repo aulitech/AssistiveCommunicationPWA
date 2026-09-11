@@ -325,7 +325,8 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'These voices need an internet connection, and take a moment to arrive the first time — including when you try one in the voice list.',
-        'They use your own ElevenLabs credits. A phrase said again costs nothing — Peri keeps what it already fetched.',
+        'They use your own ElevenLabs credits. A phrase said again costs nothing — Peri keeps what it already fetched, and keeps it when you close the app.',
+        'With Synchronize on, a phrase paid for on one device is not paid for again on another. The audio waits on the server, locked with your passphrase like everything else.',
         'If one cannot be fetched, Peri speaks with the device voice instead rather than saying nothing.',
         'The red emergency bar always uses the device voice, so it stays instant and works offline.',
       ),
@@ -334,6 +335,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'Your key is never put in a backup file, so sharing a backup does not share your account. It does travel between your own devices if you have Synchronize on — locked with your passphrase like everything else — so the voices work on all of them without pasting the key again.',
+      ),
+      text(
+        'The audio itself is never in a backup file either. It is kept on the device that fetched it, and with Synchronize on, on the server for your other devices. Stop and erase the copy takes all of it back.',
       ),
       text(
         'It is hidden once it is linked, with an eye to show it and a button to copy it. ElevenLabs only shows a key at the moment you make it, so this is how you get the same one onto another device without going back to them for a new one.',
@@ -407,10 +411,13 @@ export const HELP_SECTIONS: ProseSection[] = [
         "Text size and volume are left alone. They belong to the screen and the speaker in front of you — a phone at arm's length and a tablet on a mount want different numbers — so each device keeps its own. Everything else follows you: dwell times, the voice, your phrases and lists.",
       ),
       text(
+        'If you have linked an ElevenLabs account, the audio it makes waits on the server too, so the second device does not spend your credits saying what the first already said. It is kept clip by clip, apart from the board, and locked the same way.',
+      ),
+      text(
         'Synchronize is not a backup. It keeps devices alike, which means a phrase deleted on one is deleted on the others — that is the point of it, and it is also why a saved backup file is still worth having.',
       ),
       text(
-        'Stop, and this device stops sending and receiving while the copy stays where it is for the other devices. Stop and erase the copy, beside it, removes it from the server as well. Your passphrase stays either way, so starting again does not mean typing it again.',
+        'Stop, and this device stops sending and receiving while the copy stays where it is for the other devices. Stop and erase the copy, beside it, removes it from the server as well — the board and every clip of audio with it. Your passphrase stays either way, so starting again does not mean typing it again.',
       ),
     ],
   },

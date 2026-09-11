@@ -62,7 +62,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 **voice/**
 
 - `voice/speech.ts` - The single place utterances are created, and the routing between the device voice and a linked account
-- `voice/audio-cache.ts` - Audio already fetched, in memory and in IndexedDB. The memory layer is what makes a phrase's own voice usable on the emergency bar
+- `voice/audio-cache.ts` - Audio already **paid for**, in three layers — see *Not paying for a clip twice*. Memory answers synchronously, which is what makes a phrase's own voice usable on the emergency bar; IndexedDB is what stops a reload buying the board again; and the third is the user's other devices, **installed from above** rather than imported, since the module that reaches them sits beside this one in the layering
 - `voice/picker.tsx` - Choosing a voice. One control, used by Settings for the app's voice and by the edit strip for a single phrase's. It sits above `ui/` in the layering for that reason — it is built out of `ui` controls, so `voice` cannot be beside it
 - `voice/groups.ts` - Cutting a long voice list down: device voices by language, an account's by the collection it files them under. `speechLanguages` is the same question asked the other way round — which languages this device can speak at all, which is what the **Spoken language** setting offers. `offeredLanguages` and `languageLabel` sit here rather than beside the picker that draws them, because a module mixing components with plain functions loses fast refresh for everything importing it
 - `voice/language-picker.tsx` - Choosing the language the board is spoken in. Beside `VoicePicker` and shaped like it, because the two are asked together now that a voice is remembered per language — and because the settings panel and the topbar both offer them, and two copies of a language list would be two chances to disagree about what the board speaks
@@ -70,6 +70,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 
 **sync/**
 
+- `sync/audio.ts` - ElevenLabs clips on the server, one blob each — see *Not paying for a clip twice*. Not part of the board and deliberately so: audio is bought by speaking rather than by editing, and folding it into the board would make saying a phrase look like an edit. A clip's address is **derived from the words and the voice**, so a second device works it out for itself and there is nothing to look up; the one thing that *is* listed is what has been uploaded, so *Stop and erase the copy* can take the audio too
 - `sync/client.ts` - The four calls to `/api/sync`. **An answer that is not JSON is refused**, because a missing endpoint here is not a 404: the SPA catch-all rewrites it to the app, so the answer is 200 with HTML in it and a client trusting `res.ok` crashes on the first `{` it cannot find. **Nothing throws** — a board works offline, and a device that cannot reach the server has lost nothing at all, so every failure is a value and the worst case is a line of text under a setting
 - `sync/use-sync.ts` - The hook that decides when: on arrival, a debounced moment after any change, on the tab being looked at again, on the network coming back, and a slow beat behind all of it
 
@@ -158,7 +159,7 @@ Paths below are relative to `tests/`.
 - `core/store.test.ts` - The arithmetic behind arranging things by hand: where a lifted thing lands, and what happens to something the order has never heard of
 - `core/markdown.test.ts` - What the markup means, what stays literal, and the one invariant holding it together: `stripMarkdown` reads exactly what `layout` draws
 - `core/links.test.ts` - What a paste or a drop is carrying: which URL, which label, and the schemes that are refused
-- `voice/elevenlabs.test.ts` - The API client: linking, its failure messages, and the audio cache
+- `voice/elevenlabs.test.ts` - The API client: linking, its failure messages, and the four places a clip is looked for before it is bought. **The stored layer needs an IndexedDB and jsdom has none**, so `tests/voice/fake-idb.ts` is stubbed in by the tests that are about it and by no others — the missing-database case is real, and every other test in the suite exercises it
 - `core/translation.test.ts` - The lookup, and the one property everything rests on: that it answers without waiting. It also holds **every table in the directory** to the six emergency phrases, rather than a list of languages somebody remembers to extend — see below for the failure that bought that
 - `translate/client.test.ts` - Every way the translation service can fail, that none of them throws, and the unescaping
 - `voice/speech.test.ts` - Which voice a phrase comes out of, and that it always comes out of one of them — and, once a language is set, which *words* come out
@@ -171,6 +172,7 @@ Paths below are relative to `tests/`.
 - `ui/caret.test.tsx` - Which of the two caret APIs is trusted, when neither is, and the one claim about the hook the app tests cannot make — that it reports where it put the caret
 - `core/crypto.test.ts` - The lock: that two devices agree, that two accounts do not, that the same board never seals the same way twice, and that a wrong key or an altered byte opens nothing
 - `core/sync.test.ts` - `decideSync` in every branch, both parsers against damage, and the property that stops a device pushing for ever — a backup built at `SYNC_EPOCH` is byte-identical when nothing has changed
+- `sync/audio.test.ts` - Clips through the real Netlify function: that one device's clip is found by another with nothing but the words, that a different account or a different voice finds nothing, that the server is handed an address and a locked box with none of the words in either, that the list is written before the clip and a lost race keeps both, and that erasing takes every clip and then the list
 - `sync/client.test.ts` - The answers a server can give that the function never would: the app's own HTML at 200, a truncated body, a 500
 - `sync/use-sync.test.tsx` - Two devices and the box between them, driven through **the real Netlify function** with only the blob store replaced. A second device is this device with its memory wiped and the server left standing
 - `functions/sync.test.ts` - The handler itself: revisions, the 409 and what comes back with it, and every way a body can be refused
@@ -490,6 +492,33 @@ Two consequences worth knowing before changing any of it:
 Audio is cached in two layers by `voice/audio-cache.ts`. The memory layer answers synchronously, which is the only kind of answer the emergency bar can use; the IndexedDB layer exists so the memory layer can be full again after a reload, and `useBoard` pulls the assigned phrases back into it at start-up. Where IndexedDB is missing — an old browser, a private window, jsdom — everything still works and simply forgets between sessions.
 
 Audio is cached in memory by voice and text. An AAC board is the same phrases over and over, so the second time is free and instant — which is the difference between a usable feature and a bill.
+
+### Not paying for a clip twice
+
+A clip is billed per character and is decided entirely by the voice and the words, so the same phrase is the same bytes for ever and on every device. **Four places are asked before ElevenLabs is**, in the order they cost least, and `fetchAudio` in `voice/elevenlabs.ts` is the whole of the chain:
+
+- **Memory**, synchronously. The only question the emergency bar asks, and the only one that can be answered in time to matter.
+- **IndexedDB**, on the way to the network rather than at start-up. **This was missing for the whole life of the feature**: every clip fetched was written there and nothing ever read one back except the handful of phrases carrying their own voice, so a reload bought the entire board again, one phrase at a time, with the audio already on disk. A board's worth read back on arrival is work nobody asked for, so the few clips that must be in hand *before* they are wanted are still warmed by name in `use-board.ts` and everything else is reached at the moment it is asked for.
+- **The user's own other devices**, `sync/audio.ts`, when synchronizing is on. Absent otherwise, which is how the app ships.
+- **ElevenLabs**, and what comes back is offered straight back up the chain so that no device on the account pays for it again.
+
+Every layer fails into the next rather than throwing: a refused database, an unreachable server and a wrong passphrase all cost a clip somebody already owned, never a phrase.
+
+**`voice/` and `sync/` are the same line of the layering, so neither may import the other.** The cache takes a `RemoteClips` that something above installs, and the only thing that can see both is `talk.tsx` — which is why one `useEffect` there hands the sync control's `clips` to `setRemoteClips`. It hands back `null` on the way out, or a signed-out screen would leave a stale set of keys installed in a module.
+
+Four things about what is on the server:
+
+- **A clip is its own blob, and never part of the board.** The board is written whole on every change, and audio is bought by *speaking* rather than by editing — folded in, saying a new phrase would look like an edit to every other device and push a board nobody changed.
+- **The address is derived from the cache key**, through the same HKDF the board's address comes out of — `clipAddress` in `core/crypto.ts`. So a second device works out where a clip is from the phrase already on its board, with nothing to look up, and the server is handed a different 256-bit number for every clip and can tell nothing from any of them. Working one backwards means already holding the passphrase, and anyone holding that can read the board itself.
+- **What *is* listed is what has been uploaded**, in one more blob beside them, and it exists for exactly one reason: *Stop and erase the copy* has to take the audio too, and an address nobody wrote down is an address nobody can delete. So the index is written **before** the clip it names, and the invariant runs one way only — the list may name a clip that is not there, which costs a wasted DELETE, while a clip the list does not name would be somebody's words left on a server after they asked for them back. A clip the index cannot be written for stays at home.
+- **A clip too large to send stays at home too.** `MAX_CLIP_BYTES` leaves room for what an envelope does to it: base64 to make it JSON, then the ciphertext base64 again, about eight fifths in total. It is around half a minute of speech, and a board phrase is a sentence.
+
+Two costs, both deliberate and both worth knowing:
+
+- **A miss now waits on one more request.** Asking the server happens *before* ElevenLabs, so the first time a phrase is said on a device it pays a round trip it did not used to. Only on a genuine miss, and **never on the emergency bar** — `instant` returns before `synthesize` is reached at all, which is what keeps that surface off every one of these paths.
+- **The index is rewritten whole each time it grows.** It is a list of cache keys, so it is bounded by the size of the board rather than by how long somebody has been talking, and it is only written when a genuinely new clip is bought. Uploading it is not waited on, so it costs bandwidth rather than time.
+
+The disclosure rule applies to this as it does to the key: the **ElevenLabs row** and the **Synchronize row** in Settings, **Better voices** and **Keeping two devices the same** in the guide, and the **Speech** and **Synchronizing** sections of the privacy policy all say that the audio travels and that erasing the copy takes it.
 
 **A language is what speaks when nothing more specific has been said.** `settings.language` sets `utterance.lang`; a chosen voice carries its own and wins, because choosing a voice is the more specific thing to have done. Its real work is the case where the voice does not apply: **a `voiceURI` is a platform string and it travels between devices**, so a board set up on a Mac arrives on a phone naming a voice that does not exist there — and without a language that falls all the way back to whatever the *system* speaks, which is how an English board ends up read aloud in another language entirely. Three consequences:
 

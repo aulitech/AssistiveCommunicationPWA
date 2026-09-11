@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { REMOTE_PREFIX, linkAccount, remoteVoiceId, remoteVoiceURI, synthesize } from '../../src/voice/elevenlabs'
-import { cachedCount, clearAudioCache } from '../../src/voice/audio-cache'
+import { audioKey, cachedCount, clearAudioCache, setRemoteClips } from '../../src/voice/audio-cache'
+import { clips, installFakeIdb, removeFakeIdb, seedClip } from './fake-idb'
 import { type ElevenLabsAccount } from '../../src/core/store'
 
 const ACCOUNT: ElevenLabsAccount = { apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }
@@ -168,6 +169,10 @@ describe('asking for the same clip twice at once', () => {
 
     const first = synthesize(ACCOUNT, 'v1', 'Hello')
     const second = synthesize(ACCOUNT, 'v1', 'Hello')
+    // The request no longer goes out in the same tick: the stored layer and the
+    // server are both asked ahead of it, and both answer with a promise. The
+    // sharing is unaffected — `inFlight` is written before any of that.
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalled())
     resolve({ ok: true, status: 200, blob: async () => new Blob(['audio']) })
 
     expect(await first).toBe(await second)
@@ -180,5 +185,129 @@ describe('asking for the same clip twice at once', () => {
 
     vi.stubGlobal('fetch', respondWith(null))
     await expect(synthesize(ACCOUNT, 'v1', 'Hello')).resolves.toBeInstanceOf(Blob)
+  })
+})
+
+/**
+ * The whole point of the four layers: a clip is billed per character, so the
+ * network is the last place asked and only a genuine miss reaches it.
+ */
+describe('everywhere a clip may already be', () => {
+  const KEY = audioKey('v1', 'Hello')
+
+  beforeEach(() => {
+    installFakeIdb()
+    setRemoteClips(null)
+  })
+  afterEach(() => {
+    removeFakeIdb()
+    setRemoteClips(null)
+  })
+
+  /**
+   * The one this was built for. Every clip fetched has always been written to
+   * IndexedDB, and nothing ever read it back except the handful of phrases
+   * carrying their own voice — so a reload bought the whole board again, one
+   * phrase at a time, with the audio already sitting there unread.
+   */
+  it('reads a clip from an earlier session rather than buying it again', async () => {
+    seedClip(KEY, new Blob(['stored']))
+    const fetcher = respondWith(null)
+    vi.stubGlobal('fetch', fetcher)
+
+    const blob = await synthesize(ACCOUNT, 'v1', 'Hello')
+
+    expect(await blob.text()).toBe('stored')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('asks the other devices when this one has never had it', async () => {
+    const get = vi.fn(async () => new Blob(['from the tablet']))
+    const put = vi.fn()
+    setRemoteClips({ get, put })
+    const fetcher = respondWith(null)
+    vi.stubGlobal('fetch', fetcher)
+
+    const blob = await synthesize(ACCOUNT, 'v1', 'Hello')
+
+    expect(await blob.text()).toBe('from the tablet')
+    expect(get).toHaveBeenCalledWith(KEY)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  // Otherwise every phrase said after a reload would be a request to the server
+  // for something this device already has on disk.
+  it('asks its own disk before it asks the server', async () => {
+    seedClip(KEY, new Blob(['stored']))
+    const get = vi.fn(async () => null)
+    setRemoteClips({ get, put: vi.fn() })
+    vi.stubGlobal('fetch', respondWith(null))
+
+    await synthesize(ACCOUNT, 'v1', 'Hello')
+
+    expect(get).not.toHaveBeenCalled()
+  })
+
+  // A clip that came off the server is kept in both layers here too, or the next
+  // reload would go and ask for it all over again.
+  it('keeps what the other devices had, on disk as well as in memory', async () => {
+    setRemoteClips({ get: async () => new Blob(['shared']), put: vi.fn() })
+    vi.stubGlobal('fetch', respondWith(null))
+
+    await synthesize(ACCOUNT, 'v1', 'Hello')
+
+    expect(cachedCount()).toBe(1)
+    expect(await clips.get(KEY)?.text()).toBe('shared')
+  })
+
+  it('offers what it bought to the other devices', async () => {
+    const put = vi.fn()
+    setRemoteClips({ get: async () => null, put })
+    vi.stubGlobal('fetch', respondWith(null))
+
+    const blob = await synthesize(ACCOUNT, 'v1', 'Hello')
+
+    expect(put).toHaveBeenCalledWith(KEY, blob)
+  })
+
+  // It came from there. Sending it back is a write nobody needs.
+  it('does not offer back what the server already had', async () => {
+    const put = vi.fn()
+    setRemoteClips({ get: async () => new Blob(['shared']), put })
+    vi.stubGlobal('fetch', respondWith(null))
+
+    await synthesize(ACCOUNT, 'v1', 'Hello')
+
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  it('buys it when neither this device nor the others have it', async () => {
+    setRemoteClips({ get: async () => null, put: vi.fn() })
+    const fetcher = respondWith(null)
+    vi.stubGlobal('fetch', fetcher)
+
+    await synthesize(ACCOUNT, 'v1', 'Hello')
+
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  // Synchronizing is off in the app as it ships, and a board still has to speak.
+  it('buys it when there is no server at all', async () => {
+    const fetcher = respondWith(null)
+    vi.stubGlobal('fetch', fetcher)
+
+    await expect(synthesize(ACCOUNT, 'v1', 'Hello')).resolves.toBeInstanceOf(Blob)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  // A refused database is the private-window case, and it must cost a clip
+  // rather than a phrase.
+  it('buys it when the database cannot be opened', async () => {
+    removeFakeIdb()
+    const fetcher = respondWith(null)
+    vi.stubGlobal('fetch', fetcher)
+
+    await expect(synthesize(ACCOUNT, 'v1', 'Hello')).resolves.toBeInstanceOf(Blob)
+    expect(fetcher).toHaveBeenCalledTimes(1)
   })
 })

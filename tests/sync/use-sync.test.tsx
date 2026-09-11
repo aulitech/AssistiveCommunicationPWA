@@ -13,6 +13,7 @@ import { cleanup, render, waitFor, act } from '@testing-library/react'
 import { useEffect, useState } from 'react'
 import { useSync, type SyncControl } from '../../src/sync/use-sync'
 import { deriveSyncKeys, open, seal } from '../../src/core/crypto'
+import { getClip, putClip } from '../../src/sync/audio'
 import { SYNC_FORMAT, SYNC_VERSION, parseSnapshot, type Envelope, type SyncPayload } from '../../src/core/sync'
 import type { Backup } from '../../src/core/backup'
 import type { ElevenLabsAccount } from '../../src/core/store'
@@ -499,5 +500,65 @@ describe('turning it off', () => {
     act(() => control.forget())
     await waitFor(async () => expect(await boardOnServer()).toBeNull())
     expect(JSON.parse(localStorage.getItem('peri_sync')!).passphrase).toBe('')
+  })
+
+  /**
+   * A clip is somebody's own words in their own voice, so "take the copy off the
+   * server" cannot mean all of it but that. There is no listing of a board's
+   * blobs to sweep, so this is the one place the audio can be reached from.
+   */
+  it('takes the audio off with it', async () => {
+    show()
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    const keys = await deriveSyncKeys(PASSPHRASE, ACCOUNT)
+    await putClip(keys, 'tablet', 'voice-1 Hello', new Blob(['audio']))
+    expect(await getClip(keys, 'voice-1 Hello')).not.toBeNull()
+
+    act(() => control.forget())
+
+    await waitFor(async () => expect(await getClip(keys, 'voice-1 Hello')).toBeNull())
+    expect(blobs.size).toBe(0)
+  })
+})
+
+/**
+ * What the audio cache is handed, and when. It is the only way a clip another
+ * device paid for is ever reached, so "there is one" is part of the feature.
+ */
+describe('where the other devices keep their clips', () => {
+  it('is nothing at all while the setting is off', () => {
+    show()
+    expect(control.clips).toBeNull()
+  })
+
+  it('is there once it is running', async () => {
+    show()
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    expect(control.clips).not.toBeNull()
+  })
+
+  it('finds a clip through the same keys the board uses', async () => {
+    show()
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    const keys = await deriveSyncKeys(PASSPHRASE, ACCOUNT)
+    await putClip(keys, 'tablet', 'voice-1 Hello', new Blob(['audio']))
+
+    expect(await (await control.clips!.get('voice-1 Hello'))?.text()).toBe('audio')
+  })
+
+  it('is taken away again when the setting is turned off', async () => {
+    show()
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+    expect(control.clips).not.toBeNull()
+
+    act(() => control.disable())
+    await waitFor(() => expect(control.clips).toBeNull())
   })
 })

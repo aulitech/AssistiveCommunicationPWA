@@ -38,6 +38,7 @@ export const PRIVACY: ProseDocument = {
           'Your word lists — names, contacts and anything else you add under Aliases.',
           'Which account you last signed in with, if any.',
           'Your ElevenLabs API key, if you linked an account.',
+          'The audio a linked ElevenLabs account has made for you, so that a phrase you have paid to have spoken is not paid for twice.',
           'Your Synchronize passphrase, if you turned that on.',
           'How often you use each phrase and when you last used one, which is what lets the grid be ordered by what you use.',
         ),
@@ -56,19 +57,23 @@ export const PRIVACY: ProseDocument = {
           'Synchronize is off until you turn it on. While it is on, a copy of your board — your phrases, categories, word lists and settings, and your ElevenLabs key if you have linked an account — is kept on a server we run, so that the other devices you sign in to can fetch it.',
         ),
         text(
+          'If you have linked an ElevenLabs account, the audio it makes is kept there too, one clip at a time and separately from the board. This is so that a phrase you have already paid to have spoken on one device is not paid for again on the next. Each clip is encrypted exactly as the board is, under an address worked out from the words and the voice, and nobody without your passphrase can work out either. Erasing the copy erases the audio with it.',
+        ),
+        text(
           'That copy is encrypted on your device before it is sent, using a key made from the passphrase you choose. We never receive the passphrase, and the key is never sent anywhere. We hold a block of bytes we cannot open, and neither can anyone who obtains it from us.',
         ),
         text('What we can see, and it is worth being exact about it:'),
         list(
           'That some board exists, stored under a 64-character address. The address is derived from your passphrase, so it is not your name, your email or your account — we cannot connect it to a person, and we cannot list one from the other.',
+          'That some number of audio clips exist, each under an address of the same kind. An address tells us nothing about the words in the clip, and two people saying the same thing have two different addresses.',
           'When it was last written, and an eight-character label naming which of your own devices wrote it. Both are needed for your devices to tell whose copy is newer.',
           'How large it is, and the usual request information any web server records — see Hosting below.',
         ),
         text(
-          'We cannot see a single phrase, category, contact, setting or key. We cannot reset the passphrase, recover the board without it, or tell you whether you have typed it correctly. If you lose it, the copy on the server is lost with it — your devices keep their own boards, and you start again with a new passphrase.',
+          'We cannot see a single phrase, category, contact, setting or key, and we cannot listen to a single clip. We cannot reset the passphrase, recover the board without it, or tell you whether you have typed it correctly. If you lose it, the copy on the server is lost with it — your devices keep their own boards, and you start again with a new passphrase.',
         ),
         text(
-          'Turning the setting off stops the exchange and leaves the copy where it is. "Stop and erase the copy", in the same row, deletes it from the server. A factory reset removes the passphrase from this device but does not erase the copy — use the button first if you want both.',
+          'Turning the setting off stops the exchange and leaves the copy where it is. "Stop and erase the copy", in the same row, deletes it from the server — the board and every clip of audio with it. A factory reset removes the passphrase from this device but does not erase the copy — use the button first if you want both.',
         ),
       ],
     },
@@ -100,6 +105,9 @@ export const PRIVACY: ProseDocument = {
         ),
         text(
           'The same applies, deliberately and visibly, if you link an ElevenLabs account. Choosing one of its voices means that each phrase you speak is sent to ElevenLabs to be turned into audio, using your own account and your own credits. It goes from your device straight to them and does not pass through us. What they do with it is governed by their privacy policy, not this one. Unlink the account, or choose a device voice, and nothing is sent.',
+        ),
+        text(
+          'The audio that comes back is kept on your device so the same phrase is never paid for twice. With Synchronize on it is also kept on our server, encrypted, so your own other devices need not pay for it either — see Synchronizing above for exactly what that means and how to erase it.',
         ),
         text(
           'Setting a spoken language works the same way, and mostly sends nothing. The phrases Peri comes with are translated before the app is built, so speaking one of those in another language involves no request at all. Only the phrases you wrote yourself, and messages you build out of several, need translating as you go. Those are sent from your device straight to Google, once each, using our account rather than yours, and the result is kept on your device so it is not sent again. We do not see them and we keep no copy. Set the language back to your device default and nothing is sent at all.',
