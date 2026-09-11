@@ -4,13 +4,16 @@
 // the cell is memoised and takes callbacks that do not change between renders.
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { useDwellControl } from '../ui/dwell'
+import { holdDwells, useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
 import { useEdit } from '../ui/edit-mode'
+import { PickerModal, PickerTile } from '../ui/controls'
 import { stripMarkdown } from '../core/markdown'
 import { hasChoices, type Phrase } from '../core/phrases'
+import { PHRASE_SORTS, sortName } from '../core/sort'
+import { type PhraseSort } from '../core/store'
 import { needsMore, windowSize } from '../core/virtual'
-import { PageIcon } from '../ui/icons'
+import { CustomOrderIcon, PageIcon, SortAlphaIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { PhraseText } from './phrase-text'
 
@@ -82,18 +85,22 @@ const pageBy = (extent: number) => Math.max(extent - SCROLL_STEP, SCROLL_STEP)
 function ScrollBtn({
   onAction,
   repeat,
+  disabled,
   label,
   className,
   children,
 }: {
   onAction: () => void
   repeat?: boolean
+  /** Goes quiet rather than away — see the sort control for the one that does. */
+  disabled?: boolean
   label: string
   className?: string
   children: React.ReactNode
 }) {
   const { settings } = useSettings()
   const { active, props } = useDwellControl(settings.actionDwellMs, onAction, {
+    disabled,
     repeatMs: repeat ? settings.repeatDelayMs : undefined,
   })
   return (
@@ -111,15 +118,144 @@ function ScrollBtn({
 }
 
 /**
- * Scrolling only. The two mode toggles used to sit at the top of this rail; they
- * are in the topbar now, either side of Rest, which is the third of the three
- * and was already there.
+ * A clock and a stack of bars, for the two arrangements that are about use. The
+ * other two reuse the glyphs the category bar already sorts by, so a user learns
+ * one mark for "A to Z" and one for "the order it is in" rather than two.
+ *
+ * These two live here because nothing else draws them — the rule icons follow in
+ * this tree.
+ */
+const RecentIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="9" />
+    <polyline points="12 7 12 12 16 14" />
+  </svg>
+)
+
+const FrequentIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <line x1="6" y1="20" x2="6" y2="14" />
+    <line x1="12" y1="20" x2="12" y2="9" />
+    <line x1="18" y1="20" x2="18" y2="4" />
+  </svg>
+)
+
+/** Which glyph says which arrangement is on. */
+const SORT_ICONS: Record<PhraseSort, React.ReactNode> = {
+  custom: <CustomOrderIcon />,
+  alpha: <SortAlphaIcon />,
+  recent: <RecentIcon />,
+  frequent: <FrequentIcon />,
+}
+
+/**
+ * The one control in this rail that does not scroll: which order the phrases are
+ * in. It sits **above the jump to the top**, outside the scroll group, because a
+ * user learns this rail by position and the five below it are one thing.
+ *
+ * A full-screen grid rather than a list that drops down, for the reason every
+ * choice in this app is one — and a cycling button would be worse still here,
+ * since four states behind one glyph is three dwells and a guess to reach the
+ * one you want. **Choosing closes it**: there is nothing to preview behind the
+ * scrim, so a second dwell on Done would be a target for nothing.
+ *
+ * It **goes quiet rather than away** under the Sent tab. A control that comes
+ * and goes moves the ones below it, and this rail is aimed at rather than read.
+ */
+function SortControl({
+  sort,
+  disabled,
+  onChoose,
+}: {
+  sort: PhraseSort
+  disabled?: boolean
+  onChoose: (sort: PhraseSort) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  // Closing puts the board back under a pointer that has not moved, and under a
+  // new arrangement the cell arriving there is not the one that was there when
+  // the picker opened. Same second the menu takes on its way out, for the same
+  // reason: a phrase must not be spoken by the screen moving.
+  const close = useCallback(() => {
+    setOpen(false)
+    holdDwells()
+  }, [])
+
+  return (
+    <>
+      <ScrollBtn
+        className="sort-btn"
+        disabled={disabled}
+        onAction={() => setOpen(true)}
+        // The glyph says which order is on, so the name does too — a control
+        // that has gone quiet, or that is read aloud, explains nothing by itself.
+        label={
+          disabled
+            ? `Phrase order: ${sortName(sort)}. Sent messages are always newest first`
+            : `Phrase order: ${sortName(sort)}. Choose another`
+        }
+      >
+        {SORT_ICONS[sort]}
+      </ScrollBtn>
+
+      {open && (
+        <PickerModal
+          title="Order the phrases"
+          hint="How every category is arranged"
+          onDone={close}
+          onCancel={close}
+        >
+          {PHRASE_SORTS.map(option => (
+            <PickerTile
+              key={option.id}
+              name={option.name}
+              detail={option.detail}
+              selected={option.id === sort}
+              onSelect={() => {
+                onChoose(option.id)
+                close()
+              }}
+            />
+          ))}
+        </PickerModal>
+      )}
+    </>
+  )
+}
+
+/**
+ * The rail: which order the phrases are in, and then five ways of moving through
+ * them. The two mode toggles used to head it; they are in the topbar now, either
+ * side of Rest, which is the third of the three and was already there.
  */
 function GridScrollBar({
   gridRef,
+  sort,
+  sortDisabled,
+  onChooseSort,
   onBeforeJumpToBottom,
 }: {
   gridRef: React.RefObject<HTMLElement | null>
+  sort: PhraseSort
+  sortDisabled?: boolean
+  onChooseSort: (sort: PhraseSort) => void
   /** Renders the rest of the list, so the jump has somewhere to land. */
   onBeforeJumpToBottom: () => void
 }) {
@@ -141,6 +277,7 @@ function GridScrollBar({
 
   return (
     <div className="grid-scrollbar">
+      <SortControl sort={sort} disabled={sortDisabled} onChoose={onChooseSort} />
       <ScrollBtn onAction={() => scrollTo(0)} label="Scroll to top">
         <svg
           viewBox="0 0 24 24"
@@ -228,11 +365,19 @@ function GridScrollBar({
 export function PhraseGrid({
   phrases,
   emptyMessage,
+  sort,
+  sortDisabled,
+  onChooseSort,
   onSelect,
 }: {
   phrases: Phrase[]
   /** Shown when there is nothing to show, for filters that can legitimately be empty. */
   emptyMessage?: string
+  /** Which of the four orders the list arrived in — the rail says which. */
+  sort: PhraseSort
+  /** True under Sent, which has an order of its own and keeps it. */
+  sortDisabled?: boolean
+  onChooseSort: (sort: PhraseSort) => void
   onSelect: (phrase: Phrase) => void
 }) {
   const gridRef = useRef<HTMLElement>(null)
@@ -309,7 +454,13 @@ export function PhraseGrid({
         </div>
         {phrases.length === 0 && emptyMessage && <p className="grid-empty">{emptyMessage}</p>}
       </main>
-      <GridScrollBar gridRef={gridRef} onBeforeJumpToBottom={showEverything} />
+      <GridScrollBar
+        gridRef={gridRef}
+        sort={sort}
+        sortDisabled={sortDisabled}
+        onChooseSort={onChooseSort}
+        onBeforeJumpToBottom={showEverything}
+      />
     </div>
   )
 }

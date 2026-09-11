@@ -642,6 +642,22 @@ body {
   animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
 }
 
+/* The one control in this rail that does not scroll: which order the phrases
+   are in. Marked off from the five that do — its own height rather than an
+   equal share of the column, and a heavier rule under it — because this rail is
+   found by position rather than read, and the scrolling controls are one thing.
+
+   Quiet rather than gone under the Sent tab: a control that came and went would
+   move the five below it every time somebody looked at what they had said. */
+.sort-btn {
+  flex: 0 0 44px;
+  border-bottom: 2px solid var(--border);
+}
+
+.sort-btn[aria-disabled] {
+  opacity: 0.4;
+}
+
 .phrase-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

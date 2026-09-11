@@ -16,7 +16,7 @@ import {
 } from '../../src/core/backup'
 import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from '../../src/core/store'
 import { EMPTY_ALIASES, type AliasStore } from '../../src/core/phrases'
-import { saveElevenLabs, saveSent } from '../../src/core/store'
+import { saveElevenLabs, saveSent, saveUsage } from '../../src/core/store'
 
 // A store with something of the user's in every field, and the map of ids to
 // categories the app would hand alongside it.
@@ -493,6 +493,23 @@ describe('merging into a device that is already in use', () => {
 // own storage key and never passes through `buildBackup`, which is easy to undo
 // by accident if someone later gathers "everything Peri keeps" into one export.
 describe('what a backup must never carry', () => {
+  /**
+   * How often each phrase is used is the same kind of thing as the Sent list: a
+   * record of what somebody actually said and how often — which body part hurts,
+   * who they keep asking for. A backup is a file made to be handed to somebody
+   * else, and neither belongs in one.
+   */
+  it('leaves how often each phrase is used out of the file', () => {
+    saveUsage({ 'custom-1': { count: 40, at: 1_700_000_000_000 }, 'built-1': { count: 7, at: 1_700_000_000_001 } })
+    const { state, categoryById } = fixture()
+    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+
+    // The ids are in the file — they name the phrases the user changed. What
+    // must not be is any record of how much they have been leant on.
+    expect(file).not.toMatch(/count/i)
+    expect(file).not.toContain('1700000000000')
+  })
+
   it('leaves a linked ElevenLabs key out of the file', () => {
     saveElevenLabs({ apiKey: 'sk-secret-key', voices: [{ id: 'v1', name: 'Rachel' }] })
     const { state, categoryById } = fixture()

@@ -23,6 +23,8 @@ const ELEVENLABS_KEY = 'peri_elevenlabs'
 const TRANSLATIONS_KEY = 'peri_translations'
 const SENT_KEY = 'peri_sent'
 const RECENT_KEY = 'peri_recent'
+const USAGE_KEY = 'peri_usage'
+const PHRASE_SORT_KEY = 'peri_phrase_sort'
 const SYNC_KEY = 'peri_sync'
 
 // ── Settings ─────────────────────────────────────────────────────────────────
@@ -594,6 +596,89 @@ export function saveRecent(recent: RecentChoices) {
   localStorage.setItem(RECENT_KEY, JSON.stringify(recent))
 }
 
+// ── How much each phrase is used ──────────────────────────────────────────────
+// What the board is arranged by when it is arranged by use. Two numbers per
+// phrase: how many times, and when last.
+//
+// Its own key, and deliberately not part of a backup, for the reason the Sent
+// list is not: this is a record of what somebody actually said and how often —
+// which body part hurts, who they keep asking for — and a backup is a file made
+// to be handed to somebody else. `tests/core/backup.test.ts` holds it to that.
+//
+// Keyed by phrase id, so it is bounded by the size of the board rather than by
+// how long somebody has been talking. A deleted phrase's entry is dropped with
+// it; an id naming nothing is skipped anyway.
+
+export interface PhraseUse {
+  /** Times used. Never zero — an unused phrase has no entry at all. */
+  count: number
+  /** When last used, as a millisecond timestamp. */
+  at: number
+}
+
+export type PhraseUsage = Record<string, PhraseUse>
+
+/** The four arrangements the grid offers — see `core/sort.ts`. */
+export type PhraseSort = 'custom' | 'alpha' | 'recent' | 'frequent'
+
+const PHRASE_SORTS_STORED: readonly PhraseSort[] = ['custom', 'alpha', 'recent', 'frequent']
+
+export function loadUsage(): PhraseUsage {
+  try {
+    const raw = JSON.parse(localStorage.getItem(USAGE_KEY) ?? '{}')
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
+    const usage: PhraseUsage = {}
+    for (const [id, entry] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof entry !== 'object' || entry === null) continue
+      const { count, at } = entry as Partial<PhraseUse>
+      // A count of nought is an entry that says nothing, and a negative one is
+      // damage; either would sort above a phrase that has actually been used.
+      if (typeof count !== 'number' || !Number.isFinite(count) || count <= 0) continue
+      if (typeof at !== 'number' || !Number.isFinite(at)) continue
+      usage[id] = { count: Math.floor(count), at }
+    }
+    return usage
+  } catch {
+    return {}
+  }
+}
+
+export function saveUsage(usage: PhraseUsage) {
+  localStorage.setItem(USAGE_KEY, JSON.stringify(usage))
+}
+
+/** The usage after `id` is used once more. */
+export function recordUse(usage: PhraseUsage, id: string, at: number = Date.now()): PhraseUsage {
+  if (!id) return usage
+  return { ...usage, [id]: { count: (usage[id]?.count ?? 0) + 1, at } }
+}
+
+/** The usage with `id` gone, for a phrase that has been deleted. */
+export function forgetUse(usage: PhraseUsage, id: string): PhraseUsage {
+  if (!(id in usage)) return usage
+  const next = { ...usage }
+  delete next[id]
+  return next
+}
+
+/**
+ * Which of the four the grid is showing, exactly as `loadAliasSort` does for
+ * the Aliases panel: a view rather than content, so it is its own small key and
+ * never travels in a backup or a snapshot.
+ *
+ * One arrangement for the whole board rather than one per category. The control
+ * is a single button in the rail, and a button that meant something different
+ * under every tab would be one nobody could learn.
+ */
+export function loadPhraseSort(): PhraseSort {
+  const stored = localStorage.getItem(PHRASE_SORT_KEY)
+  return PHRASE_SORTS_STORED.find(s => s === stored) ?? 'custom'
+}
+
+export function savePhraseSort(sort: PhraseSort) {
+  localStorage.setItem(PHRASE_SORT_KEY, sort)
+}
+
 // ── A linked ElevenLabs account ───────────────────────────────────────────────
 // Its own key, and deliberately not part of a backup: a backup is made to be
 // shared, and the key in one hands over the account it belongs to along with
@@ -803,6 +888,8 @@ const RESETTABLE_KEYS = [
   TRANSLATIONS_KEY,
   SENT_KEY,
   RECENT_KEY,
+  USAGE_KEY,
+  PHRASE_SORT_KEY,
   SYNC_KEY,
 ] as const
 

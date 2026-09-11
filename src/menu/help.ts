@@ -67,6 +67,28 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Putting the phrases in a different order',
+    blocks: [
+      text(
+        'The button at the very top of the scrolling buttons, above the one that jumps to the top, sets the order the phrases are shown in. It applies to every category.',
+      ),
+      list(
+        'Custom order shows them in the order the board already has, which is how Peri comes.',
+        'A to Z puts them in alphabetical order by what each one says.',
+        'Recently used puts whatever you said last at the front.',
+        'Most used puts whatever you say most often at the front.',
+      ),
+      text(
+        'The two that go by use only rearrange the board when you change tab or change the order. They deliberately do not move while you are talking: a phrase sliding under the pointer is a phrase you did not choose.',
+      ),
+      text('Phrases you have never used sit after the ones you have, in the order the board already had them.'),
+      text(
+        'Peri counts what you use on this device only. It is never included in a backup and never sent anywhere, for the same reason the list of what you have said is not.',
+      ),
+      text('The Sent tab keeps its own order, newest first, so the button is switched off while it is showing.'),
+    ],
+  },
+  {
     title: 'Phrases with a choice',
     blocks: [
       text('Some phrases have a word left open, shown underlined — for example "Please turn on/off the lights".'),
