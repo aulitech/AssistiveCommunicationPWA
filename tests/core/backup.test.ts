@@ -684,10 +684,18 @@ describe('the arrangement of the phrases in a category', () => {
   // A file that says nothing else is still worth something if it arranges a
   // category, so it must not count as empty.
   it('counts as something the file says', () => {
-    const { state, categoryById } = fixture()
+    const { categoryById } = fixture()
     const store: PhraseStore = { ...emptyStore(), phraseOrder: { Food: ['a', 'b'] } }
-    const backup = buildBackup({ ...state, store, categoryById, aliases: EMPTY_ALIASES })
-    expect(summarize(backup).empty).toBe(false)
+    const state: AppState = { store, aliases: EMPTY_ALIASES, settings: DEFAULT_SETTINGS }
+    // Scoped, so neither the settings nor the word lists ride along: an
+    // arrangement is the only thing left in the file that can speak for it.
+    const arranged = buildBackup({ ...state, categoryById, scope: ['Food'] })
+    expect(summarize(arranged).empty).toBe(false)
+
+    // And the same file with the arrangement taken out really is empty, or the
+    // line above would pass whatever the arrangement counted for.
+    const bare = buildBackup({ ...state, store: emptyStore(), categoryById, scope: ['Food'] })
+    expect(summarize(bare).empty).toBe(true)
   })
 
   /**
