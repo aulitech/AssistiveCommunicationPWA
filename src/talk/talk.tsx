@@ -123,8 +123,15 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
   const showingSent = effectiveFilter === SENT_FILTER
 
-  /** What this tab is showing. A tab nobody has chosen for shows the board's own order. */
-  const phraseSort = sortFor(phraseSorts, effectiveFilter)
+  /**
+   * Whether this tab is a category of its own: somewhere a hand arrangement can
+   * be built, and so somewhere Custom order means anything. Neither All nor Sent
+   * is one.
+   */
+  const canArrange = effectiveFilter !== 'all' && !showingSent
+
+  /** What this tab is showing. A tab nobody has chosen for shows `DEFAULT_SORT`. */
+  const phraseSort = sortFor(phraseSorts, effectiveFilter, canArrange)
 
   // Sent messages are their own list rather than part of the board: they are a
   // record of what was said, not phrases anybody added.
@@ -643,11 +650,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             // Sent is not a category. It is a record in the order it happened,
             // newest first, and that is the whole of what it is for.
             sortDisabled={showingSent}
+            canArrange={canArrange}
             onChooseSort={chooseSort}
             reordering={editMode && reorderingPhrases}
-            // Neither All nor Sent is a category, and an arrangement here
-            // belongs to one.
-            reorderDisabled={effectiveFilter === 'all' || showingSent}
             onToggleReorder={editMode ? () => setReorderingPhrases(r => !r) : undefined}
             onReorder={editMode ? handleReorderPhrases : undefined}
             onLift={text => flashToast(`Holding ${text} — dwell where it should go`)}

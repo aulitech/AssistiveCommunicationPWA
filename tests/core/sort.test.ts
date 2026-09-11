@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { PHRASE_SORTS, sortName, sortPhrases } from '../../src/core/sort'
+import { PHRASE_SORTS, sortName, sortPhrases, sortsFor } from '../../src/core/sort'
 import {
+  DEFAULT_SORT,
   forgetUse,
   loadPhraseSorts,
   loadUsage,
@@ -260,9 +261,12 @@ describe('what is kept on the device', () => {
 describe('which order each tab is showing', () => {
   beforeEach(() => localStorage.clear())
 
-  it('is the board’s own order for a tab nobody has chosen for', () => {
-    expect(sortFor({}, 'Food')).toBe('custom')
-    expect(sortFor({ Food: 'alpha' }, 'Home')).toBe('custom')
+  // Asserted as the word rather than through DEFAULT_SORT, or moving the
+  // default again would move this test with it and prove nothing.
+  it('is Most used for a tab nobody has chosen for', () => {
+    expect(sortFor({}, 'Food')).toBe('frequent')
+    expect(sortFor({ Food: 'alpha' }, 'Home')).toBe('frequent')
+    expect(DEFAULT_SORT).toBe('frequent')
   })
 
   it('is what was chosen for the tab it was chosen under', () => {
@@ -273,10 +277,16 @@ describe('which order each tab is showing', () => {
     expect(setSortFor({ Food: 'alpha' }, 'Home', 'recent')).toEqual({ Food: 'alpha', Home: 'recent' })
   })
 
-  // The board's own order is the default, so storing it says nothing — and a
-  // record that is all defaults is an empty one.
+  // Storing the default says nothing — and a record that is all defaults is an
+  // empty one.
   it('drops the entry rather than storing the default', () => {
-    expect(setSortFor({ Food: 'alpha', Home: 'recent' }, 'Food', 'custom')).toEqual({ Home: 'recent' })
+    expect(setSortFor({ Food: 'alpha', Home: 'recent' }, 'Food', 'frequent')).toEqual({ Home: 'recent' })
+  })
+
+  // The board's own order is no longer the default, so it has to be stored like
+  // any other choice — it was the one value setSortFor threw away.
+  it('stores the board’s own order rather than dropping it', () => {
+    expect(setSortFor({}, 'Food', 'custom')).toEqual({ Food: 'custom' })
   })
 
   it('does not change the record it was given', () => {
@@ -319,8 +329,51 @@ describe('which order each tab is showing', () => {
   })
 
   it('carries nothing forward from a board that was on the default', () => {
+    localStorage.setItem('peri_phrase_sort', 'frequent')
+    expect(loadPhraseSorts()).toEqual({})
+  })
+
+  // All is where a single order lands, and All offers no Custom order — so that
+  // one is dropped rather than written somewhere it could not be got back from.
+  it('carries nothing forward from a board that was on the board’s own order', () => {
     localStorage.setItem('peri_phrase_sort', 'custom')
     expect(loadPhraseSorts()).toEqual({})
+  })
+})
+
+/**
+ * A hand arrangement belongs to one category, and All shows every category at
+ * once — so All offers no Custom order, and neither does Sent. Hiding a tile
+ * that is also a tab's way home is how you strand somebody, which is the whole
+ * of why `sortFor` has to answer for a stored one too.
+ */
+describe('the tabs that are not a category', () => {
+  it('offers all four under a category', () => {
+    expect(sortsFor(true).map(s => s.id)).toEqual(['custom', 'alpha', 'recent', 'frequent'])
+  })
+
+  it('offers every one but Custom order where nothing can be arranged', () => {
+    expect(sortsFor(false).map(s => s.id)).toEqual(['alpha', 'recent', 'frequent'])
+  })
+
+  // Built once each, so a picker that has not changed does not look as though
+  // it has.
+  it('hands back the same list every time', () => {
+    expect(sortsFor(true)).toBe(sortsFor(true))
+    expect(sortsFor(false)).toBe(sortsFor(false))
+  })
+
+  it('shows the default where a stored Custom order could not be got back from', () => {
+    expect(sortFor({ all: 'custom' }, 'all', false)).toBe('frequent')
+  })
+
+  it('leaves every other stored order alone there', () => {
+    expect(sortFor({ all: 'alpha' }, 'all', false)).toBe('alpha')
+  })
+
+  it('keeps a stored Custom order for a tab that can be arranged', () => {
+    expect(sortFor({ Food: 'custom' }, 'Food', true)).toBe('custom')
+    expect(sortFor({ Food: 'custom' }, 'Food')).toBe('custom')
   })
 })
 

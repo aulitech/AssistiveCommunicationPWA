@@ -11,7 +11,7 @@ import { useEdit } from '../ui/edit-mode'
 import { PickerModal, PickerTile } from '../ui/controls'
 import { stripMarkdown } from '../core/markdown'
 import { hasChoices, type Phrase } from '../core/phrases'
-import { PHRASE_SORTS, sortName } from '../core/sort'
+import { sortName, sortsFor } from '../core/sort'
 import { type PhraseSort } from '../core/store'
 import { needsMore, windowSize } from '../core/virtual'
 import { CustomOrderIcon, PageIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
@@ -247,10 +247,13 @@ const SORT_ICONS: Record<PhraseSort, React.ReactNode> = {
 function SortControl({
   sort,
   disabled,
+  canArrange,
   onChoose,
 }: {
   sort: PhraseSort
   disabled?: boolean
+  /** False under All, which offers no Custom order — see `sortsFor`. */
+  canArrange: boolean
   onChoose: (sort: PhraseSort) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -288,7 +291,7 @@ function SortControl({
           onDone={close}
           onCancel={close}
         >
-          {PHRASE_SORTS.map(option => (
+          {sortsFor(canArrange).map(option => (
             <PickerTile
               key={option.id}
               name={option.name}
@@ -315,19 +318,19 @@ function GridScrollBar({
   gridRef,
   sort,
   sortDisabled,
+  canArrange,
   onChooseSort,
   reordering,
-  reorderDisabled,
   onToggleReorder,
   onBeforeJumpToBottom,
 }: {
   gridRef: React.RefObject<HTMLElement | null>
   sort: PhraseSort
   sortDisabled?: boolean
+  /** False under All and Sent, neither of which is a category to arrange. */
+  canArrange: boolean
   onChooseSort: (sort: PhraseSort) => void
   reordering?: boolean
-  /** True under All and Sent, neither of which is a category to arrange. */
-  reorderDisabled?: boolean
   /** Edit mode only; absent otherwise, and the control with it. */
   onToggleReorder?: () => void
   /** Renders the rest of the list, so the jump has somewhere to land. */
@@ -355,15 +358,15 @@ function GridScrollBar({
           it, grouped and ruled off. The five below are one thing, learnt by
           position, and nothing may be inserted among them. */}
       <div className="rail-tools">
-        <SortControl sort={sort} disabled={sortDisabled} onChoose={onChooseSort} />
+        <SortControl sort={sort} disabled={sortDisabled} canArrange={canArrange} onChoose={onChooseSort} />
         {onToggleReorder && (
           <ScrollBtn
             className="rail-tool reorder-btn"
-            disabled={reorderDisabled}
+            disabled={!canArrange}
             pressed={reordering}
             onAction={onToggleReorder}
             label={
-              reorderDisabled
+              !canArrange
                 ? 'Arrange the phrases by hand. Open a category first — All cannot be arranged'
                 : reordering
                   ? 'Done arranging the phrases'
@@ -464,9 +467,9 @@ export function PhraseGrid({
   emptyMessage,
   sort,
   sortDisabled,
+  canArrange,
   onChooseSort,
   reordering,
-  reorderDisabled,
   onToggleReorder,
   onReorder,
   onLift,
@@ -484,10 +487,11 @@ export function PhraseGrid({
   sort: PhraseSort
   /** True under Sent, which has an order of its own and keeps it. */
   sortDisabled?: boolean
+  /** False under All and Sent: no Custom order to offer, and nothing to arrange. */
+  canArrange: boolean
   onChooseSort: (sort: PhraseSort) => void
-  /** All five of these are edit-mode only. */
+  /** All four of these are edit-mode only. */
   reordering?: boolean
-  reorderDisabled?: boolean
   onToggleReorder?: () => void
   onReorder?: (from: string, to: string) => void
   /** Announced when a phrase is picked up — the styling alone says nothing aloud. */
@@ -632,9 +636,9 @@ export function PhraseGrid({
         gridRef={gridRef}
         sort={sort}
         sortDisabled={sortDisabled}
+        canArrange={canArrange}
         onChooseSort={onChooseSort}
         reordering={reordering}
-        reorderDisabled={reorderDisabled}
         onToggleReorder={onToggleReorder && toggleReorder}
         onBeforeJumpToBottom={showEverything}
       />
