@@ -25,6 +25,19 @@ export const PHRASE_SORTS: { id: PhraseSort; name: string; detail: string }[] = 
   { id: 'frequent', name: 'Most used', detail: 'What you use most, first' },
 ]
 
+const WITHOUT_CUSTOM = PHRASE_SORTS.filter(s => s.id !== 'custom')
+
+/**
+ * The orders a tab offers.
+ *
+ * **All offers no Custom order.** A hand arrangement belongs to one category and
+ * All shows every category at once, so there is nothing for it to be an
+ * arrangement *of* — the tile would promise something nobody could build. Both
+ * lists are built once, so a picker that has not changed does not look as though
+ * it has.
+ */
+export const sortsFor = (canArrange: boolean) => (canArrange ? PHRASE_SORTS : WITHOUT_CUSTOM)
+
 /** What a sort is called, for a control that has to say which one is on. */
 export const sortName = (sort: PhraseSort) => PHRASE_SORTS.find(s => s.id === sort)?.name ?? 'Custom order'
 

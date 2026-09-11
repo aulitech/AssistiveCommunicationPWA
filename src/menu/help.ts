@@ -82,6 +82,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Most used puts whatever you say most often at the front.',
       ),
       text(
+        'Every tab starts on Most used. Nothing is lost by that: a phrase you have never said keeps the place the board gave it, so a board you have only just opened looks exactly as it always did and sorts itself out as you talk.',
+      ),
+      text(
         'The two that go by use rearrange the board as you use it, so the phrase you just said moves to the front straight away. Nothing can be chosen for a moment afterwards, until you look somewhere else — otherwise whatever slid under the pointer would be chosen by the move itself.',
       ),
       text('Phrases you have never used sit after the ones you have, in the order the board already had them.'),
@@ -90,6 +93,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'Each tab keeps its own order, so you can have one category alphabetical and another by what you use most. Opening a tab brings back the order you left it in, and the button always says which one that is.',
+      ),
+      text(
+        'The All tab is not offered Custom order, because your own order belongs to one category and All shows every category at once.',
       ),
       text('The Sent tab keeps its own order, newest first, so the button is switched off while it is showing.'),
     ],

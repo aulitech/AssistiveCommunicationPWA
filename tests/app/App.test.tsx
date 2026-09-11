@@ -19,8 +19,18 @@ const $$ = <T extends Element = HTMLElement>(sel: string) => [...container.query
 
 const settle = () => act(() => void vi.advanceTimersByTime(50))
 
+/**
+ * A pointer that travelled to what it is clicking, which is what a real one
+ * does — and what a tap has to be, since the guards answer a click exactly as
+ * they answer a dwell. Somewhere new each time, because the guard the board
+ * takes when it rearranges under a live order is held until the pointer is
+ * aimed somewhere else.
+ */
+let pointerAt = 0
 function click(el: Element | null | undefined) {
   if (!el) throw new Error('tried to click something that is not rendered')
+  pointerAt = (pointerAt + 200) % 1000
+  fireEvent.pointerMove(document.body, { clientX: pointerAt, clientY: 300 })
   fireEvent.click(el)
   settle()
 }
@@ -55,6 +65,21 @@ const editToggle = () => $('.edit-toggle')!
 const speakToggle = () => $('.autospeak-toggle')!
 const plainCell = (skip: string[] = []) =>
   cells().find(c => !c.querySelector('.phrase-slot') && !skip.includes(c.textContent ?? ''))!
+/**
+ * Chooses the first option until the picker is done. **Bounded on purpose**: an
+ * option that stops answering leaves this spinning rather than failing, and a
+ * test that hangs takes the whole suite with it silently — which is exactly what
+ * happened when the board began rearranging live and the tap after a phrase was
+ * refused until the pointer moved.
+ */
+function fillEverySlot() {
+  for (let left = 20; left > 0; left--) {
+    if (!$('.slot-picker')) return
+    click($$('.slot-option')[0])
+  }
+  throw new Error('the slot picker never closed')
+}
+
 const slotCell = () =>
   cells().find(c => {
     const s = c.querySelector('.phrase-slot')
@@ -333,7 +358,7 @@ describe('fill-in-the-blank phrases', () => {
   it('inserts the composed sentence once every slot is chosen', () => {
     renderApp()
     click(slotCell())
-    while ($('.slot-picker')) click($$('.slot-option')[0])
+    fillEverySlot()
 
     expect(message()).not.toMatch(/[{}]/)
     expect(message().length).toBeGreaterThan(0)
@@ -388,7 +413,7 @@ describe('auto-speak', () => {
     renderApp({ autoSpeak: true })
     click(slotCell())
     expect($('.slot-picker')).not.toBeNull()
-    while ($('.slot-picker')) click($$('.slot-option')[0])
+    fillEverySlot()
 
     expect(spoken).toHaveLength(1)
     expect(spoken[0]).not.toMatch(/[{}]/)

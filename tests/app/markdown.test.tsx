@@ -15,8 +15,18 @@ const $ = <T extends Element = HTMLElement>(sel: string) => container.querySelec
 const $$ = <T extends Element = HTMLElement>(sel: string) => [...container.querySelectorAll<T>(sel)]
 const settle = () => act(() => void vi.advanceTimersByTime(50))
 
+/**
+ * A pointer that travelled to what it is clicking, which is what a real one
+ * does — and what a tap has to be, since the guards answer a click exactly as
+ * they answer a dwell. Somewhere new each time, because the guard the board
+ * takes when it rearranges under a live order is held until the pointer is
+ * aimed somewhere else.
+ */
+let pointerAt = 0
 function click(el: Element | null | undefined) {
   if (!el) throw new Error('tried to click something that is not rendered')
+  pointerAt = (pointerAt + 200) % 1000
+  fireEvent.pointerMove(document.body, { clientX: pointerAt, clientY: 300 })
   fireEvent.click(el)
   settle()
 }

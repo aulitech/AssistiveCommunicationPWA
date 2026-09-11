@@ -717,6 +717,17 @@ export function forgetUse(usage: PhraseUsage, id: string): PhraseUsage {
  */
 export type PhraseSorts = Record<string, PhraseSort>
 
+/**
+ * Where every tab starts: **what gets used most, first.**
+ *
+ * A board arrives with two and a half thousand phrases in the order a table
+ * happens to list them, and the one somebody wants next is nearly always one
+ * they have wanted before. Nothing is lost by starting here — a phrase nobody
+ * has used keeps the place the board gave it, so a board that has not been used
+ * yet looks exactly as it always did, and it sorts itself out as it is spoken.
+ */
+export const DEFAULT_SORT: PhraseSort = 'frequent'
+
 const readSort = (raw: unknown): PhraseSort | undefined => PHRASE_SORTS_STORED.find(s => s === raw)
 
 export function loadPhraseSorts(): PhraseSorts {
@@ -726,15 +737,17 @@ export function loadPhraseSorts(): PhraseSorts {
   // order. It was chosen while looking at some tab, and All is the one the
   // board opens on, so that is where it lands rather than being thrown away.
   const legacy = readSort(stored)
-  if (legacy) return legacy === 'custom' ? {} : { all: legacy }
+  // Its one order went to All, which is the tab the board opens on — unless it
+  // was the board's own order, which All no longer offers.
+  if (legacy) return legacy === 'custom' || legacy === DEFAULT_SORT ? {} : { all: legacy }
   try {
     const raw: unknown = JSON.parse(stored)
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
     const sorts: PhraseSorts = {}
     for (const [filter, value] of Object.entries(raw as Record<string, unknown>)) {
       const sort = readSort(value)
-      // The board's own order is the default, so storing it says nothing.
-      if (sort && sort !== 'custom') sorts[filter] = sort
+      // Storing the default says nothing.
+      if (sort && sort !== DEFAULT_SORT) sorts[filter] = sort
     }
     return sorts
   } catch {
@@ -746,18 +759,29 @@ export function savePhraseSorts(sorts: PhraseSorts) {
   localStorage.setItem(PHRASE_SORT_KEY, JSON.stringify(sorts))
 }
 
-/** What a tab is showing. Anything nobody has chosen for shows the board's own order. */
-export const sortFor = (sorts: PhraseSorts, filter: string): PhraseSort => sorts[filter] ?? 'custom'
+/**
+ * What a tab is showing. A tab nobody has chosen for shows `DEFAULT_SORT`.
+ *
+ * **`canArrange` is false for All**, which offers no Custom order: a hand
+ * arrangement belongs to one category and All shows every category at once, so
+ * there is no arrangement for it to be in. A stored `custom` there is read as
+ * the default rather than left as a state its own picker could not get back to.
+ */
+export function sortFor(sorts: PhraseSorts, filter: string, canArrange = true): PhraseSort {
+  const stored = sorts[filter]
+  if (!stored) return DEFAULT_SORT
+  return stored === 'custom' && !canArrange ? DEFAULT_SORT : stored
+}
 
 /**
- * The orders after choosing one for a tab. The board's own order drops the entry
- * rather than storing it, so a record that is all defaults is an empty one — the
- * rule the phrase arrangements follow, and what keeps a key nobody has touched
- * out of storage.
+ * The orders after choosing one for a tab. The default drops the entry rather
+ * than storing it, so a record that is all defaults is an empty one — the rule
+ * the phrase arrangements follow, and what keeps a tab nobody has touched out of
+ * storage.
  */
 export function setSortFor(sorts: PhraseSorts, filter: string, sort: PhraseSort): PhraseSorts {
   const next = { ...sorts }
-  if (sort === 'custom') delete next[filter]
+  if (sort === DEFAULT_SORT) delete next[filter]
   else next[filter] = sort
   return next
 }

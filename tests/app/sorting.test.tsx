@@ -104,15 +104,16 @@ describe('the control in the rail', () => {
   // them is on, to a screen reader and to anybody who has not learnt the mark.
   it('names the order it is in', () => {
     renderApp()
-    expect(sortBtn().getAttribute('aria-label')).toBe('Phrase order: Custom order. Choose another')
+    expect(sortBtn().getAttribute('aria-label')).toBe('Phrase order: Most used. Choose another')
 
     chooseOrder('A to Z')
 
     expect(sortBtn().getAttribute('aria-label')).toBe('Phrase order: A to Z. Choose another')
   })
 
-  it('offers all four orders', () => {
+  it('offers all four orders under a category', () => {
     renderApp()
+    showSorted()
     click(sortBtn())
     expect(tiles().map(t => t.querySelector('.picker-tile-name')?.textContent)).toEqual([
       'Custom order',
@@ -120,6 +121,42 @@ describe('the control in the rail', () => {
       'Recently used',
       'Most used',
     ])
+  })
+
+  /**
+   * A hand arrangement belongs to one category, and All shows every category at
+   * once — so there is nothing there for Custom order to be an arrangement of,
+   * and a tile promising one would promise something nobody could build.
+   */
+  it('offers every order but Custom order under All', () => {
+    renderApp()
+    click(sortBtn())
+    expect(tiles().map(t => t.querySelector('.picker-tile-name')?.textContent)).toEqual([
+      'A to Z',
+      'Recently used',
+      'Most used',
+    ])
+  })
+
+  /**
+   * All is where a single order written before there was one per tab lands, and
+   * a board could have been left on Custom order under it. Hiding a tile that is
+   * also a tab's way home is how you strand somebody, so a stored one reads as
+   * the default rather than as a state this picker could not get back to.
+   */
+  it('shows the default under All for a stored order it no longer offers', () => {
+    localStorage.setItem('peri_phrase_sort', JSON.stringify({ all: 'custom' }))
+    renderApp()
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Most used\./)
+  })
+
+  // The same word under a real category is that category's own arrangement, and
+  // is left exactly as it was chosen.
+  it('keeps a stored Custom order under a category', () => {
+    localStorage.setItem('peri_phrase_sort', JSON.stringify({ Sorted: 'custom' }))
+    renderApp()
+    showSorted()
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Custom order\./)
   })
 
   // There is nothing to try out behind the scrim, so a second dwell on Done
@@ -132,6 +169,7 @@ describe('the control in the rail', () => {
 
   it('says which one is chosen while the picker is open', () => {
     renderApp()
+    showSorted()
     chooseOrder('Most used')
     click(sortBtn())
     expect(tileNamed('Most used')?.getAttribute('aria-selected')).toBe('true')
@@ -140,9 +178,15 @@ describe('the control in the rail', () => {
 })
 
 describe('what each order does', () => {
+  /**
+   * Most used is where every tab starts, and a phrase nobody has used keeps the
+   * place the board gave it — so a board that has not been talked with yet looks
+   * exactly as it always did. That is the whole of why starting there is safe.
+   */
   it('opens on the order the board already has', () => {
     renderApp()
     showSorted()
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Most used\./)
     expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
   })
 
@@ -174,7 +218,7 @@ describe('what each order does', () => {
 
     click(tab('Other'))
 
-    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Custom order\./)
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Most used\./)
     expect(onBoard()).toEqual(['Xylophone', 'Aardvark'])
   })
 
@@ -218,7 +262,7 @@ describe('what each order does', () => {
     chooseOrder('A to Z')
     showSorted()
 
-    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Custom order\./)
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Most used\./)
     expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
   })
 
