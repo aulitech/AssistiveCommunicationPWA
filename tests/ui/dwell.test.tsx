@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, act } from '@testing-library/react'
-import { SETTLE_MS, holdDwells, releaseDwells, useDwellControl } from '../../src/ui/dwell'
+import { SETTLE_MS, holdDwells, onDwellActivation, releaseDwells, useDwellControl } from '../../src/ui/dwell'
 
 function Probe({
   onActivate,
@@ -497,5 +497,92 @@ describe('the pointer going quiet', () => {
     advance(500)
 
     expect(probe().dataset.active).toBe('false')
+  })
+})
+
+// One listener set, told whenever anything fires, for the things that mark what
+// just happened and have to stop claiming it the moment anything else does. The
+// grid's mark on the last phrase said is the only one today.
+describe('being told that something fired', () => {
+  it('tells a listener when a dwell fires', () => {
+    const told = vi.fn()
+    const stop = onDwellActivation(told)
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    fireEvent.pointerEnter(probe())
+    advance(500)
+
+    expect(told).toHaveBeenCalledTimes(1)
+    stop()
+  })
+
+  /**
+   * **Before the control's own action, not after.** It is what lets a phrase
+   * cell clear the old mark and set its own in one breath, rather than clearing
+   * the one it has just set.
+   */
+  it('tells them before the action runs', () => {
+    const order: string[] = []
+    const stop = onDwellActivation(() => order.push('told'))
+    render(<Probe onActivate={() => order.push('acted')} />)
+
+    fireEvent.pointerEnter(probe())
+    advance(500)
+
+    expect(order).toEqual(['told', 'acted'])
+    stop()
+  })
+
+  it('tells them for a tap and for the keyboard too', () => {
+    const told = vi.fn()
+    const stop = onDwellActivation(told)
+    render(<Probe onActivate={() => {}} />)
+
+    fireEvent.click(probe())
+    expect(told).toHaveBeenCalledTimes(1)
+
+    fireEvent.keyDown(probe(), { key: 'Enter' })
+    expect(told).toHaveBeenCalledTimes(2)
+    stop()
+  })
+
+  it('tells them on every repeat, not only the first', () => {
+    const told = vi.fn()
+    const stop = onDwellActivation(told)
+    render(<Probe onActivate={() => {}} repeatMs={100} />)
+
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    advance(200)
+
+    expect(told).toHaveBeenCalledTimes(3)
+    stop()
+  })
+
+  // A listener that outlived what it was told for would go on setting state on
+  // something that is no longer there, every time anything in the app fired.
+  it('stops telling one that has unsubscribed', () => {
+    const told = vi.fn()
+    onDwellActivation(told)()
+    render(<Probe onActivate={() => {}} />)
+
+    fireEvent.pointerEnter(probe())
+    advance(500)
+
+    expect(told).not.toHaveBeenCalled()
+  })
+
+  it('tells every listener there is', () => {
+    const first = vi.fn()
+    const second = vi.fn()
+    const stops = [onDwellActivation(first), onDwellActivation(second)]
+    render(<Probe onActivate={() => {}} />)
+
+    fireEvent.click(probe())
+
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(second).toHaveBeenCalledTimes(1)
+    for (const stop of stops) stop()
   })
 })
