@@ -111,6 +111,13 @@ let streamingSeenAt = 0
 
 function notePointerMove(e: PointerEvent) {
   const t = Date.now()
+  // Aimed somewhere else, so whatever is under the pointer now is under it on
+  // purpose. Measured from where the screen moved, not from the previous event:
+  // a pointer crosses a cell in three-pixel steps and nothing would ever exceed
+  // the tolerance one step at a time.
+  if (heldUntilMoved && Math.abs(e.clientX - heldAt.x) + Math.abs(e.clientY - heldAt.y) > MOVED_AWAY_PX) {
+    heldUntilMoved = false
+  }
   // A gap ends the run: what is being looked for is *uninterrupted* movement.
   if (t - lastMoveAt > STREAM_GAP_MS) moves = []
   lastMoveAt = t
@@ -178,9 +185,46 @@ export function holdDwells(ms: number = SETTLE_MS) {
   deafUntil = Date.now() + ms
 }
 
-/** Test seam: nothing in the app clears the guard early. */
+/**
+ * How far the pointer has to travel before it counts as having been aimed
+ * somewhere new. Above gaze jitter, which drifts a pixel or two while somebody
+ * holds as still as they can, and far below the width of anything targetable.
+ */
+const MOVED_AWAY_PX = 24
+
+/** Set while nothing may arm until the pointer is aimed somewhere else. */
+let heldUntilMoved = false
+let heldAt = { x: 0, y: 0 }
+
+/**
+ * Go deaf until the pointer moves, rather than until a second has passed.
+ *
+ * For the screen moving underneath somebody *while they are working the very
+ * control that moved it* — the board rearranging itself on the dwell that
+ * rearranged it. A second of deafness is the wrong shape there: it is both too
+ * long, since somebody who has already aimed somewhere else is made to wait,
+ * and too short, since a gaze that stays put for longer than that comes back to
+ * a board that answers whatever it happens to be resting on.
+ *
+ * **Arming only ever happens on arrival**, so this is exactly "nothing may be
+ * chosen until the pointer leaves the thing it is on": the cell that arrives
+ * under a motionless pointer is refused, and stays refused until the pointer
+ * leaves it and enters something else. Clearing on movement rather than on that
+ * exit is the same rule seen from the other side — a pointer cannot leave what
+ * it is on without moving — and it is the half that also covers the case where
+ * nothing lands under the pointer at all, which would otherwise leave the guard
+ * up and swallow the next thing somebody deliberately aimed at.
+ */
+export function holdDwellsUntilMoved() {
+  heldUntilMoved = true
+  const last = moves[moves.length - 1]
+  heldAt = last ? { x: last.x, y: last.y } : { x: 0, y: 0 }
+}
+
+/** Test seam: nothing in the app clears either guard early. */
 export function releaseDwells() {
   deafUntil = 0
+  heldUntilMoved = false
 }
 
 export interface DwellOptions {
@@ -244,6 +288,9 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     // Deaf: the screen moved under the pointer a moment ago, so whatever it is
     // resting on now is not what it was aimed at.
     if (Date.now() < deafUntil) return
+    // Deaf until it is aimed somewhere else — the board rearranged itself on
+    // the very dwell that rearranged it, and this is whatever landed underneath.
+    if (heldUntilMoved) return
     dwellFiredRef.current = false
     stalledRef.current = false
     setActive(true)

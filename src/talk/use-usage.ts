@@ -1,30 +1,21 @@
-// How much each phrase is used, and the snapshot of it the board is arranged by.
+// How much each phrase is used: how many times, and when last.
 //
-// Those are deliberately two different things. **A usage sort settles rather
-// than following every dwell**: using a phrase counts it immediately, but the
-// board only rearranges when the tab or the arrangement changes.
+// **The board is arranged by it live.** Using a phrase counts it and the grid
+// rearranges on the same dwell, which is what "most recently used" says on the
+// tin — and what makes the order worth having, since the phrase somebody is
+// about to want next is usually the one they just used.
 //
-// Live re-sorting is the obvious reading of "most recently used" and it is the
-// wrong behaviour here. The pointer is somebody's gaze, and it rests where it
-// last fired — so a board that reordered itself the instant a phrase was spoken
-// would slide a different phrase under a resting gaze and say that one too. It
-// would also collapse the grid's window and take the view back to the top after
-// every utterance, mid-conversation. What somebody asked for by choosing this
-// order is a board arranged by what they use, not a board that moves while they
-// are using it.
+// What that costs is the thing this app has to be careful about: the pointer is
+// somebody's gaze and it rests where it last fired, so the cell arriving under
+// it after the rearrangement would start dwelling on nobody's instruction. That
+// is `holdDwellsUntilMoved`, called where the board is rearranged — nothing can
+// be chosen until the gaze leaves whatever it is resting on.
 
 import { useCallback, useState } from 'react'
 import { forgetUse, loadUsage, recordUse, saveUsage, type PhraseUsage } from '../core/store'
 
-export function useUsage(arrangeKey: string) {
+export function useUsage() {
   const [counts, setCounts] = useState<PhraseUsage>(loadUsage)
-
-  // The snapshot the board is arranged by, captured whenever `arrangeKey`
-  // changes — the tab, or the chosen arrangement. Adjusted during render rather
-  // than in an effect, the same way the grid restarts its window, so no pass is
-  // ever painted with the old snapshot over a new tab.
-  const [arranged, setArranged] = useState(() => ({ key: arrangeKey, counts }))
-  if (arranged.key !== arrangeKey) setArranged({ key: arrangeKey, counts })
 
   const write = useCallback((next: PhraseUsage) => {
     saveUsage(next)
@@ -40,5 +31,5 @@ export function useUsage(arrangeKey: string) {
   /** Drops a deleted phrase's count, so the record stays the size of the board. */
   const forget = useCallback((id: string) => write(forgetUse(loadUsage(), id)), [write])
 
-  return { arrangedBy: arranged.counts, record, forget }
+  return { counts, record, forget }
 }
