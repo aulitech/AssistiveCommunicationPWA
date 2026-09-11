@@ -76,7 +76,16 @@ function readClip(value: unknown): Blob | null {
   }
 }
 
-/** The uploaded keys out of what was sealed. Anything else reads as none. */
+/**
+ * The uploaded keys out of what was sealed. Anything else reads as none.
+ *
+ * **The filter cannot change what happens today**, and it is here anyway: only
+ * this user's own devices can write this blob, so nothing but strings ever
+ * reaches it, and a stray number would derive its own harmless address and be
+ * deleted from nowhere. What it buys is that the `string[]` is true, which is
+ * what lets `noteClip` and `forgetClips` treat every entry as one without a
+ * cast between them.
+ */
 function readIndex(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((key): key is string => typeof key === 'string') : []
 }
@@ -159,22 +168,28 @@ export async function putClip(keys: SyncKeys, device: string, cacheKey: string, 
 /**
  * Takes every clip off the server, and then the list of them.
  *
- * What *Take the board off the server* has to do about audio. The index is
- * dropped last, so a run that is interrupted leaves a list that still names
- * whatever is left and can simply be run again.
+ * What *Take the board off the server* has to do about audio.
+ *
+ * **The list goes only if every clip went**, which is the other half of writing
+ * it first. `drop` answers with a value rather than throwing, so a refused
+ * DELETE would otherwise be walked straight past and the list taken away over
+ * the top of it — leaving somebody's words at an address nothing now names,
+ * after they had asked for them back. What is left instead is a list that still
+ * names them, so running this again finishes the job.
  */
 export async function forgetClips(keys: SyncKeys): Promise<void> {
   try {
     const result = await pull(keys.clipIndexAddress)
     if (result.status !== 'ok' || !result.slot.envelope) return
 
+    let allGone = true
     for (const cacheKey of readIndex(await open(keys.key, result.slot.envelope))) {
-      await drop(await keys.clipAddress(cacheKey))
+      if (!(await drop(await keys.clipAddress(cacheKey)))) allGone = false
     }
-    await drop(keys.clipIndexAddress)
+    if (allGone) await drop(keys.clipIndexAddress)
   } catch {
-    // The list is dropped last, so whatever is left is still named by it and
-    // running this again finishes the job.
+    // Whatever is left is still named by the list, and running this again
+    // finishes the job.
   }
 }
 
