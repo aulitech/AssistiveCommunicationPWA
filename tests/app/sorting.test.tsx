@@ -605,6 +605,59 @@ describe('arranging the phrases by hand', () => {
 
     expect($('.phrase-cell.reorderable')).toBeNull()
   })
+
+  /**
+   * Switching the mode off puts down whatever was in the air. Without it the
+   * phrase stays held across the round trip, and the next dwell drops the
+   * forgotten one instead of lifting the cell under the pointer.
+   */
+  it('puts down what was in the air when the mode is switched off', () => {
+    renderApp()
+    showSorted()
+    arrangeOn()
+    click(cellFor('Cherry'))
+
+    click(reorderBtn()) // off, which drops what was held
+    click(reorderBtn()) // and on again
+    click(cellFor('Apple'))
+
+    expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
+    expect(toast()).toBe('Holding Apple — dwell where it should go')
+  })
+
+  // A store that only ever accumulates is one nobody can read later, and an
+  // arrangement naming phrases that no longer exist is the way it would.
+  it('forgets a phrase that is deleted', () => {
+    renderApp()
+    showSorted()
+    arrangeOn()
+    click(cellFor('Cherry'))
+    click(cellFor('Banana'))
+    expect(stored()).toEqual({ Sorted: ['custom-a', 'custom-b', 'custom-c'] })
+
+    click(reorderBtn()) // back to plain edit mode, where a cell opens
+    click(cellFor('Apple'))
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Delete phrase'))
+
+    expect(stored()).toEqual({ Sorted: ['custom-b', 'custom-c'] })
+  })
+
+  // The last one out takes the key with it.
+  it('keeps no empty arrangement behind', () => {
+    renderApp([{ id: 'custom-only', text: 'Alone', category: 'Sorted' }, ...BOARD])
+    showSorted()
+    arrangeOn()
+    click(cellFor('Alone'))
+    click(cellFor('Cherry'))
+    click(reorderBtn())
+
+    for (const text of ['Alone', 'Cherry', 'Apple', 'Banana']) {
+      click(cellFor(text))
+      click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Delete phrase'))
+    }
+
+    expect(stored()).toEqual({})
+  })
 })
 
 describe('what is counted', () => {
