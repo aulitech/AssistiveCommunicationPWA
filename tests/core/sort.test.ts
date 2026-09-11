@@ -1,0 +1,255 @@
+import { describe, it, expect, beforeEach } from 'vitest'
+import { PHRASE_SORTS, sortName, sortPhrases } from '../../src/core/sort'
+import {
+  forgetUse,
+  loadPhraseSort,
+  loadUsage,
+  recordUse,
+  savePhraseSort,
+  saveUsage,
+  type PhraseSort,
+  type PhraseUsage,
+} from '../../src/core/store'
+import { plainPhrase, type Phrase } from '../../src/core/phrases'
+
+// The four arrangements the grid rail offers, and the record they are arranged
+// by. Driven through the app in App.test.tsx; this is the arithmetic underneath,
+// where the ties and the phrases nobody has used yet can actually be seen.
+
+const board = (...texts: string[]): Phrase[] => texts.map((t, i) => plainPhrase(`p${i}`, t, 'Home'))
+
+const said = (phrases: Phrase[]) => phrases.map(p => p.text)
+
+/** A usage record built by naming the phrase, its count, and when it was last used. */
+const usageOf = (...entries: [id: string, count: number, at: number][]): PhraseUsage =>
+  Object.fromEntries(entries.map(([id, count, at]) => [id, { count, at }]))
+
+describe('the board’s own order', () => {
+  // The grid starts its window again whenever the array it is given changes
+  // identity, so a copy here would collapse the window — and the view with it —
+  // every time anything else on the screen moved.
+  it('hands back the very same array, not a copy of it', () => {
+    const phrases = board('one', 'two', 'three')
+    expect(sortPhrases(phrases, 'custom', {})).toBe(phrases)
+  })
+
+  it('is what a usage record cannot change', () => {
+    const phrases = board('one', 'two', 'three')
+    expect(said(sortPhrases(phrases, 'custom', usageOf(['p2', 9, 900])))).toEqual(['one', 'two', 'three'])
+  })
+})
+
+describe('A to Z', () => {
+  it('puts them in alphabetical order', () => {
+    expect(said(sortPhrases(board('Banana', 'apple', 'Cherry'), 'alpha', {}))).toEqual([
+      'apple',
+      'Banana',
+      'Cherry',
+    ])
+  })
+
+  // The same rule search matches by: nobody types the asterisks they can see are
+  // not there, and nobody looks for a bold phrase under the punctuation either.
+  it('files a phrase by what it says, not by how it is marked up', () => {
+    const sorted = sortPhrases(board('**Zebra**', '**Apple**', 'Mango'), 'alpha', {})
+    expect(said(sorted)).toEqual(['**Apple**', 'Mango', '**Zebra**'])
+  })
+
+  it('leaves the array it was given alone', () => {
+    const phrases = board('Banana', 'apple')
+    sortPhrases(phrases, 'alpha', {})
+    expect(said(phrases)).toEqual(['Banana', 'apple'])
+  })
+})
+
+describe('recently used', () => {
+  it('puts the most recent first', () => {
+    const phrases = board('one', 'two', 'three')
+    const usage = usageOf(['p0', 1, 100], ['p1', 1, 300], ['p2', 1, 200])
+    expect(said(sortPhrases(phrases, 'recent', usage))).toEqual(['two', 'three', 'one'])
+  })
+
+  /**
+   * A board that has barely been used must not come out shuffled. Ranking the
+   * unused among themselves is the opposite of what asking for this order means.
+   */
+  it('leaves the phrases nobody has used after the ones somebody has, in the board’s order', () => {
+    const phrases = board('one', 'two', 'three', 'four')
+    const usage = usageOf(['p3', 1, 100], ['p1', 1, 200])
+    expect(said(sortPhrases(phrases, 'recent', usage))).toEqual(['two', 'four', 'one', 'three'])
+  })
+
+  it('breaks a tie on the same moment by how often, and then by the board', () => {
+    const phrases = board('one', 'two', 'three')
+    const usage = usageOf(['p0', 1, 500], ['p1', 4, 500], ['p2', 1, 500])
+    expect(said(sortPhrases(phrases, 'recent', usage))).toEqual(['two', 'one', 'three'])
+  })
+
+  it('is the board’s own order when nothing has been used', () => {
+    expect(said(sortPhrases(board('one', 'two', 'three'), 'recent', {}))).toEqual(['one', 'two', 'three'])
+  })
+})
+
+describe('most used', () => {
+  it('puts the highest count first', () => {
+    const phrases = board('one', 'two', 'three')
+    const usage = usageOf(['p0', 2, 100], ['p1', 9, 100], ['p2', 5, 100])
+    expect(said(sortPhrases(phrases, 'frequent', usage))).toEqual(['two', 'three', 'one'])
+  })
+
+  it('breaks a tie on the same count by which was used last', () => {
+    const phrases = board('one', 'two', 'three')
+    const usage = usageOf(['p0', 3, 100], ['p1', 3, 300], ['p2', 3, 200])
+    expect(said(sortPhrases(phrases, 'frequent', usage))).toEqual(['two', 'three', 'one'])
+  })
+
+  it('leaves the phrases nobody has used after the ones somebody has, in the board’s order', () => {
+    const phrases = board('one', 'two', 'three', 'four')
+    const usage = usageOf(['p2', 1, 100])
+    expect(said(sortPhrases(phrases, 'frequent', usage))).toEqual(['three', 'one', 'two', 'four'])
+  })
+
+  it('is the board’s own order when nothing has been used', () => {
+    expect(said(sortPhrases(board('one', 'two', 'three'), 'frequent', {}))).toEqual(['one', 'two', 'three'])
+  })
+})
+
+// A record outlives the phrase it was about — a deleted phrase, or a board
+// restored from a backup written on another device.
+it('ignores a count naming a phrase that is not on the board', () => {
+  const phrases = board('one', 'two')
+  const usage = usageOf(['gone', 99, 9999], ['p1', 1, 100])
+  expect(said(sortPhrases(phrases, 'recent', usage))).toEqual(['two', 'one'])
+  expect(said(sortPhrases(phrases, 'frequent', usage))).toEqual(['two', 'one'])
+})
+
+describe('counting a use', () => {
+  it('starts a phrase nobody has used at one', () => {
+    expect(recordUse({}, 'p1', 500)).toEqual({ p1: { count: 1, at: 500 } })
+  })
+
+  it('counts up, and moves the moment on', () => {
+    const once = recordUse({}, 'p1', 500)
+    expect(recordUse(once, 'p1', 900)).toEqual({ p1: { count: 2, at: 900 } })
+  })
+
+  it('leaves every other phrase alone', () => {
+    const usage = usageOf(['p1', 3, 100])
+    expect(recordUse(usage, 'p2', 500).p1).toEqual({ count: 3, at: 100 })
+  })
+
+  it('does not change the record it was given', () => {
+    const usage = usageOf(['p1', 3, 100])
+    recordUse(usage, 'p1', 500)
+    expect(usage.p1).toEqual({ count: 3, at: 100 })
+  })
+
+  it('ignores a phrase with no id', () => {
+    const usage = usageOf(['p1', 1, 100])
+    expect(recordUse(usage, '', 500)).toBe(usage)
+  })
+})
+
+describe('forgetting a deleted phrase', () => {
+  it('takes its count away', () => {
+    expect(forgetUse(usageOf(['p1', 3, 100], ['p2', 1, 200]), 'p1')).toEqual({ p2: { count: 1, at: 200 } })
+  })
+
+  it('hands back the same record when there was nothing to forget', () => {
+    const usage = usageOf(['p1', 3, 100])
+    expect(forgetUse(usage, 'p2')).toBe(usage)
+  })
+
+  it('does not change the record it was given', () => {
+    const usage = usageOf(['p1', 3, 100])
+    forgetUse(usage, 'p1')
+    expect(usage.p1).toEqual({ count: 3, at: 100 })
+  })
+})
+
+describe('what is kept on the device', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('round-trips', () => {
+    const usage = usageOf(['p1', 3, 100], ['p2', 1, 200])
+    saveUsage(usage)
+    expect(loadUsage()).toEqual(usage)
+  })
+
+  it('is empty before anything has been used', () => {
+    expect(loadUsage()).toEqual({})
+  })
+
+  it('reads nothing out of damage', () => {
+    for (const raw of ['not json', '[]', 'null', '"words"', '7']) {
+      localStorage.setItem('peri_usage', raw)
+      expect(loadUsage(), raw).toEqual({})
+    }
+  })
+
+  /**
+   * A count of nought says nothing and a negative one is damage, and either
+   * would sort a phrase nobody has used above one somebody has.
+   */
+  it('drops an entry that could not have come from using a phrase', () => {
+    localStorage.setItem(
+      'peri_usage',
+      JSON.stringify({
+        good: { count: 2, at: 100 },
+        zero: { count: 0, at: 100 },
+        negative: { count: -3, at: 100 },
+        notANumber: { count: 'lots', at: 100 },
+        infinite: { count: Infinity, at: 100 },
+        noMoment: { count: 1, at: 'yesterday' },
+        notAnEntry: 4,
+        nothing: null,
+      }),
+    )
+    expect(loadUsage()).toEqual({ good: { count: 2, at: 100 } })
+  })
+
+  it('rounds a fractional count down rather than dropping the phrase', () => {
+    localStorage.setItem('peri_usage', JSON.stringify({ p1: { count: 2.7, at: 100 } }))
+    expect(loadUsage()).toEqual({ p1: { count: 2, at: 100 } })
+  })
+})
+
+describe('which order is showing', () => {
+  beforeEach(() => localStorage.clear())
+
+  // A view rather than content, so it is its own key — and the board's own order
+  // is where Peri ships, because it is the one nobody has to have used it to get.
+  it('is the board’s own order until somebody chooses another', () => {
+    expect(loadPhraseSort()).toBe('custom')
+  })
+
+  it('round-trips every one of the four', () => {
+    for (const { id } of PHRASE_SORTS) {
+      savePhraseSort(id)
+      expect(loadPhraseSort()).toBe(id)
+    }
+  })
+
+  it('falls back rather than trusting a word it does not know', () => {
+    localStorage.setItem('peri_phrase_sort', 'by-colour')
+    expect(loadPhraseSort()).toBe('custom')
+  })
+})
+
+describe('the four on offer', () => {
+  it('is every order the grid can be in, once each', () => {
+    const ids = PHRASE_SORTS.map(s => s.id)
+    expect(ids).toEqual(['custom', 'alpha', 'recent', 'frequent'])
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  // The rail button is one glyph, so its name is the only thing saying which
+  // order is on — to a screen reader, and to anybody who has not learnt the mark.
+  it('names each one', () => {
+    for (const { id, name } of PHRASE_SORTS) expect(sortName(id)).toBe(name)
+  })
+
+  it('names something for an order it has never heard of', () => {
+    expect(sortName('sideways' as PhraseSort)).toBe('Custom order')
+  })
+})

@@ -15,13 +15,17 @@ import { compose, composeWithBlank, hasChoices, parseSegments, type Phrase } fro
 import { soleLink } from '../core/markdown'
 import { openLink } from '../core/links'
 import { search } from '../core/search'
+import { sortPhrases } from '../core/sort'
 import {
   loadElevenLabs,
+  loadPhraseSort,
   loadRecent,
   sameAccount,
   saveElevenLabs,
+  savePhraseSort,
   saveRecent,
   type ElevenLabsAccount,
+  type PhraseSort,
   type User,
 } from '../core/store'
 import { applyBackup, buildBackup, type AppState } from '../core/backup'
@@ -46,6 +50,7 @@ import { useBoard } from './use-board'
 import { useComposer } from './use-composer'
 import { useEditor } from './use-editor'
 import { SENT_CATEGORY, SENT_FILTER, useSent } from './use-sent'
+import { useUsage } from './use-usage'
 import { useToast } from './use-toast'
 
 export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => void }) {
@@ -68,6 +73,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const [editingCategory, setEditingCategory] = useState<{ name: string | null; forDraft?: boolean } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
   const [recent, setRecent] = useState(loadRecent)
+  // Which of the four orders the grid is in. One for the whole board rather than
+  // one per tab: the control is a single button in the rail, and a button that
+  // meant something different under every tab would be one nobody could learn.
+  const [phraseSort, setPhraseSort] = useState<PhraseSort>(loadPhraseSort)
 
   const { store, allCategories, voiceFor } = board
 
@@ -114,13 +123,36 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // away the phrases the user came to edit.
   const filterWord = editMode ? '' : currentWord
 
+  // How often each phrase is used, and the snapshot the board is arranged by.
+  // The arrangement is recaptured when the tab or the order changes and at no
+  // other time — see `use-usage.ts` for why it must not follow every dwell.
+  const usage = useUsage(`${effectiveFilter}\u0000${phraseSort}`)
+
+  // Arranged before it is searched, never after. Filtering to a category keeps
+  // the order it is given and so does the ranking, so this decides ties within a
+  // rank band while a typed word still puts the best match first.
+  const arrangedPhrases = useMemo(
+    () => sortPhrases(board.mainPhrases, phraseSort, usage.arrangedBy),
+    [board.mainPhrases, phraseSort, usage.arrangedBy],
+  )
+
   const visiblePhrases = useMemo(
     () =>
       showingSent
         ? search(sent.phrases, SENT_CATEGORY, filterWord)
-        : search(board.mainPhrases, effectiveFilter, filterWord),
-    [showingSent, sent.phrases, board.mainPhrases, effectiveFilter, filterWord],
+        : search(arrangedPhrases, effectiveFilter, filterWord),
+    [showingSent, sent.phrases, arrangedPhrases, effectiveFilter, filterWord],
   )
+
+  /**
+   * A different arrangement moves every cell on the board at once. The picker
+   * holds the dwells on its way out, which is what stops the phrase arriving
+   * under a resting pointer being spoken by the change itself.
+   */
+  const chooseSort = useCallback((next: PhraseSort) => {
+    setPhraseSort(next)
+    savePhraseSort(next)
+  }, [])
 
   // ── Choosing a phrase ──────────────────────────────────────────────────────
 
@@ -145,6 +177,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
   const handleSelectPhrase = useCallback(
     (phrase: Phrase) => {
+      // Counted here rather than at the speaker, because this is the one place a
+      // phrase is *chosen* — whatever it then does, speak, compose or open a
+      // link. Edit mode never reaches here: a cell opens the editor instead.
+      //
+      // Not under Sent. Those ids name a message rather than a phrase on the
+      // board, so counting them would fill the record with ids that can never
+      // match anything and never fall out.
+      if (!showingSent) usage.record(phrase.id)
       // A phrase that is nothing but a link is a button for going somewhere, so
       // it goes there instead of saying its own label out loud. A phrase with
       // words around a link is still a sentence and still speaks — see
@@ -171,7 +211,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       const { blankAt } = composeWithBlank(phrase.segments)
       deliverPhrase(phrase.text, voiceFor(phrase.id), blankAt)
     },
-    [deliverPhrase, voiceFor, flashToast],
+    [deliverPhrase, voiceFor, flashToast, showingSent, usage],
   )
 
   // ── Editing what is on the board ───────────────────────────────────────────
@@ -231,10 +271,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     // Forgetting a message is the only way to take something off that list, and
     // somebody who has just said something private needs one.
     if (keeping) sent.forget(phrase.id)
-    else board.removePhrase(phrase.id)
+    else {
+      board.removePhrase(phrase.id)
+      // Its count goes with it, so the record stays the size of the board.
+      usage.forget(phrase.id)
+    }
     startNew()
     flashToast(keeping ? 'Forgotten' : 'Deleted')
-  }, [draft, board, sent, startNew, flashToast])
+  }, [draft, board, sent, usage, startNew, flashToast])
 
   // ── Editing the categories ─────────────────────────────────────────────────
 
@@ -538,6 +582,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
           <PhraseGrid
             phrases={visiblePhrases}
             emptyMessage={showingSent ? 'Nothing said yet. Messages you speak or copy are kept here.' : undefined}
+            sort={phraseSort}
+            // Sent is not a category. It is a record in the order it happened,
+            // newest first, and that is the whole of what it is for.
+            sortDisabled={showingSent}
+            onChooseSort={chooseSort}
             onSelect={handleSelectPhrase}
           />
 
