@@ -127,6 +127,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // The arrangement is recaptured when the tab or the order changes and at no
   // other time — see `use-usage.ts` for why it must not follow every dwell.
   const usage = useUsage(`${effectiveFilter}\u0000${phraseSort}`)
+  // Pulled out for the reason `insertPhrase` is: `handleSelectPhrase` reaches
+  // every one of a couple of thousand memoised cells, and a callback depending
+  // on the whole of a hook result depends on a fresh object every render.
+  const { record: recordUsed, forget: forgetUsed } = usage
 
   // Arranged before it is searched, never after. Filtering to a category keeps
   // the order it is given and so does the ranking, so this decides ties within a
@@ -184,7 +188,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // Not under Sent. Those ids name a message rather than a phrase on the
       // board, so counting them would fill the record with ids that can never
       // match anything and never fall out.
-      if (!showingSent) usage.record(phrase.id)
+      if (!showingSent) recordUsed(phrase.id)
       // A phrase that is nothing but a link is a button for going somewhere, so
       // it goes there instead of saying its own label out loud. A phrase with
       // words around a link is still a sentence and still speaks — see
@@ -211,7 +215,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       const { blankAt } = composeWithBlank(phrase.segments)
       deliverPhrase(phrase.text, voiceFor(phrase.id), blankAt)
     },
-    [deliverPhrase, voiceFor, flashToast, showingSent, usage],
+    [deliverPhrase, voiceFor, flashToast, showingSent, recordUsed],
   )
 
   // ── Editing what is on the board ───────────────────────────────────────────
@@ -274,11 +278,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     else {
       board.removePhrase(phrase.id)
       // Its count goes with it, so the record stays the size of the board.
-      usage.forget(phrase.id)
+      forgetUsed(phrase.id)
     }
     startNew()
     flashToast(keeping ? 'Forgotten' : 'Deleted')
-  }, [draft, board, sent, usage, startNew, flashToast])
+  }, [draft, board, sent, forgetUsed, startNew, flashToast])
 
   // ── Editing the categories ─────────────────────────────────────────────────
 
