@@ -170,8 +170,6 @@ describe('what each order does', () => {
 
     click(cellFor('Apple'))
     click(cellFor('Banana'))
-    click(tab('All'))
-    showSorted()
 
     expect(onBoard()).toEqual(['Banana', 'Apple', 'Cherry'])
   })
@@ -184,8 +182,6 @@ describe('what each order does', () => {
     click(cellFor('Banana'))
     click(cellFor('Apple'))
     click(cellFor('Apple'))
-    click(tab('All'))
-    showSorted()
 
     // Apple twice, Banana once, and Cherry — which nobody has used — after both,
     // where the board already had it.
@@ -226,45 +222,178 @@ describe('a typed word ranks over the order', () => {
 })
 
 /**
- * **The board must not move while it is being used.** The pointer is somebody's
- * gaze and it rests where it last fired, so a board that reordered itself the
- * instant a phrase was spoken would slide a different phrase under that gaze and
- * say that one too — and take the view back to the top mid-conversation.
+ * The board follows use **on the dwell that used it**, which is what the order
+ * says on the tin. What it costs is the thing this app has to be careful about,
+ * and the next block is the answer to it.
  */
-describe('a usage order settles rather than following every dwell', () => {
-  it('leaves the board where it is while phrases are being used', () => {
+describe('the board follows use as it happens', () => {
+  it('rearranges on the very dwell that counted', () => {
     renderApp()
     showSorted()
     chooseOrder('Recently used')
 
     click(cellFor('Banana'))
-    click(cellFor('Banana'))
 
-    expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
+    expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
   })
 
-  it('counts them all the same, and shows it at the next tab', () => {
+  it('leaves the board alone under an order that is not about use', () => {
     renderApp()
+    showSorted()
+    chooseOrder('A to Z')
+
+    click(cellFor('Cherry'))
+
+    expect(onBoard()).toEqual(['Apple', 'Banana', 'Cherry'])
+  })
+})
+
+/**
+ * The window the grid renders starts again when the *list* changes — a new tab,
+ * a new word — and not when the same phrases arrive in a new order. It used to
+ * key off the array's own identity, which under an order that follows use meant
+ * the grid shrank back to one screenful on every phrase spoken, and the view
+ * went with it.
+ *
+ * jsdom lays nothing out, so a test about the window has to supply the viewport
+ * the window is measured from — see `rendering only part of a long grid`.
+ */
+describe('the rendered window under a live order', () => {
+  const MANY = Array.from({ length: 80 }, (_, i) => ({
+    id: `custom-${String(i).padStart(2, '0')}`,
+    text: `Phrase ${String(i).padStart(2, '0')}`,
+    category: 'Sorted',
+  }))
+
+  afterEach(() => Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight'))
+
+  const setGeometry = (el: Element, props: Record<string, number>) => {
+    for (const [k, v] of Object.entries(props)) Object.defineProperty(el, k, { value: v, configurable: true })
+  }
+
+  /** 200px of viewport at 72px rows is 3 rows; four screens of those, 5 across. */
+  const layOut = (scrollTop: number) => {
+    const wrapper = $('.grid-wrapper')!
+    const grid = $('.phrase-grid')!
+    vi.spyOn(window, 'getComputedStyle').mockImplementation(
+      el => ({ gridTemplateColumns: el === grid ? '1fr 1fr 1fr 1fr 1fr' : '' }) as CSSStyleDeclaration,
+    )
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { value: 72, configurable: true })
+    setGeometry(wrapper, { clientHeight: 200, scrollHeight: 1600, scrollTop })
+    act(() => void fireEvent.scroll(wrapper))
+    settle()
+  }
+
+  it('keeps everything it had grown to render', () => {
+    renderApp(MANY)
     showSorted()
     chooseOrder('Recently used')
 
-    click(cellFor('Banana'))
+    layOut(0)
+    expect(cells()).toHaveLength(60)
+
+    // Reaching the end grows the window to the whole list, which is the state
+    // somebody is in when they are deep in a long category.
+    layOut(1400)
+    expect(cells()).toHaveLength(80)
+    layOut(0)
+
+    click(cellFor('Phrase 07'))
+
+    expect(onBoard()[0]).toBe('Phrase 07')
+    expect(cells()).toHaveLength(80)
+  })
+
+  // The other half of the same rule: a genuinely different list does start again.
+  it('starts again for a different tab', () => {
+    renderApp(MANY)
+    showSorted()
+    layOut(1400)
+    expect(cells()).toHaveLength(80)
+    // Back to the top, or the regrowth that follows any reset would hide it.
+    layOut(0)
+
     click(tab('All'))
     showSorted()
 
-    expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
+    expect(cells()).toHaveLength(60)
   })
+})
 
-  // Changing the order is the other moment it is safe to rearrange, and the one
-  // somebody has just asked for.
-  it('rearranges when the order itself is changed', () => {
+/**
+ * **The pointer is somebody's gaze, and it rests where it last fired.** So the
+ * board rearranging itself on that very dwell slides a different phrase under a
+ * gaze that has not moved — and the browser gives whatever lands there a
+ * `pointerenter` of its own, which is an instruction nobody gave.
+ *
+ * Nothing may be chosen until the gaze is aimed somewhere else. A second of
+ * deafness is the wrong shape for this one: too long for somebody who has
+ * already looked away, and too short for a gaze that stays put.
+ */
+describe('the board rearranging under a resting gaze', () => {
+  /** What the browser does by itself when a cell lands under a motionless pointer. */
+  const arrivesUnderThePointer = (index: number) => {
+    fireEvent.pointerEnter(cells()[index])
+    act(() => void vi.advanceTimersByTime(1500))
+  }
+
+  const dwellOn = (text: string) => {
+    fireEvent.pointerEnter(cellFor(text)!)
+    act(() => void vi.advanceTimersByTime(1500))
+  }
+
+  /** The picker's own guard, which is a timed one, has to lapse first. */
+  const readyOn = (order: string) => {
     renderApp()
     showSorted()
-    click(cellFor('Banana'))
+    chooseOrder(order)
+    act(() => void vi.advanceTimersByTime(1000))
+    spoken.length = 0
+  }
 
-    chooseOrder('Most used')
+  it('says nothing for the cell that arrives under a pointer that has not moved', () => {
+    readyOn('Recently used')
 
+    dwellOn('Banana')
+    expect(spoken).toEqual(['Banana'])
     expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
+
+    arrivesUnderThePointer(2)
+
+    expect(spoken).toEqual(['Banana'])
+  })
+
+  it('answers again once the gaze is aimed somewhere else', () => {
+    readyOn('Recently used')
+    dwellOn('Banana')
+
+    fireEvent.pointerMove(document.body, { clientX: 400, clientY: 400 })
+    arrivesUnderThePointer(2)
+
+    expect(spoken).toEqual(['Banana', 'Apple'])
+  })
+
+  // A gaze drifts a pixel or two while somebody holds as still as they can, and
+  // that is not aiming somewhere else.
+  it('is not let go of by jitter', () => {
+    readyOn('Recently used')
+    dwellOn('Banana')
+
+    fireEvent.pointerMove(document.body, { clientX: 3, clientY: 4 })
+    arrivesUnderThePointer(2)
+
+    expect(spoken).toEqual(['Banana'])
+  })
+
+  // Nothing rearranged, so nothing is held back.
+  it('leaves an order that is not about use alone', () => {
+    readyOn('A to Z')
+
+    dwellOn('Apple')
+    fireEvent.pointerLeave(cellFor('Apple')!)
+    dwellOn('Banana')
+
+    expect(spoken).toEqual(['Apple', 'Banana'])
   })
 })
 

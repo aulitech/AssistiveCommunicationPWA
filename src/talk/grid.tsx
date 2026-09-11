@@ -364,6 +364,7 @@ function GridScrollBar({
  */
 export function PhraseGrid({
   phrases,
+  listKey,
   emptyMessage,
   sort,
   sortDisabled,
@@ -371,6 +372,11 @@ export function PhraseGrid({
   onSelect,
 }: {
   phrases: Phrase[]
+  /**
+   * What makes this a *different list* rather than the same one in a new order —
+   * the tab and the word being typed. The window starts again when it changes.
+   */
+  listKey: string
   /** Shown when there is nothing to show, for filters that can legitimately be empty. */
   emptyMessage?: string
   /** Which of the four orders the list arrived in — the rail says which. */
@@ -390,9 +396,15 @@ export function PhraseGrid({
   // A different list starts again from one windowful. Adjusting during render
   // rather than in an effect avoids a pass showing the old window over the new
   // list — and `step` is state, so this reads nothing it should not.
-  const [forList, setForList] = useState(phrases)
-  if (forList !== phrases) {
-    setForList(phrases)
+  //
+  // **Keyed on what makes it a different list, not on the array's identity.**
+  // The board is rearranged live by the orders that follow use, so the array is
+  // a new one on every phrase spoken — and collapsing the window back to a
+  // screenful each time would shrink the grid under somebody and take the view
+  // with it, which is the whole of what a rearrangement must not do.
+  const [forKey, setForKey] = useState(listKey)
+  if (forKey !== listKey) {
+    setForKey(listKey)
     setShown(step)
   }
 
