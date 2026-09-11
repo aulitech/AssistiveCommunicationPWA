@@ -18,8 +18,17 @@ const inBody = <T extends Element = HTMLElement>(sel: string) => [...document.bo
 
 const settle = () => act(() => void vi.advanceTimersByTime(50))
 
+/**
+ * A pointer that travelled to what it is clicking, which is what a real one
+ * does — and what a tap now has to be, since the guards answer a click exactly
+ * as they answer a dwell. Somewhere new each time, because the guard that holds
+ * until the pointer is aimed elsewhere measures from where the screen moved.
+ */
+let pointerAt = 0
 function click(el: Element | null | undefined) {
   if (!el) throw new Error('tried to click something that is not rendered')
+  pointerAt = (pointerAt + 200) % 1000
+  fireEvent.pointerMove(document.body, { clientX: pointerAt, clientY: 300 })
   fireEvent.click(el)
   settle()
 }
@@ -60,10 +69,15 @@ const sortBtn = () => $('.grid-scrollbar .sort-btn')!
 const tiles = () => inBody('.picker-tile')
 const tileNamed = (name: string) => tiles().find(t => t.querySelector('.picker-tile-name')?.textContent === name)
 
-/** Opens the rail's order control and chooses one. */
+/**
+ * Opens the rail's order control and chooses one, then waits out the second the
+ * picker goes deaf for on its way out — every cell on the board has just moved,
+ * and a person choosing what to do next takes longer than that anyway.
+ */
 function chooseOrder(name: string) {
   click(sortBtn())
   click(tileNamed(name))
+  act(() => void vi.advanceTimersByTime(1000))
 }
 
 beforeEach(() => vi.useFakeTimers())
@@ -406,7 +420,6 @@ describe('the board rearranging under a resting gaze', () => {
     renderApp()
     showSorted()
     chooseOrder(order)
-    act(() => void vi.advanceTimersByTime(1000))
     spoken.length = 0
   }
 
@@ -436,12 +449,48 @@ describe('the board rearranging under a resting gaze', () => {
   // that is not aiming somewhere else.
   it('is not let go of by jitter', () => {
     readyOn('Recently used')
+    // Where the gaze is resting when the board moves under it — the distance is
+    // measured from here, so the test has to say where "here" is.
+    fireEvent.pointerMove(document.body, { clientX: 300, clientY: 200 })
     dwellOn('Banana')
 
-    fireEvent.pointerMove(document.body, { clientX: 3, clientY: 4 })
+    fireEvent.pointerMove(document.body, { clientX: 303, clientY: 204 })
     arrivesUnderThePointer(2)
 
     expect(spoken).toEqual(['Banana'])
+  })
+
+  /**
+   * What a gaze rig set to send real left clicks actually produces, and the
+   * report that sent us looking for a bug that was not there: the board
+   * rearranges, the gaze has not moved, and the tracker clicks again where it is
+   * resting. A click is guarded exactly as a dwell is, or the platform walks
+   * straight around every guard in the app.
+   */
+  it('says nothing for a click that lands where the pointer already was', () => {
+    readyOn('Recently used')
+    fireEvent.pointerMove(document.body, { clientX: 300, clientY: 200 })
+    dwellOn('Banana')
+    expect(spoken).toEqual(['Banana'])
+    expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
+
+    // No movement in between — the click is the tracker's, not a hand's.
+    fireEvent.click(cells()[2])
+    settle()
+
+    expect(spoken).toEqual(['Banana'])
+  })
+
+  it('takes the click once the gaze has gone somewhere else', () => {
+    readyOn('Recently used')
+    fireEvent.pointerMove(document.body, { clientX: 300, clientY: 200 })
+    dwellOn('Banana')
+
+    fireEvent.pointerMove(document.body, { clientX: 700, clientY: 500 })
+    fireEvent.click(cells()[2])
+    settle()
+
+    expect(spoken).toEqual(['Banana', 'Apple'])
   })
 
   // Nothing rearranged, so nothing is held back.
@@ -465,7 +514,8 @@ describe('the change under a resting pointer', () => {
   it('goes deaf for a second after the picker closes', () => {
     renderApp()
     showSorted()
-    chooseOrder('A to Z')
+    click(sortBtn())
+    click(tileNamed('A to Z'))
     spoken.length = 0
 
     fireEvent.pointerEnter(cellFor('Apple')!)
@@ -478,7 +528,6 @@ describe('the change under a resting pointer', () => {
     renderApp()
     showSorted()
     chooseOrder('A to Z')
-    act(() => void vi.advanceTimersByTime(1000))
     spoken.length = 0
 
     fireEvent.pointerEnter(cellFor('Apple')!)

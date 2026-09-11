@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, act } from '@testing-library/react'
-import { SETTLE_MS, holdDwells, onDwellActivation, releaseDwells, useDwellControl } from '../../src/ui/dwell'
+import {
+  SETTLE_MS,
+  holdDwells,
+  holdDwellsUntilMoved,
+  onDwellActivation,
+  releaseDwells,
+  useDwellControl,
+} from '../../src/ui/dwell'
 
 function Probe({
   onActivate,
@@ -584,5 +591,67 @@ describe('being told that something fired', () => {
     expect(first).toHaveBeenCalledTimes(1)
     expect(second).toHaveBeenCalledTimes(1)
     for (const stop of stops) stop()
+  })
+})
+
+/**
+ * **A tap is guarded exactly as a dwell is**, which is not obvious and is the
+ * whole point. A gaze rig can be set to send a real left click where it rests,
+ * so on the device this app is for the click *is* the dwell — the operating
+ * system is doing the holding — and a guard the platform walks around is not a
+ * guard. The symptom is identical either way: a phrase spoken that nobody chose.
+ */
+describe('a tap while the screen has just moved', () => {
+  const tap = (fn: () => void) => {
+    render(<Probe onActivate={fn} />)
+    fireEvent.click(probe())
+  }
+
+  it('is refused while the app is deaf', () => {
+    const onActivate = vi.fn()
+    holdDwells()
+    tap(onActivate)
+    expect(onActivate, 'a click landed on a control that had just arrived').not.toHaveBeenCalled()
+  })
+
+  it('lands again once the moment has passed', () => {
+    const onActivate = vi.fn()
+    holdDwells()
+    advance(SETTLE_MS + 1)
+    tap(onActivate)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  // The one the gaze rig actually produces: the board rearranged itself, the
+  // pointer has not moved, and the tracker clicks again where it is resting.
+  it('is refused until the pointer is aimed somewhere else', () => {
+    const onActivate = vi.fn()
+    holdDwellsUntilMoved()
+    tap(onActivate)
+    expect(onActivate).not.toHaveBeenCalled()
+
+    fireEvent.pointerMove(document.body, { clientX: 500, clientY: 400 })
+    fireEvent.click(probe())
+
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * Enter and Space are aimed by focus rather than by position, and focus
+   * follows its element when the screen moves — so there is nothing for the
+   * pointer's stillness to say about them, and swallowing them would leave a
+   * keyboard user with no working control.
+   */
+  it('does not hold the keyboard back', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+
+    holdDwells()
+    fireEvent.keyDown(probe(), { key: 'Enter' })
+    expect(onActivate).toHaveBeenCalledTimes(1)
+
+    holdDwellsUntilMoved()
+    fireEvent.keyDown(probe(), { key: ' ' })
+    expect(onActivate).toHaveBeenCalledTimes(2)
   })
 })

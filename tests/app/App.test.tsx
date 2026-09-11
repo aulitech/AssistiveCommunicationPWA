@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 import App from '../../src/App'
 import { BLANK, PHRASES, composeWithBlank, hasBlank } from '../../src/core/phrases'
 import { DEFAULT_SETTINGS } from '../../src/core/store'
+import { SETTLE_MS } from '../../src/ui/dwell'
 import { HELP_SECTIONS } from '../../src/menu/help'
 import { parseBackup } from '../../src/core/backup'
 import { spoken, lastUtterance, downloads, played, scrolledIntoView, setClipboardText, voices } from '../setup'
@@ -1263,6 +1264,9 @@ describe('aliases', () => {
     addTo('contacts', 'Mum')
     addTo('contacts', 'Dad')
     click($('.panel-back'))
+    // Leaving a panel puts the board back under a pointer that has not moved, so
+    // the app is deaf for a second — to a click as much as to a dwell.
+    act(() => void vi.advanceTimersByTime(SETTLE_MS))
     click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
 
     const callCell = cells().find(c => /going to call/.test(c.textContent ?? ''))!
