@@ -28,7 +28,7 @@ import {
   loadAliases,
   moveInOrder,
   orderCategories,
-  orderEmergency,
+  orderByIds,
   renameCategory,
   saveAliases,
   savePhraseStore,
@@ -40,6 +40,16 @@ import {
 /** How a phrase is recognised as one already on the board — see `phraseKeys`. */
 const phraseKey = (text: string, category: string) =>
   `${category.trim().toLowerCase()}\u0000${text.trim().toLowerCase().replace(/\s+/g, ' ')}`
+
+/** Every category's arrangement with one phrase taken out, dropping any left empty. */
+function withoutPhrase(order: Record<string, string[]>, id: string): Record<string, string[]> {
+  const next: Record<string, string[]> = {}
+  for (const [category, ids] of Object.entries(order)) {
+    const kept = ids.filter(i => i !== id)
+    if (kept.length > 0) next[category] = kept
+  }
+  return next
+}
 
 /** Phrases the user wrote carry this prefix, which is how a delete tells them apart. */
 const newPhraseId = () => `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -115,7 +125,7 @@ export function useBoard() {
     // Which button is where matters more here than anywhere else in the app —
     // this is the bar somebody reaches for without reading it — so the user's
     // own arrangement wins over the one Peri ships.
-    return orderEmergency([...base, ...custom], store.emergencyOrder)
+    return orderByIds([...base, ...custom], store.emergencyOrder)
   }, [store, buildPhrase])
 
   const allCategories = useMemo(
@@ -280,6 +290,11 @@ export function useBoard() {
         // arranged — but a store that only ever accumulates is one nobody can
         // read later. A non-emergency id was never in here anyway.
         emergencyOrder: store.emergencyOrder.filter(i => i !== id),
+        // The same tidying for the grid's arrangements. Only one category can
+        // hold it, but which one is not worth working out to save a pass over
+        // a handful of short lists — and a category whose arrangement empties
+        // out loses the key rather than keeping an empty one.
+        phraseOrder: withoutPhrase(store.phraseOrder, id),
       }),
     [store, updateStore],
   )
@@ -295,12 +310,16 @@ export function useBoard() {
   )
 
   const removeCategory = useCallback(
-    (name: string) =>
+    (name: string) => {
+      const phraseOrder = { ...store.phraseOrder }
+      delete phraseOrder[name]
       updateStore({
         categories: store.categories.filter(c => c !== name),
         categoryOrder: store.categoryOrder.filter(c => c !== name),
-      }),
-    [store.categories, store.categoryOrder, updateStore],
+        phraseOrder,
+      })
+    },
+    [store.categories, store.categoryOrder, store.phraseOrder, updateStore],
   )
 
   // A drag or a drop writes the whole arrangement, so a move made while A–Z is
@@ -310,6 +329,22 @@ export function useBoard() {
     (from: string, to: string) =>
       updateStore({ categoryOrder: moveInOrder(allCategories, from, to), categorySort: 'custom' }),
     [allCategories, updateStore],
+  )
+
+  /**
+   * Arrange the phrases inside one category by hand.
+   *
+   * `shown` is the order the user could see at the time, and the move is applied
+   * to that — exactly as a category move is. So arranging while A–Z is showing
+   * captures the alphabetical order and makes it theirs, which is the only
+   * honest answer: a move applied to a hidden order would land somewhere they
+   * could not see. The caller is what switches the grid to Custom order, since
+   * an arrangement nobody is looking at is not an arrangement.
+   */
+  const reorderPhrases = useCallback(
+    (category: string, shown: string[], from: string, to: string) =>
+      updateStore({ phraseOrder: { ...store.phraseOrder, [category]: moveInOrder(shown, from, to) } }),
+    [store.phraseOrder, updateStore],
   )
 
   // The whole arrangement again rather than a step of one, so an order built
@@ -370,6 +405,7 @@ export function useBoard() {
     renameCategoryTo,
     removeCategory,
     reorderCategories,
+    reorderPhrases,
     reorderEmergency,
     toggleSort,
     restore,

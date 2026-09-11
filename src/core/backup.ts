@@ -23,6 +23,7 @@
 
 import { EMPTY_ALIASES, type AliasStore, type Aliases } from './phrases'
 import {
+  readPhraseOrder,
   readVoiceOverrides,
   DEFAULT_SETTINGS,
   readAliases,
@@ -110,6 +111,13 @@ export interface Backup {
    * somebody did as a rewording is.
    */
   emergencyOrder?: string[]
+  /**
+   * The user's own arrangement of the phrases inside each category, by phrase
+   * id. Trimmed to the categories the file covers, which an arrangement *can*
+   * be — unlike the bar's, which is one category's and so goes whole or not at
+   * all. A category left out of the scope takes its arrangement with it.
+   */
+  phraseOrder?: Record<string, string[]>
   /** Whole-app backups only. Both of these. */
   aliases?: AliasStore
   settings?: Settings
@@ -167,6 +175,14 @@ export function buildBackup(input: BackupInput): Backup {
       return entry
     })
 
+  // Each category's own arrangement, for the categories in scope. Keyed by the
+  // name a phrase is filed under now, which is what a scope names. Left out
+  // entirely when the scope covers nothing that was arranged, rather than
+  // written as an empty object — the rule the word lists follow above.
+  const phraseOrder = Object.fromEntries(
+    Object.entries(store.phraseOrder).filter(([category, ids]) => inScope(category) && ids.length > 0),
+  )
+
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -189,6 +205,7 @@ export function buildBackup(input: BackupInput): Backup {
     ...(inScope('Emergency') && store.emergencyOrder.length > 0
       ? { emergencyOrder: [...store.emergencyOrder] }
       : {}),
+    ...(Object.keys(phraseOrder).length > 0 ? { phraseOrder } : {}),
     // Lists nobody has touched are left out rather than written as an empty
     // object, so the panel does not offer someone "your word lists" when they
     // have changed none — and so replacing from a file does not quietly empty
@@ -338,6 +355,7 @@ export function parseBackup(text: string): ParseResult {
   const scope = Array.isArray(raw.scope) ? strings(raw.scope) : null
   const aliases = readAliasStore(raw.aliases) ?? readLegacyProfile(raw.profile)
   const settings = readSettings(raw.settings)
+  const phraseOrder = readPhraseOrder(raw.phraseOrder)
 
   return {
     ok: true,
@@ -357,6 +375,7 @@ export function parseBackup(text: string): ParseResult {
         ...(categories.sort === 'alpha' || categories.sort === 'custom' ? { sort: categories.sort } : {}),
       },
       ...(strings(raw.emergencyOrder).length > 0 ? { emergencyOrder: strings(raw.emergencyOrder) } : {}),
+      ...(phraseOrder && Object.keys(phraseOrder).length > 0 ? { phraseOrder } : {}),
       ...(aliases ? { aliases } : {}),
       ...(settings ? { settings } : {}),
     },
@@ -406,6 +425,7 @@ export function summarize(backup: Backup): BackupSummary {
       Object.keys(backup.categories.renamed).length === 0 &&
       backup.categories.order.length === 0 &&
       (backup.emergencyOrder?.length ?? 0) === 0 &&
+      Object.keys(backup.phraseOrder ?? {}).length === 0 &&
       !summary.aliases &&
       !summary.settings,
   }
@@ -531,6 +551,17 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
     if (!emergencyOrder.includes(id)) emergencyOrder.push(id)
   }
 
+  // Same rule again, one category at a time: what the file arranged is appended
+  // behind what this device had already arranged, so a device with no
+  // arrangement of its own takes the file's exactly and one that has arranged a
+  // category does not have it rearranged underneath them. A category the file
+  // says nothing about keeps whatever it had.
+  const phraseOrder = { ...base.store.phraseOrder }
+  for (const [category, ids] of Object.entries(backup.phraseOrder ?? {})) {
+    const existing = phraseOrder[category] ?? []
+    phraseOrder[category] = [...existing, ...ids.filter(id => !existing.includes(id))]
+  }
+
   const store: PhraseStore = {
     custom,
     overrides,
@@ -542,6 +573,7 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
     categoryOrder: order,
     categorySort: backup.categories.sort ?? base.store.categorySort,
     emergencyOrder,
+    phraseOrder,
   }
 
   return {

@@ -35,6 +35,7 @@ function fixture(): { state: AppState; categoryById: Map<string, string> } {
     categoryOrder: ['Home', 'Food', 'Moods'],
     categorySort: 'custom',
     emergencyOrder: ['em-2', 'em-0'],
+    phraseOrder: { Food: ['custom-1', 'built-2'], Home: ['built-3', 'custom-2'] },
   }
   const aliases: AliasStore = {
     lists: {
@@ -646,5 +647,92 @@ describe('the spoken language in a file', () => {
 
   it('keeps a tag it has never seen, since another device may well speak it', () => {
     expect(settingsFrom({ ...DEFAULT_SETTINGS, language: 'cy-GB' })?.language).toBe('cy-GB')
+  })
+})
+
+// An arrangement somebody built by hand inside a category. It is as much a thing
+// they did as a rewording is, so it travels — and unlike the emergency bar's,
+// which is one category's and goes whole or not at all, it can be trimmed to the
+// categories a file covers.
+describe('the arrangement of the phrases in a category', () => {
+  it('travels in a whole-app backup', () => {
+    expect(exportAll().phraseOrder).toEqual({
+      Food: ['custom-1', 'built-2'],
+      Home: ['built-3', 'custom-2'],
+    })
+  })
+
+  it('survives being written out and read back', () => {
+    const file = serializeBackup(exportAll())
+    const result = parseBackup(file)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.backup.phraseOrder).toEqual({
+      Food: ['custom-1', 'built-2'],
+      Home: ['built-3', 'custom-2'],
+    })
+  })
+
+  it('is trimmed to the categories the file covers', () => {
+    expect(exportOf(['Home']).phraseOrder).toEqual({ Home: ['built-3', 'custom-2'] })
+  })
+
+  it('is left out entirely when nothing in scope was arranged', () => {
+    expect(exportOf(['Moods']).phraseOrder).toBeUndefined()
+  })
+
+  // A file that says nothing else is still worth something if it arranges a
+  // category, so it must not count as empty.
+  it('counts as something the file says', () => {
+    const { state, categoryById } = fixture()
+    const store: PhraseStore = { ...emptyStore(), phraseOrder: { Food: ['a', 'b'] } }
+    const backup = buildBackup({ ...state, store, categoryById, aliases: EMPTY_ALIASES })
+    expect(summarize(backup).empty).toBe(false)
+  })
+
+  /**
+   * What the file arranged goes behind what this device had already arranged —
+   * the rule every merge here follows. A device with no arrangement of its own
+   * takes the file's exactly; one that has arranged a category does not have it
+   * rearranged underneath them.
+   */
+  it('goes behind an arrangement this device already had', () => {
+    const base: AppState = {
+      store: { ...emptyStore(), phraseOrder: { Food: ['mine-1', 'custom-1'] } },
+      aliases: EMPTY_ALIASES,
+      settings: DEFAULT_SETTINGS,
+    }
+    const next = applyBackup(exportAll(), base, 'merge')
+    expect(next.store.phraseOrder).toEqual({
+      Food: ['mine-1', 'custom-1', 'built-2'],
+      Home: ['built-3', 'custom-2'],
+    })
+  })
+
+  it('arrives whole on a device that had arranged nothing', () => {
+    const next = applyBackup(exportAll(), fresh(), 'merge')
+    expect(next.store.phraseOrder).toEqual({
+      Food: ['custom-1', 'built-2'],
+      Home: ['built-3', 'custom-2'],
+    })
+  })
+
+  it('leaves a category the file says nothing about alone', () => {
+    const base: AppState = {
+      store: { ...emptyStore(), phraseOrder: { Moods: ['mine-9'] } },
+      aliases: EMPTY_ALIASES,
+      settings: DEFAULT_SETTINGS,
+    }
+    const next = applyBackup(exportOf(['Home']), base, 'merge')
+    expect(next.store.phraseOrder.Moods).toEqual(['mine-9'])
+  })
+
+  it('reads nothing out of a damaged one rather than refusing the file', () => {
+    const raw = JSON.parse(serializeBackup(exportAll()))
+    raw.phraseOrder = 'Food, Home'
+    const result = parseBackup(JSON.stringify(raw))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.backup.phraseOrder).toBeUndefined()
   })
 })

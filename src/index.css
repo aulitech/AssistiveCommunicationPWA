@@ -642,20 +642,33 @@ body {
   animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
 }
 
-/* The one control in this rail that does not scroll: which order the phrases
-   are in. Marked off from the five that do — its own height rather than an
-   equal share of the column, and a heavier rule under it — because this rail is
-   found by position rather than read, and the scrolling controls are one thing.
+/* The controls in this rail that do not scroll: which order the phrases are in,
+   and — in edit mode — arranging them by hand. Marked off from the five that do
+   scroll, by their own fixed height rather than an equal share of the column and
+   by a heavier rule under the group, because this rail is found by position
+   rather than read and the scrolling controls are one thing.
 
-   Quiet rather than gone under the Sent tab: a control that came and went would
-   move the five below it every time somebody looked at what they had said. */
-.sort-btn {
-  flex: 0 0 44px;
+   Quiet rather than gone where they do not apply: a control that came and went
+   would move the five below it every time somebody looked at the Sent tab. */
+.rail-tools {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
   border-bottom: 2px solid var(--border);
 }
 
-.sort-btn[aria-disabled] {
+.rail-tool {
+  flex: 0 0 44px;
+}
+
+.rail-tool[aria-disabled] {
   opacity: 0.4;
+}
+
+/* The mode is on — the same green every toggle in the app lights up with. */
+.reorder-btn.is-on {
+  color: var(--accent);
+  background: var(--accent-dim);
 }
 
 .phrase-grid {
@@ -3508,6 +3521,45 @@ body {
 .emergency-btn.is-drop-target {
   border-color: var(--accent);
   box-shadow: -3px 0 0 var(--accent);
+}
+
+/* ── Arranging the phrase grid ── */
+/* The same three states the category tabs and the emergency bar use, on the one
+   surface where there are two thousand of them. Written against `.phrase-cell`
+   rather than shared, because a cell is a block in a grid and those two are
+   pills in a row: the lift has nowhere to bob to and the drop target is a whole
+   edge rather than a left-hand rule. */
+
+.phrase-cell.reorderable {
+  cursor: grab;
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* The phrase in the air. The loudest thing on the grid, because it is what the
+   user is holding and the grid it is sitting in is otherwise uniform. */
+.phrase-cell.is-held {
+  cursor: grabbing;
+  background: var(--held);
+  border-color: var(--held);
+  box-shadow:
+    inset 0 0 0 2px var(--surface),
+    inset 0 0 0 4px var(--held),
+    0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.phrase-cell.is-held .phrase-cell-text { color: #000; }
+
+/* Every other cell, while one is in the air. Colour alone must not carry the
+   message, so the whole grid changes state and reads from the corner of an eye. */
+.phrase-cell.is-drop-zone {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--held) 70%, transparent);
+}
+
+/* Where a dragged phrase would land. */
+.phrase-cell.is-drop-target {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 /* ── Markdown in a phrase ── */

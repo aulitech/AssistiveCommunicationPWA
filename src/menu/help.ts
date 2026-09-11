@@ -73,19 +73,43 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The button at the very top of the scrolling buttons, above the one that jumps to the top, sets the order the phrases are shown in. It applies to every category.',
       ),
       list(
-        'Custom order shows them in the order the board already has, which is how Peri comes.',
+        'Custom order is your own order for that category — the order the board came in, until you arrange it yourself.',
         'A to Z puts them in alphabetical order by what each one says.',
         'Recently used puts whatever you said last at the front.',
         'Most used puts whatever you say most often at the front.',
       ),
       text(
-        'The two that go by use only rearrange the board when you change tab or change the order. They deliberately do not move while you are talking: a phrase sliding under the pointer is a phrase you did not choose.',
+        'The two that go by use rearrange the board as you use it, so the phrase you just said moves to the front straight away. Nothing can be chosen for a moment afterwards, until you look somewhere else — otherwise whatever slid under the pointer would be chosen by the move itself.',
       ),
       text('Phrases you have never used sit after the ones you have, in the order the board already had them.'),
       text(
         'Peri counts what you use on this device only. It is never included in a backup and never sent anywhere, for the same reason the list of what you have said is not.',
       ),
       text('The Sent tab keeps its own order, newest first, so the button is switched off while it is showing.'),
+    ],
+  },
+  {
+    title: 'Putting the phrases in your own order',
+    blocks: [
+      text(
+        'You can also arrange a category by hand, the same way you arrange the category tabs. Turn on edit mode, open the category you want, and rest on the arrange button just under the order button at the top of the scrolling buttons.',
+      ),
+      list(
+        'Rest on a phrase to pick it up. It lifts, and the screen says what you are holding.',
+        'Rest on another phrase to drop the held one there.',
+        'Rest on the held phrase again to put it back where it was.',
+        'With a mouse you can drag a phrase instead, if that is easier.',
+      ),
+      text(
+        'Arranging a category switches it to Custom order and keeps what you built. Whatever order was on screen when you moved something becomes your starting point, so you can sort A to Z first and then move the few you want elsewhere.',
+      ),
+      text(
+        'Each category has its own arrangement. All cannot be arranged, because it shows phrases from every category at once, so the arrange button is switched off there and on the Sent tab.',
+      ),
+      text(
+        'A phrase you add later goes at the end rather than disturbing what you arranged. Rewording a phrase leaves it exactly where you put it.',
+      ),
+      text('Rest on the arrange button again when you are done. Leaving edit mode switches it off too.'),
     ],
   },
   {

@@ -15,11 +15,11 @@
 
 import { stripMarkdown } from './markdown'
 import { type Phrase } from './phrases'
-import { type PhraseSort, type PhraseUsage, type PhraseUse } from './store'
+import { orderByIds, type PhraseSort, type PhraseUsage, type PhraseUse } from './store'
 
 /** The four, in the order they are offered. Named for what they do, not for how. */
 export const PHRASE_SORTS: { id: PhraseSort; name: string; detail: string }[] = [
-  { id: 'custom', name: 'Custom order', detail: 'The order the board is in' },
+  { id: 'custom', name: 'Custom order', detail: 'Your own order for this category' },
   { id: 'alpha', name: 'A to Z', detail: 'By what each phrase says' },
   { id: 'recent', name: 'Recently used', detail: 'What you used last, first' },
   { id: 'frequent', name: 'Most used', detail: 'What you use most, first' },
@@ -33,7 +33,12 @@ export const sortName = (sort: PhraseSort) => PHRASE_SORTS.find(s => s.id === so
  *
  * Three things hold this together:
  *
- * - **The board's own order is the same array, not a copy of it.** The grid
+ * - **Custom order is the only one the hand arrangement reaches.** It is what
+ *   "custom" means: the board as the user left it, which is the order Peri
+ *   ships until they move something. A–Z and the two that follow use are
+ *   answers to a different question and would be no use if a stored
+ *   arrangement could override them.
+ * - **With nothing arranged it is the same array, not a copy of it.** The grid
  *   starts its window again whenever the list it was given changes identity, so
  *   a sort that rebuilt the array every render would collapse the window — and
  *   the view with it — every time anything else on the screen moved.
@@ -44,8 +49,14 @@ export const sortName = (sort: PhraseSort) => PHRASE_SORTS.find(s => s.id === so
  * - **Ties keep the board's order**, because the sort is stable and the ranked
  *   list is built by walking the board once.
  */
-export function sortPhrases(phrases: Phrase[], sort: PhraseSort, usage: PhraseUsage): Phrase[] {
-  if (sort === 'custom') return phrases
+export function sortPhrases(
+  phrases: Phrase[],
+  sort: PhraseSort,
+  usage: PhraseUsage,
+  /** The shown category's own arrangement, by phrase id. Empty under All. */
+  order: string[] = [],
+): Phrase[] {
+  if (sort === 'custom') return orderByIds(phrases, order)
 
   // Compared on the words rather than the markup, for the reason search matches
   // on them: `**Help** me` files under H, where somebody reading the board sees

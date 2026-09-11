@@ -67,7 +67,7 @@ describe('the control in the rail', () => {
   // of the feature: above the jump to the top, outside the five that scroll.
   it('sits above the jump to the top, and nothing else moved', () => {
     renderApp()
-    const rail = $$('.grid-scrollbar > .scroll-btn').map(b => b.getAttribute('aria-label'))
+    const rail = $$('.grid-scrollbar .scroll-btn').map(b => b.getAttribute('aria-label'))
     expect(rail[0]).toMatch(/^Phrase order:/)
     expect(rail.slice(1)).toEqual([
       'Scroll to top',
@@ -462,6 +462,148 @@ describe('the Sent tab', () => {
 
     const usage = JSON.parse(localStorage.getItem('peri_usage') ?? '{}')
     expect(Object.keys(usage)).toEqual(['custom-a'])
+  })
+})
+
+/**
+ * The user's own arrangement, built the way the category tabs and the emergency
+ * bar are built: one dwell picks a phrase up, a second on another drops it
+ * there. A pointer-drag needs a button held down while the pointer moves, which
+ * is the one gesture a dwell user cannot make.
+ */
+describe('arranging the phrases by hand', () => {
+  const editToggle = () => $('.edit-toggle')!
+  const reorderBtn = () => $('.reorder-btn')
+  const toast = () => $('.toast')?.textContent
+
+  /** Auto-speak → edit is one dwell; arranging is a mode within edit mode. */
+  const arrangeOn = () => {
+    click(editToggle())
+    click(reorderBtn())
+  }
+
+  const stored = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!).phraseOrder
+
+  it('is offered only in edit mode, where the phrases are what is being changed', () => {
+    renderApp()
+    showSorted()
+    expect(reorderBtn()).toBeNull()
+
+    click(editToggle())
+
+    expect(reorderBtn()).not.toBeNull()
+    expect(reorderBtn()!.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('moves a phrase to where it is dropped', () => {
+    renderApp()
+    showSorted()
+    arrangeOn()
+
+    click(cellFor('Cherry'))
+    click(cellFor('Banana'))
+
+    expect(onBoard()).toEqual(['Apple', 'Banana', 'Cherry'])
+  })
+
+  it('keeps it there, by id, across a reload', () => {
+    renderApp()
+    showSorted()
+    arrangeOn()
+    click(cellFor('Cherry'))
+    click(cellFor('Banana'))
+    expect(stored()).toEqual({ Sorted: ['custom-a', 'custom-b', 'custom-c'] })
+
+    cleanup()
+    container = render(<App />).container
+    settle()
+    showSorted()
+
+    expect(onBoard()).toEqual(['Apple', 'Banana', 'Cherry'])
+  })
+
+  // The styling alone says nothing aloud, and a dwell user has no drag cursor
+  // to read.
+  it('says what is in the air', () => {
+    renderApp()
+    showSorted()
+    arrangeOn()
+
+    click(cellFor('Cherry'))
+
+    expect(toast()).toBe('Holding Cherry — dwell where it should go')
+    expect(cellFor('Cherry')!.getAttribute('aria-label')).toMatch(/^Holding Cherry\./)
+    expect(cellFor('Apple')!.getAttribute('aria-label')).toBe('Drop Cherry here')
+  })
+
+  // The only way out of a lift for somebody with no other button to press.
+  it('puts a phrase back where it was when it is dwelled again', () => {
+    renderApp()
+    showSorted()
+    arrangeOn()
+
+    click(cellFor('Cherry'))
+    click(cellFor('Cherry'))
+
+    expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
+    expect(stored()).toBeUndefined()
+  })
+
+  /**
+   * A move captures the order that was on screen and makes it the user's own,
+   * exactly as a category move does — and the grid switches to Custom order,
+   * since an arrangement nobody is looking at is not an arrangement.
+   */
+  it('captures the order that was showing, and shows the result', () => {
+    renderApp()
+    showSorted()
+    chooseOrder('A to Z')
+    arrangeOn()
+
+    click(cellFor('Cherry'))
+    click(cellFor('Apple'))
+
+    expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Custom order\./)
+  })
+
+  it('is disarmed by leaving edit mode', () => {
+    renderApp()
+    showSorted()
+    arrangeOn()
+    expect(reorderBtn()!.getAttribute('aria-pressed')).toBe('true')
+
+    click(editToggle()) // edit → composing
+    click(editToggle()) // composing → edit
+
+    expect(reorderBtn()!.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  // Neither is a category, and an arrangement here belongs to one.
+  it('goes quiet under All, and says why', () => {
+    renderApp()
+    click(editToggle())
+
+    expect(reorderBtn()!.getAttribute('aria-disabled')).toBe('true')
+    expect(reorderBtn()!.getAttribute('aria-label')).toMatch(/All cannot be arranged/)
+  })
+
+  it('goes quiet under Sent', () => {
+    renderApp()
+    showSorted()
+    click(cellFor('Apple'))
+    click(editToggle())
+    click(tab('Sent'))
+
+    expect(reorderBtn()!.getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('opens nothing while it is quiet', () => {
+    renderApp()
+    click(editToggle())
+    click(reorderBtn())
+
+    expect($('.phrase-cell.reorderable')).toBeNull()
   })
 })
 

@@ -53,6 +53,9 @@ import { SENT_CATEGORY, SENT_FILTER, useSent } from './use-sent'
 import { useUsage } from './use-usage'
 import { useToast } from './use-toast'
 
+/** One shared empty arrangement, so a category with none keeps a stable memo. */
+const EMPTY_ARRANGEMENT: string[] = []
+
 export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const { settings, update } = useSettings()
   const board = useBoard()
@@ -63,10 +66,12 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState('all')
   const [editMode, setEditMode] = useState(false)
-  // Two reorder modes, one for each bar. Sharing a flag would mean arming the
-  // emergency bar every time somebody set about tidying their category tabs.
+  // Three reorder modes, one for each surface that can be arranged. Sharing a
+  // flag would mean arming the bar somebody speaks with every time they set
+  // about tidying their category tabs.
   const [reordering, setReordering] = useState(false)
   const [reorderingEmergency, setReorderingEmergency] = useState(false)
+  const [reorderingPhrases, setReorderingPhrases] = useState(false)
   const [resting, setResting] = useState(false)
   // `forDraft` marks a category being invented from inside the phrase editor,
   // which files the phrase under it as well as creating it.
@@ -133,9 +138,17 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // Arranged before it is searched, never after. Filtering to a category keeps
   // the order it is given and so does the ranking, so this decides ties within a
   // rank band while a typed word still puts the best match first.
+  //
+  // The hand arrangement is the shown category's own, and there is none under
+  // All: its phrases come from every category at once, and ranking them against
+  // each other's arrangements would interleave orders that were never about one
+  // another. Applied here rather than after the filter because `sortPhrases`
+  // leaves ids it does not know where they were, so the other categories' cells
+  // are untouched either way.
+  const handArrangement = store.phraseOrder[effectiveFilter] ?? EMPTY_ARRANGEMENT
   const arrangedPhrases = useMemo(
-    () => sortPhrases(board.mainPhrases, phraseSort, usage.counts),
-    [board.mainPhrases, phraseSort, usage.counts],
+    () => sortPhrases(board.mainPhrases, phraseSort, usage.counts, handArrangement),
+    [board.mainPhrases, phraseSort, usage.counts, handArrangement],
   )
 
   const visiblePhrases = useMemo(
@@ -155,6 +168,27 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     setPhraseSort(next)
     savePhraseSort(next)
   }, [])
+
+  /**
+   * A move captures the order that was on screen and makes it the user's own,
+   * exactly as a category move does — and switches the grid to Custom order,
+   * since an arrangement nobody is looking at is not an arrangement.
+   *
+   * The list handed over is what is actually shown. In edit mode that is the
+   * whole category, because a typed word never narrows the grid there.
+   */
+  const handleReorderPhrases = useCallback(
+    (from: string, to: string) => {
+      board.reorderPhrases(
+        effectiveFilter,
+        visiblePhrases.map(p => p.id),
+        from,
+        to,
+      )
+      chooseSort('custom')
+    },
+    [board, effectiveFilter, visiblePhrases, chooseSort],
+  )
 
   // ── Choosing a phrase ──────────────────────────────────────────────────────
 
@@ -363,6 +397,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // either of them armed for next time.
       setReordering(false)
       setReorderingEmergency(false)
+      setReorderingPhrases(false)
       // The lit toggle is the only other cue, and it is a 1.5rem icon in a
       // strip — say plainly which of the three the board is now in.
       flashToast(
@@ -598,6 +633,13 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             // newest first, and that is the whole of what it is for.
             sortDisabled={showingSent}
             onChooseSort={chooseSort}
+            reordering={editMode && reorderingPhrases}
+            // Neither All nor Sent is a category, and an arrangement here
+            // belongs to one.
+            reorderDisabled={effectiveFilter === 'all' || showingSent}
+            onToggleReorder={editMode ? () => setReorderingPhrases(r => !r) : undefined}
+            onReorder={editMode ? handleReorderPhrases : undefined}
+            onLift={text => flashToast(`Holding ${text} — dwell where it should go`)}
             onSelect={handleSelectPhrase}
           />
 

@@ -276,6 +276,22 @@ export interface PhraseStore {
    * is — which for a bar somebody reaches for without looking is the point.
    */
   emergencyOrder: string[]
+  /**
+   * The user's own arrangement of the phrases **inside one category**, by
+   * phrase id, keyed by the category's shown name.
+   *
+   * Per category rather than one list for the whole board, because that is the
+   * unit somebody actually arranges — "put the food I ask for most at the top
+   * of Food" — and because one flat list would have to name every phrase in the
+   * table the first time anything moved. It is why **All** cannot be arranged:
+   * its phrases come from every category at once, and ranking them against each
+   * other's arrangements would interleave orders that were never about one
+   * another.
+   *
+   * Ids, so rewording a phrase leaves it where it was put — the same reason
+   * `emergencyOrder` is ids.
+   */
+  phraseOrder: Record<string, string[]>
 }
 
 export const emptyStore = (): PhraseStore => ({
@@ -289,6 +305,7 @@ export const emptyStore = (): PhraseStore => ({
   categoryOrder: [],
   categorySort: 'alpha',
   emergencyOrder: [],
+  phraseOrder: {},
 })
 
 /**
@@ -365,6 +382,23 @@ export function voiceOverrideFor(
   return overrides[id]?.[language]
 }
 
+/**
+ * A per-category arrangement out of whatever was stored. Null where there is
+ * nothing usable, so the caller falls back rather than writing an empty object
+ * over a default. A category whose list holds no strings is dropped outright: an
+ * empty arrangement and no arrangement mean the same thing here.
+ */
+export function readPhraseOrder(raw: unknown): Record<string, string[]> | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null
+  const order: Record<string, string[]> = {}
+  for (const [category, ids] of Object.entries(raw as Record<string, unknown>)) {
+    if (!Array.isArray(ids)) continue
+    const kept = ids.filter((id): id is string => typeof id === 'string' && id !== '')
+    if (kept.length > 0) order[category] = kept
+  }
+  return order
+}
+
 export function loadPhraseStore(): PhraseStore {
   try {
     const raw = JSON.parse(localStorage.getItem(PHRASE_STORE_KEY) ?? '{}')
@@ -396,6 +430,7 @@ export function loadPhraseStore(): PhraseStore {
             ? 'custom'
             : 'alpha',
       emergencyOrder: strings(raw.emergencyOrder) ?? base.emergencyOrder,
+      phraseOrder: readPhraseOrder(raw.phraseOrder) ?? base.phraseOrder,
     }
   } catch {
     return emptyStore()
@@ -941,12 +976,25 @@ export function renameCategory(store: PhraseStore, from: string, to: string): Pa
   for (const [source, shown] of Object.entries(renames)) {
     if (source === shown) delete renames[source]
   }
+  // The arrangement belongs to the category, so it travels with the name. Where
+  // the rename collapses two categories together, the moved one's phrases are
+  // appended behind those already arranged under the name they are joining —
+  // the rule a merge follows everywhere else here.
+  const phraseOrder = { ...store.phraseOrder }
+  const moving = phraseOrder[from]
+  if (moving) {
+    delete phraseOrder[from]
+    const existing = phraseOrder[to] ?? []
+    phraseOrder[to] = [...existing, ...moving.filter(id => !existing.includes(id))]
+  }
+
   return {
     categoryRenames: renames,
     categories: [...new Set(store.categories.map(c => (c === from ? to : c)))],
     // A renamed category keeps the place its old name held; a merge collapses
     // onto the earlier of the two positions.
     categoryOrder: [...new Set(store.categoryOrder.map(c => (c === from ? to : c)))],
+    phraseOrder,
   }
 }
 
@@ -964,13 +1012,20 @@ export function orderCategories(names: string[], order: string[]): string[] {
 }
 
 /**
- * Arrange the emergency phrases. An empty `order` leaves them exactly as they
- * come, which is the order Peri ships them in — unlike the categories, whose
- * natural order is alphabetical. Ids the order has never heard of keep their
- * place at the end, so an emergency phrase added later lands after the ones
- * already arranged rather than somewhere in the middle of them.
+ * Arrange phrases by an id list somebody built by hand. Serves the emergency bar
+ * and the phrase grid alike — the bar is one category's worth of buttons and a
+ * category is one tab's worth of cells, and the arithmetic never cared which.
+ *
+ * An empty `order` leaves them exactly as they come, **as the very same array**:
+ * the board's own order is not an arrangement, and the grid starts its render
+ * window again whenever the list it is given changes identity.
+ *
+ * Ids the order has never heard of keep their place at the end, so a phrase
+ * added later lands after the ones already arranged rather than somewhere in the
+ * middle of them, and an id naming a deleted phrase is skipped rather than
+ * leaving a hole.
  */
-export function orderEmergency<T extends { id: string }>(phrases: T[], order: string[]): T[] {
+export function orderByIds<T extends { id: string }>(phrases: T[], order: string[]): T[] {
   if (order.length === 0) return phrases
   const rank = new Map(order.map((id, i) => [id, i]))
   const ranked = phrases.filter(p => rank.has(p.id)).sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
