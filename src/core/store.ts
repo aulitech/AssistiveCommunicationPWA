@@ -697,21 +697,69 @@ export function forgetUse(usage: PhraseUsage, id: string): PhraseUsage {
 }
 
 /**
- * Which of the four the grid is showing, exactly as `loadAliasSort` does for
- * the Aliases panel: a view rather than content, so it is its own small key and
- * never travels in a backup or a snapshot.
+ * Which of the four each tab is showing, keyed by the tab's filter id — a
+ * category's name, or `all`.
  *
- * One arrangement for the whole board rather than one per category. The control
- * is a single button in the rail, and a button that meant something different
- * under every tab would be one nobody could learn.
+ * **One per category, not one for the board.** The categories are not alike:
+ * a long reference list is worth having alphabetically, a short one worth
+ * having by what gets used, and a category somebody arranged by hand is worth
+ * leaving as they arranged it. A single setting makes each of those the wrong
+ * answer everywhere else. What pays for it is that the control says which order
+ * is on — in its glyph and in its name — so arriving at a tab that is sorted
+ * differently is readable rather than mysterious.
+ *
+ * A tab nobody has chosen for shows the board's own order, which is where Peri
+ * ships and the one nobody has to have set anything to get.
+ *
+ * A view rather than content, exactly as `loadAliasSort` is: its own small key,
+ * and it never travels in a backup or a snapshot. The *arrangement* a category
+ * holds is content and does travel — see `PhraseStore.phraseOrder`.
  */
-export function loadPhraseSort(): PhraseSort {
+export type PhraseSorts = Record<string, PhraseSort>
+
+const readSort = (raw: unknown): PhraseSort | undefined => PHRASE_SORTS_STORED.find(s => s === raw)
+
+export function loadPhraseSorts(): PhraseSorts {
   const stored = localStorage.getItem(PHRASE_SORT_KEY)
-  return PHRASE_SORTS_STORED.find(s => s === stored) ?? 'custom'
+  if (!stored) return {}
+  // Written before there was one per tab, when the whole board shared a single
+  // order. It was chosen while looking at some tab, and All is the one the
+  // board opens on, so that is where it lands rather than being thrown away.
+  const legacy = readSort(stored)
+  if (legacy) return legacy === 'custom' ? {} : { all: legacy }
+  try {
+    const raw: unknown = JSON.parse(stored)
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
+    const sorts: PhraseSorts = {}
+    for (const [filter, value] of Object.entries(raw as Record<string, unknown>)) {
+      const sort = readSort(value)
+      // The board's own order is the default, so storing it says nothing.
+      if (sort && sort !== 'custom') sorts[filter] = sort
+    }
+    return sorts
+  } catch {
+    return {}
+  }
 }
 
-export function savePhraseSort(sort: PhraseSort) {
-  localStorage.setItem(PHRASE_SORT_KEY, sort)
+export function savePhraseSorts(sorts: PhraseSorts) {
+  localStorage.setItem(PHRASE_SORT_KEY, JSON.stringify(sorts))
+}
+
+/** What a tab is showing. Anything nobody has chosen for shows the board's own order. */
+export const sortFor = (sorts: PhraseSorts, filter: string): PhraseSort => sorts[filter] ?? 'custom'
+
+/**
+ * The orders after choosing one for a tab. The board's own order drops the entry
+ * rather than storing it, so a record that is all defaults is an empty one — the
+ * rule the phrase arrangements follow, and what keeps a key nobody has touched
+ * out of storage.
+ */
+export function setSortFor(sorts: PhraseSorts, filter: string, sort: PhraseSort): PhraseSorts {
+  const next = { ...sorts }
+  if (sort === 'custom') delete next[filter]
+  else next[filter] = sort
+  return next
 }
 
 // ── A linked ElevenLabs account ───────────────────────────────────────────────

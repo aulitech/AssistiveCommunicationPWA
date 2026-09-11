@@ -70,7 +70,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Putting the phrases in a different order',
     blocks: [
       text(
-        'The button at the very top of the scrolling buttons, above the one that jumps to the top, sets the order the phrases are shown in. It applies to every category.',
+        'The button at the very top of the scrolling buttons, above the one that jumps to the top, sets the order the phrases are shown in.',
       ),
       list(
         'Custom order is your own order for that category — the order the board came in, until you arrange it yourself.',
@@ -84,6 +84,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       text('Phrases you have never used sit after the ones you have, in the order the board already had them.'),
       text(
         'Peri counts what you use on this device only. It is never included in a backup and never sent anywhere, for the same reason the list of what you have said is not.',
+      ),
+      text(
+        'Each tab keeps its own order, so you can have one category alphabetical and another by what you use most. Opening a tab brings back the order you left it in, and the button always says which one that is.',
       ),
       text('The Sent tab keeps its own order, newest first, so the button is switched off while it is showing.'),
     ],

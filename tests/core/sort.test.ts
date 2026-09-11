@@ -2,11 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { PHRASE_SORTS, sortName, sortPhrases } from '../../src/core/sort'
 import {
   forgetUse,
-  loadPhraseSort,
+  loadPhraseSorts,
   loadUsage,
   recordUse,
-  savePhraseSort,
+  savePhraseSorts,
   saveUsage,
+  setSortFor,
+  sortFor,
   type PhraseSort,
   type PhraseUsage,
 } from '../../src/core/store'
@@ -215,7 +217,11 @@ describe('what is kept on the device', () => {
   })
 
   it('reads nothing out of damage', () => {
-    for (const raw of ['not json', '[]', 'null', '"words"', '7']) {
+    // An array is the one that gets past a parse: its indices would become the
+    // phrase ids, so a list of entries reads back as usage for phrases called
+    // "0" and "1".
+    const damaged = ['not json', '[]', 'null', '"words"', '7', '[{"count":2,"at":100}]']
+    for (const raw of damaged) {
       localStorage.setItem('peri_usage', raw)
       expect(loadUsage(), raw).toEqual({})
     }
@@ -248,25 +254,73 @@ describe('what is kept on the device', () => {
   })
 })
 
-describe('which order is showing', () => {
+// One order per tab, keyed by its filter id. The categories are not alike: a
+// long reference list is worth having alphabetically, a short one by what gets
+// used, and one somebody arranged by hand worth leaving as they arranged it.
+describe('which order each tab is showing', () => {
   beforeEach(() => localStorage.clear())
 
-  // A view rather than content, so it is its own key — and the board's own order
-  // is where Peri ships, because it is the one nobody has to have used it to get.
-  it('is the board’s own order until somebody chooses another', () => {
-    expect(loadPhraseSort()).toBe('custom')
+  it('is the board’s own order for a tab nobody has chosen for', () => {
+    expect(sortFor({}, 'Food')).toBe('custom')
+    expect(sortFor({ Food: 'alpha' }, 'Home')).toBe('custom')
+  })
+
+  it('is what was chosen for the tab it was chosen under', () => {
+    expect(sortFor({ Food: 'alpha', all: 'recent' }, 'Food')).toBe('alpha')
+  })
+
+  it('changes one tab and leaves every other alone', () => {
+    expect(setSortFor({ Food: 'alpha' }, 'Home', 'recent')).toEqual({ Food: 'alpha', Home: 'recent' })
+  })
+
+  // The board's own order is the default, so storing it says nothing — and a
+  // record that is all defaults is an empty one.
+  it('drops the entry rather than storing the default', () => {
+    expect(setSortFor({ Food: 'alpha', Home: 'recent' }, 'Food', 'custom')).toEqual({ Home: 'recent' })
+  })
+
+  it('does not change the record it was given', () => {
+    const sorts = { Food: 'alpha' } as const
+    setSortFor(sorts, 'Food', 'recent')
+    expect(sorts).toEqual({ Food: 'alpha' })
   })
 
   it('round-trips every one of the four', () => {
     for (const { id } of PHRASE_SORTS) {
-      savePhraseSort(id)
-      expect(loadPhraseSort()).toBe(id)
+      savePhraseSorts({ Food: id })
+      expect(sortFor(loadPhraseSorts(), 'Food')).toBe(id)
     }
   })
 
-  it('falls back rather than trusting a word it does not know', () => {
-    localStorage.setItem('peri_phrase_sort', 'by-colour')
-    expect(loadPhraseSort()).toBe('custom')
+  it('is empty before anything has been chosen', () => {
+    expect(loadPhraseSorts()).toEqual({})
+  })
+
+  it('refuses a word it does not know, tab by tab', () => {
+    savePhraseSorts({ Food: 'by-colour', Home: 'alpha' } as never)
+    expect(loadPhraseSorts()).toEqual({ Home: 'alpha' })
+  })
+
+  it('reads nothing out of damage', () => {
+    for (const raw of ['not json', '[]', 'null', '7', '"alpha"', '["alpha"]', '["alpha","recent"]']) {
+      localStorage.setItem('peri_phrase_sort', raw)
+      expect(loadPhraseSorts(), raw).toEqual({})
+    }
+  })
+
+  /**
+   * Written before there was one per tab, when the whole board shared a single
+   * order. It was chosen while looking at some tab, and All is the one the board
+   * opens on, so that is where it lands rather than being thrown away.
+   */
+  it('carries a single order written for the whole board onto All', () => {
+    localStorage.setItem('peri_phrase_sort', 'recent')
+    expect(loadPhraseSorts()).toEqual({ all: 'recent' })
+  })
+
+  it('carries nothing forward from a board that was on the default', () => {
+    localStorage.setItem('peri_phrase_sort', 'custom')
+    expect(loadPhraseSorts()).toEqual({})
   })
 })
 

@@ -18,12 +18,14 @@ import { search } from '../core/search'
 import { sortPhrases } from '../core/sort'
 import {
   loadElevenLabs,
-  loadPhraseSort,
+  loadPhraseSorts,
   loadRecent,
   sameAccount,
   saveElevenLabs,
-  savePhraseSort,
+  savePhraseSorts,
   saveRecent,
+  setSortFor,
+  sortFor,
   type ElevenLabsAccount,
   type PhraseSort,
   type User,
@@ -78,10 +80,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const [editingCategory, setEditingCategory] = useState<{ name: string | null; forDraft?: boolean } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
   const [recent, setRecent] = useState(loadRecent)
-  // Which of the four orders the grid is in. One for the whole board rather than
-  // one per tab: the control is a single button in the rail, and a button that
-  // meant something different under every tab would be one nobody could learn.
-  const [phraseSort, setPhraseSort] = useState<PhraseSort>(loadPhraseSort)
+  // Which of the four orders each tab is in. One per tab rather than one for
+  // the board: the categories are not alike, and a single setting makes the
+  // right answer for one of them the wrong answer everywhere else.
+  const [phraseSorts, setPhraseSorts] = useState(loadPhraseSorts)
 
   const { store, allCategories, voiceFor } = board
 
@@ -120,6 +122,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       : 'all'
 
   const showingSent = effectiveFilter === SENT_FILTER
+
+  /** What this tab is showing. A tab nobody has chosen for shows the board's own order. */
+  const phraseSort = sortFor(phraseSorts, effectiveFilter)
 
   // Sent messages are their own list rather than part of the board: they are a
   // record of what was said, not phrases anybody added.
@@ -164,10 +169,16 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * holds the dwells on its way out, which is what stops the phrase arriving
    * under a resting pointer being spoken by the change itself.
    */
-  const chooseSort = useCallback((next: PhraseSort) => {
-    setPhraseSort(next)
-    savePhraseSort(next)
-  }, [])
+  // Remembered against the tab it was chosen under, so coming back to a
+  // category brings back the order it was left in.
+  const chooseSort = useCallback(
+    (next: PhraseSort) => {
+      const sorts = setSortFor(phraseSorts, effectiveFilter, next)
+      savePhraseSorts(sorts)
+      setPhraseSorts(sorts)
+    },
+    [phraseSorts, effectiveFilter],
+  )
 
   /**
    * A move captures the order that was on screen and makes it the user's own,
