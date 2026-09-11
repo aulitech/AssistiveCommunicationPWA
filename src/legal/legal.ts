@@ -39,9 +39,13 @@ export const PRIVACY: ProseDocument = {
           'Which account you last signed in with, if any.',
           'Your ElevenLabs API key, if you linked an account.',
           'Your Synchronize passphrase, if you turned that on.',
+          'How often you use each phrase and when you last used one, which is what lets the grid be ordered by what you use.',
         ),
         text(
           'None of this leaves your device unless you turn on Synchronize, and what leaves then is encrypted — see the next section. Neither your ElevenLabs key nor your Synchronize passphrase is included in a backup file, so sharing a backup does not share your account or your other devices. The passphrase never leaves your device at all; the key travels between your own devices, inside the encryption, so the voices you pay for work on all of them.',
+        ),
+        text(
+          'How often you use each phrase is the one thing on that list that goes nowhere at all. It stays on the device that counted it: it is not in a backup file, and it is not in what Synchronize sends to your other devices.',
         ),
       ],
     },
