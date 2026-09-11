@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { REMOTE_PREFIX, linkAccount, remoteVoiceId, remoteVoiceURI, synthesize } from '../../src/voice/elevenlabs'
-import { audioKey, cachedCount, clearAudioCache, setRemoteClips } from '../../src/voice/audio-cache'
+import {
+  audioKey,
+  cachedAudio,
+  cachedCount,
+  clearAudioCache,
+  setRemoteClips,
+  warmAudio,
+} from '../../src/voice/audio-cache'
 import { clips, installFakeIdb, removeFakeIdb, seedClip } from './fake-idb'
 import { type ElevenLabsAccount } from '../../src/core/store'
 
@@ -219,6 +226,29 @@ describe('everywhere a clip may already be', () => {
 
     expect(await blob.text()).toBe('stored')
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  // Reading the disk is not free, and a board says the same phrase all day.
+  it('keeps what it read off the disk in memory', async () => {
+    seedClip(KEY, new Blob(['stored']))
+    vi.stubGlobal('fetch', respondWith(null))
+
+    await synthesize(ACCOUNT, 'v1', 'Hello')
+
+    expect(cachedCount()).toBe(1)
+  })
+
+  /**
+   * The emergency bar asks `cachedAudio`, which is synchronous and looks only in
+   * memory — so a phrase given its own voice is in memory after a reload or it
+   * is not in the right voice at all. `warmAudio` is what puts it there, and it
+   * reads through the same stored layer.
+   */
+  it('warms a phrase with its own voice back into memory', async () => {
+    seedClip(KEY, new Blob(['stored']))
+
+    expect(await warmAudio([KEY])).toBe(1)
+    expect(await cachedAudio(KEY)?.text()).toBe('stored')
   })
 
   it('asks the other devices when this one has never had it', async () => {

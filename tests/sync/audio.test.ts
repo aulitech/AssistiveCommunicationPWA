@@ -9,7 +9,7 @@
 // again, and can the server tell anything at all about what it is holding.
 
 import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
-import { deriveSyncKeys, open, type SyncKeys } from '../../src/core/crypto'
+import { deriveSyncKeys, open, seal, type SyncKeys } from '../../src/core/crypto'
 import { MAX_CLIP_BYTES, clipStore, forgetClips, getClip, putClip } from '../../src/sync/audio'
 import { type Envelope } from '../../src/core/sync'
 
@@ -93,6 +93,32 @@ describe('a clip one device paid for', () => {
 
   it('is nothing at all before anybody has bought it', async () => {
     expect(await getClip(keys, KEY)).toBeNull()
+  })
+
+  /**
+   * Every address comes out of the same expansion, so the only thing keeping a
+   * clip from landing on top of the board is the string each is derived under.
+   * Asked of the awkward keys as well as a real one. The empty string is what
+   * makes a prefix that is merely *different* not good enough; the board's own
+   * info string is the value somebody would reach for by mistake; and `' index'`
+   * is the whole reason a clip's prefix ends in a colon, since without one it
+   * would run straight into the name the list is derived under.
+   */
+  it('is never kept where the board is, whatever the words are', async () => {
+    for (const cacheKey of ['', ' ', ' index', KEY, 'peri-sync address', 'peri-sync clip index']) {
+      const address = await keys.clipAddress(cacheKey)
+      expect(address, cacheKey).not.toBe(keys.address)
+      expect(address, cacheKey).not.toBe(keys.clipIndexAddress)
+    }
+    expect(keys.clipIndexAddress).not.toBe(keys.address)
+  })
+
+  it('does not land on top of the board', async () => {
+    blobs.set(keys.address, { envelope: 'the board', revision: 7 })
+
+    await putClip(keys, DEVICE, KEY, clip('the audio'))
+
+    expect(blobs.get(keys.address)).toEqual({ envelope: 'the board', revision: 7 })
   })
 })
 
@@ -214,9 +240,13 @@ describe('taking the audio off the server', () => {
     expect(blobs.size).toBe(0)
   })
 
-  // A run that is interrupted leaves a list that still names what is left, so
-  // running it again finishes the job.
-  it('leaves the list last, so it can simply be run again', async () => {
+  /**
+   * `drop` answers with a value rather than throwing, so a refused DELETE is
+   * walked straight past — and taking the list away over the top of one would
+   * leave somebody's words at an address nothing now names, after they had asked
+   * for them back. So the list goes only if every clip went.
+   */
+  it('keeps the list when a clip would not go', async () => {
     await putClip(keys, DEVICE, KEY, clip('one'))
     const real = globalThis.fetch
     vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
@@ -229,7 +259,27 @@ describe('taking the audio off the server', () => {
     await forgetClips(keys)
     serve()
 
-    expect(await listed()).toEqual([])
+    expect(await listed()).toEqual([KEY])
+  })
+
+  // Which is the whole point of keeping it: the second run finds the clip still
+  // named and takes it.
+  it('finishes the job when it is run again', async () => {
+    await putClip(keys, DEVICE, KEY, clip('one'))
+    const real = globalThis.fetch
+    let refuse = true
+    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+      if (refuse && init?.method === 'DELETE' && !String(input).includes(keys.clipIndexAddress)) {
+        return Promise.resolve(new Response('{}', { status: 500 }))
+      }
+      return real(input, init)
+    })
+    await forgetClips(keys)
+
+    refuse = false
+    await forgetClips(keys)
+
+    expect(blobs.size).toBe(0)
   })
 })
 
@@ -262,6 +312,45 @@ describe('when it does not work', () => {
     })
 
     expect(await getClip(keys, KEY)).toBeNull()
+  })
+
+  // Sealed, so nothing on the wire could put it there — but a clip whose bytes
+  // are not text at all must read as nothing rather than as a blob of junk
+  // handed to a speaker.
+  it('reads nothing out of a clip whose bytes are not text', async () => {
+    const address = await keys.clipAddress(KEY)
+    blobs.set(address, {
+      envelope: {
+        format: 'peri-sync',
+        version: 1,
+        updatedAt: 0,
+        device: DEVICE,
+        ...(await seal(keys.key, { type: 'audio/mpeg', data: null })),
+      },
+      revision: 1,
+    })
+
+    expect(await getClip(keys, KEY)).toBeNull()
+  })
+
+  // Same: what is in the list is read rather than trusted, so one damaged entry
+  // does not take the rest of the clean-up down with it.
+  it('takes the clips a damaged list still names', async () => {
+    await putClip(keys, DEVICE, KEY, clip('one'))
+    blobs.set(keys.clipIndexAddress, {
+      envelope: {
+        format: 'peri-sync',
+        version: 1,
+        updatedAt: 0,
+        device: DEVICE,
+        ...(await seal(keys.key, [KEY, 42, null, { a: 1 }])),
+      },
+      revision: 1,
+    })
+
+    await forgetClips(keys)
+
+    expect(blobs.size).toBe(0)
   })
 
   it('reads nothing out of a box holding something that is not a clip', async () => {
