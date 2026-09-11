@@ -3,8 +3,9 @@
 // The grid renders every phrase in the table — a couple of thousand cells — so
 // the cell is memoised and takes callbacks that do not change between renders.
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { holdDwells, useDwellControl } from '../ui/dwell'
+import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
 import { useEdit } from '../ui/edit-mode'
 import { PickerModal, PickerTile } from '../ui/controls'
@@ -13,15 +14,22 @@ import { hasChoices, type Phrase } from '../core/phrases'
 import { PHRASE_SORTS, sortName } from '../core/sort'
 import { type PhraseSort } from '../core/store'
 import { needsMore, windowSize } from '../core/virtual'
-import { CustomOrderIcon, PageIcon, SortAlphaIcon } from '../ui/icons'
+import { CustomOrderIcon, PageIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { PhraseText } from './phrase-text'
 
 const PhraseCell = memo(function PhraseCell({
   phrase,
+  reorder,
   onSelect,
 }: {
   phrase: Phrase
+  /**
+   * Present only while the grid is being arranged. Undefined the rest of the
+   * time, which is what keeps this memo holding over a couple of thousand cells
+   * — `propsFor` builds a fresh object per cell per render.
+   */
+  reorder?: ReorderProps
   onSelect: (p: Phrase) => void
 }) {
   const { settings } = useSettings()
@@ -29,6 +37,12 @@ const PhraseCell = memo(function PhraseCell({
   const [flash, setFlash] = useState(false)
 
   const handleActivate = useCallback(() => {
+    // Arranging takes precedence: while it is on, a cell is a thing to move
+    // rather than a thing to open — or, outside edit mode, to say.
+    if (reorder) {
+      reorder.onLiftOrDrop()
+      return
+    }
     if (editMode) {
       openEdit(phrase)
       return
@@ -36,9 +50,13 @@ const PhraseCell = memo(function PhraseCell({
     onSelect(phrase)
     setFlash(true)
     setTimeout(() => setFlash(false), 350)
-  }, [phrase, onSelect, editMode, openEdit])
+  }, [phrase, onSelect, editMode, openEdit, reorder])
 
-  const { active, props } = useDwellControl(settings.phraseDwellMs, handleActivate)
+  const { active, props } = useDwellControl(settings.phraseDwellMs, handleActivate, {
+    // A dwell landing mid-drag would lift a second cell out from under the one
+    // already in the pointer's hand.
+    disabled: reorder?.dragging,
+  })
   const fillable = hasChoices(phrase.segments)
   // What the cell says, not how it is marked up: a screen reader announcing
   // "asterisk asterisk help" is the same failure as the app speaking it.
@@ -46,10 +64,47 @@ const PhraseCell = memo(function PhraseCell({
 
   return (
     <div
-      className={cx('phrase-cell', active && 'dwelling', flash && 'selected', editMode && 'edit-mode')}
+      className={cx(
+        'phrase-cell',
+        active && 'dwelling',
+        flash && 'selected',
+        editMode && !reorder && 'edit-mode',
+        reorder && 'reorderable',
+        reorder?.held && 'is-held',
+        // Somewhere the held phrase could go — every other cell, while one is
+        // in the air.
+        reorder?.heldLabel && 'is-drop-zone',
+        reorder?.dropTarget && 'is-drop-target',
+      )}
       style={dwellVar(settings.phraseDwellMs)}
       role="button"
-      aria-label={editMode ? `Edit phrase: ${spoken}` : fillable ? `${spoken} — choose wording` : spoken}
+      aria-label={
+        reorder
+          ? reorderLabel(reorder, spoken, 'phrase')
+          : editMode
+            ? `Edit phrase: ${spoken}`
+            : fillable
+              ? `${spoken} — choose wording`
+              : spoken
+      }
+      draggable={reorder ? true : undefined}
+      onDragStart={reorder?.onDragStart}
+      onDragOver={
+        reorder &&
+        (e => {
+          // Without this the browser refuses the drop outright.
+          e.preventDefault()
+          reorder.onDragOver()
+        })
+      }
+      onDragEnd={reorder?.onDragEnd}
+      onDrop={
+        reorder &&
+        (e => {
+          e.preventDefault()
+          reorder.onDrop()
+        })
+      }
       {...props}
     >
       <span className="phrase-cell-text">
@@ -86,14 +141,17 @@ function ScrollBtn({
   onAction,
   repeat,
   disabled,
+  pressed,
   label,
   className,
   children,
 }: {
   onAction: () => void
   repeat?: boolean
-  /** Goes quiet rather than away — see the sort control for the one that does. */
+  /** Goes quiet rather than away — see the rail's two tools for the ones that do. */
   disabled?: boolean
+  /** For the one control here that is a mode rather than an action. */
+  pressed?: boolean
   label: string
   className?: string
   children: React.ReactNode
@@ -105,10 +163,11 @@ function ScrollBtn({
   })
   return (
     <div
-      className={cx('scroll-btn', className, active && 'dwelling')}
+      className={cx('scroll-btn', className, active && 'dwelling', pressed && 'is-on')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
       aria-label={label}
+      aria-pressed={pressed}
       {...props}
     >
       <div className="scroll-btn-fill" key={active ? 'a' : 'i'} />
@@ -201,7 +260,7 @@ function SortControl({
   return (
     <>
       <ScrollBtn
-        className="sort-btn"
+        className="rail-tool sort-btn"
         disabled={disabled}
         onAction={() => setOpen(true)}
         // The glyph says which order is on, so the name does too — a control
@@ -250,12 +309,20 @@ function GridScrollBar({
   sort,
   sortDisabled,
   onChooseSort,
+  reordering,
+  reorderDisabled,
+  onToggleReorder,
   onBeforeJumpToBottom,
 }: {
   gridRef: React.RefObject<HTMLElement | null>
   sort: PhraseSort
   sortDisabled?: boolean
   onChooseSort: (sort: PhraseSort) => void
+  reordering?: boolean
+  /** True under All and Sent, neither of which is a category to arrange. */
+  reorderDisabled?: boolean
+  /** Edit mode only; absent otherwise, and the control with it. */
+  onToggleReorder?: () => void
   /** Renders the rest of the list, so the jump has somewhere to land. */
   onBeforeJumpToBottom: () => void
 }) {
@@ -277,7 +344,29 @@ function GridScrollBar({
 
   return (
     <div className="grid-scrollbar">
-      <SortControl sort={sort} disabled={sortDisabled} onChoose={onChooseSort} />
+      {/* The controls that are about the grid rather than about moving through
+          it, grouped and ruled off. The five below are one thing, learnt by
+          position, and nothing may be inserted among them. */}
+      <div className="rail-tools">
+        <SortControl sort={sort} disabled={sortDisabled} onChoose={onChooseSort} />
+        {onToggleReorder && (
+          <ScrollBtn
+            className="rail-tool reorder-btn"
+            disabled={reorderDisabled}
+            pressed={reordering}
+            onAction={onToggleReorder}
+            label={
+              reorderDisabled
+                ? 'Arrange the phrases by hand. Open a category first — All cannot be arranged'
+                : reordering
+                  ? 'Done arranging the phrases'
+                  : 'Arrange the phrases by hand'
+            }
+          >
+            <ReorderIcon />
+          </ScrollBtn>
+        )}
+      </div>
       <ScrollBtn onAction={() => scrollTo(0)} label="Scroll to top">
         <svg
           viewBox="0 0 24 24"
@@ -369,6 +458,11 @@ export function PhraseGrid({
   sort,
   sortDisabled,
   onChooseSort,
+  reordering,
+  reorderDisabled,
+  onToggleReorder,
+  onReorder,
+  onLift,
   onSelect,
 }: {
   phrases: Phrase[]
@@ -384,10 +478,39 @@ export function PhraseGrid({
   /** True under Sent, which has an order of its own and keeps it. */
   sortDisabled?: boolean
   onChooseSort: (sort: PhraseSort) => void
+  /** All five of these are edit-mode only. */
+  reordering?: boolean
+  reorderDisabled?: boolean
+  onToggleReorder?: () => void
+  onReorder?: (from: string, to: string) => void
+  /** Announced when a phrase is picked up — the styling alone says nothing aloud. */
+  onLift?: (label: string) => void
   onSelect: (phrase: Phrase) => void
 }) {
   const gridRef = useRef<HTMLElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
+
+  // A phrase is keyed by its id, so what it is called has to be looked up — and
+  // through a map rather than a scan, since every cell asks what is in the air.
+  // Built only while arranging: a couple of thousand entries is cheap, and the
+  // board is rebuilt on every phrase spoken under an order that follows use.
+  const labels = useMemo(
+    () => (reordering ? new Map(phrases.map(p => [p.id, stripMarkdown(p.text)])) : null),
+    [reordering, phrases],
+  )
+  const { propsFor, release } = useReorder({
+    onReorder,
+    onLift,
+    labelOf: id => labels?.get(id) ?? id,
+  })
+
+  // Switching the mode off puts down whatever was in the air. Without this the
+  // phrase stays held across the round trip, and the next dwell drops the
+  // forgotten one instead of lifting the cell under the pointer.
+  const toggleReorder = useCallback(() => {
+    release()
+    onToggleReorder?.()
+  }, [release, onToggleReorder])
   /** Cells one measured windowful holds. Null until something has been laid out. */
   const [step, setStep] = useState<number | null>(null)
   /** How many to render. Null renders the lot, which is the unmeasured answer. */
@@ -461,7 +584,12 @@ export function PhraseGrid({
       <main ref={gridRef} className="grid-wrapper">
         <div ref={innerRef} className="phrase-grid" role="group" aria-label="Phrases">
           {visible.map(phrase => (
-            <PhraseCell key={phrase.id} phrase={phrase} onSelect={onSelect} />
+            <PhraseCell
+              key={phrase.id}
+              phrase={phrase}
+              reorder={reordering ? propsFor(phrase.id) : undefined}
+              onSelect={onSelect}
+            />
           ))}
         </div>
         {phrases.length === 0 && emptyMessage && <p className="grid-empty">{emptyMessage}</p>}
@@ -471,6 +599,9 @@ export function PhraseGrid({
         sort={sort}
         sortDisabled={sortDisabled}
         onChooseSort={onChooseSort}
+        reordering={reordering}
+        reorderDisabled={reorderDisabled}
+        onToggleReorder={onToggleReorder && toggleReorder}
         onBeforeJumpToBottom={showEverything}
       />
     </div>

@@ -39,6 +39,40 @@ describe('the board’s own order', () => {
   })
 })
 
+// The user's own arrangement, built by hand in edit mode. It reaches Custom
+// order and nothing else: A–Z and the two that follow use are answers to a
+// different question, and would be no use if a stored arrangement overrode them.
+describe('an arrangement made by hand', () => {
+  it('puts the phrases where they were put', () => {
+    const phrases = board('one', 'two', 'three')
+    expect(said(sortPhrases(phrases, 'custom', {}, ['p2', 'p0', 'p1']))).toEqual(['three', 'one', 'two'])
+  })
+
+  it('leaves a phrase the arrangement has never heard of at the end', () => {
+    const phrases = board('one', 'two', 'three')
+    expect(said(sortPhrases(phrases, 'custom', {}, ['p2']))).toEqual(['three', 'one', 'two'])
+  })
+
+  it('skips an id naming a phrase that is not there rather than leaving a hole', () => {
+    const phrases = board('one', 'two')
+    expect(said(sortPhrases(phrases, 'custom', {}, ['gone', 'p1', 'p0']))).toEqual(['two', 'one'])
+  })
+
+  it('is the very same array when nothing has been arranged', () => {
+    const phrases = board('one', 'two')
+    expect(sortPhrases(phrases, 'custom', {}, [])).toBe(phrases)
+  })
+
+  it('reaches none of the other three', () => {
+    const phrases = board('Banana', 'Apple')
+    const arrangement = ['p0', 'p1']
+    expect(said(sortPhrases(phrases, 'alpha', {}, arrangement))).toEqual(['Apple', 'Banana'])
+    const usage = usageOf(['p1', 1, 100])
+    expect(said(sortPhrases(phrases, 'recent', usage, arrangement))).toEqual(['Apple', 'Banana'])
+    expect(said(sortPhrases(phrases, 'frequent', usage, arrangement))).toEqual(['Apple', 'Banana'])
+  })
+})
+
 describe('A to Z', () => {
   it('puts them in alphabetical order', () => {
     expect(said(sortPhrases(board('Banana', 'apple', 'Cherry'), 'alpha', {}))).toEqual([

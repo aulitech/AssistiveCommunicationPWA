@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { moveInOrder, orderEmergency, sameAccount } from '../../src/core/store'
+import {
+  emptyStore,
+  moveInOrder,
+  orderByIds,
+  readPhraseOrder,
+  renameCategory,
+  sameAccount,
+} from '../../src/core/store'
 
 // The arithmetic behind arranging things by hand. The two bars that use it are
 // driven through the DOM — the tabs in categories.test.tsx, the emergency bar in
@@ -14,17 +21,17 @@ describe('arranging the emergency bar', () => {
   // The categories fall back to alphabetical; these fall back to the order they
   // come in, which is the order Peri ships them in.
   it('leaves them exactly as they come when nothing has been arranged', () => {
-    expect(orderEmergency(bar, [])).toBe(bar)
+    expect(orderByIds(bar, [])).toBe(bar)
   })
 
   it('puts them in the order asked for', () => {
-    expect(ids(orderEmergency(bar, ['em-2', 'em-0', 'em-3', 'em-1']))).toEqual(['em-2', 'em-0', 'em-3', 'em-1'])
+    expect(ids(orderByIds(bar, ['em-2', 'em-0', 'em-3', 'em-1']))).toEqual(['em-2', 'em-0', 'em-3', 'em-1'])
   })
 
   // A phrase added after the bar was arranged has no place in that order. It
   // goes at the end rather than at the front, and rearranging is what moves it.
   it('files anything the order has never heard of at the end, as it came', () => {
-    expect(ids(orderEmergency(phrases('em-0', 'new-a', 'em-1', 'new-b'), ['em-1', 'em-0']))).toEqual([
+    expect(ids(orderByIds(phrases('em-0', 'new-a', 'em-1', 'new-b'), ['em-1', 'em-0']))).toEqual([
       'em-1',
       'em-0',
       'new-a',
@@ -35,7 +42,7 @@ describe('arranging the emergency bar', () => {
   // An order outlives the phrases in it: one naming a phrase that has since been
   // deleted must not leave a hole, or put the rest in the wrong place.
   it('skips an id that names nothing', () => {
-    expect(ids(orderEmergency(phrases('em-0', 'em-1'), ['em-9', 'em-1', 'em-0']))).toEqual(['em-1', 'em-0'])
+    expect(ids(orderByIds(phrases('em-0', 'em-1'), ['em-9', 'em-1', 'em-0']))).toEqual(['em-1', 'em-0'])
   })
 })
 
@@ -97,5 +104,67 @@ describe('telling two linked accounts apart', () => {
     expect(sameAccount(account('sk-a'), account('sk-a', []))).toBe(false)
     expect(sameAccount(account('sk-a'), account('sk-a', [{ id: 'v2', name: 'Rachel' }]))).toBe(false)
     expect(sameAccount(account('sk-a'), account('sk-a', [{ id: 'v1', name: 'Adam' }]))).toBe(false)
+  })
+})
+
+// The user's own arrangement of the phrases inside a category. It belongs to the
+// category, so it has to survive the category being renamed — including the
+// rename that collapses two categories into one.
+describe('an arrangement and the category it belongs to', () => {
+  const storeWith = (phraseOrder: Record<string, string[]>, categories: string[] = []) => ({
+    ...emptyStore(),
+    categories,
+    phraseOrder,
+  })
+
+  it('follows the category to its new name', () => {
+    const next = renameCategory(storeWith({ Food: ['a', 'b'] }, ['Food']), 'Food', 'Meals')
+    expect(next.phraseOrder).toEqual({ Meals: ['a', 'b'] })
+  })
+
+  it('leaves every other category’s alone', () => {
+    const next = renameCategory(storeWith({ Food: ['a'], Home: ['c'] }, ['Food', 'Home']), 'Food', 'Meals')
+    expect(next.phraseOrder).toEqual({ Meals: ['a'], Home: ['c'] })
+  })
+
+  // Renaming onto a name that already exists merges the two, so the arrangement
+  // merges the same way a backup does: what arrives goes behind what was there.
+  it('goes behind the one it is merged into', () => {
+    const next = renameCategory(storeWith({ Food: ['a', 'b'], Home: ['c'] }, ['Food', 'Home']), 'Food', 'Home')
+    expect(next.phraseOrder).toEqual({ Home: ['c', 'a', 'b'] })
+  })
+
+  it('does not list a phrase twice when both named it', () => {
+    const next = renameCategory(
+      storeWith({ Food: ['a', 'b'], Home: ['b', 'c'] }, ['Food', 'Home']),
+      'Food',
+      'Home',
+    )
+    expect(next.phraseOrder).toEqual({ Home: ['b', 'c', 'a'] })
+  })
+
+  it('writes nothing where there was no arrangement to move', () => {
+    const next = renameCategory(storeWith({ Home: ['c'] }, ['Food', 'Home']), 'Food', 'Meals')
+    expect(next.phraseOrder).toEqual({ Home: ['c'] })
+  })
+})
+
+describe('reading an arrangement back', () => {
+  it('takes a category’s list of ids', () => {
+    expect(readPhraseOrder({ Food: ['a', 'b'] })).toEqual({ Food: ['a', 'b'] })
+  })
+
+  it('refuses anything that is not a record of them', () => {
+    for (const raw of [null, undefined, 'words', 7, ['a']]) expect(readPhraseOrder(raw)).toBeNull()
+  })
+
+  // An empty arrangement and no arrangement mean the same thing, and a store
+  // that only ever accumulates is one nobody can read later.
+  it('drops a category whose list holds nothing usable', () => {
+    expect(readPhraseOrder({ Food: [], Home: [1, null], Meals: ['', 'a'] })).toEqual({ Meals: ['a'] })
+  })
+
+  it('drops a category whose value is not a list at all', () => {
+    expect(readPhraseOrder({ Food: 'a,b', Home: ['c'] })).toEqual({ Home: ['c'] })
   })
 })
