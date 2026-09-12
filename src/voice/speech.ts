@@ -41,6 +41,34 @@ export interface SpeakOptions {
    * asking for it, which is the part an emergency cannot afford.
    */
   instant?: boolean
+  /**
+   * The language these words are **already** in.
+   *
+   * Set by the Translations tab, whose cells hold what came out of the speaker
+   * rather than what the board was written in. They are said as they stand, in
+   * that language — translating them a second time would put a phrase through
+   * the service twice and ask for Spanish from Spanish.
+   */
+  alreadyIn?: string
+  /**
+   * Told what came out, when what came out was a translation.
+   *
+   * **Only the two paths that actually translate call it** — the shipped table
+   * or the cache, and the service. The three that fall back to the words as
+   * they were written do not, because nothing was translated and an entry
+   * saying otherwise would be a lie in a list somebody reads.
+   *
+   * A callback rather than a write from in here, because the caller decides
+   * whether this counts: a phrase chosen off the board and a message sent both
+   * do, while a voice sample in the picker and the emergency bar do not. That
+   * is the same line the usage record draws, for the same reason.
+   *
+   * **It hands back the source as well**, already stripped of its markup — the
+   * same words the translation was looked up under. A caller that stripped them
+   * again for itself would be one edit away from disagreeing about what was
+   * translated, and the record is keyed on it.
+   */
+  onTranslated?: (source: string, translated: string, tag: string) => void
 }
 
 // Read per utterance rather than mirrored in a variable here. A JSON parse of
@@ -124,6 +152,12 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   if (!written.trim()) return
   stopEverything()
 
+  // Words that have already been translated. They are said in the language they
+  // are in, and never put through the translator again.
+  if (options.alreadyIn) {
+    return say(written, { ...settings, language: options.alreadyIn }, options)
+  }
+
   const language = settings.language ?? ''
   if (!needsTranslation(language)) return say(written, settings, options)
 
@@ -131,7 +165,10 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   // the path the emergency bar takes, and the only one it can take: a promise
   // there is a phrase that arrives after somebody needed it.
   const known = translationFor(written, language)
-  if (known) return say(known, settings, options)
+  if (known) {
+    options.onTranslated?.(written, known, language)
+    return say(known, settings, options)
+  }
 
   // Nothing to translate with, nothing that *can* translate it, or no time to
   // do it in. The words go out as they were written: a listener who has to work
@@ -152,6 +189,7 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
     if (mine !== generation) return
     if (result.status === 'ok') {
       rememberTranslation(written, language, result.text)
+      options.onTranslated?.(written, result.text, language)
       say(result.text, settings, options)
     } else {
       say(written, settings, options)

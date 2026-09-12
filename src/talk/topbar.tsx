@@ -523,7 +523,7 @@ export function Topbar({
           <ActionButton
             className="right"
             onSelect={onSavePhrase}
-            label={draft.keeping ? 'Keep this message as a phrase' : 'Save phrase'}
+            label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
             disabled={!draft.canSave}
           >
             <CheckIcon />
@@ -535,7 +535,7 @@ export function Topbar({
           <ActionButton
             className="right danger"
             onSelect={onDeletePhrase}
-            label={draft.keeping ? 'Forget this message' : 'Delete phrase'}
+            label={draft.kept ? `Forget this ${draft.kept}` : 'Delete phrase'}
             disabled={draft.isNew}
           >
             <TrashIcon />

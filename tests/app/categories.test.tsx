@@ -43,11 +43,16 @@ const enterEditMode = () => click(editToggle())
 // rather than role="tab" — this keeps them out of the category list.
 const tabs = () => $$('.filter-tab[role="tab"]')
 const tabLabels = () => tabs().map(t => t.textContent)
-// "Sent" and "All" lead the bar and are not categories. Everything about
-// renaming, deleting and ordering is about what comes after them.
-const FIXED_TABS = 2
-const catTabs = () => tabs().slice(FIXED_TABS)
+// "Sent" and "All" lead the bar, "Translations" closes it, and none of the three
+// is a category. Everything about renaming, deleting and ordering is about what
+// sits between them.
+const LEADING_TABS = 2
+const TRAILING_TABS = 1
+const catTabs = () => tabs().slice(LEADING_TABS, -TRAILING_TABS)
 const catLabels = () => catTabs().map(t => t.textContent)
+/** The three that are not categories, in the order the bar holds them. */
+const pinnedTabs = () => [...tabs().slice(0, LEADING_TABS), ...tabs().slice(-TRAILING_TABS)]
+const pinnedLabels = () => pinnedTabs().map(t => t.textContent)
 const tabNamed = (name: string) => tabs().find(t => t.textContent === name)
 const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
 const saveModal = () => click(action('Save'))
@@ -98,8 +103,8 @@ describe('in edit mode', () => {
   it('leaves the tabs that are not categories alone', () => {
     renderApp()
     enterEditMode()
-    expect(tabLabels().slice(0, FIXED_TABS)).toEqual(['Sent', 'All'])
-    for (const tab of tabs().slice(0, FIXED_TABS)) {
+    expect(pinnedLabels()).toEqual(['Sent', 'All', 'Translations'])
+    for (const tab of pinnedTabs()) {
       expect(tab.getAttribute('aria-label')).not.toMatch(/rename/i)
     }
   })
@@ -526,15 +531,20 @@ describe('ordering categories', () => {
     })
   })
 
-  it('leaves "Sent" and "All" pinned first and unmovable', () => {
+  /**
+   * Two pinned at the front and one at the end. The end one is the reason this
+   * is worth asserting twice over: a custom order that could reach it would put
+   * a tab after the last thing a user learns to look at.
+   */
+  it('leaves the three tabs that are not categories pinned and unmovable', () => {
     renderApp()
     startReordering()
-    expect(tabLabels().slice(0, FIXED_TABS)).toEqual(['Sent', 'All'])
-    for (const tab of tabs().slice(0, FIXED_TABS)) expect(tab.getAttribute('draggable')).toBeNull()
+    expect(pinnedLabels()).toEqual(['Sent', 'All', 'Translations'])
+    for (const tab of pinnedTabs()) expect(tab.getAttribute('draggable')).toBeNull()
 
     const arranged = names()
     dwellDrag(arranged[arranged.length - 1], arranged[0])
-    expect(tabLabels().slice(0, FIXED_TABS)).toEqual(['Sent', 'All'])
+    expect(pinnedLabels()).toEqual(['Sent', 'All', 'Translations'])
   })
 
   // Renames are stored against the source name, so the order — stored against

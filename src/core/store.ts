@@ -22,6 +22,7 @@ const USER_KEY = 'dwellspeak_user'
 const ELEVENLABS_KEY = 'peri_elevenlabs'
 const TRANSLATIONS_KEY = 'peri_translations'
 const SENT_KEY = 'peri_sent'
+const TRANSLATED_KEY = 'peri_translated'
 const RECENT_KEY = 'peri_recent'
 const USAGE_KEY = 'peri_usage'
 const PHRASE_SORT_KEY = 'peri_phrase_sort'
@@ -588,6 +589,90 @@ export function saveSent(messages: SentMessage[]) {
   localStorage.setItem(SENT_KEY, JSON.stringify(messages))
 }
 
+// ── What was said in another language ─────────────────────────────────────────
+// The Sent list's twin, and shaped after it for the same reasons — see
+// `talk/use-translated.ts`. A record of what somebody actually said, so it has
+// its own key, outside the three things a backup is built from.
+
+/** One phrase, as it came out of the speaker. */
+export interface Translated {
+  id: string
+  /**
+   * The board's own words, drawn under the translation.
+   *
+   * Without it the tab is a wall of text the person using the board cannot
+   * read — every other surface here is in their own language, and this is the
+   * one that is not.
+   */
+  source: string
+  /** What actually came out, in the other language. */
+  text: string
+  /**
+   * The language setting it was said under — **the tag, not the table.**
+   *
+   * `es-PR` reads the `es-419` table and is spoken as `es-PR`, so the table
+   * cannot say which voice to use or what to call it in a list. The tag can.
+   */
+  tag: string
+}
+
+/** Newest first, so the tab opens on what was just said. */
+const TRANSLATED_LIMIT = 200
+
+export function loadTranslated(): Translated[] {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(TRANSLATED_KEY) ?? '[]')
+    if (!Array.isArray(raw)) return []
+    return (raw as Translated[])
+      .filter(
+        (t): t is Translated =>
+          typeof t === 'object' &&
+          t !== null &&
+          typeof t.source === 'string' &&
+          typeof t.text === 'string' &&
+          typeof t.tag === 'string' &&
+          // A phrase with no words is a cell nobody can read or reach, and an
+          // entry with no language cannot be spoken as anything.
+          t.text.trim() !== '' &&
+          t.tag !== '',
+      )
+      .map(t => ({ id: String(t.id ?? `${t.tag} ${t.source}`), source: t.source, text: t.text, tag: t.tag }))
+      .slice(0, TRANSLATED_LIMIT)
+  } catch {
+    return []
+  }
+}
+
+export function saveTranslated(list: Translated[]) {
+  localStorage.setItem(TRANSLATED_KEY, JSON.stringify(list))
+}
+
+/**
+ * The list after saying `source` as `text`.
+ *
+ * **Keyed by the words and the language together**, so one phrase said in two
+ * languages is two entries — which is the whole of what "preserve the language"
+ * has to mean here. Saying the same thing again in the same language moves it
+ * back to the top rather than listing it twice, exactly as the Sent list does:
+ * the tab is for reaching a sentence again, and ten copies makes that harder.
+ *
+ * **The order *is* the recency.** No timestamp, for the reason the Sent list
+ * keeps none — a list held newest-first already answers the only question asked
+ * of it, and a clock in storage is one more thing to be wrong.
+ */
+export function addTranslated(list: Translated[], source: string, text: string, tag: string): Translated[] {
+  const said = text.trim()
+  if (!said || !tag) return list
+  const same = (t: Translated) => t.source === source && t.tag === tag
+  const existing = list.find(same)
+  return [
+    existing
+      ? { ...existing, text: said }
+      : { id: `tr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, source, text: said, tag },
+    ...list.filter(t => !same(t)),
+  ].slice(0, TRANSLATED_LIMIT)
+}
+
 /**
  * The list after saying `text`. Saying the same thing twice moves it back to the
  * top rather than listing it twice — the list is for reaching a sentence again,
@@ -994,6 +1079,7 @@ const RESETTABLE_KEYS = [
   ELEVENLABS_KEY,
   TRANSLATIONS_KEY,
   SENT_KEY,
+  TRANSLATED_KEY,
   RECENT_KEY,
   USAGE_KEY,
   PHRASE_SORT_KEY,

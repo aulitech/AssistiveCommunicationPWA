@@ -70,6 +70,10 @@ const PhraseCell = memo(function PhraseCell({
     <div
       className={cx(
         'phrase-cell',
+        // Two lines rather than one, so the cell stacks them instead of setting
+        // them side by side — the cell is a centring flex row for every other
+        // phrase in the app.
+        phrase.detail && 'has-detail',
         active && 'dwelling',
         justSaid && 'selected',
         editMode && !reorder && 'edit-mode',
@@ -92,7 +96,9 @@ const PhraseCell = memo(function PhraseCell({
             ? `Edit phrase: ${spoken}`
             : fillable
               ? `${spoken} — choose wording`
-              : spoken
+              : phrase.detail
+                ? `${spoken} — ${phrase.detail}`
+                : spoken
       }
       draggable={reorder ? true : undefined}
       onDragStart={reorder?.onDragStart}
@@ -117,6 +123,15 @@ const PhraseCell = memo(function PhraseCell({
       <span className="phrase-cell-text">
         <PhraseText segments={phrase.segments} />
       </span>
+      {/* The Translations tab, and nowhere else: what came out of the speaker,
+          with the board's own wording under it. `aria-hidden`, because the
+          label above already reads both halves — a screen reader finding it
+          twice would say the phrase, then say it again. */}
+      {phrase.detail && (
+        <span className="phrase-cell-detail" aria-hidden="true">
+          {phrase.detail}
+        </span>
+      )}
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )
@@ -241,17 +256,25 @@ const SORT_ICONS: Record<PhraseSort, React.ReactNode> = {
  * one you want. **Choosing closes it**: there is nothing to preview behind the
  * scrim, so a second dwell on Done would be a target for nothing.
  *
- * It **goes quiet rather than away** under the Sent tab. A control that comes
- * and goes moves the ones below it, and this rail is aimed at rather than read.
+ * It **goes quiet rather than away** on the two tabs whose order is not the
+ * user's to change. A control that comes and goes moves the ones below it, and
+ * this rail is aimed at rather than read.
  */
 function SortControl({
   sort,
-  disabled,
+  orderFixed,
   canArrange,
   onChoose,
 }: {
   sort: PhraseSort
-  disabled?: boolean
+  /**
+   * Why this tab's order cannot be changed, or absent when it can.
+   *
+   * A reason rather than a flag, because there are two tabs like this now and a
+   * control that has gone quiet explains nothing by itself — so the one thing it
+   * can still do is say which tab it is on and what that tab does instead.
+   */
+  orderFixed?: string
   /** False under All, which offers no Custom order — see `sortsFor`. */
   canArrange: boolean
   onChoose: (sort: PhraseSort) => void
@@ -271,13 +294,13 @@ function SortControl({
     <>
       <ScrollBtn
         className="rail-tool sort-btn"
-        disabled={disabled}
+        disabled={Boolean(orderFixed)}
         onAction={() => setOpen(true)}
         // The glyph says which order is on, so the name does too — a control
         // that has gone quiet, or that is read aloud, explains nothing by itself.
         label={
-          disabled
-            ? `Phrase order: ${sortName(sort)}. Sent messages are always newest first`
+          orderFixed
+            ? `Phrase order: ${sortName(sort)}. ${orderFixed}`
             : `Phrase order: ${sortName(sort)}. Choose another`
         }
       >
@@ -317,7 +340,7 @@ function SortControl({
 function GridScrollBar({
   gridRef,
   sort,
-  sortDisabled,
+  orderFixed,
   canArrange,
   onChooseSort,
   reordering,
@@ -326,8 +349,9 @@ function GridScrollBar({
 }: {
   gridRef: React.RefObject<HTMLElement | null>
   sort: PhraseSort
-  sortDisabled?: boolean
-  /** False under All and Sent, neither of which is a category to arrange. */
+  /** Why this tab's order is not the user's to change, or absent when it is. */
+  orderFixed?: string
+  /** False under All, Sent and Translations: none of the three is a category. */
   canArrange: boolean
   onChooseSort: (sort: PhraseSort) => void
   reordering?: boolean
@@ -358,7 +382,7 @@ function GridScrollBar({
           it, grouped and ruled off. The five below are one thing, learnt by
           position, and nothing may be inserted among them. */}
       <div className="rail-tools">
-        <SortControl sort={sort} disabled={sortDisabled} canArrange={canArrange} onChoose={onChooseSort} />
+        <SortControl sort={sort} orderFixed={orderFixed} canArrange={canArrange} onChoose={onChooseSort} />
         {onToggleReorder && (
           <ScrollBtn
             className="rail-tool reorder-btn"
@@ -367,7 +391,7 @@ function GridScrollBar({
             onAction={onToggleReorder}
             label={
               !canArrange
-                ? 'Arrange the phrases by hand. Open a category first — All cannot be arranged'
+                ? 'Arrange the phrases by hand. Open a category first — this tab is not one'
                 : reordering
                   ? 'Done arranging the phrases'
                   : 'Arrange the phrases by hand'
@@ -466,7 +490,7 @@ export function PhraseGrid({
   listKey,
   emptyMessage,
   sort,
-  sortDisabled,
+  orderFixed,
   canArrange,
   onChooseSort,
   reordering,
@@ -485,9 +509,9 @@ export function PhraseGrid({
   emptyMessage?: string
   /** Which of the four orders the list arrived in — the rail says which. */
   sort: PhraseSort
-  /** True under Sent, which has an order of its own and keeps it. */
-  sortDisabled?: boolean
-  /** False under All and Sent: no Custom order to offer, and nothing to arrange. */
+  /** Set on the two tabs that keep an order of their own: Sent, and Translations. */
+  orderFixed?: string
+  /** False under All, Sent and Translations: no Custom order, and nothing to arrange. */
   canArrange: boolean
   onChooseSort: (sort: PhraseSort) => void
   /** All four of these are edit-mode only. */
@@ -635,7 +659,7 @@ export function PhraseGrid({
       <GridScrollBar
         gridRef={gridRef}
         sort={sort}
-        sortDisabled={sortDisabled}
+        orderFixed={orderFixed}
         canArrange={canArrange}
         onChooseSort={onChooseSort}
         reordering={reordering}
