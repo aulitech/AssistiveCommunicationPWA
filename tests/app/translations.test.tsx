@@ -141,6 +141,10 @@ describe('what lands in it', () => {
     const cell = cells()[0]
     expect(cell.querySelector('.phrase-cell-text')?.textContent).toBe('Cereza')
     expect(cell.querySelector('.phrase-cell-detail')?.textContent).toBe('Cherry')
+    // Every other cell in the app is a centring flex row holding one run of
+    // text. Without this the two lines sit side by side instead of stacking,
+    // which jsdom lays out no differently and a screen does.
+    expect([...cell.classList]).toContain('has-detail')
     // The tint and the small grey say nothing aloud, so the label reads both.
     expect(cell.getAttribute('aria-label')).toBe('Cereza — Cherry')
   })
@@ -173,8 +177,17 @@ describe('what lands in it', () => {
    * translated, nothing kept.
    */
   it('keeps nothing while the board speaks its own language', () => {
+    renderApp({ language: 'en-GB' })
+    saySpanish()
+    click(cellFor('Cherry'))
+
+    expect(spoken).toEqual(['Cherry'])
+    expect(stored()).toEqual([])
+  })
+
+  it('keeps nothing with no language set at all', () => {
     renderApp()
-    showSorted()
+    saySpanish()
     click(cellFor('Cherry'))
 
     expect(spoken).toEqual(['Cherry'])
@@ -237,19 +250,46 @@ describe('saying one again', () => {
     expect(spoken).toEqual(['Cereza'])
   })
 
-  // They have been translated already. Sending them again would ask the service
-  // for Spanish from Spanish, and — the part that shows — would file the Spanish
-  // as a phrase of its own, so the tab would grow every time it was used.
+  /**
+   * They have been translated already. Sending them again would ask the service
+   * for Spanish from Spanish, and would file the Spanish as a translation of
+   * itself so the tab grew every time it was used.
+   *
+   * The seeded `Cereza` is the trap that makes it visible: looked up a second
+   * time, the cell would come out as something else entirely.
+   */
   it('does not translate them a second time', () => {
     renderApp({ language: 'es' })
-    saySpanish()
+    seedTranslations('es', { Cherry: 'Cereza', Cereza: 'SAID TWICE' })
+    showSorted()
     click(cellFor('Cherry'))
+    showTranslations()
+    spoken.length = 0
+
+    click(cells()[0])
+    click(cells()[0])
+
+    expect(spoken).toEqual(['Cereza', 'Cereza'])
+    expect(onTab()).toEqual([['Cereza', 'Cherry']])
+  })
+
+  /**
+   * The language comes off the cell rather than off the board. A tab full of
+   * Spanish is still Spanish once the board has been set back to English, and an
+   * English synthesiser reading it is what the stored tag exists to stop.
+   */
+  it('says them as their own language after the board has moved on', () => {
+    localStorage.setItem(
+      'peri_translated',
+      JSON.stringify([{ id: 't1', source: 'Cherry', text: 'Cereza', tag: 'es-PR' }]),
+    )
+    renderApp()
     showTranslations()
 
     click(cells()[0])
-    click(cells()[0])
 
-    expect(onTab()).toEqual([['Cereza', 'Cherry']])
+    expect(spoken).toEqual(['Cereza'])
+    expect(lastUtterance?.lang).toBe('es-PR')
   })
 
   it('says them as that language', () => {

@@ -253,9 +253,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
           // already, so they are said as they stand rather than sent through the
           // service a second time to ask for Spanish from Spanish.
           alreadyIn,
-          // Nothing to record for a cell that already is one. Everywhere else,
-          // this is the moment a phrase comes out in another language.
-          onTranslated: alreadyIn ? undefined : recordTranslated,
+          // The moment a phrase comes out in another language. `speak` reports
+          // only the paths that really translate, and the `alreadyIn` one above
+          // returns before any of them — so a cell in the tab saying itself
+          // again is silent here without needing a second guard.
+          onTranslated: recordTranslated,
         })
         sent.record(phraseText)
       } else {

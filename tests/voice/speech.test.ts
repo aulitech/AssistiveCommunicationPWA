@@ -423,6 +423,180 @@ describe('speaking a translated board', () => {
 })
 
 /**
+ * Saying what came out, so the Translations tab can keep it.
+ *
+ * The line that matters runs through every test here: **only the two paths that
+ * actually translate report anything.** A phrase spoken as it was written is not
+ * a translation, and an entry claiming otherwise would be wrong in a list
+ * somebody reads.
+ */
+describe('reporting a translation', () => {
+  const FRENCH = { ...SETTINGS, language: 'fr-FR' }
+  let reported: [string, string, string][] = []
+  const onTranslated = (source: string, translated: string, tag: string) =>
+    void reported.push([source, translated, tag])
+
+  beforeEach(() => {
+    reported = []
+    forgetTranslations()
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '')
+  })
+
+  it('reports one out of the shipped table', () => {
+    seedTranslations('fr', { 'Help me!': 'Aidez-moi !' })
+    speak('Help me!', FRENCH, { onTranslated })
+    expect(reported).toEqual([['Help me!', 'Aidez-moi !', 'fr-FR']])
+  })
+
+  it('reports one the service answered', async () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ data: { translations: [{ translatedText: "J'ai froid" }] } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+      ),
+    )
+
+    speak("I'm cold", FRENCH, { onTranslated })
+    await flush()
+
+    expect(reported).toEqual([["I'm cold", "J'ai froid", 'fr-FR']])
+  })
+
+  /** The words the translation was looked up under, not the markup around them. */
+  it('reports the source with its markup taken off', () => {
+    seedTranslations('fr', { 'Help me!': 'Aidez-moi !' })
+    speak('**Help me!**', FRENCH, { onTranslated })
+    expect(reported[0][0]).toBe('Help me!')
+  })
+
+  // The board is in the language it is spoken in. Nothing was translated, and
+  // the tag would be the board's own — an entry nobody could account for.
+  it('reports nothing when the board speaks its own language', () => {
+    seedTranslations('fr', { 'Help me!': 'Aidez-moi !' })
+    speak('Help me!', { ...SETTINGS, language: 'en-GB' }, { onTranslated })
+    expect(reported).toEqual([])
+  })
+
+  it('reports nothing with no language set at all', () => {
+    speak('Help me!', SETTINGS, { onTranslated })
+    expect(reported).toEqual([])
+  })
+
+  // Patois, which nothing translates into: a phrase outside the shipped table
+  // is said as it was written, so there is nothing to report.
+  it('reports nothing when no service will translate it', () => {
+    speak('Help me!', { ...SETTINGS, language: 'jam' }, { onTranslated })
+    expect(spoken).toEqual(['Help me!'])
+    expect(reported).toEqual([])
+  })
+
+  it('reports nothing when there is no key to translate with', () => {
+    speak("I'm cold", FRENCH, { onTranslated })
+    expect(spoken).toEqual(["I'm cold"])
+    expect(reported).toEqual([])
+  })
+
+  it('reports nothing when the translator will not answer', async () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    speak("I'm cold", FRENCH, { onTranslated })
+    await flush()
+    expect(spoken).toEqual(["I'm cold"])
+    expect(reported).toEqual([])
+  })
+
+  // The emergency bar. Nothing not already in hand is translated there, so the
+  // one thing it can report is a phrase out of the shipped table.
+  it('reports nothing for a phrase it had no time to translate', () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    speak("I'm cold", FRENCH, { onTranslated, instant: true })
+    expect(reported).toEqual([])
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * Words that have **been** translated, said again.
+ *
+ * This is the Translations tab speaking one of its own cells. Two things have to
+ * hold, and the second is the one that costs money if it does not: they are said
+ * as the language they are in, and they are not put through the translator a
+ * second time.
+ */
+describe('saying words that are already translated', () => {
+  beforeEach(() => {
+    forgetTranslations()
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
+  })
+
+  it('says them as they stand', () => {
+    speak('Aidez-moi !', SETTINGS, { alreadyIn: 'fr-FR' })
+    expect(spoken).toEqual(['Aidez-moi !'])
+  })
+
+  /**
+   * The trap: a table that would translate the French too. Looked up, it would
+   * come out as something else entirely — which is what asking the service for
+   * French from French amounts to.
+   */
+  it('does not look them up again', () => {
+    seedTranslations('fr', { 'Aidez-moi !': 'WRONG' })
+    speak('Aidez-moi !', { ...SETTINGS, language: 'fr-FR' }, { alreadyIn: 'fr-FR' })
+    expect(spoken).toEqual(['Aidez-moi !'])
+  })
+
+  it('does not send them to the service', () => {
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    speak('Aidez-moi !', { ...SETTINGS, language: 'fr-FR' }, { alreadyIn: 'fr-FR' })
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('reports nothing, there being nothing to report', () => {
+    const reported: string[] = []
+    seedTranslations('fr', { 'Aidez-moi !': 'WRONG' })
+    speak(
+      'Aidez-moi !',
+      { ...SETTINGS, language: 'fr-FR' },
+      {
+        alreadyIn: 'fr-FR',
+        onTranslated: t => void reported.push(t),
+      },
+    )
+    expect(reported).toEqual([])
+  })
+
+  /**
+   * The language comes from the words, not from the board. A tab full of Spanish
+   * is still Spanish after the board has been set back to English, and an English
+   * synthesiser reading it is exactly what the tag exists to stop.
+   */
+  it('says them as their own language, not the board’s', () => {
+    speak('Aidez-moi !', { ...SETTINGS, language: 'en-GB' }, { alreadyIn: 'fr-FR' })
+    expect(lastUtterance?.lang).toBe('fr-FR')
+  })
+
+  it('says them as their own language when the board has none', () => {
+    speak('Aidez-moi !', SETTINGS, { alreadyIn: 'fr-FR' })
+    expect(lastUtterance?.lang).toBe('fr-FR')
+  })
+
+  // The tag the synthesiser is told is not always the tag the setting holds, and
+  // that has to keep being true here: there is no Patois voice anywhere.
+  it('says Patois as Jamaican English, as everywhere else', () => {
+    speak('Help mi!', SETTINGS, { alreadyIn: 'jam' })
+    expect(lastUtterance?.lang).toBe('en-JM')
+  })
+})
+
+/**
  * Patois, which nothing translates into.
  *
  * The shipped table is the whole of the answer here, and the property that
