@@ -814,7 +814,9 @@ describe('arranging the phrases by hand', () => {
     click(editToggle())
 
     expect(reorderBtn()!.getAttribute('aria-disabled')).toBe('true')
-    expect(reorderBtn()!.getAttribute('aria-label')).toMatch(/All cannot be arranged/)
+    // Three tabs are not a category now, so the label names the tab the user is
+    // on rather than one of them.
+    expect(reorderBtn()!.getAttribute('aria-label')).toMatch(/Open a category first/)
   })
 
   it('goes quiet under Sent', () => {

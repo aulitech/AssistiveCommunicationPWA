@@ -41,12 +41,14 @@ export const PRIVACY: ProseDocument = {
           'The audio a linked ElevenLabs account has made for you, so that a phrase you have paid to have spoken is not paid for twice.',
           'Your Synchronize passphrase, if you turned that on.',
           'How often you use each phrase and when you last used one, which is what lets the grid be ordered by what you use.',
+          'The messages you have spoken or copied, under the Sent tab.',
+          'What you have said in another language, and which language, under the Translations tab.',
         ),
         text(
           'None of this leaves your device unless you turn on Synchronize, and what leaves then is encrypted — see the next section. Neither your ElevenLabs key nor your Synchronize passphrase is included in a backup file, so sharing a backup does not share your account or your other devices. The passphrase never leaves your device at all; the key travels between your own devices, inside the encryption, so the voices you pay for work on all of them.',
         ),
         text(
-          'How often you use each phrase is the one thing on that list that goes nowhere at all. It stays on the device that counted it: it is not in a backup file, and it is not in what Synchronize sends to your other devices.',
+          'Three things on that list go nowhere at all: how often you use each phrase, the messages under the Sent tab, and the translations under the Translations tab. All three are a record of what you actually said, so all three stay on the device that recorded them — none is in a backup file, and none is in what Synchronize sends to your other devices. A factory reset clears them.',
         ),
       ],
     },

@@ -8,9 +8,20 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { BLANK } from '../core/phrases'
 import { useSettings } from '../ui/settings'
-import { speak } from '../voice/speech'
+import { speak, type SpeakOptions } from '../voice/speech'
 
-export function useComposer() {
+export function useComposer({
+  onTranslated,
+}: {
+  /**
+   * Told what came out, when the message came out in another language.
+   *
+   * A composed message is the one thing said here that is nowhere on the board,
+   * so it is also the one whose translation would otherwise exist for exactly as
+   * long as it took to say — see `use-translated.ts`.
+   */
+  onTranslated?: SpeakOptions['onTranslated']
+} = {}) {
   const { settings } = useSettings()
   const [text, setText] = useState('')
   const [history, setHistory] = useState<string[]>([])
@@ -101,7 +112,7 @@ export function useComposer() {
       .catch(() => false)
   }, [text])
 
-  const speakIt = useCallback(() => speak(text, settings), [text, settings])
+  const speakIt = useCallback(() => speak(text, settings, { onTranslated }), [text, settings, onTranslated])
 
   return {
     text,

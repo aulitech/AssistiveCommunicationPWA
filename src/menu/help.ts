@@ -371,6 +371,23 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Finding what you have said in another language',
+    blocks: [
+      text(
+        'Everything you say in another language is kept under a Translations tab, at the very end of the row of categories. Each button shows the words that came out, with your own wording underneath it, so you can still read the tab even though the phrases on it are not in your language.',
+      ),
+      list(
+        'Newest first, always. The tab is a record of what you said rather than a category, so it is not one you can reorder or arrange by hand.',
+        'Choosing one says it again, in that language and in the voice you chose for it. It is not translated a second time.',
+        'A phrase said in two languages is on the tab twice, once for each.',
+        'In edit mode, the bin forgets a translation and Save keeps it as a phrase of your own. A kept one is an ordinary phrase, spoken in whatever language the board is set to.',
+      ),
+      text(
+        'It stays on this device. It is a record of what you actually said, so it is never in a backup file and never sent to your other devices — the same as the list of sent messages. A factory reset clears it.',
+      ),
+    ],
+  },
+  {
     title: 'A different voice for one phrase',
     blocks: [
       text(

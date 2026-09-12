@@ -15,6 +15,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { cancelAllDwells } from '../ui/dwell'
 import { type Phrase } from '../core/phrases'
 import { SENT_CATEGORY } from './use-sent'
+import { TRANSLATED_CATEGORY } from './use-translated'
 
 /** What the editor is pointed at. Null is a phrase being written from nothing. */
 interface Target {
@@ -42,10 +43,24 @@ export interface Draft {
   /** Empty means the voice everything else is said in. */
   voice: string
   /**
-   * A message already said. Saving keeps it as a phrase of the user's own;
-   * deleting forgets having said it. Neither edits the record itself.
+   * A record of something already said — a sent message, or a translation.
+   * Saving keeps what is in the box as a phrase of the user's own; deleting
+   * forgets having said it. Neither edits the record itself.
+   *
+   * **A kept translation is an ordinary phrase.** Its language is not carried
+   * over: a phrase on the board is spoken in the language the board is set to,
+   * which is the rule the whole app is built on, and a phrase that quietly
+   * ignored the setting would be the one exception nobody could see.
    */
   keeping: boolean
+  /**
+   * Which record it came off, for the labels that have to name it.
+   *
+   * Null unless `keeping`. Three controls read it — Save, the bin, and the line
+   * that says what the strip is for — and all three said "message" before there
+   * was a second record to come off.
+   */
+  kept: 'message' | 'translation' | null
   isNew: boolean
   canSave: boolean
   /**
@@ -123,7 +138,13 @@ export function useEditor({
       text,
       category,
       voice: edits.voice ?? (phrase ? (voiceFor(phrase.id) ?? '') : (recent.voice ?? '')),
-      keeping: phrase?.category === SENT_CATEGORY,
+      keeping: phrase?.category === SENT_CATEGORY || phrase?.category === TRANSLATED_CATEGORY,
+      kept:
+        phrase?.category === TRANSLATED_CATEGORY
+          ? 'translation'
+          : phrase?.category === SENT_CATEGORY
+            ? 'message'
+            : null,
       isNew: phrase === null,
       duplicate,
       // A phrase has to be filed somewhere; the emergency bar is the somewhere

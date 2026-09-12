@@ -182,8 +182,8 @@ export function PhraseEditBar({
       <span className={cx('edit-bar-title', draft.duplicate && 'is-warning')}>
         {draft.duplicate
           ? 'Already on the board'
-          : draft.keeping
-            ? 'Keep this message'
+          : draft.kept
+            ? `Keep this ${draft.kept}`
             : draft.isNew
               ? draft.isEmergency
                 ? 'New emergency phrase'

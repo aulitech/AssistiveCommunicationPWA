@@ -52,6 +52,7 @@ import { useBoard } from './use-board'
 import { useComposer } from './use-composer'
 import { useEditor } from './use-editor'
 import { SENT_CATEGORY, SENT_FILTER, useSent } from './use-sent'
+import { TRANSLATED_CATEGORY, TRANSLATED_FILTER, useTranslated, voiceForTranslated } from './use-translated'
 import { useUsage } from './use-usage'
 import { useToast } from './use-toast'
 
@@ -61,8 +62,11 @@ const EMPTY_ARRANGEMENT: string[] = []
 export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const { settings, update } = useSettings()
   const board = useBoard()
-  const composer = useComposer()
   const sent = useSent()
+  // Before the composer, which speaks into it: a message said in another
+  // language is the one translation that is nowhere on the board.
+  const translated = useTranslated()
+  const composer = useComposer({ onTranslated: translated.record })
   const { toast, flashToast } = useToast()
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -101,11 +105,15 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // fully-hidden categories lose theirs.
   const tabs = useMemo(
     () => [
-      // Neither of these is a category: they cannot be renamed, and the custom
-      // order cannot move them out of the two places a user learns to look.
+      // None of the three is a category: they cannot be renamed, and the custom
+      // order cannot move them out of the places a user learns to look. Two are
+      // pinned at the front and one at the very end — Translations is the tab
+      // nobody reaches for mid-sentence, and it is the one tab whose cells are
+      // not in the language the rest of the board is written in.
       { id: SENT_FILTER, label: SENT_CATEGORY, fixed: true },
       { id: 'all', label: 'All', fixed: true },
       ...allCategories.map(c => ({ id: c, label: c })),
+      { id: TRANSLATED_FILTER, label: TRANSLATED_CATEGORY, fixed: true },
     ],
     [allCategories],
   )
@@ -117,24 +125,28 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // Deleting the last phrase in a category takes its tab away; fall back to
   // "All" rather than showing an empty grid under a tab that no longer exists.
   const effectiveFilter =
-    activeFilter === 'all' || activeFilter === SENT_FILTER || allCategories.includes(activeFilter)
+    activeFilter === 'all' ||
+    activeFilter === SENT_FILTER ||
+    activeFilter === TRANSLATED_FILTER ||
+    allCategories.includes(activeFilter)
       ? activeFilter
       : 'all'
 
   const showingSent = effectiveFilter === SENT_FILTER
+  const showingTranslated = effectiveFilter === TRANSLATED_FILTER
 
   /**
    * Whether this tab is a category of its own: somewhere a hand arrangement can
-   * be built, and so somewhere Custom order means anything. Neither All nor Sent
-   * is one.
+   * be built, and so somewhere Custom order means anything. None of All, Sent
+   * and Translations is one.
    */
-  const canArrange = effectiveFilter !== 'all' && !showingSent
+  const canArrange = effectiveFilter !== 'all' && !showingSent && !showingTranslated
 
   /** What this tab is showing. A tab nobody has chosen for shows `DEFAULT_SORT`. */
   const phraseSort = sortFor(phraseSorts, effectiveFilter, canArrange)
 
-  // Sent messages are their own list rather than part of the board: they are a
-  // record of what was said, not phrases anybody added.
+  // Sent messages and translations are their own lists rather than part of the
+  // board: both are a record of what was said, not phrases anybody added.
   // Only what is being *composed* narrows the grid. In edit mode the box holds a
   // phrase being written, and narrowing the board to a word of it would take
   // away the phrases the user came to edit.
@@ -146,6 +158,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // every one of a couple of thousand memoised cells, and a callback depending
   // on the whole of a hook result depends on a fresh object every render.
   const { record: recordUsed, forget: forgetUsed } = usage
+  // Pulled out for the same reason: both reach the memoised cells too.
+  const { record: recordTranslated, forget: forgetTranslated } = translated
 
   // Arranged before it is searched, never after. Filtering to a category keeps
   // the order it is given and so does the ranking, so this decides ties within a
@@ -163,12 +177,25 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     [board.mainPhrases, phraseSort, usage.counts, handArrangement],
   )
 
+  // Both records keep the order they happened in, newest first, and neither is
+  // put through `sortPhrases` at all — which is what "always sorted by recency"
+  // means for the Translations tab, exactly as it does for Sent.
   const visiblePhrases = useMemo(
     () =>
       showingSent
         ? search(sent.phrases, SENT_CATEGORY, filterWord)
-        : search(arrangedPhrases, effectiveFilter, filterWord),
-    [showingSent, sent.phrases, arrangedPhrases, effectiveFilter, filterWord],
+        : showingTranslated
+          ? search(translated.phrases, TRANSLATED_CATEGORY, filterWord)
+          : search(arrangedPhrases, effectiveFilter, filterWord),
+    [
+      showingSent,
+      showingTranslated,
+      sent.phrases,
+      translated.phrases,
+      arrangedPhrases,
+      effectiveFilter,
+      filterWord,
+    ],
   )
 
   /**
@@ -216,17 +243,26 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * it is composed into the message for the user to send when ready.
    */
   const deliverPhrase = useCallback(
-    (phraseText: string, voiceURI?: string, blankAt = -1) => {
+    (phraseText: string, voiceURI?: string, blankAt = -1, alreadyIn?: string) => {
       // In auto-speak the phrase is the message — it is spoken and never
       // reaches the box, so this is the moment it counts as said.
       if (settings.autoSpeak) {
-        speak(phraseText, settings, { voiceURI })
+        speak(phraseText, settings, {
+          voiceURI,
+          // Set only from the Translations tab: those words have been translated
+          // already, so they are said as they stand rather than sent through the
+          // service a second time to ask for Spanish from Spanish.
+          alreadyIn,
+          // Nothing to record for a cell that already is one. Everywhere else,
+          // this is the moment a phrase comes out in another language.
+          onTranslated: alreadyIn ? undefined : recordTranslated,
+        })
         sent.record(phraseText)
       } else {
         insertPhrase(phraseText, blankAt)
       }
     },
-    [settings, insertPhrase, sent],
+    [settings, insertPhrase, sent, recordTranslated],
   )
 
   const handleSelectPhrase = useCallback(
@@ -235,10 +271,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // phrase is *chosen* — whatever it then does, speak, compose or open a
       // link. Edit mode never reaches here: a cell opens the editor instead.
       //
-      // Not under Sent. Those ids name a message rather than a phrase on the
-      // board, so counting them would fill the record with ids that can never
-      // match anything and never fall out.
-      if (!showingSent) {
+      // Not under Sent or Translations. Those ids name a message or a
+      // translation rather than a phrase on the board, so counting them would
+      // fill the record with ids that can never match anything and never fall
+      // out.
+      if (!showingSent && !showingTranslated) {
         recordUsed(phrase.id)
         // Under an order that follows use, the board rearranges on this very
         // dwell, and the pointer is resting on the cell that did it. Nothing may
@@ -269,9 +306,16 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // Recomposed rather than read off the phrase, for the offset alone — a
       // blank has no characters to find in `phrase.text` any more.
       const { blankAt } = composeWithBlank(phrase.segments)
-      deliverPhrase(phrase.text, voiceFor(phrase.id), blankAt)
+      // A translated cell carries the language it is in, and is said in the
+      // voice that was chosen while the board spoke it.
+      deliverPhrase(
+        phrase.text,
+        phrase.lang ? voiceForTranslated(settings, phrase.lang) : voiceFor(phrase.id),
+        blankAt,
+        phrase.lang,
+      )
     },
-    [deliverPhrase, voiceFor, flashToast, showingSent, recordUsed, phraseSort],
+    [deliverPhrase, voiceFor, flashToast, showingSent, showingTranslated, recordUsed, phraseSort, settings],
   )
 
   // ── Editing what is on the board ───────────────────────────────────────────
@@ -328,17 +372,21 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const handleDelete = useCallback(() => {
     const { phrase, keeping } = draft
     if (!phrase) return
-    // Forgetting a message is the only way to take something off that list, and
-    // somebody who has just said something private needs one.
-    if (keeping) sent.forget(phrase.id)
-    else {
+    // Forgetting is the only way to take something off either record, and
+    // somebody who has just said something private needs one. Which record is
+    // read off the phrase itself, since the two tabs share every other part of
+    // this path.
+    if (keeping) {
+      if (phrase.category === TRANSLATED_CATEGORY) forgetTranslated(phrase.id)
+      else sent.forget(phrase.id)
+    } else {
       board.removePhrase(phrase.id)
       // Its count goes with it, so the record stays the size of the board.
       forgetUsed(phrase.id)
     }
     startNew()
     flashToast(keeping ? 'Forgotten' : 'Deleted')
-  }, [draft, board, sent, forgetUsed, startNew, flashToast])
+  }, [draft, board, sent, forgetTranslated, forgetUsed, startNew, flashToast])
 
   // ── Editing the categories ─────────────────────────────────────────────────
 
@@ -661,11 +709,24 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             // A new tab or a new word is a different list; the same phrases in
             // a new order is not.
             listKey={`${effectiveFilter}\u0000${filterWord}`}
-            emptyMessage={showingSent ? 'Nothing said yet. Messages you speak or copy are kept here.' : undefined}
+            emptyMessage={
+              showingSent
+                ? 'Nothing said yet. Messages you speak or copy are kept here.'
+                : showingTranslated
+                  ? 'Nothing translated yet. Set a spoken language in Settings, and what you say in it is kept here.'
+                  : undefined
+            }
             sort={phraseSort}
-            // Sent is not a category. It is a record in the order it happened,
-            // newest first, and that is the whole of what it is for.
-            sortDisabled={showingSent}
+            // Neither of these is a category. Both are a record in the order it
+            // happened, newest first, and that is the whole of what they are
+            // for — so the order is not the user's to change under either.
+            orderFixed={
+              showingSent
+                ? 'Sent messages are always newest first'
+                : showingTranslated
+                  ? 'Translations are always newest first'
+                  : undefined
+            }
             canArrange={canArrange}
             onChooseSort={chooseSort}
             reordering={editMode && reorderingPhrases}

@@ -35,6 +35,24 @@ export interface Phrase {
   source: string
   segments: Segment[]
   category: string
+  /**
+   * A second line under the words, in the muted grey.
+   *
+   * For the one tab whose cells are not in the language the board is written in:
+   * the Translations tab draws what came out of the speaker, with the user's own
+   * wording beneath it, or it would be a wall of text they cannot read. Absent
+   * everywhere else, and absent is the normal case — `PhraseCell` is memoised
+   * over a couple of thousand of these.
+   */
+  detail?: string
+  /**
+   * What these words already are, where they are not the board's own language.
+   *
+   * Set only by the Translations tab, whose cells hold words that have *been*
+   * translated — so they are said as they stand, in that language, and never
+   * translated a second time.
+   */
+  lang?: string
 }
 
 // ── Aliases ───────────────────────────────────────────────────────────────────
