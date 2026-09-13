@@ -1,11 +1,16 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import {
   emptyStore,
+  factoryReset,
+  loadReplyKey,
+  loadSent,
   moveInOrder,
   orderByIds,
   readPhraseOrder,
   renameCategory,
   sameAccount,
+  saveReplyKey,
+  saveSent,
 } from '../../src/core/store'
 
 // The arithmetic behind arranging things by hand. The two bars that use it are
@@ -166,5 +171,49 @@ describe('reading an arrangement back', () => {
 
   it('drops a category whose value is not a list at all', () => {
     expect(readPhraseOrder({ Food: 'a,b', Home: ['c'] })).toEqual({ Home: ['c'] })
+  })
+})
+
+/**
+ * The key behind a suggested reply. Its own storage name, which matters more
+ * than it looks: every one of these keys is a bare string under a bare name, so
+ * two of them sharing one would have each quietly overwriting the other.
+ */
+describe('the key for suggested replies', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('round-trips', () => {
+    saveReplyKey('sk-ant-key')
+    expect(loadReplyKey()).toBe('sk-ant-key')
+  })
+
+  it('is empty before one has been given', () => {
+    expect(loadReplyKey()).toBe('')
+  })
+
+  it('is trimmed on the way in, since it was pasted', () => {
+    saveReplyKey('  sk-ant-key  ')
+    expect(loadReplyKey()).toBe('sk-ant-key')
+  })
+
+  it('is removed by an empty one rather than stored as one', () => {
+    saveReplyKey('sk-ant-key')
+    saveReplyKey('   ')
+    expect(loadReplyKey()).toBe('')
+    expect(localStorage.getItem('peri_reply')).toBeNull()
+  })
+
+  it('is kept under a name of its own', () => {
+    saveSent([{ id: 's1', text: 'I need the toilet' }])
+    saveReplyKey('sk-ant-key')
+
+    expect(loadSent()).toHaveLength(1)
+    expect(localStorage.getItem('peri_reply')).toBe('sk-ant-key')
+  })
+
+  it('is cleared by a factory reset', () => {
+    saveReplyKey('sk-ant-key')
+    factoryReset()
+    expect(loadReplyKey()).toBe('')
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fireEvent, render, act } from '@testing-library/react'
+import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import App from '../../src/App'
 import { saveReplyKey } from '../../src/core/store'
 import { spoken } from '../setup'
@@ -344,6 +344,21 @@ describe('what listen mode does not touch', () => {
     const before = $$('.phrase-cell').length
     hear('Apple')
     expect($$('.phrase-cell')).toHaveLength(before)
+  })
+
+  /**
+   * The worst version of this feature is a microphone held open by a component
+   * nobody can see. Nothing else in the app can turn it off once the screen that
+   * owns it is gone.
+   */
+  it('stops listening when the screen goes', () => {
+    renderApp()
+    click(micBtn())
+    expect(FakeRecognition.last!.started).toBe(true)
+
+    cleanup()
+
+    expect(FakeRecognition.last!.stopped).toBe(true)
   })
 
   it('keeps nothing once the box is closed', () => {

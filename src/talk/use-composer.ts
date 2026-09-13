@@ -97,22 +97,18 @@ export function useComposer({
   /**
    * Put something in the box that the user did not type.
    *
-   * The one caller is a suggested reply — see `listen/suggest.ts` — and the
-   * history push is the whole of why this is not `setText`: whatever they had
-   * written is one dwell on Undo away, which is what makes accepting a machine's
-   * words a thing they can take back rather than a thing that happened to them.
-   * **It never speaks**, whatever mode the board is in.
+   * The one caller is a suggested reply — see `listen/suggest.ts` — and what
+   * makes that safe is not here: **the control refuses to run at all while the
+   * box has something in it**, because this box's undo is a one-step toggle
+   * rather than a stack and could not walk back past a suggestion. So this is
+   * `setText` with the caret put at the end, and it is a named thing only so
+   * that the one rule about it has somewhere to live. **It never speaks**,
+   * whatever mode the board is in.
    */
-  const propose = useCallback(
-    (suggestion: string) => {
-      const offered = suggestion.trim()
-      if (!offered) return
-      setHistory(h => [...h, text])
-      setText(offered)
-      setCursorPos(offered.length)
-    },
-    [text],
-  )
+  const propose = useCallback((suggestion: string) => {
+    setText(suggestion)
+    setCursorPos(suggestion.length)
+  }, [])
 
   const clearOrUndo = useCallback(() => {
     if (text) {

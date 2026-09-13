@@ -70,7 +70,13 @@ describe('asking for a reply', () => {
     // In a header rather than on the query string, for the reason every key in
     // this app is: a key in a URL ends up in logs, in history and in a referrer.
     expect(headers(fetcher)['x-api-key']).toBe(KEY)
-    expect(String((fetcher.mock.calls as unknown as [string, RequestInit][])[0][0])).not.toContain(KEY)
+
+    // And in that one place only. A key copied into a second header or onto the
+    // URL is a key in somewhere nobody thought to look at.
+    const [url, init] = (fetcher.mock.calls as unknown as [string, RequestInit][])[0]
+    expect(String(url)).not.toContain(KEY)
+    expect(String(init.body)).not.toContain(KEY)
+    expect(Object.values(headers(fetcher)).filter(v => String(v).includes(KEY))).toHaveLength(1)
   })
 
   // Anthropic refuses a browser request without it.
@@ -129,7 +135,13 @@ describe('asking for a reply', () => {
     expect(sent(fetcher).system).not.toMatch(/Write the reply in/)
   })
 
-  it('joins a reply that came back in pieces, and drops what is not text', async () => {
+  /**
+   * **Only the parts that are the reply.** A block of some other kind carrying a
+   * `text` field is the case this guards: a model's own working, put into an
+   * assistive board's message box for somebody to say out loud, would be the
+   * worst thing this feature could do.
+   */
+  it('joins a reply that came back in pieces, and takes nothing that is not it', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(
@@ -137,7 +149,7 @@ describe('asking for a reply', () => {
           new Response(
             JSON.stringify({
               content: [
-                { type: 'thinking', thinking: 'hmm' },
+                { type: 'thinking', text: 'They probably want tea, but' },
                 { type: 'text', text: 'Tea ' },
                 { type: 'text', text: 'please' },
               ],

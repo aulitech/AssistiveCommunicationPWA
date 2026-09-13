@@ -114,6 +114,11 @@ export function useListen({
       askedRef.current++
       stopListening()
       setOpen(false)
+      // **Dropped at the moment it is closed**, rather than left to be replaced
+      // the next time the box is opened. Nothing on screen can tell the two
+      // apart and no test here can either — what differs is whether somebody's
+      // question is still held in memory after they have put it away, and it is
+      // the sort of question this app should not need asking twice.
       setHeard(EMPTY)
       return
     }

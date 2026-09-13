@@ -95,23 +95,21 @@ function describe(error: string): string {
  * indistinguishable from a box that is broken.
  */
 export function listen(tag: string, { onHeard, onDone }: Listening): () => void {
-  const Recognition = recognitionClass()
-  if (!Recognition) {
-    onDone('This browser cannot listen')
-    return () => {}
-  }
-
   let recognition: RecognitionLike
   try {
-    recognition = new Recognition()
+    // A browser with neither name reaches this as a `new null()`, which is the
+    // same failure as a browser that has the name and refuses to make one — so
+    // both go through one catch rather than through a guard and a catch that
+    // would have to be kept saying the same thing.
+    recognition = new (recognitionClass() as RecognitionClass)()
   } catch {
     onDone('This browser cannot listen')
     return () => {}
   }
 
-  // Empty means the device decides, which is what the rest of the app means by
-  // an unset language.
-  if (tag) recognition.lang = speechTag(tag)
+  // An empty tag is what the API itself means by "the device decides", so it is
+  // set either way rather than guarded — `speechTag('')` is `''`.
+  recognition.lang = speechTag(tag)
   // A question is a sentence or two, and a recogniser left to decide for itself
   // stops at the first pause — which in a room is somebody drawing breath.
   recognition.continuous = true
