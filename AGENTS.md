@@ -19,7 +19,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 | 1 | `core/` | What Peri knows and keeps. No React, no network, no screens |
 | 2 | `ui/` | The controls and contexts every screen is built from |
 | 3 | `translate/` | Words into other words, which has to happen before anything says them |
-| 4 | `voice/` `sync/` | The two that talk to something outside this device |
+| 4 | `voice/` `sync/` `listen/` | The three that talk to something outside this device |
 | 5 | `menu/` | The panel that slides down, and everything reached from it |
 | 6 | `talk/` `signin/` `legal/` | The three screens |
 | 7 | *(root)* | `App.tsx`, `main.tsx`, and the tests that drive the whole app |
@@ -68,6 +68,11 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `voice/language-picker.tsx` - Choosing the language the board is spoken in. Beside `VoicePicker` and shaped like it, because the two are asked together now that a voice is remembered per language — and because the settings panel and the topbar both offer them, and two copies of a language list would be two chances to disagree about what the board speaks
 - `voice/elevenlabs.ts` - A linked ElevenLabs account: validating a key, fetching its voices, fetching audio, and the cache in front of it
 
+**listen/** — the other half of the conversation
+
+- `listen/recognition.ts` - The microphone, and the words it hears — see *Listen mode*. **This is the browser's ear, not ours**: `SpeechRecognition` is a platform API and most browsers send the audio to a speech service of their own rather than recognising it on the device. That is a disclosure rather than a detail. Both names are asked for, prefixed and not, and a browser with neither is answered by `canListen` before the control is ever drawn
+- `listen/suggest.ts` - A suggested answer to a question that was heard. **The riskiest thing in this app**, and the one rule everything is arranged around is that **a suggestion is never spoken** — it lands in the message box, and it is said only when the person dwells on Speak, like any other message. The key is the user's own, for the reason the ElevenLabs key is: it bills them for something they chose, and unlike the translation key it cannot be made safe to inline, since nothing restricts an Anthropic key to one site
+
 **sync/**
 
 - `sync/audio.ts` - ElevenLabs clips on the server, one blob each — see *Not paying for a clip twice*. Not part of the board and deliberately so: audio is bought by speaking rather than by editing, and folding it into the board would make saying a phrase look like an edit. A clip's address is **derived from the words and the voice**, so a second device works it out for itself and there is nothing to look up; the one thing that *is* listed is what has been uploaded, so *Stop and erase the copy* can take the audio too
@@ -92,6 +97,8 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `talk/use-sent.ts` - The messages already spoken or copied
 - `talk/use-translated.ts` - What has been said in another language — see *The Translations tab*. The Sent list's twin, and built to the same shape for the same reasons: a record of what somebody actually said rather than anything they made, so its own key, never in a backup, and not a category
 - `talk/use-usage.ts` - How much each phrase is used. The board follows it **live**, and the dwell guard that makes that safe is the whole of why it can — see *Ordering the grid*
+- `talk/use-listen.ts` - Listen mode: the microphone, what was heard, what it means, and the reply offered for it. Three services behind one box, and each failing costs only itself
+- `talk/heard.tsx` - The box above the message. A second text area and deliberately not a second message: the question is somebody else's words and the answer is the user's
 - `talk/use-toast.ts` - The line that appears and fades
 - `talk/grid.tsx` - The grid, the cell, the mark on the last phrase said, and the rail. The rail is five ways of moving through the grid and, ruled off above them, the two that are about the grid itself: the order the phrases are in, and — in edit mode — arranging them by hand. The two mode toggles that used to head it are in the topbar now, beside Rest. **Only the first n cells are rendered** — see `core/virtual.ts`
 
@@ -174,6 +181,8 @@ Paths below are relative to `tests/`.
 - `ui/caret.test.tsx` - Which of the two caret APIs is trusted, when neither is, and the one claim about the hook the app tests cannot make — that it reports where it put the caret
 - `core/crypto.test.ts` - The lock: that two devices agree, that two accounts do not, that the same board never seals the same way twice, and that a wrong key or an altered byte opens nothing
 - `core/sync.test.ts` - `decideSync` in every branch, both parsers against damage, and the property that stops a device pushing for ever — a backup built at `SYNC_EPOCH` is byte-identical when nothing has changed
+- `listen/recognition.test.ts` - The microphone wrapper. Half of it is the browsers that cannot do this at all, because that is the case a board has to survive — `tests/listen/fake-recognition.ts` is the stand-in, since jsdom has no notion of the API
+- `listen/suggest.test.ts` - The reply service: the shape of the request, the limits the brief puts on the model, every way it can fail without costing anything, and that neither the question nor the key ever reaches the console
 - `sync/audio.test.ts` - Clips through the real Netlify function: that one device's clip is found by another with nothing but the words, that a different account or a different voice finds nothing, that the server is handed an address and a locked box with none of the words in either, that the list is written before the clip and a lost race keeps both, and that erasing takes every clip and then the list
 - `sync/client.test.ts` - The answers a server can give that the function never would: the app's own HTML at 200, a truncated body, a 500
 - `sync/use-sync.test.tsx` - Two devices and the box between them, driven through **the real Netlify function** with only the blob store replaced. A second device is this device with its memory wiped and the server left standing
@@ -183,6 +192,7 @@ Paths below are relative to `tests/`.
 - `app/emergency.test.tsx` - Arranging the emergency bar, and the two things that must not follow from it: a phrase moved out of reach of the order it was stored under, and a bar left in reorder mode when somebody needs to speak
 - `app/sorting.test.tsx` - The four orders driven through the real board: where the two controls sit in the rail, what each order does to the grid, that each tab keeps its own, that the board follows use live and then refuses the cell that lands under a motionless pointer, that the render window does not restart just because the order moved, arranging a category by hand, the mark on the last phrase said, and that Sent is counted by none of it. **Scope the grid to the seeded category first**, for the reason `app/markdown.test.tsx` does
 - `app/translations.test.tsx` - The Translations tab through the real board: where it sits, what a cell draws, what it says, and above all what does **not** land in it — a phrase spoken as it was written, a phrase said on the emergency bar, and a cell in the tab being said again
+- `app/listen.test.tsx` - Listen mode through the real board. Mostly about what must **not** happen: a suggestion is never spoken even with auto-speak on, it never writes over words already in the box, and each of the three services can fail without costing a phrase
 - `app/markdown.test.tsx` - Where the markup ends up once a phrase is used: drawn on the board, gone from what is spoken and searched, kept in the message box and on the clipboard. **Scope the grid to the seeded category first** — the board also holds the two and a half thousand phrases Peri ships, several of which begin with "Help"
 - `app/shell.test.ts` - `index.html` and the manifest: the parts of the app no component renders
 - `app/structure.test.ts` - The layering above, plus the things about the stylesheet a diff cannot show — a `font-size` left in pixels, a text colour that does not clear 7:1 on every surface — plus the four ways the layering quietly rots: a module dropped at the root, Tailwind widening its scan back to the whole project, a test finding its way back into `src/` or `netlify/`, and **a NUL byte making a file binary to grep** — `core/backup.ts` used one as a map-key separator, and every search across the tree skipped that file without saying so. The character is right for the job; it has to be written as an escape
@@ -461,6 +471,33 @@ A tab pinned at the very end of the category bar, holding what has been said in 
 - **In edit mode the bin forgets and Save keeps.** Both work exactly as they do under Sent, and `draft.kept` is what names which record a phrase came off, because all three labels said "message" until there was a second one. **A kept translation is an ordinary phrase**: its language is not carried over, since a phrase on the board is spoken in the language the board is set to and a phrase that quietly ignored the setting would be the one exception nobody could see.
 - **It is never in a backup and never in a snapshot**, under its own key, for the reason the Sent list and the usage record are not: it is what somebody actually said, and a backup is a file made to be handed to somebody else. It is in `RESETTABLE_KEYS`, and `tests/core/backup.test.ts` holds it out of the file.
 - **Three tabs are not categories now**, two pinned at the front and one at the end. `canArrange` is false for all three, the order control goes quiet on two of them, and the quiet label names the tab rather than naming All — there being three tabs it could be.
+
+## Listen mode
+
+Peri has always been one-directional. Somebody chooses phrases and the board says them; the person they are talking to speaks into the room and leaves no trace of it anywhere. Listen mode writes that half down: a microphone at the message box's **upper-left corner** opens a second text area above the message, holding the question that was just asked.
+
+The three corners of that border are now all spoken for, and each holds a different kind of thing: a mode in the middle, a value at the right, and at the left the one control that opens a surface of its own.
+
+- **It is a text box, so it answers to a dwell like the other one.** A recogniser mis-hears names, and the one thing a gaze user could never do about that was put a caret in the middle of a sentence. `selectOnHold` is on, for the reason the Aliases panel's fields have it: this box is opened in order to correct something, so a rest on it is intent. **No `onPlace`**, unlike the message box — the caret that hook reports is the composer's and it decides which word the grid narrows to, and a caret moved about in somebody else's question must not reach it.
+- **Interim results are on.** A box that stays empty for four seconds and then fills is indistinguishable from a box that is broken, and this one is watched by somebody who cannot ask whether it is working.
+- **The recogniser is told the tag the synthesiser would be told**, `speechTag` again: there is no Patois recogniser any more than there is a Patois voice, so Patois is listened for as Jamaican English.
+- **Three controls under the box, each offered only where there is something behind it.** Listen again; read it in your own language; suggest a reply.
+- **Translating a heard question is the only place this app goes that direction.** `translateHeard` asks for the board's own language and **deliberately does not name the source**: what the setting holds is what the board is *spoken* as, and a nurse switching to English mid-sentence is the ordinary case. Naming it wrongly is worse than not naming it, since the service would translate as though it had been told the truth. The meaning goes under the words that were said, the shape the Translations tab uses, and **a correction drops it** — a stale translation under a changed question is worse than none.
+- **Whether to offer translating is a fact about the question, not about the board.** So the control appears whenever this build can translate at all, rather than only when a language is set.
+
+### The suggested reply
+
+The riskiest thing in this app. A machine offering words for somebody to say is one step from a machine deciding what they meant, so everything is arranged around one rule:
+
+**A suggestion is never spoken.** It lands in the message box, where it can be read, changed, cleared or ignored, and it is said only when the person dwells on Speak — the same dwell every other message needs. Nothing in `listen/` reaches the synthesiser. `tests/app/listen.test.tsx` asserts it **with auto-speak on**, which is the mode where everything else on the board is spoken the moment it is chosen.
+
+- **It never writes over words somebody already had.** The composer's undo is a one-step toggle rather than a stack, so a suggestion that replaced a half-written message could not be walked back past it — which would make accepting a machine's words a thing that happened to somebody rather than a thing they chose. The control goes quiet instead, and the label says what would let it work. It goes in through `propose`, which pushes the box's history, so a suggestion cleared by accident is one dwell back.
+- **The brief is a list of limits rather than an instruction to be clever**: one short reply, first person, no preamble, and **nothing invented about a person it knows nothing about**. That last one is the one that matters — a board answering "yes, I took them at eight" to a question about medication would be putting a clinical claim in somebody's mouth.
+- **A fast model over a clever one**, the way the ElevenLabs model is chosen and for the same reason: this is somebody mid-conversation with a person waiting in front of them.
+- **The key is the user's own.** Not a preference: a Google key can be pinned to one site by referrer, which is what makes the translation key safe to inline, and nothing restricts an Anthropic key that way. One shipped in this bundle would be one anybody could lift and spend. So there is a Settings row beside ElevenLabs, following every rule that key follows — **never in a backup**, and it **does travel in a snapshot**, three-stated so that silence from an older release is not read as a removal.
+- **The question the model is given is the meaning where there is one and the heard words otherwise.** A model reading a question in the language it was asked in answers it just as well; the translation is there for the user rather than for the model.
+
+**Two disclosures, not one**, and both follow the rule the ElevenLabs key follows — the Settings row, the guide section and the privacy policy all say the same thing. The microphone's audio goes to the browser's own speech service, which is the platform's business and not Peri's. The question goes to Anthropic, on the user's own account, only when they ask for a reply.
 
 **A key in a public bundle is safe by restriction, not by secrecy.** HTTP referrer to this site, API restriction to Cloud Translation alone — so what a lifted key costs is quota rather than anybody's words. `docs/translation-setup.md` is the whole of it. Three consequences worth knowing:
 

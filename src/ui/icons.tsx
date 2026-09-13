@@ -445,3 +445,62 @@ export const KeyboardIcon = () => (
     <line x1="8" y1="14" x2="16" y2="14" />
   </svg>
 )
+
+/**
+ * Listen mode. A microphone, which is the one glyph everybody already reads as
+ * "this is recording" — which is exactly what it has to say here.
+ */
+export function MicIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="9" y="2" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <path d="M12 18v3" />
+    </svg>
+  )
+}
+
+/** Turning a heard question into words the board's owner reads. */
+export function TranslateIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 6h9" />
+      <path d="M7.5 4v2" />
+      <path d="M10 6a9 9 0 0 1-6 8.5" />
+      <path d="M5.5 10.5A7 7 0 0 0 10 14" />
+      <path d="M13 20l4-10 4 10" />
+      <path d="M14.4 17h5.2" />
+    </svg>
+  )
+}
+
+/** A reply offered rather than chosen. Deliberately not a speech bubble: nothing here speaks. */
+export function SuggestIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M11 3 12.6 8.1 17.7 9.7 12.6 11.3 11 16.4 9.4 11.3 4.3 9.7 9.4 8.1 11 3Z" />
+      <path d="M18 15l.7 2.3 2.3.7-2.3.7L18 21l-.7-2.3-2.3-.7 2.3-.7L18 15Z" />
+    </svg>
+  )
+}

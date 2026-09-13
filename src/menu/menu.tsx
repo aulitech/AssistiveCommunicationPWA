@@ -143,6 +143,8 @@ export function TopPanel({
   sync,
   account,
   onAccountChange,
+  replyKey,
+  onReplyKeyChange,
 }: {
   open: boolean
   user: User
@@ -159,6 +161,9 @@ export function TopPanel({
   /** Held in `talk` too: it is part of what synchronizing sends. */
   account: ElevenLabsAccount | null
   onAccountChange: (next: ElevenLabsAccount | null) => void
+  /** The key behind a suggested reply, which the screen holds because sync sends it. */
+  replyKey: string
+  onReplyKeyChange: (next: string) => void
 }) {
   const [confirmingSignOut, setConfirmingSignOut] = useState(false)
 
@@ -246,6 +251,8 @@ export function TopPanel({
                 sync={sync}
                 account={account}
                 onAccountChange={onAccountChange}
+                replyKey={replyKey}
+                onReplyKeyChange={onReplyKeyChange}
               />
             )}
             {view === 'aliases' && <AliasesPanel aliases={aliases} onChange={onAliasesChange} />}

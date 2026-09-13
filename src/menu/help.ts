@@ -371,6 +371,49 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Hearing a question',
+    blocks: [
+      text(
+        'The microphone button at the top left of the message box listens to whoever is talking to you. What it hears appears in a box of its own above the message, where you can correct it, read it in your own language, and answer it.',
+      ),
+      list(
+        'Rest on the microphone to start, and again to stop and close the box.',
+        'The box fills as the words arrive, so you can see it is working.',
+        'It is a text box like the message one: rest on it to put the caret in, and rest longer to select a word or the lot. Recognisers mis-hear names.',
+        'The three buttons under it are listen again, read it in your own language, and suggest a reply.',
+      ),
+      text(
+        'Your browser does the listening, not Peri. Most browsers send what the microphone picks up to a speech service of their own to turn it into words — the same one behind dictation elsewhere on your device. That is between you and your browser, and it does not pass through us.',
+      ),
+      text(
+        'The first time you use it your browser asks your permission. If you refuse, the box says so and nothing else about the board changes.',
+      ),
+      text(
+        'Nothing heard is kept. Closing the box forgets it, and it is never in a backup file and never sent to your other devices.',
+      ),
+    ],
+  },
+  {
+    title: 'Getting a suggested reply',
+    blocks: [
+      text(
+        'With an Anthropic account set up under Settings, the third button under the heard box offers a reply to the question and puts it in the message box.',
+      ),
+      list(
+        'It is only ever a suggestion. Peri never speaks it for you — it waits in the message box like anything else you have written, and you say it by resting on Speak.',
+        'You can change every word of it first, or clear it and say something else entirely.',
+        'It will not write over a message you have already started. Clear the box first, and the button says so.',
+        'It is asked for one short reply in your own words, and told not to state anything about you it was not told. It does not know you.',
+      ),
+      text(
+        'The question is sent to Anthropic to be answered, on your own account and your own credits. It is sent only when you ask for a reply — nothing is sent by listening. Your key is never in a backup file, and with Synchronize on it travels encrypted to your own devices like the ElevenLabs one.',
+      ),
+      text(
+        'Without a key the button is not there at all, and everything else about listening works exactly the same.',
+      ),
+    ],
+  },
+  {
     title: 'Finding what you have said in another language',
     blocks: [
       text(

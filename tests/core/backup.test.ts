@@ -16,7 +16,7 @@ import {
 } from '../../src/core/backup'
 import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from '../../src/core/store'
 import { EMPTY_ALIASES, type AliasStore } from '../../src/core/phrases'
-import { saveElevenLabs, saveSent, saveTranslated, saveUsage } from '../../src/core/store'
+import { saveElevenLabs, saveReplyKey, saveSent, saveTranslated, saveUsage } from '../../src/core/store'
 
 // A store with something of the user's in every field, and the map of ids to
 // categories the app would hand alongside it.
@@ -606,6 +606,19 @@ describe('what a backup must never carry', () => {
 
     expect(file).not.toContain('poitrine')
     expect(file).not.toContain('My chest hurts')
+  })
+
+  /**
+   * And nor does the key behind a suggested reply. Same rule as the ElevenLabs
+   * key, same reason: a backup is a file made to be handed to somebody else, and
+   * a key in one hands over an account somebody is billed for.
+   */
+  it('leaves the key for suggested replies out of the file', () => {
+    saveReplyKey('sk-ant-secret-1234')
+    const { state, categoryById } = fixture()
+    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+
+    expect(file).not.toContain('sk-ant-secret-1234')
   })
 
   // The chosen voice does travel, and on a device with no account of its own it

@@ -389,6 +389,117 @@ body {
    Whether it is on screen is decided in `topbar.tsx`, not here — these are not
    cheap to mount and hide, each building the device's voice list — so this
    carries no breakpoint of its own. */
+/* Listen mode, at the box's upper-**left** corner, mirroring `.topbar-choices`
+   at the right and riding the same border the modes ride at the middle. Left
+   rather than right because the right is already two controls wide, and a gaze
+   crossing to reach the language must not pass over a microphone on the way. */
+.topbar-listen {
+  position: absolute;
+  top: 0;
+  left: 0.6rem;
+  transform: translateY(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+}
+
+/* The box above the message: somebody else's words. Its own ground, so the two
+   read as two things rather than one box that grew. */
+.heard-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.heard-text {
+  /* Shorter than the message box on purpose. A question is a sentence and the
+     board underneath is what somebody is answering with — two boxes that both
+     grew to a third of the screen would leave nothing to answer from. */
+  min-height: 2.6rem;
+  max-height: min(6rem, 20dvh);
+  padding: 0.5rem 0.7rem;
+  background: var(--bg);
+  /* Dashed, as edit mode marks the box it has taken over: this is a box that is
+     not the message, and the difference has to read without being looked at. */
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 1.05rem;
+  font-family: var(--font);
+  color: var(--text);
+  resize: none;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* The fill is painted as a background layer for the reason the message box
+   paints its own that way: an input can hold no children, so there is nowhere
+   to put a `.dwell-bar`. */
+.heard-text.dwelling {
+  background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
+  background-repeat: no-repeat;
+  background-position: bottom left;
+  background-size: 0 3px;
+  animation: dwellFillH var(--dwell-duration, 1500ms) linear forwards;
+}
+
+/* The microphone is open. Not a flash and not a pulse: the pointer is somebody's
+   gaze, and something that moves in the corner of an eye aims it. */
+.heard-text.is-listening {
+  border-style: solid;
+  border-color: var(--accent);
+}
+
+/* What the question says in the reader's own language, under the words that
+   were said — the shape the Translations tab uses. */
+.heard-meaning {
+  margin: 0;
+  padding: 0 0.7rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.heard-error {
+  margin: 0;
+  padding: 0 0.7rem;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+.heard-tools {
+  display: flex;
+  align-items: center;
+  /* Two rem apart, the target-separation number the rest of this app uses:
+     controls close enough for gaze jitter to cross between them are one control
+     that does the wrong thing. */
+  gap: 2rem;
+  padding: 0 0.7rem;
+}
+
+.heard-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.heard-btn svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.heard-btn[aria-disabled='true'] {
+  color: var(--text-muted);
+  cursor: default;
+}
+
 .topbar-choices {
   position: absolute;
   top: 0;

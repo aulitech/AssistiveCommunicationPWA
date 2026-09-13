@@ -244,6 +244,9 @@ export function useSync({
           // a snapshot from a release before this carried one says nothing, and
           // taking that as an unlink would strip the account off every device.
           account: snapshot.account === undefined ? payloadRef.current.account : snapshot.account,
+          // The same three states, read the same way: nothing said leaves this
+          // device's own key alone, and an explicit null takes it away.
+          replyKey: snapshot.replyKey === undefined ? payloadRef.current.replyKey : (snapshot.replyKey ?? ''),
         },
         snapshot.device,
       )
@@ -264,6 +267,9 @@ export function useSync({
         device: configRef.current.device,
         backup: payloadRef.current.backup,
         account: payloadRef.current.account,
+        // Null rather than absent for a device with no key, so turning one off
+        // travels as the instruction it is.
+        replyKey: payloadRef.current.replyKey || null,
       }
       const sealed = await seal(keySet.key, snapshot)
       const envelope: Envelope = {

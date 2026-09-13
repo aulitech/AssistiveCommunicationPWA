@@ -33,6 +33,7 @@ import {
   EditIcon,
   KeyboardIcon,
   MenuIcon,
+  MicIcon,
   PasteIcon,
   PlusIcon,
   SpeakIcon,
@@ -43,6 +44,8 @@ import { cx, dwellVar } from '../ui/style'
 import { PhraseEditBar } from './editors'
 import type { Composer } from './use-composer'
 import type { Editor } from './use-editor'
+import type { Listener } from './use-listen'
+import { HeardBox } from './heard'
 
 function ActionButton({
   onSelect,
@@ -235,6 +238,7 @@ export function Topbar({
   onSpeak,
   onCopy,
   onPasted,
+  listener,
 }: {
   composer: Composer
   /** The phrase being written, which in edit mode is what the box holds. */
@@ -262,6 +266,8 @@ export function Topbar({
   onCopy: () => void
   /** Says what came of asking, so the screen can report a refusal out loud. */
   onPasted: (result: PasteResult) => void
+  /** Listen mode: the microphone, and the box above the message — see `use-listen.ts`. */
+  listener: Listener
 }) {
   const { settings, update } = useSettings()
   const wide = useWideScreen()
@@ -438,6 +444,12 @@ export function Topbar({
           centre and nobody can see — but a corner found that way would be out
           by the whole width of the action rail. */}
       <div className="text-display-wrap">
+        {/* What was heard, above the message rather than in it. Two boxes, and
+            the upper one is somebody else's words — mixing the two would make
+            the question and the answer one thing to be untangled by whoever is
+            waiting for a reply. */}
+        {listener.open && <HeardBox listener={listener} messageEmpty={value.trim() === ''} />}
+
         <textarea
           ref={textareaRef}
           className={cx('text-display', caret.active && 'dwelling')}
@@ -475,6 +487,29 @@ export function Topbar({
           // raise a phone's on-screen keyboard, which needs a real gesture.
           autoFocus
         />
+
+        {/* Listen mode, at the box's upper-**left** corner, riding the same
+            border the modes ride at its middle and the two values ride at the
+            right. The three corners of that border are now all spoken for, and
+            each holds a different kind of thing: a mode in the middle, a value
+            at the right, and at the left the one control that opens a surface
+            of its own.
+
+            **Not drawn at all where the browser cannot listen.** A button that
+            does nothing is worse than no button anywhere, and on a board aimed
+            at by gaze it is a target spent for nothing. */}
+        {listener.available && (
+          <div className="topbar-listen">
+            <ModeToggle
+              className="listen-toggle"
+              on={listener.open}
+              onToggle={listener.toggle}
+              label={listener.open ? 'Stop listening' : 'Listen to a question'}
+            >
+              <MicIcon />
+            </ModeToggle>
+          </div>
+        )}
 
         {/* The language and the voice, at the box's upper-right corner, riding
             the same border the modes ride at its middle.

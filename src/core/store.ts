@@ -20,6 +20,7 @@ const ALIASES_KEY = 'peri_aliases'
 const ALIAS_SORT_KEY = 'peri_alias_sort'
 const USER_KEY = 'dwellspeak_user'
 const ELEVENLABS_KEY = 'peri_elevenlabs'
+const REPLY_KEY = 'peri_reply'
 const TRANSLATIONS_KEY = 'peri_translations'
 const SENT_KEY = 'peri_sent'
 const TRANSLATED_KEY = 'peri_translated'
@@ -936,6 +937,33 @@ export function saveElevenLabs(account: ElevenLabsAccount | null) {
   else localStorage.removeItem(ELEVENLABS_KEY)
 }
 
+// ── The key behind a suggested reply ──────────────────────────────────────────
+// Theirs, not ours, and for the reason the ElevenLabs key is theirs: it bills
+// them for something they chose. It could not be ours in any case — an Anthropic
+// key cannot be restricted to one site the way the translation key is, so one
+// inlined into this bundle would be one anybody could lift and spend.
+//
+// It follows every rule that key follows: **never in a backup**, which is a file
+// made to be handed to somebody else, and it **does travel in a snapshot**, which
+// is sealed with the user's own passphrase and reaches their own devices and
+// nowhere else.
+
+/** The key, or empty for a board that has not been given one. */
+export function loadReplyKey(): string {
+  try {
+    const raw: unknown = localStorage.getItem(REPLY_KEY)
+    return typeof raw === 'string' ? raw.trim() : ''
+  } catch {
+    return ''
+  }
+}
+
+export function saveReplyKey(key: string) {
+  const trimmed = key.trim()
+  if (trimmed) localStorage.setItem(REPLY_KEY, trimmed)
+  else localStorage.removeItem(REPLY_KEY)
+}
+
 // ── Who is signed in ─────────────────────────────────────────────────────────
 // Deliberately not part of a backup: a file that could sign you in as someone
 // else is a file that could sign someone else in as you.
@@ -1077,6 +1105,7 @@ const RESETTABLE_KEYS = [
   ALIASES_KEY,
   ALIAS_SORT_KEY,
   ELEVENLABS_KEY,
+  REPLY_KEY,
   TRANSLATIONS_KEY,
   SENT_KEY,
   TRANSLATED_KEY,

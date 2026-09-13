@@ -148,6 +148,8 @@ export function SettingsPanel({
   sync,
   account,
   onAccountChange,
+  replyKey,
+  onReplyKeyChange,
 }: {
   /** Only so the reset confirmation can offer a backup before it wipes them. */
   store: PhraseStore
@@ -161,6 +163,9 @@ export function SettingsPanel({
    */
   account: ElevenLabsAccount | null
   onAccountChange: (next: ElevenLabsAccount | null) => void
+  /** The key behind a suggested reply, held by the screen because sync sends it. */
+  replyKey: string
+  onReplyKeyChange: (next: string) => void
 }) {
   const { settings, update } = useSettings()
   const [confirmingReset, setConfirmingReset] = useState(false)
@@ -269,6 +274,7 @@ export function SettingsPanel({
         <VoiceRow />
         <SyncRow sync={sync} />
         <ElevenLabsRow account={account} onChange={onAccountChange} />
+        <SuggestedRepliesRow value={replyKey} onChange={onReplyKeyChange} />
 
         {/* Last, and away from the values it undoes. Every revert above puts one
             setting back; this puts the whole device back, and the two should not
@@ -672,3 +678,61 @@ function ElevenLabsRow({
 // ── ProfilePanel ──────────────────────────────────────────────────────────────
 // Supplies the values behind {contact} and {name.nickname}. Typed rather than
 // dwelled: it is one-off setup, usually done by whoever sets the device up.
+
+/**
+ * The key behind a suggested reply.
+ *
+ * **Theirs, like the ElevenLabs key and unlike the translation key**, and the
+ * difference is not a preference. A Google key can be pinned to one site by
+ * referrer, so Peri's own can be inlined into the bundle and what a lifted one
+ * costs is quota. Nothing restricts an Anthropic key that way: one shipped in
+ * this bundle would be one anybody could lift and spend without limit. So it is
+ * set up here, and it bills the person who chose the feature.
+ *
+ * Typed rather than dwelled, like the rest of the one-off setup. Hidden once it
+ * is set, with the eye and the copy beside it, because the second device needs
+ * the same one and this panel spans the viewport in rooms with other people in
+ * them.
+ */
+function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  const [typed, setTyped] = useState('')
+
+  const save = useCallback(() => {
+    const key = typed.trim()
+    if (!key) return
+    setTyped('')
+    onChange(key)
+  }, [typed, onChange])
+
+  return (
+    <div className="setting-row eleven-row">
+      <span className="setting-label">Suggested replies</span>
+      <div className="setting-control eleven-control">
+        {value ? (
+          <>
+            <span className="eleven-status">Set up</span>
+            <PanelButton kind="danger" label="Remove" onActivate={() => onChange('')} />
+            <SecretField value={value} name="the API key" label="Suggested replies API key" />
+          </>
+        ) : (
+          <>
+            <SecretField
+              value={typed}
+              name="the API key"
+              label="Suggested replies API key"
+              placeholder="Paste your Anthropic API key"
+              onChange={setTyped}
+              onEnter={save}
+            />
+            <PanelButton kind="primary" label="Save" onActivate={save} disabled={typed.trim() === ''} />
+          </>
+        )}
+        <p className="eleven-note">
+          {value
+            ? 'The microphone button on the message box can suggest a reply to a question it heard. The question is sent to Anthropic on your own account and your own credits. A suggestion is only ever put in the message box — Peri never speaks one for you.'
+            : 'Optional. Lets the microphone button suggest a reply to a question it heard, using your own Anthropic account. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
+        </p>
+      </div>
+    </div>
+  )
+}

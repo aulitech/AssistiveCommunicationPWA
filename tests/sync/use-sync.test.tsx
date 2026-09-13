@@ -73,25 +73,32 @@ async function boardOnServer(passphrase = PASSPHRASE, account = ACCOUNT) {
 }
 
 let control: SyncControl
-let applied: { backup: Backup; account: ElevenLabsAccount | null; from: string }[] = []
+let applied: { backup: Backup; account: ElevenLabsAccount | null; replyKey: string; from: string }[] = []
 
 /** One device. Its board changes only when the test says so. */
 function Device({
   account = ACCOUNT as string | null,
   start,
   linked = null,
+  reply = '',
 }: {
   account?: string | null
   start?: string
   /** The ElevenLabs account this device has linked, if any. */
   linked?: ElevenLabsAccount | null
+  /** The key behind a suggested reply, which travels beside the account. */
+  reply?: string
 }) {
-  const [mine, setMine] = useState<SyncPayload>(() => ({ backup: board(start), account: linked }))
+  const [mine, setMine] = useState<SyncPayload>(() => ({
+    backup: board(start),
+    account: linked,
+    replyKey: reply ?? '',
+  }))
   const sync = useSync({
     accountId: account,
     payload: mine,
     onApply: (incoming, from) => {
-      applied.push({ backup: incoming.backup, account: incoming.account, from })
+      applied.push({ backup: incoming.backup, account: incoming.account, replyKey: incoming.replyKey, from })
       // What the screen does: what is on this device becomes what arrived.
       // Without it the hook would be tested against a device that ignores
       // everything it is sent.
