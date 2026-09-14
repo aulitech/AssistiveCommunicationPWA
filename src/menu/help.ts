@@ -403,10 +403,16 @@ export const HELP_SECTIONS: ProseSection[] = [
         'It is only ever a suggestion. Peri never speaks it for you — it waits in the message box like anything else you have written, and you say it by resting on Speak.',
         'You can change every word of it first, or clear it and say something else entirely.',
         'It will not write over a message you have already started. Clear the box first, and the button says so.',
-        'It is asked for one short reply in your own words, and told not to state anything about you it was not told. It does not know you.',
+        'It answers questions about the world, and looks one up if it has to. It does not answer questions about you: it has never met you, so anything about what you did, felt or want comes back as a question rather than a guess.',
       ),
       text(
-        'The question is sent to Anthropic to be answered, on your own account and your own credits. It is sent only when you ask for a reply — nothing is sent by listening. Your key is never in a backup file, and with Synchronize on it travels encrypted to your own devices like the ElevenLabs one.',
+        'The question is sent to Anthropic to be answered, on your own account and your own credits. It is sent only when you ask for a reply — nothing is sent by listening.',
+      ),
+      text(
+        'Where the answer needs looking up, it is searched for on the web, so the question reaches a search index too. That takes a few seconds, which is why it only happens when the question really needs it.',
+      ),
+      text(
+        'Your key is never in a backup file, and with Synchronize on it travels encrypted to your own devices like the ElevenLabs one.',
       ),
       text(
         'The same row lets you choose which model writes the reply. Quickest is the default, because somebody is waiting in front of you. The other two read a question more closely and take a little longer.',

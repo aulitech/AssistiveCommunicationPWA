@@ -29,8 +29,29 @@ import { loadReplyKey, readReplyModel } from '../core/store'
 
 const ENDPOINT = 'https://api.anthropic.com/v1/messages'
 
-/** Two sentences at the outside. Longer than that is not a reply, it is a speech. */
-const MAX_TOKENS = 150
+/**
+ * Two sentences at the outside. Longer than that is not a reply, it is a speech.
+ *
+ * The budget covers a search query as well as the words, since both are output —
+ * so it is not as tight as the two sentences it is protecting. What keeps the
+ * reply short is the brief; this is only the backstop under it.
+ */
+const MAX_TOKENS = 400
+
+/**
+ * Looking something up, when the model judges that it has to.
+ *
+ * **The one capability here that costs time somebody is standing in front of
+ * them for**, so it is bounded hard: the model decides whether to search at all,
+ * and may do it once. A question it can answer from what it knows is as quick as
+ * it ever was, and one that genuinely needs looking up takes a few seconds
+ * rather than an open-ended number of them.
+ *
+ * A search sends the question on to a search index as well as to Anthropic,
+ * which is a disclosure rather than a detail — the Settings row, the guide and
+ * the privacy policy all say so.
+ */
+const SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 1 }
 
 export type SuggestResult = { status: 'ok'; text: string } | { status: 'error'; error: string }
 
@@ -54,20 +75,41 @@ function describe(status: number): string {
  * What the model is told about its job.
  *
  * Written to be read by whoever has to defend it. Every line is a limit rather
- * than an instruction to be clever: **one reply, short, first person, no
- * preamble, and no invention of facts about a person it knows nothing about.**
- * The last of those is the one that matters most — a board that answered "yes,
+ * than an instruction to be clever: one reply, short, first person, no preamble.
+ *
+ * **The line that matters is about *whose* facts.** A board that answered "yes,
  * I took them at eight" to a question about medication would be putting a
- * clinical claim in somebody's mouth.
+ * clinical claim in somebody's mouth, and no amount of usefulness is worth that.
+ * But the guard used to be written as facts in general, which a model reads as
+ * covering the capital of France — so it dodged questions nobody could come to
+ * harm over, and the whole thing read as broken rather than careful.
+ *
+ * So the split is explicit: **the world it may answer for, the person it may
+ * not.** A carer asking what day it is gets an answer; a carer asking whether
+ * the tablets were taken gets a question back.
  */
 const BRIEF = [
   'You are helping someone who communicates through an assistive board.',
   'They have been asked a question out loud and need something to say back.',
   'Write one short reply in the first person, as they would say it — at most two sentences.',
-  'Reply with the words themselves and nothing else: no preamble, no options, no quotation marks.',
-  'Never state a fact about them you were not told. If the question asks for one, answer in a way that does not invent it.',
-  'If the question cannot be answered without knowing more, write a short reply asking for what is missing.',
+  'Reply with the words themselves and nothing else: no preamble, no options, no quotation marks, no citations.',
+  'A question about the world you may answer, from what you know or by searching.',
+  'A question about THEM you may not: never state what they did, felt, want, own, were given or were told, unless it is in what you were sent.',
+  'If the question asks for one of those, or cannot be answered without knowing more, write a short reply asking for what is missing.',
 ].join(' ')
+
+/**
+ * What day it is, which the model has no way of knowing otherwise.
+ *
+ * A bare API call carries no clock. Without this, "what day is it", "is that
+ * this week" and every other question with a *when* in it were unanswerable —
+ * not refused, which would at least read as a limit, but answered out of a
+ * model's training data as though the year had not moved.
+ *
+ * Taken off the device rather than from anywhere else: it is the clock the
+ * person being asked is living by.
+ */
+const today = () => new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' })
 
 /**
  * Ask for a reply to a question.
@@ -84,6 +126,36 @@ const BRIEF = [
  * through a default of its own: two places saying which model to use is one
  * place too many.
  */
+/**
+ * The reply out of the turn that came back, and **only the reply.**
+ *
+ * With a search in the turn there are several blocks: whatever the model said
+ * before it looked anything up, the search itself, what came back, and then the
+ * answer. Joining every text block would put "Let me look that up" into the
+ * message box in front of the words, so the answer is taken as the run of text
+ * **after the last block that is not text** — which is the search result where
+ * there was one, and nothing at all where there was not.
+ *
+ * A block of some other kind carrying a `text` field is the case the type check
+ * guards: a model's own working, put into an assistive board's message box for
+ * somebody to say out loud, is the worst thing this could do.
+ */
+function readReply(content: { type?: string; text?: unknown }[]): SuggestResult {
+  let from = 0
+  for (let i = 0; i < content.length; i++) {
+    if (content[i].type !== 'text') from = i + 1
+  }
+
+  const said = content
+    .slice(from)
+    .filter(part => part.type === 'text')
+    .map(part => (typeof part.text === 'string' ? part.text : ''))
+    .join('')
+    .trim()
+
+  return said ? { status: 'ok', text: said } : fail('The suggestion service sent back nothing')
+}
+
 export async function suggestReply(question: string, language: string, model?: string): Promise<SuggestResult> {
   const asked = question.trim()
   if (!asked) return fail('Nothing to reply to')
@@ -106,20 +178,17 @@ export async function suggestReply(question: string, language: string, model?: s
       body: JSON.stringify({
         model: readReplyModel(model),
         max_tokens: MAX_TOKENS,
-        system: language ? `${BRIEF} Write the reply in ${language}.` : BRIEF,
+        tools: [SEARCH_TOOL],
+        system: [BRIEF, `Today is ${today()}.`, language && `Write the reply in ${language}.`]
+          .filter(Boolean)
+          .join(' '),
         messages: [{ role: 'user', content: `Someone just asked me: ${asked}` }],
       }),
     })
     if (!response.ok) return fail(describe(response.status))
 
     const body = (await response.json()) as { content?: { type?: string; text?: unknown }[] }
-    const said = body.content
-      ?.filter(part => part.type === 'text')
-      .map(part => (typeof part.text === 'string' ? part.text : ''))
-      .join('')
-      .trim()
-
-    return said ? { status: 'ok', text: said } : fail('The suggestion service sent back nothing')
+    return readReply(body.content ?? [])
   } catch {
     return fail('Could not reach the suggestion service')
   }

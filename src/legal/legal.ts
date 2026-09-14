@@ -71,6 +71,9 @@ export const PRIVACY: ProseDocument = {
         text(
           'Asking for a suggested reply sends the question to Anthropic, using an API key of your own that you set up under Settings. It is sent only when you ask for a reply, never by listening, and nothing about you goes with it beyond the question itself. What Anthropic does with it is governed by their policy, not this one. Remove the key, and nothing is ever sent there. A suggestion is only ever put into the message box for you to read, change or discard — Peri never speaks one for you.',
         ),
+        text(
+          'Where answering needs something looked up, Anthropic searches the web for it, so the question reaches a search provider as well. That happens only inside a reply you asked for, and only when the question needs it.',
+        ),
       ],
     },
     {
