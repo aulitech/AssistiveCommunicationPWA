@@ -25,7 +25,7 @@
 // exactly as it was with a line of text saying why.
 
 import { reportFailure } from '../core/report'
-import { DEFAULT_REPLY_MODEL, loadReplyKey, readReplyModel } from '../core/store'
+import { loadReplyKey, readReplyModel } from '../core/store'
 
 const ENDPOINT = 'https://api.anthropic.com/v1/messages'
 
@@ -80,13 +80,11 @@ const BRIEF = [
  * `model` is the setting — see `REPLY_MODELS`. Held to the list here as well as
  * where it is stored, because this is the last point before it becomes somebody
  * else's API call and a name that is not one would fail on the question rather
- * than on the setting.
+ * than on the setting. Absent falls back through the same check rather than
+ * through a default of its own: two places saying which model to use is one
+ * place too many.
  */
-export async function suggestReply(
-  question: string,
-  language: string,
-  model: string = DEFAULT_REPLY_MODEL,
-): Promise<SuggestResult> {
+export async function suggestReply(question: string, language: string, model?: string): Promise<SuggestResult> {
   const asked = question.trim()
   if (!asked) return fail('Nothing to reply to')
 

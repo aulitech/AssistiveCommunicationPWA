@@ -313,6 +313,23 @@ describe('reading a backup back', () => {
     })
   })
 
+  /**
+   * The other half of holding it to a list: a model the build *does* know has to
+   * survive the trip, or the setting would quietly go back to the default every
+   * time a board was restored or arrived from another device.
+   */
+  it('carries a model it knows through a file unchanged', () => {
+    const result = parseBackup(
+      JSON.stringify({
+        format: BACKUP_FORMAT,
+        version: 1,
+        settings: { replyModel: 'claude-sonnet-5' },
+      }),
+    )
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.backup.settings?.replyModel).toBe('claude-sonnet-5')
+  })
+
   it('falls back to the defaults for a setting that is missing or nonsense', () => {
     const result = parseBackup(
       JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { phraseDwellMs: 'quick' } }),
