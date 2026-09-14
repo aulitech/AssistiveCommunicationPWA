@@ -93,6 +93,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const listener = useListen({
     language: settings.language,
     replyKey,
+    replyModel: settings.replyModel,
     onSuggest: composer.propose,
   })
   const { toast, flashToast } = useToast()

@@ -308,6 +308,22 @@ describe('the suggested reply', () => {
     expect(messageBox().value).toBe('')
   })
 
+  it('is written by the model chosen in Settings', async () => {
+    const fetcher = suggests('Tea please')
+    vi.stubGlobal('fetch', fetcher)
+    saveReplyKey('sk-ant-test')
+    renderApp({ replyModel: 'claude-opus-5' })
+    hear('Do you want tea?')
+
+    click(suggestBtn())
+    await act(async () => {})
+
+    const body = JSON.parse(String((fetcher.mock.calls as unknown as [string, RequestInit][])[0][1].body)) as {
+      model: string
+    }
+    expect(body.model).toBe('claude-opus-5')
+  })
+
   it('says so when the key is not accepted', async () => {
     vi.stubGlobal('fetch', answers({ error: {} }, 401))
     withKey()

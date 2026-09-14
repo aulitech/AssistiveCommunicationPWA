@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
+  DEFAULT_REPLY_MODEL,
+  DEFAULT_SETTINGS,
+  REPLY_MODELS,
   emptyStore,
   factoryReset,
+  loadSettings,
   loadReplyKey,
   loadSent,
   moveInOrder,
@@ -9,8 +13,11 @@ import {
   readPhraseOrder,
   renameCategory,
   sameAccount,
+  readReplyModel,
+  replyModelName,
   saveReplyKey,
   saveSent,
+  saveSettings,
 } from '../../src/core/store'
 
 // The arithmetic behind arranging things by hand. The two bars that use it are
@@ -215,5 +222,63 @@ describe('the key for suggested replies', () => {
     saveReplyKey('sk-ant-key')
     factoryReset()
     expect(loadReplyKey()).toBe('')
+  })
+})
+
+/**
+ * Which model writes a suggested reply.
+ *
+ * A closed list rather than a free string, and every test here is about that:
+ * the name goes to somebody else's API, so a board carrying one this build has
+ * never heard of has to fall back to something that works rather than fail on
+ * the first question somebody is asked.
+ */
+describe('the model behind a suggested reply', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('offers the models it can call, quickest first', () => {
+    expect(REPLY_MODELS.map(m => m.id)).toEqual(['claude-haiku-4-5-20251001', 'claude-sonnet-5', 'claude-opus-5'])
+  })
+
+  // Somebody is waiting in front of you. A better sentence that arrives ten
+  // seconds later is not a better sentence.
+  it('starts on the quickest', () => {
+    expect(DEFAULT_REPLY_MODEL).toBe(REPLY_MODELS[0].id)
+    expect(DEFAULT_SETTINGS.replyModel).toBe(DEFAULT_REPLY_MODEL)
+  })
+
+  it('names every one of them, and something for one it has never heard of', () => {
+    for (const model of REPLY_MODELS) expect(replyModelName(model.id)).toBe(model.name)
+    expect(replyModelName('some-model-from-later')).toBe(replyModelName(DEFAULT_REPLY_MODEL))
+  })
+
+  it('takes a model it knows', () => {
+    expect(readReplyModel('claude-opus-5')).toBe('claude-opus-5')
+  })
+
+  it('falls back for anything else at all', () => {
+    for (const raw of ['some-model-from-later', '', null, undefined, 7, {}, ['claude-opus-5']]) {
+      expect(readReplyModel(raw), String(raw)).toBe(DEFAULT_REPLY_MODEL)
+    }
+  })
+
+  it('round-trips through storage', () => {
+    saveSettings({ ...DEFAULT_SETTINGS, replyModel: 'claude-sonnet-5' })
+    expect(loadSettings().replyModel).toBe('claude-sonnet-5')
+  })
+
+  /**
+   * The case this guards. A board opened in a later release, then opened again
+   * in this one, carries a model this build cannot call — and the symptom would
+   * be the suggestion failing rather than the setting looking wrong.
+   */
+  it('reads a stored model this build does not know as the default', () => {
+    localStorage.setItem('dwellspeak_settings', JSON.stringify({ replyModel: 'some-model-from-later' }))
+    expect(loadSettings().replyModel).toBe(DEFAULT_REPLY_MODEL)
+  })
+
+  it('reads a damaged one as the default rather than throwing', () => {
+    localStorage.setItem('dwellspeak_settings', JSON.stringify({ replyModel: { id: 'claude-opus-5' } }))
+    expect(loadSettings().replyModel).toBe(DEFAULT_REPLY_MODEL)
   })
 })

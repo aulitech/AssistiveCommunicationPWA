@@ -25,16 +25,9 @@
 // exactly as it was with a line of text saying why.
 
 import { reportFailure } from '../core/report'
-import { loadReplyKey } from '../core/store'
+import { DEFAULT_REPLY_MODEL, loadReplyKey, readReplyModel } from '../core/store'
 
 const ENDPOINT = 'https://api.anthropic.com/v1/messages'
-
-/**
- * Fast over clever, for the reason the ElevenLabs model is chosen that way:
- * this is somebody mid-conversation with a person waiting in front of them, and
- * a better sentence that arrives ten seconds later is not a better sentence.
- */
-const MODEL = 'claude-haiku-4-5-20251001'
 
 /** Two sentences at the outside. Longer than that is not a reply, it is a speech. */
 const MAX_TOKENS = 150
@@ -83,8 +76,17 @@ const BRIEF = [
  * language rather than the question's: the suggestion is going into the message
  * box for somebody to read, and everything else they read is in their language.
  * What happens to it on the way *out* is the translation that was already there.
+ *
+ * `model` is the setting — see `REPLY_MODELS`. Held to the list here as well as
+ * where it is stored, because this is the last point before it becomes somebody
+ * else's API call and a name that is not one would fail on the question rather
+ * than on the setting.
  */
-export async function suggestReply(question: string, language: string): Promise<SuggestResult> {
+export async function suggestReply(
+  question: string,
+  language: string,
+  model: string = DEFAULT_REPLY_MODEL,
+): Promise<SuggestResult> {
   const asked = question.trim()
   if (!asked) return fail('Nothing to reply to')
 
@@ -104,7 +106,7 @@ export async function suggestReply(question: string, language: string): Promise<
         'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: readReplyModel(model),
         max_tokens: MAX_TOKENS,
         system: language ? `${BRIEF} Write the reply in ${language}.` : BRIEF,
         messages: [{ role: 'user', content: `Someone just asked me: ${asked}` }],

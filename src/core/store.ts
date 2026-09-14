@@ -89,7 +89,49 @@ export interface Settings {
    * means fewer phrases and more scrolling. This grows only what is read.
    */
   zoom: number
+  /**
+   * Which model writes a suggested reply — see `listen/suggest.ts`.
+   *
+   * A closed list rather than a free string, and `readReplyModel` is what holds
+   * it to one. A model name is handed to somebody else's API, and a board
+   * restored from a file naming one this build has never heard of should fall
+   * back to something that works rather than fail on the first question
+   * somebody is asked.
+   */
+  replyModel: string
 }
+
+/**
+ * The models a suggested reply may be written by.
+ *
+ * **Ordered by how long they take**, which is the axis that matters here: this
+ * is somebody mid-conversation with a person waiting in front of them. The
+ * default is the quickest for that reason, the same reason the ElevenLabs voice
+ * is Flash — a better sentence that arrives ten seconds later is not a better
+ * sentence.
+ *
+ * Here rather than beside the service that calls them, because this is where
+ * the setting is validated and `core/` cannot reach `listen/`.
+ */
+export const REPLY_MODELS: { id: string; name: string; detail: string }[] = [
+  { id: 'claude-haiku-4-5-20251001', name: 'Quickest', detail: 'Haiku 4.5. Answers in about a second' },
+  {
+    id: 'claude-sonnet-5',
+    name: 'Better',
+    detail: 'Sonnet 5. A little slower, and reads a question more closely',
+  },
+  { id: 'claude-opus-5', name: 'Best', detail: 'Opus 5. The slowest, for questions that need thinking about' },
+]
+
+export const DEFAULT_REPLY_MODEL = REPLY_MODELS[0].id
+
+/** A model this build knows, or the default. Asked of storage and of a file alike. */
+export const readReplyModel = (raw: unknown): string =>
+  REPLY_MODELS.find(m => m.id === raw)?.id ?? DEFAULT_REPLY_MODEL
+
+/** What a model is called, for a control that has to say which one is on. */
+export const replyModelName = (id: string): string =>
+  REPLY_MODELS.find(m => m.id === id)?.name ?? replyModelName(DEFAULT_REPLY_MODEL)
 
 export const DEFAULT_SETTINGS: Settings = {
   phraseDwellMs: 1500,
@@ -105,6 +147,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // to say a thing has nothing to find first.
   autoSpeak: true,
   zoom: 1,
+  replyModel: DEFAULT_REPLY_MODEL,
 }
 
 /**
@@ -156,6 +199,11 @@ export function loadSettings(): Settings {
         raw?.voicesByLanguage && typeof raw.voicesByLanguage === 'object'
           ? (raw.voicesByLanguage as Record<string, string>)
           : DEFAULT_SETTINGS.voicesByLanguage,
+      // Held to the list rather than spread, for the reason above and one more:
+      // this one is handed to somebody else's API, and a board that had been
+      // opened in a later release naming a model this build never heard of
+      // would fail on the first question somebody was asked.
+      replyModel: readReplyModel(raw?.replyModel),
     }
   } catch {
     return DEFAULT_SETTINGS

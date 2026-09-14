@@ -13,8 +13,23 @@ import { type AliasStore } from '../core/phrases'
 import { buildBackup } from '../core/backup'
 import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
 import { useSettings } from '../ui/settings'
-import { DEFAULT_SETTINGS, chooseLanguage, chooseVoice, factoryReset } from '../core/store'
-import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
+import {
+  DEFAULT_SETTINGS,
+  REPLY_MODELS,
+  chooseLanguage,
+  chooseVoice,
+  factoryReset,
+  replyModelName,
+} from '../core/store'
+import {
+  PanelButton,
+  PickerModal,
+  PickerTile,
+  PickerTrigger,
+  ScrollPane,
+  SettingRow,
+  SettingSpinner,
+} from '../ui/controls'
 import { useDwellControl } from '../ui/dwell'
 import { CopyIcon, EyeIcon, EyeOffIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
@@ -695,7 +710,9 @@ function ElevenLabsRow({
  * them.
  */
 function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  const { settings, update } = useSettings()
   const [typed, setTyped] = useState('')
+  const [choosing, setChoosing] = useState(false)
 
   const save = useCallback(() => {
     const key = typed.trim()
@@ -713,6 +730,19 @@ function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (ne
             <span className="eleven-status">Set up</span>
             <PanelButton kind="danger" label="Remove" onActivate={() => onChange('')} />
             <SecretField value={value} name="the API key" label="Suggested replies API key" />
+
+            {/* Only with a key, because without one it would set nothing. A full
+                screen of tiles rather than a list that drops down, for the
+                reason every choice in this app is one: an operating system draws
+                a native list outside the page, where nothing can be hovered and
+                so nothing can be dwelled. */}
+            <PickerTrigger
+              className="reply-model-trigger"
+              label={replyModelName(settings.replyModel)}
+              name={`Model for suggested replies: ${replyModelName(settings.replyModel)}. Choose another`}
+              open={choosing}
+              onOpen={() => setChoosing(true)}
+            />
           </>
         ) : (
           <>
@@ -733,6 +763,28 @@ function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (ne
             : 'Optional. Lets the microphone button suggest a reply to a question it heard, using your own Anthropic account. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
         </p>
       </div>
+
+      {choosing && (
+        <PickerModal
+          title="Model for suggested replies"
+          hint="Quicker, or better at reading a question. Somebody is waiting in front of you, so the quickest is the default."
+          onDone={() => setChoosing(false)}
+          onCancel={() => setChoosing(false)}
+        >
+          {REPLY_MODELS.map(model => (
+            <PickerTile
+              key={model.id}
+              name={model.name}
+              detail={model.detail}
+              selected={model.id === settings.replyModel}
+              onSelect={() => {
+                update({ replyModel: model.id })
+                setChoosing(false)
+              }}
+            />
+          ))}
+        </PickerModal>
+      )}
     </div>
   )
 }

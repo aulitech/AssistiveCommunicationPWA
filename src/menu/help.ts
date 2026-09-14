@@ -409,6 +409,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The question is sent to Anthropic to be answered, on your own account and your own credits. It is sent only when you ask for a reply — nothing is sent by listening. Your key is never in a backup file, and with Synchronize on it travels encrypted to your own devices like the ElevenLabs one.',
       ),
       text(
+        'The same row lets you choose which model writes the reply. Quickest is the default, because somebody is waiting in front of you. The other two read a question more closely and take a little longer.',
+      ),
+      text(
         'Without a key the button is not there at all, and everything else about listening works exactly the same.',
       ),
     ],

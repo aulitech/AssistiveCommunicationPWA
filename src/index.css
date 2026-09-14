@@ -1680,6 +1680,13 @@ body {
   padding-top: 2px;
 }
 
+/* The model behind a suggested reply. A line of its own under the key, because
+   the key field already takes a full line and a trigger wrapped onto the end of
+   it would read as part of the key rather than as a separate choice. */
+.reply-model-trigger {
+  flex-basis: 100%;
+}
+
 /* A value typed once and needed again later — the ElevenLabs key, the
    Synchronize passphrase. It takes a line of its own: a field and two buttons
    will not sit beside a label on a phone, and these are read character by

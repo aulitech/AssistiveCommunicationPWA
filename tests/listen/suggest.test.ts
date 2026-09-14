@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { hasReplyKey, suggestReply } from '../../src/listen/suggest'
-import { saveReplyKey } from '../../src/core/store'
+import { DEFAULT_REPLY_MODEL, saveReplyKey } from '../../src/core/store'
 import { warnings } from '../setup'
 
 // A suggested answer to a question that was heard.
@@ -88,17 +88,38 @@ describe('asking for a reply', () => {
   })
 
   /**
-   * Fast over clever, the way the ElevenLabs model is chosen: this is somebody
-   * mid-conversation with a person waiting in front of them, and a better
-   * sentence that arrives ten seconds later is not a better sentence.
+   * Fast over clever where nothing has been chosen, the way the ElevenLabs model
+   * is chosen: this is somebody mid-conversation with a person waiting in front
+   * of them, and a better sentence that arrives ten seconds later is not a
+   * better sentence.
    */
   it('asks a fast model for something short', async () => {
     const fetcher = replies('Tea please')
     vi.stubGlobal('fetch', fetcher)
     await suggestReply('Do you want tea?', '')
 
-    expect(sent(fetcher).model).toMatch(/haiku/)
+    expect(sent(fetcher).model).toBe(DEFAULT_REPLY_MODEL)
     expect(sent(fetcher).max_tokens).toBeLessThanOrEqual(200)
+  })
+
+  it('asks the model that was chosen in Settings', async () => {
+    const fetcher = replies('Tea please')
+    vi.stubGlobal('fetch', fetcher)
+    await suggestReply('Do you want tea?', '', 'claude-opus-5')
+    expect(sent(fetcher).model).toBe('claude-opus-5')
+  })
+
+  /**
+   * Held to the list here as well as where it is stored. This is the last point
+   * before it becomes somebody else's API call, and a name that is not one would
+   * fail on the question rather than on the setting — which is the difference
+   * between a board that answers badly and a board that will not answer.
+   */
+  it('falls back rather than asking for a model it cannot call', async () => {
+    const fetcher = replies('Tea please')
+    vi.stubGlobal('fetch', fetcher)
+    await suggestReply('Do you want tea?', '', 'some-model-from-later')
+    expect(sent(fetcher).model).toBe(DEFAULT_REPLY_MODEL)
   })
 
   /**

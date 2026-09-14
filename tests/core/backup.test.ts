@@ -14,7 +14,7 @@ import {
   type AppState,
   type Backup,
 } from '../../src/core/backup'
-import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from '../../src/core/store'
+import { DEFAULT_REPLY_MODEL, DEFAULT_SETTINGS, emptyStore, type PhraseStore } from '../../src/core/store'
 import { EMPTY_ALIASES, type AliasStore } from '../../src/core/phrases'
 import { saveElevenLabs, saveReplyKey, saveSent, saveTranslated, saveUsage } from '../../src/core/store'
 
@@ -280,6 +280,10 @@ describe('reading a backup back', () => {
           voicesByLanguage: { 'es-PR': 'Monica', 'Klingon, obviously': 'Worf', vi: 42, '': 'Samantha' },
           autoSpeak: 'yes',
           zoom: 9,
+          // A model this build has never heard of. It is handed to somebody
+          // else's API, so a file must not be able to choose one that fails on
+          // the first question rather than in the settings panel.
+          replyModel: 'some-model-from-later',
         },
       }),
     )
@@ -304,6 +308,8 @@ describe('reading a backup back', () => {
       // A file does not get to make the text nine times its size, which would
       // take the settings panel down with it.
       zoom: 2,
+      // Nor name a model this build cannot call.
+      replyModel: DEFAULT_REPLY_MODEL,
     })
   })
 

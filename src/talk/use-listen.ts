@@ -42,6 +42,7 @@ const EMPTY: Heard = { said: '', meaning: '', listening: false, working: false, 
 export function useListen({
   language,
   replyKey,
+  replyModel,
   onSuggest,
 }: {
   /** What the board is spoken as, which is also what the microphone listens for. */
@@ -52,6 +53,8 @@ export function useListen({
    * already holds it, because synchronizing sends it.
    */
   replyKey: string
+  /** Which model writes the reply — see `REPLY_MODELS`. */
+  replyModel: string
   /** Where a suggested reply goes. Never spoken — see above. */
   onSuggest: (text: string) => void
 }) {
@@ -170,11 +173,11 @@ export function useListen({
     const mine = askedRef.current
     setHeard(h => ({ ...h, working: true, error: '' }))
 
-    const result = await suggestReply(asked, language)
+    const result = await suggestReply(asked, language, replyModel)
     if (mine !== askedRef.current) return
     setHeard(h => ({ ...h, working: false, error: result.status === 'ok' ? '' : result.error }))
     if (result.status === 'ok') onSuggestRef.current(result.text)
-  }, [heard.meaning, heard.said, language])
+  }, [heard.meaning, heard.said, language, replyModel])
 
   return {
     /** Whether the box above the message is shown at all. */
