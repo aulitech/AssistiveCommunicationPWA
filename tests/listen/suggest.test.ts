@@ -337,6 +337,27 @@ describe('when it does not work', () => {
     })
   })
 
+  /**
+   * Read rather than trusted, like everything else that comes off a wire here.
+   * A block whose words are not words would otherwise be stringified into the
+   * message box, and `[object Object]` is a thing somebody would then be
+   * offered to say out loud.
+   */
+  it('takes nothing out of a block whose words are not words', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ content: [{ type: 'text', text: { parts: ['Tea', 'please'] } }] }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+      ),
+    )
+    const result = await suggestReply('Tea or coffee?', '')
+    expect(result.status).toBe('error')
+  })
+
   it('says so when nothing came back to say', async () => {
     vi.stubGlobal(
       'fetch',

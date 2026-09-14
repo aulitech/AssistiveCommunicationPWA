@@ -136,9 +136,13 @@ const today = () => new Date().toLocaleDateString('en-CA', { year: 'numeric', mo
  * **after the last block that is not text** — which is the search result where
  * there was one, and nothing at all where there was not.
  *
- * A block of some other kind carrying a `text` field is the case the type check
- * guards: a model's own working, put into an assistive board's message box for
- * somebody to say out loud, is the worst thing this could do.
+ * **That cut is the whole of the guard**, and there is deliberately not a second
+ * one filtering the slice by type as well: everything after the last non-text
+ * block is text by construction, so a filter there could never fire and would
+ * only make this look as though it were checked twice. What it protects against
+ * is a block of some other kind carrying a `text` field — a model's own working,
+ * put into an assistive board's message box for somebody to say out loud, is the
+ * worst thing this could do.
  */
 function readReply(content: { type?: string; text?: unknown }[]): SuggestResult {
   let from = 0
@@ -148,7 +152,6 @@ function readReply(content: { type?: string; text?: unknown }[]): SuggestResult 
 
   const said = content
     .slice(from)
-    .filter(part => part.type === 'text')
     .map(part => (typeof part.text === 'string' ? part.text : ''))
     .join('')
     .trim()
