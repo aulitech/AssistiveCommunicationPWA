@@ -293,6 +293,31 @@ describe('the shape of the source tree', () => {
   })
 
   /**
+   * The same rule for the microphone probe, which answers a different question
+   * about a different API.
+   *
+   * It is the instrument deciding whether listen mode can be given a device
+   * setting at all — `SpeechRecognition` is documented to take neither a device
+   * nor a stream, and the probe is what tests that claim against real hardware.
+   * So it has to be reaching for **the same object the app reaches for**. A
+   * probe measuring one recogniser while the app used another would answer a
+   * question nobody asked.
+   */
+  it('keeps the microphone probe reaching for the same recogniser the app does', () => {
+    const names = (text: string) =>
+      [...new Set([...text.matchAll(/\b(webkitSpeechRecognition|SpeechRecognition)\b/g)].map(m => m[1]))].sort()
+
+    const app = names(readFileSync(resolve(SRC, 'listen/recognition.ts'), 'utf8'))
+    const probe = names(readFileSync(resolve(process.cwd(), 'tools/mic-probe.html'), 'utf8'))
+
+    expect(app, 'the app names no recogniser — did it move?').toEqual([
+      'SpeechRecognition',
+      'webkitSpeechRecognition',
+    ])
+    expect(probe, 'the probe and the app disagree about what to ask for').toEqual(app)
+  })
+
+  /**
    * **Every command `package.json` offers has to exist.**
    *
    * Two of them did not. `translate` named `tsx`, which was never a dependency,

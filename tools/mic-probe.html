@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peri microphone probe</title>
+<!--
+  Which microphone the speech recogniser is actually listening to.
+
+  Standalone on purpose: no build step, no imports, open it straight from disk
+  (`pnpm mic-probe`). It is not in `public/`, because everything there ships to
+  production and is indexed. The pointer probe beside it exists for the same
+  reason and answers its question the same way — measure the browser rather than
+  believe what it is documented to do.
+
+  **The question.** Listen mode wants a setting for which microphone to use and
+  how loud it is. `SpeechRecognition` is documented to offer neither: no device
+  option, no audio stream in, no gain. If that is right, the setting cannot be
+  built as asked and a picker would move a control that steers nothing. If it is
+  wrong on some browser, that is worth knowing before anything is built on the
+  assumption.
+
+  **The trip.** You need two microphones you can tell apart — a headset and the
+  built-in one will do.
+
+    1. Press Allow. The device list fills in, each with a live level meter.
+    2. Speak. Watch which meters move. That is which devices hear you.
+    3. Make **one** device hot and the others cold: speak quietly right into a
+       headset boom held away from the laptop, or cover the built-in mic.
+    4. Start the recogniser and do step 3 again.
+
+  **Reading it.** The recogniser transcribes what the *system default* hears, or
+  it transcribes what the *hot* device hears. Those are different answers, and
+  the meters show which device was hot at the time. The panel names which device
+  the browser calls the default, so there is no guessing.
+
+  The property dump under the recogniser is the other half of the evidence: it
+  lists everything a `SpeechRecognition` object exposes on this browser. A device
+  option, if one existed anywhere, would be in it.
+-->
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 1rem; background: #111; color: #eee;
+    font: 16px/1.5 -apple-system, system-ui, sans-serif;
+    display: grid; gap: 1rem; grid-template-columns: minmax(340px, 1fr) minmax(360px, 1.1fr);
+    min-height: 100vh; align-items: start;
+  }
+  @media (max-width: 860px) { body { grid-template-columns: 1fr; } }
+  h1 { font-size: 1.1rem; margin: 0 0 .35rem; }
+  h2 { font-size: .95rem; margin: 1.3rem 0 .4rem; color: #b0b0b0; }
+  p { margin: .35rem 0; }
+  ol { padding-left: 1.2rem; margin: .4rem 0; }
+  li { margin: .3rem 0; }
+  section { background: #191919; border: 1px solid #2a2a2a; border-radius: 10px; padding: .9rem 1rem; }
+  section + section { margin-top: 1rem; }
+  button {
+    font: inherit; padding: .45rem .9rem; border-radius: 8px; border: 1px solid #3a3a3a;
+    background: #222; color: #eee; cursor: pointer;
+  }
+  button:hover { background: #2a2a2a; }
+  button[disabled] { opacity: .45; cursor: default; }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin: .5rem 0; }
+  .muted { color: #b0b0b0; }
+  .warn { color: #fbbf24; }
+  .bad { color: #f87171; }
+  .good { color: #4ade80; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; }
+
+  /* One row per input device: its name, whether it is the default, and a live
+     level meter. Reading which meter is moving is the whole of the test. */
+  .device { padding: .5rem 0; border-top: 1px solid #262626; }
+  .device:first-of-type { border-top: none; }
+  .device-name { display: flex; justify-content: space-between; gap: .75rem; align-items: baseline; }
+  .tag {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+    padding: .1rem .4rem; border-radius: 4px; background: #333; color: #ddd; white-space: nowrap;
+  }
+  .tag.is-default { background: #1d4ed8; color: #fff; }
+  .meter { height: 10px; border-radius: 5px; background: #222; overflow: hidden; margin-top: .35rem; }
+  .meter > i { display: block; height: 100%; width: 0; background: #4ade80; transition: width .05s linear; }
+  .meter.is-hot > i { background: #fbbf24; }
+  .peak { font-size: .75rem; color: #b0b0b0; margin-top: .2rem; }
+
+  .transcript {
+    min-height: 4.5rem; padding: .6rem .7rem; border-radius: 8px;
+    background: #0d0d0d; border: 1px solid #2a2a2a; white-space: pre-wrap;
+  }
+  .log {
+    margin-top: .5rem; max-height: 16rem; overflow: auto; padding: .5rem .6rem;
+    border-radius: 8px; background: #0d0d0d; border: 1px solid #2a2a2a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem;
+  }
+  .log div { padding: .05rem 0; border-top: 1px solid #1c1c1c; }
+  .log div:first-child { border-top: none; }
+  .props { columns: 2; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .78rem; }
+  .props span { display: block; break-inside: avoid; color: #ddd; }
+  .props span.notable { color: #fbbf24; }
+</style>
+</head>
+<body>
+
+<div>
+  <h1>Peri microphone probe</h1>
+  <p class="muted">Which microphone the speech recogniser is actually listening to.</p>
+
+  <section>
+    <h2 style="margin-top:0">The trip</h2>
+    <p class="muted">You need two microphones you can tell apart. A headset and the built-in one will do.</p>
+    <ol>
+      <li>Press <b>Allow microphones</b>. The list below fills in with a live meter each.</li>
+      <li>Speak. Watch which meters move.</li>
+      <li>Make <b>one</b> device hot and the others cold. Speak quietly right into a headset boom held away from the laptop, or cover the built-in mic.</li>
+      <li>Press <b>Start recogniser</b> and do step 3 again.</li>
+    </ol>
+    <p class="muted">The recogniser transcribes what the <b>system default</b> hears, or what the <b>hot</b> device hears. The meters say which was which.</p>
+    <div class="row">
+      <button id="allow">Allow microphones</button>
+      <button id="refresh" disabled>Refresh list</button>
+    </div>
+    <p id="permission" class="muted">Not asked yet. Labels stay blank until permission is given.</p>
+  </section>
+
+  <section>
+    <h2 style="margin-top:0">Inputs</h2>
+    <div id="devices"><p class="muted">Nothing yet.</p></div>
+  </section>
+</div>
+
+<div>
+  <section>
+    <h2 style="margin-top:0">The recogniser</h2>
+    <p id="support" class="muted">Checking…</p>
+    <div class="row">
+      <button id="listen" disabled>Start recogniser</button>
+      <button id="stop" disabled>Stop</button>
+      <button id="clear">Clear log</button>
+    </div>
+    <div class="transcript" id="transcript"><span class="muted">Nothing heard yet.</span></div>
+    <div class="log" id="log"></div>
+  </section>
+
+  <section>
+    <h2 style="margin-top:0">What a SpeechRecognition exposes</h2>
+    <p class="muted">Everything on the object and its prototype. A device option, if one existed anywhere, would be here.</p>
+    <div class="props" id="props"><span class="muted">Nothing yet.</span></div>
+    <p id="verdict" class="muted"></p>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict'
+
+  const $ = id => document.getElementById(id)
+  const log = message => {
+    const line = document.createElement('div')
+    const at = new Date().toISOString().slice(11, 23)
+    line.textContent = `${at}  ${message}`
+    $('log').prepend(line)
+  }
+
+  // ── The recogniser, and what it will admit to ──────────────────────────────
+
+  const RecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition || null
+  const recognitionName = window.SpeechRecognition
+    ? 'SpeechRecognition'
+    : window.webkitSpeechRecognition
+      ? 'webkitSpeechRecognition (prefixed)'
+      : null
+
+  /** Words that would mean a device could be chosen, if any of them were there. */
+  const NOTABLE = /device|stream|track|source|input|gain|volume|constraint/i
+
+  function dumpProperties() {
+    if (!RecognitionClass) {
+      $('props').innerHTML = '<span class="bad">There is no SpeechRecognition on this browser.</span>'
+      return
+    }
+    let instance
+    try {
+      instance = new RecognitionClass()
+    } catch (error) {
+      $('props').innerHTML = `<span class="bad">Could not make one: ${String(error)}</span>`
+      return
+    }
+
+    const names = new Set()
+    for (let o = instance; o && o !== Object.prototype; o = Object.getPrototypeOf(o)) {
+      for (const key of Object.getOwnPropertyNames(o)) names.add(key)
+    }
+
+    const sorted = [...names].sort()
+    const interesting = sorted.filter(n => NOTABLE.test(n))
+    $('props').innerHTML = sorted
+      .map(n => `<span class="${NOTABLE.test(n) ? 'notable' : ''}">${n}</span>`)
+      .join('')
+
+    $('verdict').className = interesting.length ? 'warn' : 'muted'
+    $('verdict').textContent = interesting.length
+      ? `Worth a look: ${interesting.join(', ')}. If one of these takes a device or a stream, the setting can be built as asked.`
+      : 'Nothing here names a device, a stream or a gain. On this browser the recogniser takes what the system gives it.'
+    log(`recogniser exposes ${sorted.length} properties, ${interesting.length} worth a look`)
+  }
+
+  if (!RecognitionClass) {
+    $('support').innerHTML = '<span class="bad">No SpeechRecognition here. Listen mode does not appear at all in this browser.</span>'
+  } else {
+    $('support').innerHTML = `<span class="good">Present as <code>${recognitionName}</code>.</span>`
+    $('listen').disabled = false
+  }
+  dumpProperties()
+
+  let recognition = null
+
+  $('listen').addEventListener('click', () => {
+    if (recognition) return
+    recognition = new RecognitionClass()
+    recognition.continuous = true
+    recognition.interimResults = true
+
+    recognition.onresult = event => {
+      let settled = ''
+      let guessing = ''
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i]
+        const said = result[0] ? result[0].transcript : ''
+        if (result.isFinal) settled += said
+        else guessing += said
+      }
+      const all = (settled + guessing).trim()
+      $('transcript').textContent = all || '…'
+      // Logged with the loudest device at this instant, which is the pairing the
+      // whole trip is about.
+      if (settled.trim()) log(`heard "${settled.trim()}" while loudest was ${loudest()}`)
+    }
+
+    recognition.onerror = event => log(`recogniser error: ${event.error || 'unknown'}`)
+    recognition.onend = () => {
+      log('recogniser ended')
+      recognition = null
+      $('listen').disabled = false
+      $('stop').disabled = true
+    }
+
+    try {
+      recognition.start()
+      log('recogniser started')
+      $('listen').disabled = true
+      $('stop').disabled = false
+    } catch (error) {
+      log(`could not start: ${String(error)}`)
+      recognition = null
+    }
+  })
+
+  $('stop').addEventListener('click', () => {
+    if (!recognition) return
+    try {
+      recognition.stop()
+    } catch (error) {
+      log(`could not stop: ${String(error)}`)
+    }
+  })
+
+  $('clear').addEventListener('click', () => {
+    $('log').textContent = ''
+  })
+
+  // ── The inputs, and how loud each one is ───────────────────────────────────
+
+  /** One entry per device: its stream, its analyser, and the meter it drives. */
+  const meters = new Map()
+  let audio = null
+
+  const level = entry => {
+    const data = entry.data
+    entry.analyser.getByteTimeDomainData(data)
+    let sum = 0
+    for (let i = 0; i < data.length; i++) {
+      const off = (data[i] - 128) / 128
+      sum += off * off
+    }
+    // Root mean square, scaled so ordinary speech fills a useful part of the bar
+    // rather than sitting in the bottom tenth of it.
+    return Math.min(1, Math.sqrt(sum / data.length) * 4)
+  }
+
+  /** Which device is loudest right now, for pairing against the transcript. */
+  function loudest() {
+    let best = null
+    let most = 0
+    for (const entry of meters.values()) {
+      const now = level(entry)
+      if (now > most) {
+        most = now
+        best = entry
+      }
+    }
+    if (!best || most < 0.04) return 'nothing (all quiet)'
+    return `${best.label}${best.isDefault ? ' [default]' : ''} at ${Math.round(most * 100)}%`
+  }
+
+  function paint() {
+    for (const entry of meters.values()) {
+      const now = level(entry)
+      entry.bar.style.width = `${Math.round(now * 100)}%`
+      entry.meter.classList.toggle('is-hot', now > 0.25)
+      if (now > entry.peak) {
+        entry.peak = now
+        entry.peakText.textContent = `peak ${Math.round(now * 100)}%`
+      }
+    }
+    requestAnimationFrame(paint)
+  }
+
+  async function watch(device, isDefault) {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { deviceId: { exact: device.deviceId } },
+    })
+    const source = audio.createMediaStreamSource(stream)
+    const analyser = audio.createAnalyser()
+    analyser.fftSize = 1024
+    source.connect(analyser)
+
+    const row = document.createElement('div')
+    row.className = 'device'
+    const label = device.label || '(unnamed input)'
+    row.innerHTML = `
+      <div class="device-name">
+        <b></b>
+        <span class="tag${isDefault ? ' is-default' : ''}"></span>
+      </div>
+      <div class="meter"><i></i></div>
+      <div class="peak">peak 0%</div>
+      <div class="mono muted"></div>`
+    row.querySelector('b').textContent = label
+    row.querySelector('.tag').textContent = isDefault ? 'system default' : 'not default'
+    row.querySelector('.mono').textContent = `deviceId ${device.deviceId.slice(0, 12)}…`
+    $('devices').append(row)
+
+    meters.set(device.deviceId, {
+      label,
+      isDefault,
+      analyser,
+      data: new Uint8Array(analyser.fftSize),
+      meter: row.querySelector('.meter'),
+      bar: row.querySelector('.meter > i'),
+      peakText: row.querySelector('.peak'),
+      peak: 0,
+      stream,
+    })
+  }
+
+  async function listDevices() {
+    for (const entry of meters.values()) {
+      for (const track of entry.stream.getTracks()) track.stop()
+    }
+    meters.clear()
+    $('devices').textContent = ''
+
+    const all = await navigator.mediaDevices.enumerateDevices()
+    const inputs = all.filter(d => d.kind === 'audioinput')
+
+    // Chrome lists a synthetic "default" entry whose group matches the real
+    // device it points at. Naming which real device that is saves the whole
+    // trip from being guesswork.
+    const synthetic = inputs.find(d => d.deviceId === 'default')
+    const defaultGroup = synthetic ? synthetic.groupId : null
+    const real = inputs.filter(d => d.deviceId !== 'default' && d.deviceId !== 'communications')
+
+    if (real.length === 0) {
+      $('devices').innerHTML = '<p class="bad">No audio inputs were listed.</p>'
+      return
+    }
+
+    log(`${real.length} input${real.length === 1 ? '' : 's'} listed`)
+    for (const device of real) {
+      const isDefault = defaultGroup !== null && device.groupId === defaultGroup
+      try {
+        await watch(device, isDefault)
+      } catch (error) {
+        const row = document.createElement('div')
+        row.className = 'device'
+        row.innerHTML = '<div class="device-name"><b></b></div><p class="bad"></p>'
+        row.querySelector('b').textContent = device.label || '(unnamed input)'
+        row.querySelector('p').textContent = `could not open: ${String(error)}`
+        $('devices').append(row)
+        log(`could not open ${device.label || device.deviceId}: ${String(error)}`)
+      }
+    }
+
+    if (defaultGroup === null) {
+      $('devices').insertAdjacentHTML(
+        'afterbegin',
+        '<p class="warn">This browser does not say which input is the system default. Set it in your operating system’s sound settings and note which one you chose.</p>',
+      )
+    }
+  }
+
+  $('allow').addEventListener('click', async () => {
+    try {
+      // One stream first, with no device named: that is what raises the prompt,
+      // and until it is answered every label comes back empty.
+      const opening = await navigator.mediaDevices.getUserMedia({ audio: true })
+      for (const track of opening.getTracks()) track.stop()
+
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)()
+      if (audio.state === 'suspended') await audio.resume()
+
+      $('permission').innerHTML = '<span class="good">Allowed. Labels and meters below are live.</span>'
+      $('refresh').disabled = false
+      log('microphone permission granted')
+      await listDevices()
+      paint()
+    } catch (error) {
+      $('permission').innerHTML = `<span class="bad">Refused or unavailable: ${String(error)}</span>`
+      log(`permission failed: ${String(error)}`)
+    }
+  })
+
+  $('refresh').addEventListener('click', () => void listDevices())
+
+  // A device plugged in or pulled out mid-trip, which is exactly the moment the
+  // default changes underneath somebody.
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+    navigator.mediaDevices.addEventListener('devicechange', () => {
+      log('the set of devices changed')
+      if (!$('refresh').disabled) void listDevices()
+    })
+  }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    $('permission').innerHTML =
+      '<span class="bad">This browser will not open a microphone at all here. A page served over plain HTTP from anything but localhost is refused outright.</span>'
+    $('allow').disabled = true
+  }
+})()
+</script>
+</body>
+</html>
