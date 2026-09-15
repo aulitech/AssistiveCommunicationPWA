@@ -156,35 +156,97 @@ describe('the control', () => {
   })
 
   /**
-   * **The question is set in the same type as the answer.**
+   * **The two boxes are one height, and whichever holds more decides it.**
    *
-   * It was a third smaller, which made a hierarchy out of what is really two
-   * halves of one conversation — and the question is the half the person using
-   * the board did not write and has the most trouble following. Two boxes of
-   * somebody's speech, side by side on a wide screen, read at arm's length or
-   * more.
+   * Side by side on a wide screen, two boxes of somebody's speech at different
+   * heights read as two unrelated things rather than as the two halves of one
+   * exchange — the question is not a caption on the answer. And both have to
+   * grow, because neither has a dwell control for scrolling and nothing to hang
+   * one on, so what a fixed box cuts off is out of reach.
    *
-   * Held here rather than left to the eye because it is four declarations in two
-   * rules two hundred lines apart, and a diff shows nothing. What does *not*
-   * have to match is the padding: that is how much room the box takes, not how
-   * the words in it are set.
+   * jsdom lays nothing out, so the heights are supplied — the same bargain the
+   * paging tests and the message box's own growing tests make. What is under
+   * test is what the app does with them.
    */
-  it('is set in the same type as the message box', () => {
+  it('grows both boxes together, to whichever is holding more', () => {
+    renderApp()
+    click(micBtn())
+
+    const measures = (el: HTMLTextAreaElement, lines: number) =>
+      Object.defineProperty(el, 'scrollHeight', {
+        configurable: true,
+        // Read only once the height has been cleared, which is the one moment a
+        // box can be measured for the text in it rather than for its own room.
+        get(this: HTMLTextAreaElement) {
+          return this.style.height === '' ? (this.value ? lines * 28 : 28) : 999
+        },
+      })
+
+    measures(heardBox()!, 3)
+    measures(messageBox(), 1)
+
+    // A long question and nothing written back yet: both take the question's
+    // height rather than the question standing tall beside an empty answer.
+    act(() => FakeRecognition.last!.say({ transcript: 'a question over three lines', isFinal: true }))
+    settle()
+    expect(heardBox()!.style.height).toBe('84px')
+    expect(messageBox().style.height).toBe('84px')
+
+    // And the other way about, which is the half that says the height is the
+    // pair's rather than the question's.
+    measures(heardBox()!, 1)
+    measures(messageBox(), 5)
+    fireEvent.change(messageBox(), { target: { value: 'a message over five lines' } })
+    settle()
+    expect(messageBox().style.height).toBe('140px')
+    expect(heardBox()!.style.height).toBe('140px')
+  })
+
+  /**
+   * **The question box is the message box's twin.**
+   *
+   * Same type, same padding, same floor, same cap. It was a third smaller with
+   * tighter padding, which made a hierarchy out of what is really two halves of
+   * one conversation — and the question is the half the person using the board
+   * did not write and has the most trouble following.
+   *
+   * The floor and the cap are not decoration. The two boxes are held to one
+   * height by measurement, and measurement only decides anything between the
+   * two: below the floor and above the cap it is the stylesheet that answers, so
+   * a pair with different floors is a pair that comes apart while both are empty
+   * and a pair with different caps is one that comes apart when either fills up.
+   *
+   * Held here rather than left to the eye because it is seven declarations in
+   * two rules two hundred lines apart, and a diff shows nothing.
+   */
+  it('is the message box twin, in type and in the numbers that bound it', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
-    const type = (selector: string) => {
+    const WANTED = [
+      'font-family',
+      'font-size',
+      'font-weight',
+      'line-height',
+      'max-height',
+      'min-height',
+      'padding',
+    ]
+
+    const shape = (selector: string) => {
       const rule = css.slice(css.indexOf(`${selector} {`))
       const block = rule.slice(0, rule.indexOf('}'))
       return Object.fromEntries(
-        [...block.matchAll(/(font-size|font-weight|font-family|line-height): *([^;]+);/g)].map(m => [m[1], m[2]]),
+        [...block.matchAll(/^ *([a-z-]+): *([^;]+);/gm)]
+          .filter(m => WANTED.includes(m[1]!))
+          .map(m => [m[1], m[2]]),
       )
     }
 
-    const message = type('.text-display')
+    const message = shape('.text-display')
     expect(
       Object.keys(message).sort(),
-      'the message box no longer states all four — this can only compare what is there',
-    ).toEqual(['font-family', 'font-size', 'font-weight', 'line-height'])
-    expect(type('.heard-text'), 'the two boxes are set differently').toEqual(message)
+      'the message box no longer states all seven — this can only compare what is there',
+    ).toEqual(WANTED)
+    expect(shape('.heard-text'), 'the two boxes are not the same box').toEqual(message)
   })
 
   // They sit *on* a border now, and a control painted on one with nothing behind

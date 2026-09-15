@@ -17,7 +17,7 @@
 // top-centre of the message box, which now answers to a mode rather than to the
 // caret. Rest was already there, so that surface was never entirely the box's.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSettings } from '../ui/settings'
 import { chooseLanguage, chooseVoice } from '../core/store'
 import { LanguagePicker } from '../voice/language-picker'
@@ -302,39 +302,57 @@ export function Topbar({
   })
 
   /**
-   * The box grows with what is in it, up to a few lines.
+   * The box the question lands in. Made here rather than in `HeardBox`, because
+   * the two boxes are held to one height and this bar is the only thing that can
+   * measure both.
+   */
+  const heardRef = useRef<HTMLTextAreaElement>(null)
+
+  /**
+   * Both boxes grow with what is in them, up to a few lines — **and to the same
+   * height as each other**, whichever is holding more deciding it.
    *
-   * It was one line, fixed, with the overflow scrolled and the scrollbar hidden
-   * — so a message longer than the box went above the fold and stayed there.
-   * Every other surface in this app has dwell controls for scrolling; this one
-   * has none, and nothing to hang them on, so what scrolls out of it is gone as
-   * far as a gaze user is concerned.
+   * The message box was one line, fixed, with the overflow scrolled and the
+   * scrollbar hidden — so a message longer than the box went above the fold and
+   * stayed there. Every other surface in this app has dwell controls for
+   * scrolling; these two have none, and nothing to hang them on, so what scrolls
+   * out of one is gone as far as a gaze user is concerned.
+   *
+   * **One height for the pair**, because on a wide screen they stand side by
+   * side: two boxes of somebody's speech at different heights read as two
+   * unrelated things rather than as the two halves of one exchange, and the
+   * question is not a caption on the answer.
    *
    * Measured rather than counted: a line is however many characters fit at this
    * text size and this width, which is not a number this can know. The cap is in
-   * the stylesheet, where `max-height` clamps whatever is set here — so the box
-   * cannot eat the board however long the message gets.
+   * the stylesheet, where one `max-height` clamps both — so the pair cannot eat
+   * the board however long either of them gets.
    *
    * **Where nothing can be measured, nothing is set.** `scrollHeight` is 0 in
    * jsdom, and a box set to nought is a box nobody can see; the same fallback
    * the grid's windowing makes, for the same reason.
    */
   const value = editMode ? draft.text : text
+  const question = listener.open ? listener.heard.said : ''
   useEffect(() => {
-    const el = textareaRef.current
-    if (!el) return
     const fit = () => {
-      // Back to one line first, or the box only ever grows: `scrollHeight`
-      // includes whatever height it is already holding.
-      el.style.height = ''
-      if (el.scrollHeight) el.style.height = `${el.scrollHeight}px`
+      const boxes = [textareaRef.current, heardRef.current].filter(el => el !== null)
+      if (boxes.length === 0) return
+      // Back to one line first, and **both of them before either is measured**:
+      // `scrollHeight` includes whatever height a box is already holding, so one
+      // still standing at the other's height would report it straight back and
+      // the pair would only ever grow.
+      for (const el of boxes) el.style.height = ''
+      const tallest = Math.max(...boxes.map(el => el.scrollHeight))
+      if (!tallest) return
+      for (const el of boxes) el.style.height = `${tallest}px`
     }
     fit()
     // The width decides where the lines break, and the width changes with the
-    // window — a phone turned on its side rewraps every line in the box.
+    // window — a phone turned on its side rewraps every line in both boxes.
     window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
-  }, [value, textareaRef, settings.zoom])
+  }, [value, question, listener.open, textareaRef, settings.zoom])
 
   // A link pasted or dropped here becomes `[label](url)`, so the message reads
   // as the page's name and still carries the address when it is copied out. Into
@@ -432,7 +450,7 @@ export function Topbar({
             first in both arrangements and in a screen reader. What keeps the
             two strips on the border from moving with it is that both hang off
             the wrapper rather than off either box. */}
-        {listener.open && <HeardBox listener={listener} messageEmpty={value.trim() === ''} />}
+        {listener.open && <HeardBox listener={listener} fieldRef={heardRef} messageEmpty={value.trim() === ''} />}
 
         {/* The message box and what rides *its* borders, which after the split
             above is not the same thing as what rides the wrapper's. The mic and

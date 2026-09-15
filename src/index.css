@@ -116,11 +116,12 @@ body {
   flex-shrink: 0;
   background: var(--surface);
 
-  /* How tall the message box is allowed to get. Named rather than written where
-     it is used, because the heard box beside it is capped *against* it on a wide
-     screen — see the rule there — and two numbers that have to add up are two
-     numbers that come apart at the first change. */
-  --message-max-height: min(11rem, 33dvh);
+  /* How tall either box is allowed to get. **One number for both**, because the
+     two are held to one height — see `topbar.tsx` — and a pair kept equal by
+     measurement but capped by two different numbers would come apart at exactly
+     the point one of them was full. Five lines of 1.35rem at 1.4 plus the
+     padding, and never more than a third of a short screen. */
+  --box-max-height: min(11rem, 33dvh);
 }
 
 /* The message box and the one strip that belongs to it rather than to the pair
@@ -150,7 +151,7 @@ body {
      at 1.4, plus the padding, and never more than a third of a short screen:
      the board underneath is what somebody is speaking with, and a message box
      that ate it would be a box with nothing to put in it. */
-  max-height: var(--message-max-height);
+  max-height: var(--box-max-height);
   padding: 0.75rem 0.9rem;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -542,18 +543,16 @@ body {
 }
 
 .heard-text {
-  /* One line of the type below, plus this padding. The two boxes are set in the
-     same type, so this is the message box's own number less the smaller padding
-     — see the note there for why both are in rem. */
-  min-height: 2.9rem;
-  /* Shorter than the message box on purpose. A question is a sentence and the
-     board underneath is what somebody is answering with — two boxes that both
-     grew to a third of the screen would leave nothing to answer from. Four lines
-     against the message box's five, and the share of a short screen is deliberately
-     *not* scaled with the type: that clause is about the board underneath rather
-     than about how big the words are. */
-  max-height: min(8.5rem, 20dvh);
-  padding: 0.5rem 0.7rem;
+  /* The message box's twin: the same floor, the same padding, the same cap. The
+     two are held to one height by measurement — see `topbar.tsx` — and these are
+     what decide the height they are held to when neither is measurable, which is
+     every box before its first paint and every box under jsdom. Written as the
+     same numbers rather than as smaller ones, because two boxes set in the same
+     type and made the same height that still started their first line a quarter
+     of a rem apart would look like a mistake nobody could name. */
+  min-height: 3.5rem;
+  max-height: var(--box-max-height);
+  padding: 0.75rem 0.9rem;
   background: var(--bg);
   /* Dashed, as edit mode marks the box it has taken over: this is a box that is
      not the message, and the difference has to read without being looked at. */
@@ -574,6 +573,24 @@ body {
   resize: none;
   overflow-y: auto;
   position: relative;
+}
+
+/* **Stacked, the pair is spending one screen's height between them.** They are
+   the same height as each other now, so a third of a short screen each is
+   two-thirds of it spent on a topbar, with the board somebody is answering from
+   in what is left. A fifth each while the question is on screen, which is the
+   share the question alone used to get.
+
+   A clamp on top of the shared cap rather than a second value for it: written
+   out again, the two would come apart, and the cap is already a number this app
+   only says once. The wide-screen rule below takes the clamp off, the pair
+   spending width there instead.
+
+   Selectors that can only match while the question is on screen, rather than a
+   class saying so — the heard box being in the document *is* the condition. */
+.heard-wrap .heard-text,
+.heard-wrap ~ .message-wrap .text-display {
+  max-height: min(var(--box-max-height), 20dvh);
 }
 
 /* The fill is painted as a background layer for the reason the message box
@@ -696,8 +713,11 @@ body {
      whatever scrolls out of it is out of reach of the person reading it. What
      the column holds below the box is the half of the tools that hangs past its
      border, the rest of them being on it. */
-  .heard-text {
-    max-height: calc(var(--message-max-height) - var(--heard-tool) / 2);
+  /* Side by side the pair spends width rather than height, so the clamp on a
+     short screen's share comes off and both go back to the shared cap. */
+  .heard-wrap .heard-text,
+  .heard-wrap ~ .message-wrap .text-display {
+    max-height: var(--box-max-height);
   }
 }
 

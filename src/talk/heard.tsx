@@ -24,7 +24,7 @@
 // goes into the message box through the composer's own undo — see
 // `listen/suggest.ts` for why that matters more here than anywhere.
 
-import { useCallback, useRef } from 'react'
+import { useCallback, type RefObject } from 'react'
 import { useSettings } from '../ui/settings'
 import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
@@ -61,9 +61,18 @@ function HeardButton({
 
 export function HeardBox({
   listener,
+  fieldRef,
   messageEmpty,
 }: {
   listener: Listener
+  /**
+   * The box itself, held by the topbar rather than made here.
+   *
+   * **The two boxes are one height**, and whichever holds more decides it — so
+   * something has to be able to measure both, and the only thing that can see
+   * both is the bar they are in.
+   */
+  fieldRef: RefObject<HTMLTextAreaElement | null>
   /**
    * Whether the message box has room for a suggestion.
    *
@@ -80,7 +89,6 @@ export function HeardBox({
 
   const write = useCallback((value: string) => correct(value), [correct])
 
-  const fieldRef = useRef<HTMLTextAreaElement>(null)
   /**
    * No `onPlace`, unlike the message box. The caret that hook reports is the
    * composer's, and it decides which word the grid narrows itself to — a caret

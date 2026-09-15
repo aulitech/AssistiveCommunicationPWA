@@ -318,23 +318,26 @@ describe('the shape of the source tree', () => {
   })
 
   /**
-   * **How tall the message box may get is one number, not two.**
+   * **How tall a box may get is one number, not two.**
    *
-   * The heard box beside it on a wide screen is capped against that number less
-   * its own tools, so the two columns end on the same line and opening listen
-   * mode costs the board no height at all. Restated rather than derived, the two
-   * come apart at the first change — which is the `--edit-bar-inset` story, where
-   * a padding grew and the strip that had to match it stayed where it was, 20px
-   * below the border it rides.
+   * The message box and the heard box are held to one height by measurement —
+   * see `topbar.tsx` — and a pair kept equal that way but capped by two numbers
+   * would come apart at exactly the point one of them filled up. Even the clamp
+   * that halves their share of a short screen while they are stacked is written
+   * as a clamp *on* the cap rather than as a second value for it.
+   *
+   * Restated rather than derived is the `--edit-bar-inset` story, where a padding
+   * grew and the strip that had to match it stayed where it was, 20px below the
+   * border it rides.
    */
-  it('caps the message box from one number rather than two', () => {
+  it('caps either box from one number rather than two', () => {
     const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
 
-    const cap = css.match(/--message-max-height: *([^;]+);/)?.[1]
-    expect(cap, 'the stylesheet no longer names how tall the message box may get').toBeDefined()
+    const cap = css.match(/--box-max-height: *([^;]+);/)?.[1]
+    expect(cap, 'the stylesheet no longer names how tall a box may get').toBeDefined()
 
     // Anything else wanting that height has to ask for the token. Written out a
-    // second time is exactly how the pair stops adding up.
+    // second time is exactly how the pair stops matching.
     expect(css.split(cap!).length - 1, `${cap} is written down more than once`).toBe(1)
   })
 
