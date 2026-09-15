@@ -542,19 +542,34 @@ body {
 }
 
 .heard-text {
+  /* One line of the type below, plus this padding. The two boxes are set in the
+     same type, so this is the message box's own number less the smaller padding
+     — see the note there for why both are in rem. */
+  min-height: 2.9rem;
   /* Shorter than the message box on purpose. A question is a sentence and the
      board underneath is what somebody is answering with — two boxes that both
-     grew to a third of the screen would leave nothing to answer from. */
-  min-height: 2.6rem;
-  max-height: min(6rem, 20dvh);
+     grew to a third of the screen would leave nothing to answer from. Four lines
+     against the message box's five, and the share of a short screen is deliberately
+     *not* scaled with the type: that clause is about the board underneath rather
+     than about how big the words are. */
+  max-height: min(8.5rem, 20dvh);
   padding: 0.5rem 0.7rem;
   background: var(--bg);
   /* Dashed, as edit mode marks the box it has taken over: this is a box that is
      not the message, and the difference has to read without being looked at. */
   border: 1px dashed var(--border);
   border-radius: 8px;
-  font-size: 1.05rem;
+  /* **The same type as the message box**, and held to it by a test. These are
+     two boxes of somebody's speech read side by side at arm's length or more, and
+     setting the question smaller than the answer made a hierarchy out of what is
+     really two halves of one conversation — the question is the half the person
+     using the board did not write and has the most trouble following. The padding
+     stays tighter, which is a question of how much room the box takes rather than
+     of how the words in it are set. */
+  font-size: 1.35rem;
+  font-weight: 500;
   font-family: var(--font);
+  line-height: 1.4;
   color: var(--text);
   resize: none;
   overflow-y: auto;

@@ -155,6 +155,38 @@ describe('the control', () => {
     expect(inOrder).toEqual(['heard-text', 'heard-tools', 'heard-meaning'])
   })
 
+  /**
+   * **The question is set in the same type as the answer.**
+   *
+   * It was a third smaller, which made a hierarchy out of what is really two
+   * halves of one conversation — and the question is the half the person using
+   * the board did not write and has the most trouble following. Two boxes of
+   * somebody's speech, side by side on a wide screen, read at arm's length or
+   * more.
+   *
+   * Held here rather than left to the eye because it is four declarations in two
+   * rules two hundred lines apart, and a diff shows nothing. What does *not*
+   * have to match is the padding: that is how much room the box takes, not how
+   * the words in it are set.
+   */
+  it('is set in the same type as the message box', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const type = (selector: string) => {
+      const rule = css.slice(css.indexOf(`${selector} {`))
+      const block = rule.slice(0, rule.indexOf('}'))
+      return Object.fromEntries(
+        [...block.matchAll(/(font-size|font-weight|font-family|line-height): *([^;]+);/g)].map(m => [m[1], m[2]]),
+      )
+    }
+
+    const message = type('.text-display')
+    expect(
+      Object.keys(message).sort(),
+      'the message box no longer states all four — this can only compare what is there',
+    ).toEqual(['font-family', 'font-size', 'font-weight', 'line-height'])
+    expect(type('.heard-text'), 'the two boxes are set differently').toEqual(message)
+  })
+
   // They sit *on* a border now, and a control painted on one with nothing behind
   // it shows the border and the words through — the reason `.topbar-modes` is
   // opaque. A ground each rather than one pill: two rem apart, one pill would be
