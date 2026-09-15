@@ -374,7 +374,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Hearing a question',
     blocks: [
       text(
-        'The microphone button at the top left of the message box listens to whoever is talking to you. What it hears appears in a box of its own above the message, where you can correct it, read it in your own language, and answer it.',
+        'The microphone button at the top left of the message box listens to whoever is talking to you. What it hears appears in a box of its own — beside the message on a wide screen, above it on a narrow one — where you can correct it, read it in your own language, and answer it.',
       ),
       list(
         'Rest on the microphone to start, and again to stop and close the box.',

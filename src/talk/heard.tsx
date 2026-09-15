@@ -1,8 +1,15 @@
-// The box above the message: what was just asked.
+// The box beside the message, or above it: what was just asked.
 //
 // It is a second text area and deliberately not a second message. The question
 // is somebody else's words and the answer is the user's, and a board that mixed
 // the two would leave whoever is waiting for a reply to untangle them.
+//
+// **Which of the two arrangements is a question about the screen, not about the
+// box**, and it is settled in the stylesheet rather than here — `.heard-wrap`
+// takes a line of its own until there is width to put it beside the message, at
+// which point the two share one: 35% question, 65% message. What that buys is
+// the board's height, since stacked this pushes the grid down by the whole of
+// the box and the tools under it. Nothing in this file knows which it is.
 //
 // **It is a text box, so it answers to a dwell like the other one.** A recogniser
 // mis-hears names, and the one thing a gaze user could never do about that was

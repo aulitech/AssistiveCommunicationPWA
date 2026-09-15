@@ -3542,12 +3542,24 @@ describe('the message box growing', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
     const rule = css.slice(css.indexOf('.text-display {'))
     const box = rule.slice(0, rule.indexOf('}'))
-    expect(box).toMatch(/max-height:\s*min\(/)
+
+    const declared = box.match(/max-height: *([^;]+);/)?.[1]
+    expect(declared, 'the message box is not capped at all').toBeDefined()
+
+    // The cap is a named number now, because the heard box beside it on a wide
+    // screen is capped *against* it. So follow the reference: asserting the box
+    // states the number itself would be a test that could only pass while it was
+    // written down in two places, which is the thing the name exists to stop.
+    const token = declared!.match(/var\((--[\w-]+)\)/)?.[1]
+    const cap = token ? css.match(new RegExp(`${token}: *([^;]+);`))?.[1] : declared
+    expect(cap, `${token} is asked for and never defined`).toBeDefined()
+
+    expect(cap).toMatch(/^min\(/)
     // In `rem` and `dvh`: a cap in pixels stops growing at the one text size it
     // was written for, and `vh` on a phone is the viewport with the browser
     // chrome hidden.
-    expect(box).toMatch(/rem/)
-    expect(box).toMatch(/dvh/)
+    expect(cap).toMatch(/rem/)
+    expect(cap).toMatch(/dvh/)
   })
 })
 

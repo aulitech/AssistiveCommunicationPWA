@@ -318,6 +318,57 @@ describe('the shape of the source tree', () => {
   })
 
   /**
+   * **How tall the message box may get is one number, not two.**
+   *
+   * The heard box beside it on a wide screen is capped against that number less
+   * its own tools, so the two columns end on the same line and opening listen
+   * mode costs the board no height at all. Restated rather than derived, the two
+   * come apart at the first change — which is the `--edit-bar-inset` story, where
+   * a padding grew and the strip that had to match it stayed where it was, 20px
+   * below the border it rides.
+   */
+  it('caps the message box from one number rather than two', () => {
+    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+
+    const cap = css.match(/--message-max-height: *([^;]+);/)?.[1]
+    expect(cap, 'the stylesheet no longer names how tall the message box may get').toBeDefined()
+
+    // Anything else wanting that height has to ask for the token. Written out a
+    // second time is exactly how the pair stops adding up.
+    expect(css.split(cap!).length - 1, `${cap} is written down more than once`).toBe(1)
+  })
+
+  /**
+   * **The app has one idea of what a wide screen is, not two.**
+   *
+   * `topbar.tsx` asks the question in JavaScript, because the two controls it
+   * gates are not cheap to mount and hide — each builds the device's voice list.
+   * The stylesheet asks it again for listen mode, where the question is whether
+   * the heard box can sit beside the message rather than above it.
+   *
+   * Two answers to one question would mean a band of widths where the app has
+   * decided the screen is wide for one purpose and narrow for another, which is
+   * the sort of thing nobody sees until they are holding a tablet at exactly
+   * that size.
+   */
+  it('keeps the stylesheet and the topbar agreeing on what a wide screen is', () => {
+    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const topbar = readFileSync(resolve(SRC, 'talk/topbar.tsx'), 'utf8')
+
+    const inCode = topbar.match(/WIDE_ENOUGH = '\(min-width: (\d+)px\)'/)?.[1]
+    expect(inCode, 'the topbar no longer names a wide screen — did it move?').toBeDefined()
+
+    // Only the queries that ask about width alone. The banded ones — a range,
+    // or a width with an orientation — are about the bars giving up arrows on a
+    // phone, which is a different question with a different answer.
+    const inCss = [...css.matchAll(/@media \(min-width: (\d+)px\) \{/g)].map(m => m[1])
+    expect(inCss, 'the stylesheet no longer has a wide-screen rule').not.toEqual([])
+    for (const width of inCss) {
+      expect(width, 'the stylesheet and the topbar disagree about a wide screen').toBe(inCode)
+    }
+  })
+
+  /**
    * **Every command `package.json` offers has to exist.**
    *
    * Two of them did not. `translate` named `tsx`, which was never a dependency,

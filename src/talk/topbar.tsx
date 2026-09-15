@@ -444,10 +444,16 @@ export function Topbar({
           centre and nobody can see — but a corner found that way would be out
           by the whole width of the action rail. */}
       <div className="text-display-wrap">
-        {/* What was heard, above the message rather than in it. Two boxes, and
-            the upper one is somebody else's words — mixing the two would make
-            the question and the answer one thing to be untangled by whoever is
-            waiting for a reply. */}
+        {/* What was heard, beside the message rather than in it — or above it
+            on a screen with no width to spare, which is the stylesheet's call
+            and not this file's. Two boxes either way, and one of them is
+            somebody else's words: mixing them would make the question and the
+            answer one thing to be untangled by whoever is waiting for a reply.
+
+            It goes *before* the message in the markup, so the question reads
+            first in both arrangements and in a screen reader. What keeps the
+            two strips on the border from moving with it is that both hang off
+            the wrapper rather than off either box. */}
         {listener.open && <HeardBox listener={listener} messageEmpty={value.trim() === ''} />}
 
         <textarea

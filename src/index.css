@@ -111,6 +111,12 @@ body {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
+
+  /* How tall the message box is allowed to get. Named rather than written where
+     it is used, because the heard box beside it is capped *against* it on a wide
+     screen — see the rule there — and two numbers that have to add up are two
+     numbers that come apart at the first change. */
+  --message-max-height: min(11rem, 33dvh);
 }
 
 .text-display {
@@ -126,7 +132,7 @@ body {
      at 1.4, plus the padding, and never more than a third of a short screen:
      the board underneath is what somebody is speaking with, and a message box
      that ate it would be a box with nothing to put in it. */
-  max-height: min(11rem, 33dvh);
+  max-height: var(--message-max-height);
   padding: 0.75rem 0.9rem;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -374,6 +380,23 @@ body {
   flex: 1;
   min-width: 0;
   display: flex;
+  /* Two boxes once listen mode is open, and wrapping is what lets one rule lay
+     them out both ways: the heard box takes a whole line to itself and the
+     message falls underneath, until the wide-screen rule below puts them on one
+     line together. */
+  flex-wrap: wrap;
+  /* The gutter between them. **2rem is a target-separation number here rather
+     than a spacing one** — both of these are dwell targets, and a gaze crossing
+     from the question to the answer must not catch the wrong one on the way. A
+     flex gap does not shrink, so writing it here makes 2rem a floor as well as
+     a size. Stacked, they are half a rem apart, which is the margin the heard
+     box used to carry itself. */
+  column-gap: 2rem;
+  row-gap: 0.5rem;
+  /* Top-aligned rather than stretched. Both boxes grow with what is in them, and
+     a message box stretched to the height of the question beside it would be a
+     box sized by somebody else's words. */
+  align-items: flex-start;
 }
 
 /* The language and the voice, at the box's upper-right corner, riding the same
@@ -403,13 +426,19 @@ body {
   align-items: center;
 }
 
-/* The box above the message: somebody else's words. Its own ground, so the two
-   read as two things rather than one box that grew. */
+/* The heard box: somebody else's words. Its own ground, so the two read as two
+   things rather than as one box that grew. Above the message on a narrow screen
+   and beside it on a wide one — see the wide-screen rule below. */
 .heard-wrap {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  margin-bottom: 0.5rem;
+  /* A whole line, so the message box falls underneath it. The wide-screen rule
+     below is the one place that changes. `min-width: 0` because a textarea will
+     not shrink below the width its `cols` implies without it, and there it is
+     asked to. */
+  flex: 1 1 100%;
+  min-width: 0;
 }
 
 .heard-text {
@@ -498,6 +527,52 @@ body {
 .heard-btn[aria-disabled='true'] {
   color: var(--text-muted);
   cursor: default;
+}
+
+/* ── Listen mode on a wide screen ── */
+/* The question beside the answer rather than above it, taking 35% of the box's
+   width to the message's 65%, with the wrapper's 2rem gutter between them.
+ *
+ * **What it buys is the board's height.** Stacked, opening listen mode pushes
+ * the grid down by the whole of the heard box and the tools under it — which is
+ * a row of phrases on a short screen, and on any screen it is the surface
+ * somebody is actually speaking from. A wide screen has width nobody is using
+ * and no height to spare, so the question goes beside the answer and the grid
+ * keeps its rows.
+ *
+ * **Neither strip on the border moves.** `.topbar-listen` and `.topbar-choices`
+ * are positioned against the wrapper, and the wrapper is the same size in the
+ * same place whether listen mode is open or not — so the microphone stays at one
+ * point on screen either way, riding the message box's corner while it is closed
+ * and the heard box's while it is open. It is the way *out* of listen mode as
+ * well as the way in, and a control that moved the moment it was used would be
+ * the worst one on this bar to have to hunt for.
+ *
+ * The same width `topbar.tsx` calls `WIDE_ENOUGH`, and one number on purpose:
+ * both ask whether the top of the screen has width to spare beyond the message.
+ * `tests/app/structure.test.ts` holds the two together. */
+@media (min-width: 1100px) {
+  .heard-wrap {
+    flex: 35 1 0;
+  }
+
+  .text-display-wrap > .text-display {
+    flex: 65 1 0;
+  }
+
+  /* Taller here, because the reason it was short has gone. Stacked, the two
+     boxes spend the same vertical room and a question grown to a third of the
+     screen would leave nothing to answer from; side by side they spend width
+     instead. Capped so that the whole column — the box, the gap under it and
+     the row of tools — ends exactly where the message box alone could, which is
+     what makes opening listen mode here cost the board no height at all. It has
+     to be capped by something: there are no dwell controls on this box, so
+     whatever scrolls out of it is out of reach of the person reading it.
+     2.6rem is that column's other two parts, the 2.2rem tools and the 0.4rem
+     gap above them. */
+  .heard-text {
+    max-height: calc(var(--message-max-height) - 2.6rem);
+  }
 }
 
 .topbar-choices {

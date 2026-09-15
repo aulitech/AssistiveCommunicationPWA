@@ -100,6 +100,33 @@ describe('the control', () => {
     expect(micBtn()).toBeNull()
   })
 
+  /**
+   * The microphone does not move when it is used.
+   *
+   * On a wide screen the heard box sits *beside* the message rather than above
+   * it, so the leftmost box on that border changes the moment listen mode opens.
+   * What stops the control moving with it is that it hangs off the wrapper
+   * rather than off either box, and the wrapper is the same size in the same
+   * place either way — so the microphone rides the message box's corner while it
+   * is closed and the heard box's while it is open, at one point on screen.
+   *
+   * It is the way *out* of listen mode as well as the way in, which is what
+   * makes this worth holding: a control that moved the moment somebody used it
+   * would be the worst one on this bar to have to hunt for.
+   */
+  it('hangs off the wrapper rather than off either box, so it does not move', () => {
+    renderApp()
+    const wrap = $('.text-display-wrap')!
+    expect(wrap.querySelector(':scope > .topbar-listen')).not.toBeNull()
+
+    click(micBtn())
+    expect(heardBox()).not.toBeNull()
+    // Still the wrapper's own child, and not something the heard box brought
+    // with it — which is the only reason the two states put it in one place.
+    expect(wrap.querySelector(':scope > .topbar-listen')).not.toBeNull()
+    expect($('.heard-wrap .topbar-listen')).toBeNull()
+  })
+
   it('opens a box above the message, and closes it again', () => {
     renderApp()
     expect(heardBox()).toBeNull()
