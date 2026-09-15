@@ -403,7 +403,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'It is only ever a suggestion. Peri never speaks it for you — it waits in the message box like anything else you have written, and you say it by resting on Speak.',
         'You can change every word of it first, or clear it and say something else entirely.',
         'It will not write over a message you have already started. Clear the box first, and the button says so.',
-        'It answers questions about the world, and looks one up if it has to. It does not answer questions about you: it has never met you, so anything about what you did, felt or want comes back as a question rather than a guess.',
+        'It answers questions about the world, and looks one up if it has to. It does not answer questions about you: it has never met you, so anything about what you did, felt or want comes back as a gap for you to fill in, with the caret already sitting in it.',
       ),
       text(
         'The question is sent to Anthropic to be answered, on your own account and your own credits. It is sent only when you ask for a reply — nothing is sent by listening.',
@@ -415,7 +415,10 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Your key is never in a backup file, and with Synchronize on it travels encrypted to your own devices like the ElevenLabs one.',
       ),
       text(
-        'The same row lets you choose which model writes the reply. Quickest is the default, because somebody is waiting in front of you. The other two read a question more closely and take a little longer.',
+        'Questions and replies from the last day are kept on this device and sent with the next one, so a conversation carries on making sense — asked "tea or coffee" and then "milk?", it knows what the second one is about. They are forgotten after a day, and the same Settings row has a button to forget them now.',
+      ),
+      text(
+        'That row also lets you choose which model writes the reply. Quickest is the default, because somebody is waiting in front of you. Two of the others read a question more closely and take a little longer, and the last one writes more like a person and less like a form.',
       ),
       text(
         'Without a key the button is not there at all, and everything else about listening works exactly the same.',

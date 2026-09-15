@@ -3,8 +3,11 @@ import {
   DEFAULT_REPLY_MODEL,
   DEFAULT_SETTINGS,
   REPLY_MODELS,
+  addReplyTurn,
   emptyStore,
   factoryReset,
+  forgetReplyContext,
+  loadReplyContext,
   loadSettings,
   loadReplyKey,
   loadSent,
@@ -15,9 +18,11 @@ import {
   sameAccount,
   readReplyModel,
   replyModelName,
+  saveReplyContext,
   saveReplyKey,
   saveSent,
   saveSettings,
+  type ReplyTurn,
 } from '../../src/core/store'
 
 // The arithmetic behind arranging things by hand. The two bars that use it are
@@ -236,8 +241,18 @@ describe('the key for suggested replies', () => {
 describe('the model behind a suggested reply', () => {
   beforeEach(() => localStorage.clear())
 
-  it('offers the models it can call, quickest first', () => {
-    expect(REPLY_MODELS.map(m => m.id)).toEqual(['claude-haiku-4-5-20251001', 'claude-sonnet-5', 'claude-opus-5'])
+  /**
+   * The first three on one axis and the fourth on another. Fable is last rather
+   * than slotted among them because it is a different voice rather than a faster
+   * or a slower one, and the ordering claim is only about the three.
+   */
+  it('offers the models it can call, the first three quickest first', () => {
+    expect(REPLY_MODELS.map(m => m.id)).toEqual([
+      'claude-haiku-4-5-20251001',
+      'claude-sonnet-5',
+      'claude-opus-5',
+      'claude-fable-5-1',
+    ])
   })
 
   // Somebody is waiting in front of you. A better sentence that arrives ten
@@ -280,5 +295,112 @@ describe('the model behind a suggested reply', () => {
   it('reads a damaged one as the default rather than throwing', () => {
     localStorage.setItem('dwellspeak_settings', JSON.stringify({ replyModel: { id: 'claude-opus-5' } }))
     expect(loadSettings().replyModel).toBe(DEFAULT_REPLY_MODEL)
+  })
+})
+
+/**
+ * Today's conversation, and the day it lasts.
+ *
+ * It is a record of what somebody was actually asked in a care room, so the
+ * window is not a convenience: what is kept is kept on their behalf, and a day
+ * is the longest any of it is worth holding.
+ */
+describe('what was asked and answered today', () => {
+  const HOUR = 60 * 60 * 1000
+  const NOW = 1_800_000_000_000
+
+  beforeEach(() => localStorage.clear())
+
+  it('keeps an exchange, oldest first', () => {
+    let turns = addReplyTurn([], 'Tea or coffee?', 'Tea please', NOW)
+    turns = addReplyTurn(turns, 'Milk?', 'Yes please', NOW + 1000)
+    expect(turns.map(t => t.question)).toEqual(['Tea or coffee?', 'Milk?'])
+  })
+
+  it('does not change the list it was given', () => {
+    const once = addReplyTurn([], 'Tea or coffee?', 'Tea please', NOW)
+    addReplyTurn(once, 'Milk?', 'Yes please', NOW + 1000)
+    expect(once).toHaveLength(1)
+  })
+
+  it('refuses an exchange with nothing on one side of it', () => {
+    expect(addReplyTurn([], '   ', 'Tea please', NOW)).toEqual([])
+    expect(addReplyTurn([], 'Tea or coffee?', '  ', NOW)).toEqual([])
+  })
+
+  it('drops what happened more than a day ago as it adds', () => {
+    const old = addReplyTurn([], 'Yesterday', 'A while back', NOW - 25 * HOUR)
+    const now = addReplyTurn(old, 'Today', 'Just now', NOW)
+    expect(now.map(t => t.question)).toEqual(['Today'])
+  })
+
+  it('keeps what happened within the day', () => {
+    const earlier = addReplyTurn([], 'This morning', 'Earlier', NOW - 23 * HOUR)
+    const now = addReplyTurn(earlier, 'Now', 'Just now', NOW)
+    expect(now).toHaveLength(2)
+  })
+
+  it('keeps the last twenty and no more', () => {
+    let turns: ReplyTurn[] = []
+    for (let i = 0; i < 30; i++) turns = addReplyTurn(turns, `q${i}`, `a${i}`, NOW + i)
+    expect(turns).toHaveLength(20)
+    expect(turns[0].question).toBe('q10')
+  })
+
+  /**
+   * Pruned on the way out as well as in, so a board left open overnight forgets
+   * on its own rather than waiting for the next question to notice.
+   */
+  it('forgets a stale exchange on the way out, with nothing written', () => {
+    saveReplyContext([
+      { at: NOW - 25 * HOUR, question: 'Yesterday', reply: 'A while back' },
+      { at: NOW - HOUR, question: 'This afternoon', reply: 'Earlier' },
+    ])
+    expect(loadReplyContext(NOW).map(t => t.question)).toEqual(['This afternoon'])
+  })
+
+  it('round-trips what is still current', () => {
+    const turns = addReplyTurn([], 'Tea or coffee?', 'Tea please', NOW)
+    saveReplyContext(turns)
+    expect(loadReplyContext(NOW)).toEqual(turns)
+  })
+
+  it('reads nothing out of damage', () => {
+    for (const raw of ['not json', '{}', 'null', '7', '"tea"']) {
+      localStorage.setItem('peri_reply_context', raw)
+      expect(loadReplyContext(NOW), raw).toEqual([])
+    }
+  })
+
+  it('drops the entries it cannot use and keeps the rest', () => {
+    localStorage.setItem(
+      'peri_reply_context',
+      JSON.stringify([
+        { at: NOW, question: 'Good', reply: 'Fine' },
+        { at: NOW, question: 'No reply' },
+        { at: NOW, reply: 'No question' },
+        { question: 'No clock', reply: 'Fine' },
+        { at: 'soon', question: 'Bad clock', reply: 'Fine' },
+        null,
+        7,
+      ]),
+    )
+    expect(loadReplyContext(NOW).map(t => t.question)).toEqual(['Good'])
+  })
+
+  it('takes the key away entirely when there is nothing left', () => {
+    saveReplyContext([{ at: NOW, question: 'Tea?', reply: 'Please' }])
+    saveReplyContext([])
+    expect(localStorage.getItem('peri_reply_context')).toBeNull()
+  })
+
+  it('is forgotten on its own, and by a factory reset', () => {
+    saveReplyContext([{ at: NOW, question: 'Tea?', reply: 'Please' }])
+    forgetReplyContext()
+    expect(loadReplyContext(NOW)).toEqual([])
+
+    saveReplyContext([{ at: NOW, question: 'Tea?', reply: 'Please' }])
+    factoryReset()
+    expect(loadReplyContext(NOW)).toEqual([])
   })
 })

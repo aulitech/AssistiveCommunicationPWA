@@ -25,7 +25,8 @@
 // exactly as it was with a line of text saying why.
 
 import { reportFailure } from '../core/report'
-import { loadReplyKey, readReplyModel } from '../core/store'
+import { BLANK } from '../core/phrases'
+import { loadReplyKey, readReplyModel, type ReplyTurn } from '../core/store'
 
 const ENDPOINT = 'https://api.anthropic.com/v1/messages'
 
@@ -53,7 +54,34 @@ const MAX_TOKENS = 400
  */
 const SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 1 }
 
-export type SuggestResult = { status: 'ok'; text: string } | { status: 'error'; error: string }
+export type SuggestResult =
+  | {
+      status: 'ok'
+      text: string
+      /** Where the first gap landed, or -1. The caret goes there — see `BLANK`. */
+      blankAt: number
+    }
+  | { status: 'error'; error: string }
+
+/**
+ * Two or more underscores, which is what the brief asks a gap to be written as.
+ *
+ * Two rather than exactly three, because a model asked for `___` will sometimes
+ * write `__` or `____`, and a reply with visible underscores in it is worse than
+ * one whose gap is a character wider than it was asked for.
+ */
+const GAP = /_{2,}/g
+
+/**
+ * The reply with its gaps opened out, and where the first one landed.
+ *
+ * `BLANK` is the empty string, so taking a gap out leaves the text either side
+ * of it spaced exactly as it was — and nothing before the first gap has moved,
+ * which is what makes its index in the answer its index in the finished words.
+ */
+function withGaps(said: string): { text: string; blankAt: number } {
+  return { text: said.replace(GAP, BLANK), blankAt: said.search(GAP) }
+}
 
 function fail(error: string): SuggestResult {
   reportFailure('suggest', error)
@@ -77,6 +105,12 @@ function describe(status: number): string {
  * Written to be read by whoever has to defend it. Every line is a limit rather
  * than an instruction to be clever: one reply, short, first person, no preamble.
  *
+ * **A gap, not a question back.** What it must not state about them it leaves a
+ * hole in, and the hole is the app's own blank: the caret lands in it and the
+ * words are typed into the gap, exactly as a fill-in-the-blank phrase off the
+ * board works. Asking "which tablets?" would be a machine interviewing somebody
+ * who is already having to spell their answers out one letter at a time.
+ *
  * **The line that matters is about *whose* facts.** A board that answered "yes,
  * I took them at eight" to a question about medication would be putting a
  * clinical claim in somebody's mouth, and no amount of usefulness is worth that.
@@ -95,7 +129,8 @@ const BRIEF = [
   'Reply with the words themselves and nothing else: no preamble, no options, no quotation marks, no citations.',
   'A question about the world you may answer, from what you know or by searching.',
   'A question about THEM you may not: never state what they did, felt, want, own, were given or were told, unless it is in what you were sent.',
-  'If the question asks for one of those, or cannot be answered without knowing more, write a short reply asking for what is missing.',
+  'If the question asks for one of those, write the reply with a gap where the fact goes, marked ___, and let them fill it in.',
+  'Never ask them a question back and never say you do not know: a gap is the answer to anything you were not told.',
 ].join(' ')
 
 /**
@@ -118,6 +153,11 @@ const today = () => new Date().toLocaleDateString('en-CA', { year: 'numeric', mo
  * language rather than the question's: the suggestion is going into the message
  * box for somebody to read, and everything else they read is in their language.
  * What happens to it on the way *out* is the translation that was already there.
+ *
+ * `context` is what has already been asked and answered today, oldest first —
+ * see `loadReplyContext`. It goes back as the turns it was: "tea or coffee?"
+ * followed by "milk?" is one exchange, and a reply to the second that had never
+ * seen the first would be answering a different question.
  *
  * `model` is the setting — see `REPLY_MODELS`. Held to the list here as well as
  * where it is stored, because this is the last point before it becomes somebody
@@ -156,10 +196,15 @@ function readReply(content: { type?: string; text?: unknown }[]): SuggestResult 
     .join('')
     .trim()
 
-  return said ? { status: 'ok', text: said } : fail('The suggestion service sent back nothing')
+  return said ? { status: 'ok', ...withGaps(said) } : fail('The suggestion service sent back nothing')
 }
 
-export async function suggestReply(question: string, language: string, model?: string): Promise<SuggestResult> {
+export async function suggestReply(
+  question: string,
+  language: string,
+  model?: string,
+  context: ReplyTurn[] = [],
+): Promise<SuggestResult> {
   const asked = question.trim()
   if (!asked) return fail('Nothing to reply to')
 
@@ -185,7 +230,15 @@ export async function suggestReply(question: string, language: string, model?: s
         system: [BRIEF, `Today is ${today()}.`, language && `Write the reply in ${language}.`]
           .filter(Boolean)
           .join(' '),
-        messages: [{ role: 'user', content: `Someone just asked me: ${asked}` }],
+        messages: [
+          // Each exchange as the two turns it was, so the model reads the
+          // conversation rather than a question with a summary bolted to it.
+          ...context.flatMap(turn => [
+            { role: 'user', content: `Someone just asked me: ${turn.question}` },
+            { role: 'assistant', content: turn.reply },
+          ]),
+          { role: 'user', content: `Someone just asked me: ${asked}` },
+        ],
       }),
     })
     if (!response.ok) return fail(describe(response.status))

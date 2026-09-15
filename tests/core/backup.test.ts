@@ -16,7 +16,14 @@ import {
 } from '../../src/core/backup'
 import { DEFAULT_REPLY_MODEL, DEFAULT_SETTINGS, emptyStore, type PhraseStore } from '../../src/core/store'
 import { EMPTY_ALIASES, type AliasStore } from '../../src/core/phrases'
-import { saveElevenLabs, saveReplyKey, saveSent, saveTranslated, saveUsage } from '../../src/core/store'
+import {
+  saveElevenLabs,
+  saveReplyContext,
+  saveReplyKey,
+  saveSent,
+  saveTranslated,
+  saveUsage,
+} from '../../src/core/store'
 
 // A store with something of the user's in every field, and the map of ids to
 // categories the app would hand alongside it.
@@ -642,6 +649,20 @@ describe('what a backup must never carry', () => {
     const file = serializeBackup(buildBackup({ ...state, categoryById }))
 
     expect(file).not.toContain('sk-ant-secret-1234')
+  })
+
+  /**
+   * Nor today's conversation. It is a record of what somebody was actually asked
+   * in a care room, which is the same kind of thing as the Sent list and gets
+   * the same answer.
+   */
+  it('leaves the questions it was asked today out of the file', () => {
+    saveReplyContext([{ at: Date.now(), question: 'Did the chest pain come back?', reply: 'Yes, this morning' }])
+    const { state, categoryById } = fixture()
+    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+
+    expect(file).not.toContain('chest pain')
+    expect(file).not.toContain('this morning')
   })
 
   // The chosen voice does travel, and on a device with no account of its own it

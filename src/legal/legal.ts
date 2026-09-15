@@ -44,12 +44,13 @@ export const PRIVACY: ProseDocument = {
           'How often you use each phrase and when you last used one, which is what lets the grid be ordered by what you use.',
           'The messages you have spoken or copied, under the Sent tab.',
           'What you have said in another language, and which language, under the Translations tab.',
+          'Questions you asked for a suggested reply to, and the replies, for a day.',
         ),
         text(
           'None of this leaves your device unless you turn on Synchronize, and what leaves then is encrypted — see the Synchronizing section. No API key and no Synchronize passphrase is ever included in a backup file, so sharing a backup does not share your account or your other devices. The passphrase never leaves your device at all; the keys travel between your own devices, inside the encryption, so what you pay for works on all of them.',
         ),
         text(
-          'Three things on that list go nowhere at all: how often you use each phrase, the messages under the Sent tab, and the translations under the Translations tab. All three are a record of what you actually said, so all three stay on the device that recorded them — none is in a backup file, and none is in what Synchronize sends to your other devices. A factory reset clears them.',
+          'Four things on that list go nowhere at all: how often you use each phrase, the messages under the Sent tab, the translations under the Translations tab, and the day of questions kept for suggested replies. All four are a record of what you actually said or were asked, so all four stay on the device that recorded them — none is in a backup file, and none is in what Synchronize sends to your other devices. A factory reset clears them.',
         ),
       ],
     },
@@ -64,6 +65,9 @@ export const PRIVACY: ProseDocument = {
         ),
         text(
           'What was heard is not kept. It lives in that box until you close it, and it is never in a backup file and never sent to your other devices.',
+        ),
+        text(
+          'Questions you asked for a reply to, and the replies offered, are kept on this device for a day so that a conversation carries on making sense. They are forgotten after that, forgotten at once if you remove the key, and there is a button in the Settings row to forget them now. They are never in a backup file and never sent to your other devices.',
         ),
         text(
           'Reading a heard question in your own language sends it to Google to be translated, exactly as the phrases you write yourself are sent — see Speech below. It is sent only when you ask for it.',

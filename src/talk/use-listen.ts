@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { canListen, listen } from '../listen/recognition'
 import { suggestReply } from '../listen/suggest'
 import { hasTranslateKey, translateHeard } from '../translate/client'
+import { addReplyTurn, loadReplyContext, saveReplyContext } from '../core/store'
 
 /** What the box above the message is holding, and what is happening to it. */
 export interface Heard {
@@ -56,7 +57,7 @@ export function useListen({
   /** Which model writes the reply — see `REPLY_MODELS`. */
   replyModel: string
   /** Where a suggested reply goes. Never spoken — see above. */
-  onSuggest: (text: string) => void
+  onSuggest: (text: string, blankAt: number) => void
 }) {
   const [open, setOpen] = useState(false)
   const [heard, setHeard] = useState<Heard>(EMPTY)
@@ -173,10 +174,19 @@ export function useListen({
     const mine = askedRef.current
     setHeard(h => ({ ...h, working: true, error: '' }))
 
-    const result = await suggestReply(asked, language, replyModel)
+    // Read at the moment of asking rather than held in state: a reply can be
+    // several seconds out, and the day's window has to be the one that is true
+    // when the question goes rather than when the box was opened.
+    const result = await suggestReply(asked, language, replyModel, loadReplyContext())
     if (mine !== askedRef.current) return
     setHeard(h => ({ ...h, working: false, error: result.status === 'ok' ? '' : result.error }))
-    if (result.status === 'ok') onSuggestRef.current(result.text)
+    if (result.status !== 'ok') return
+
+    // The exchange, so the next question is answered as part of the same
+    // conversation. Written back through storage for the reason the sent list
+    // is: two replies can land without a render in between.
+    saveReplyContext(addReplyTurn(loadReplyContext(), asked, result.text))
+    onSuggestRef.current(result.text, result.blankAt)
   }, [heard.meaning, heard.said, language, replyModel])
 
   return {

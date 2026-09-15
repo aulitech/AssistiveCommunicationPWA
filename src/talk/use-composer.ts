@@ -105,9 +105,21 @@ export function useComposer({
    * that the one rule about it has somewhere to live. **It never speaks**,
    * whatever mode the board is in.
    */
-  const propose = useCallback((suggestion: string) => {
+  const propose = useCallback((suggestion: string, blankAt = -1) => {
     setText(suggestion)
-    setCursorPos(suggestion.length)
+    // Into the first gap where there is one, so the fact the model was not told
+    // is typed straight into the hole it left — the same landing a
+    // fill-in-the-blank phrase gets. The end of the text otherwise.
+    const at = blankAt >= 0 ? blankAt : suggestion.length
+    setCursorPos(at)
+    const el = textareaRef.current
+    // After the render that wrote the text, or the box is still holding the old
+    // value and the caret lands in the middle of it.
+    setTimeout(() => {
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(at, at)
+    }, 0)
   }, [])
 
   const clearOrUndo = useCallback(() => {

@@ -324,6 +324,56 @@ describe('the suggested reply', () => {
     expect(body.model).toBe('claude-opus-5')
   })
 
+  /**
+   * A gap rather than a question back, and the caret lands in it. The fact the
+   * model was not told is typed straight into the hole it left — the same
+   * landing a fill-in-the-blank phrase off the board gets.
+   */
+  it('leaves a gap to fill in, with the caret already in it', async () => {
+    vi.stubGlobal('fetch', suggests('I took them at ___ this morning'))
+    withKey()
+    hear('When did you take your tablets?')
+
+    click(suggestBtn())
+    await act(async () => {})
+    act(() => void vi.advanceTimersByTime(50))
+
+    expect(messageBox().value).toBe('I took them at  this morning')
+    expect(messageBox().selectionStart).toBe(15)
+  })
+
+  /**
+   * "Tea or coffee?" followed by "milk?" is one exchange. A reply to the second
+   * that had never seen the first would be answering a different question.
+   */
+  it('answers the next question as part of the same conversation', async () => {
+    const fetcher = suggests('Yes please')
+    vi.stubGlobal('fetch', fetcher)
+    withKey()
+
+    hear('Tea or coffee?')
+    click(suggestBtn())
+    await act(async () => {})
+
+    click(listenAgain())
+    act(() => FakeRecognition.last!.say({ transcript: 'Milk?', isFinal: true }))
+    settle()
+    // The box holds the first suggestion, and a suggestion never writes over
+    // one — so it goes before the second is asked for.
+    click($$('.icon-btn').find(b => /clear/i.test(b.getAttribute('aria-label') ?? '')))
+    click(suggestBtn())
+    await act(async () => {})
+
+    const second = JSON.parse(String((fetcher.mock.calls as unknown as [string, RequestInit][])[1][1].body)) as {
+      messages: { role: string; content: string }[]
+    }
+    expect(second.messages.map(m => m.content)).toEqual([
+      'Someone just asked me: Tea or coffee?',
+      'Yes please',
+      'Someone just asked me: Milk?',
+    ])
+  })
+
   it('says so when the key is not accepted', async () => {
     vi.stubGlobal('fetch', answers({ error: {} }, 401))
     withKey()

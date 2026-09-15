@@ -59,6 +59,7 @@ describe('asking for a reply', () => {
     await expect(suggestReply('Do you want tea or coffee?', '')).resolves.toEqual({
       status: 'ok',
       text: 'Tea please',
+      blankAt: -1,
     })
   })
 
@@ -234,6 +235,7 @@ describe('asking for a reply', () => {
     await expect(suggestReply('Who won last night?', '')).resolves.toEqual({
       status: 'ok',
       text: 'City won, two one.',
+      blankAt: -1,
     })
   })
 
@@ -280,7 +282,11 @@ describe('asking for a reply', () => {
           ),
       ),
     )
-    await expect(suggestReply('Tea or coffee?', '')).resolves.toEqual({ status: 'ok', text: 'Tea please' })
+    await expect(suggestReply('Tea or coffee?', '')).resolves.toEqual({
+      status: 'ok',
+      text: 'Tea please',
+      blankAt: -1,
+    })
   })
 })
 
@@ -413,5 +419,119 @@ describe('what reaches the console', () => {
     vi.stubGlobal('fetch', replies('Yes, at eight this morning'))
     await suggestReply('Did you take your tablets?', '')
     expect(warnings.join(' ')).not.toMatch(/eight this morning/)
+  })
+})
+
+/**
+ * A gap, not a question back.
+ *
+ * What the model may not state about the person it leaves a hole in, and the
+ * hole is the app's own blank — the caret lands in it and the words are typed
+ * into the gap, exactly as a fill-in-the-blank phrase off the board works.
+ * Asking "which tablets?" would be a machine interviewing somebody who is
+ * already having to spell their answers out one letter at a time.
+ */
+describe('a reply with a gap in it', () => {
+  beforeEach(() => saveReplyKey(KEY))
+
+  it('asks the model for a gap rather than a question back', async () => {
+    const fetcher = replies('Tea please')
+    vi.stubGlobal('fetch', fetcher)
+    await suggestReply('Did you take your tablets?', '')
+
+    const brief = sent(fetcher).system
+    expect(brief).toMatch(/gap where the fact goes/i)
+    expect(brief).toMatch(/never ask them a question back/i)
+  })
+
+  it('opens the gap out and says where it landed', async () => {
+    vi.stubGlobal('fetch', replies('I took them at ___ this morning'))
+    await expect(suggestReply('When did you take them?', '')).resolves.toEqual({
+      status: 'ok',
+      // `BLANK` is the empty string, so the gap leaves the words either side of
+      // it spaced exactly as they were.
+      text: 'I took them at  this morning',
+      blankAt: 15,
+    })
+  })
+
+  // A model asked for `___` will sometimes write `__` or `____`, and a reply
+  // with visible underscores in it is worse than a gap a character too wide.
+  it('takes a gap however many underscores it came as', async () => {
+    for (const written of ['__', '___', '________']) {
+      vi.stubGlobal('fetch', replies(`I want ${written} please`))
+      const result = await suggestReply('What do you want?', '')
+      expect(result, written).toEqual({ status: 'ok', text: 'I want  please', blankAt: 7 })
+    }
+  })
+
+  it('points at the first gap where there are several', async () => {
+    vi.stubGlobal('fetch', replies('___ at ___'))
+    const result = await suggestReply('Who and when?', '')
+    expect(result).toEqual({ status: 'ok', text: ' at ', blankAt: 0 })
+  })
+
+  it('says there is none where the reply has none', async () => {
+    vi.stubGlobal('fetch', replies('Tea please'))
+    const result = await suggestReply('Tea or coffee?', '')
+    expect(result.status === 'ok' && result.blankAt).toBe(-1)
+  })
+
+  // A single underscore is a character somebody's name might have in it, and a
+  // reply is not a place to go looking for markup that was never asked for.
+  it('leaves a lone underscore alone', async () => {
+    vi.stubGlobal('fetch', replies('My handle is spero_k'))
+    const result = await suggestReply('What is your handle?', '')
+    expect(result).toEqual({ status: 'ok', text: 'My handle is spero_k', blankAt: -1 })
+  })
+})
+
+/**
+ * Today's conversation.
+ *
+ * "Tea or coffee?" followed by "milk?" is one exchange, and a reply to the
+ * second that had never seen the first would be answering a different question.
+ */
+describe('what was asked before', () => {
+  beforeEach(() => saveReplyKey(KEY))
+
+  const earlier = (at: number, question: string, reply: string) => ({ at, question, reply })
+
+  it('goes back as the turns it was', async () => {
+    const fetcher = replies('Yes please')
+    vi.stubGlobal('fetch', fetcher)
+
+    await suggestReply('Milk?', '', undefined, [earlier(1, 'Tea or coffee?', 'Tea please')])
+
+    expect(sent(fetcher).messages).toEqual([
+      { role: 'user', content: 'Someone just asked me: Tea or coffee?' },
+      { role: 'assistant', content: 'Tea please' },
+      { role: 'user', content: 'Someone just asked me: Milk?' },
+    ])
+  })
+
+  it('sends only the question where there is nothing before it', async () => {
+    const fetcher = replies('Tea please')
+    vi.stubGlobal('fetch', fetcher)
+    await suggestReply('Tea or coffee?', '')
+    expect(sent(fetcher).messages).toHaveLength(1)
+  })
+
+  it('keeps them in the order they happened', async () => {
+    const fetcher = replies('Yes')
+    vi.stubGlobal('fetch', fetcher)
+
+    await suggestReply('And sugar?', '', undefined, [
+      earlier(1, 'Tea or coffee?', 'Tea please'),
+      earlier(2, 'Milk?', 'Yes please'),
+    ])
+
+    expect(sent(fetcher).messages.map(m => m.content)).toEqual([
+      'Someone just asked me: Tea or coffee?',
+      'Tea please',
+      'Someone just asked me: Milk?',
+      'Yes please',
+      'Someone just asked me: And sugar?',
+    ])
   })
 })

@@ -18,6 +18,7 @@ import { search } from '../core/search'
 import { sortPhrases } from '../core/sort'
 import {
   loadElevenLabs,
+  forgetReplyContext,
   loadReplyKey,
   loadPhraseSorts,
   loadRecent,
@@ -80,6 +81,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const setReplyKey = useCallback((next: string) => {
     if (next === loadReplyKey()) return
     saveReplyKey(next)
+    // Taking the key away takes today's conversation with it. What is left
+    // otherwise is a transcript of what somebody was asked, kept on behalf of a
+    // feature they have just switched off.
+    if (!next) forgetReplyContext()
     setStoredReplyKey(next)
   }, [])
 
