@@ -359,6 +359,19 @@ describe('what was asked and answered today', () => {
     expect(loadReplyContext(NOW).map(t => t.question)).toEqual(['This afternoon'])
   })
 
+  /**
+   * Capped on the way out as well as in. What is in storage was not necessarily
+   * written by this release — a longer window from an earlier one, or a file
+   * somebody edited — and every turn read back is one more sent to the model and
+   * paid for.
+   */
+  it('reads back at most twenty, however many were written', () => {
+    saveReplyContext(Array.from({ length: 30 }, (_, i) => ({ at: NOW + i, question: `q${i}`, reply: `a${i}` })))
+    const read = loadReplyContext(NOW + 30)
+    expect(read).toHaveLength(20)
+    expect(read[0].question).toBe('q10')
+  })
+
   it('round-trips what is still current', () => {
     const turns = addReplyTurn([], 'Tea or coffee?', 'Tea please', NOW)
     saveReplyContext(turns)
