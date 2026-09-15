@@ -416,28 +416,6 @@ export function Topbar({
         <KeyboardIcon />
       </ActionButton>
 
-      {/* The left slot empties the box in both modes — of the message, or of the
-          phrase being written along with whatever it was pointed at. */}
-      {editMode ? (
-        <ActionButton
-          className="left"
-          onSelect={() => startNew()}
-          label="Start a new phrase"
-          disabled={isUntouched}
-        >
-          <PlusIcon />
-        </ActionButton>
-      ) : (
-        <ActionButton
-          className="left"
-          onSelect={clearOrUndo}
-          label={showUndo ? 'Undo' : 'Clear'}
-          disabled={!canClear}
-        >
-          {showUndo ? <UndoIcon /> : <ClearIcon />}
-        </ActionButton>
-      )}
-
       {/* The box and whatever rides its border. A wrapper only so the strip
           below can be positioned against **the box**: everything else on this
           bar is centred on the bar itself, which is 4px off the box's true
@@ -504,6 +482,42 @@ export function Topbar({
             **Not drawn at all where the browser cannot listen.** A button that
             does nothing is worse than no button anywhere, and on a board aimed
             at by gaze it is a target spent for nothing. */}
+        {/* The slot that empties the box, on the box's **left** border — of the
+            message, or in edit mode of the phrase being written along with
+            whatever it was pointed at.
+
+            It was a full-size button in the rail, and moving it here is the
+            bargain the mode strip already struck on the top border: the board
+            gets the width back, and what it costs is a smaller painted control
+            overlapping the box, with an invisible area around it a tracker can
+            still hit. It keeps its place across both modes, which is what makes
+            the mode a change of meaning rather than a change of layout.
+
+            **Anchored to the top of the box rather than centred on it**, so it
+            does not slide down the border as the message grows into five
+            lines. */}
+        <div className="topbar-clear">
+          {editMode ? (
+            <ActionButton
+              className="on-border"
+              onSelect={() => startNew()}
+              label="Start a new phrase"
+              disabled={isUntouched}
+            >
+              <PlusIcon />
+            </ActionButton>
+          ) : (
+            <ActionButton
+              className="on-border"
+              onSelect={clearOrUndo}
+              label={showUndo ? 'Undo' : 'Clear'}
+              disabled={!canClear}
+            >
+              {showUndo ? <UndoIcon /> : <ClearIcon />}
+            </ActionButton>
+          )}
+        </div>
+
         {listener.available && (
           <div className="topbar-listen">
             <ModeToggle

@@ -177,8 +177,31 @@ body {
   -webkit-user-select: none;
 }
 
-.icon-btn.left { margin-left: 0; margin-right: 8px; }
 .icon-btn.right { margin-left: 8px; margin-right: 0; }
+
+/* The same button painted small enough to ride a border — see `.topbar-clear`.
+   The bordered `--cell` square is dropped for the ground the strip paints, and
+   the invisible hit area is the one `.mode-btn` carries, since this is now the
+   same kind of control sitting in the same kind of place. */
+.icon-btn.on-border {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.icon-btn.on-border::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.icon-btn.on-border svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
 
 .icon-btn svg {
   width: 22px;
@@ -415,7 +438,13 @@ body {
 /* Listen mode, at the box's upper-**left** corner, mirroring `.topbar-choices`
    at the right and riding the same border the modes ride at the middle. Left
    rather than right because the right is already two controls wide, and a gaze
-   crossing to reach the language must not pass over a microphone on the way. */
+   crossing to reach the language must not pass over a microphone on the way.
+
+   **Opaque, for the reason `.topbar-modes` is.** The control inside it paints
+   nothing of its own, so it sat directly on the box's border with whatever had
+   been typed showing through around it. `.topbar-choices` needs no ground
+   because each of its two paints `--bg` and draws a border; this one does not.
+   Black rather than `--surface`, so the two grounds on this border match. */
 .topbar-listen {
   position: absolute;
   top: 0;
@@ -424,6 +453,45 @@ body {
   z-index: 90;
   display: flex;
   align-items: center;
+  background: #000;
+  padding: 0.25rem;
+  border-radius: 999px;
+}
+
+/* Clear, or undo — and in edit mode, start a new phrase — on the box's **left**
+   border, below the microphone.
+ *
+ * It was a full-size button in the rail beside the box. Moving it onto the
+ * border is the bargain the mode strip already struck on the top one: the board
+ * gets 3.5rem of width back, and what it costs is a control painted small enough
+ * to sit on a border, with an invisible area around it that a head or eye
+ * tracker can still hit — `.icon-btn.on-border::before`.
+ *
+ * **2.25rem down, which is the spacing the mode strip already uses.** The left
+ * border of a box 3.5rem tall is not long enough for two controls and the 2rem
+ * of air `.topbar-choices` and `.heard-tools` keep between theirs — so the
+ * measure here is the other one this app already lives by: the three mode
+ * toggles sit 2.25rem apart, centre to centre, and so do these two. Any lower
+ * and the control hangs off the bottom of a one-line box.
+ *
+ * **Measured from the top of the box, not from its middle**, because the top is
+ * the edge that stays put: the box grows downward to five lines, and a control
+ * centred on it would slide down the border as somebody typed.
+ *
+ * Straddling the border rather than sitting inside it, which is what puts it
+ * *on* the border — and what `.keyboard-btn`'s margin is widened for, since the
+ * half that hangs outside would otherwise reach across the button beside it. */
+.topbar-clear {
+  position: absolute;
+  top: 2.25rem;
+  left: 0;
+  transform: translate(-50%, -50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  background: #000;
+  padding: 0.25rem;
+  border-radius: 999px;
 }
 
 /* The heard box: somebody else's words. Its own ground, so the two read as two
@@ -1006,7 +1074,12 @@ body {
 
 /* Beside the menu, and lit while the keyboard is up — the same cue the mode
    toggles use, because it is the same kind of claim: a surface is showing. */
-.icon-btn.keyboard-btn { margin-right: 4px; }
+/* Wide enough for the half of `.topbar-clear` that hangs outside the box's left
+   border. At the 4px this was, that control's hit area reached a third of the
+   way across this button — two targets in one place, which is the worst thing
+   to give somebody aiming by gaze. It costs 24px of the 64px that came back
+   when the button between the two moved onto the border. */
+.icon-btn.keyboard-btn { margin-right: 1.75rem; }
 .icon-btn.keyboard-btn.is-on { color: var(--accent); border-color: var(--accent); }
 
 /* ── Top panel scrim ── */

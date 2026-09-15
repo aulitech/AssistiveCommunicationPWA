@@ -3563,6 +3563,62 @@ describe('the message box growing', () => {
   })
 })
 
+/**
+ * The slot that empties the box rides the box's **left** border.
+ *
+ * It was a full-size button in the rail beside the box, and moving it onto the
+ * border is the bargain the mode strip already struck on the top one: the board
+ * gets the width back, and what it costs is a smaller painted control overlapping
+ * the box with an invisible area around it a tracker can still hit.
+ */
+describe('the slot that empties the box', () => {
+  const strip = () => $('.text-display-wrap > .topbar-clear')
+
+  it('rides the box border rather than sitting in the rail beside it', () => {
+    renderApp()
+    expect(strip(), 'it is not on the box at all').not.toBeNull()
+    expect(strip()!.querySelector('.icon-btn.on-border')).not.toBeNull()
+    // And nothing of it is left in the rail, which is the width the board gets
+    // back — a button both here and there would be the same control twice.
+    expect(iconBtn('Clear')!.closest('.topbar-clear')).not.toBeNull()
+  })
+
+  /**
+   * It means two things and sits in one place, which is what makes the mode a
+   * change of meaning rather than a change of layout — the same rule the three
+   * controls on the right of this bar follow.
+   */
+  it('keeps its place in edit mode, where it starts a new phrase instead', () => {
+    renderApp()
+    expect(iconBtn('Clear')!.closest('.topbar-clear')).not.toBeNull()
+    expect(iconBtn('Start a new phrase'), 'the phrase controls are showing already').toBeUndefined()
+
+    click(editToggle())
+    expect(iconBtn('Clear'), 'the message controls are still showing').toBeUndefined()
+    expect(iconBtn('Start a new phrase')!.closest('.topbar-clear')).not.toBeNull()
+  })
+
+  /**
+   * **Both controls on this border need a ground painted for them.**
+   *
+   * Neither the microphone nor this one paints anything of its own, so on the
+   * bare border the box's own line and whatever had been typed showed through
+   * around the glyph. `.topbar-choices` is the exception and explains itself:
+   * each of its two paints `--bg` and draws a border.
+   *
+   * Asserted against the text of the stylesheet, which is all jsdom allows —
+   * whether it *looks* right is a question for the deploy preview.
+   */
+  it('is painted on a ground of its own, as the microphone is', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    for (const strip of ['.topbar-clear', '.topbar-listen']) {
+      const rule = css.slice(css.indexOf(`${strip} {`))
+      const block = rule.slice(0, rule.indexOf('}'))
+      expect(block, `${strip} sits on the border with nothing behind it`).toMatch(/background: *#000/)
+    }
+  })
+})
+
 describe('settling after the screen moves', () => {
   const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
   const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
