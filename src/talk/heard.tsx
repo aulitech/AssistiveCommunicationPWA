@@ -16,8 +16,10 @@
 // put a caret in the middle of a sentence — so the same `useCaretDwell` that
 // made the message box reachable makes this one correctable.
 //
-// Three controls sit under it, and each is offered only where there is something
-// behind it: listen again, read it in your own language, and suggest a reply.
+// Three controls ride its lower border, and each is offered only where there is
+// something behind it: listen again, read it in your own language, and suggest a
+// reply. On the border rather than in a row beneath it, so the box costs the
+// board the height of a box and not the height of a box and a toolbar.
 // The third is the one that writes anywhere else in the app, and what it writes
 // goes into the message box through the composer's own undo — see
 // `listen/suggest.ts` for why that matters more here than anywhere.
@@ -108,20 +110,17 @@ export function HeardBox({
         {...caret.props}
       />
 
-      {/* What it says in the board's own language, under the words that were
-          said — the shape the Translations tab uses, and for the same reason:
-          the person reading this cannot necessarily read the line above it. */}
-      {heard.meaning && <p className="heard-meaning">{heard.meaning}</p>}
+      {/* The three controls, riding the box's lower border rather than sitting
+          in a row under it — the bargain every strip on the message box strikes,
+          and worth more here than anywhere: this box is the one thing between
+          the question and the board somebody answers it from.
 
-      {/* A failure says what it was and nothing happens. A refused microphone
-          is the one worth naming exactly, since nothing in the app can fix it
-          and the browser is where it has to be allowed. */}
-      {heard.error && (
-        <p className="heard-error" role="alert">
-          {heard.error}
-        </p>
-      )}
-
+          Each carries its own black ground, because a control painted on a
+          border with nothing behind it shows the border and the words through
+          the gaps — the reason `.topbar-modes` has one. A ground each rather
+          than one pill around all three, since the two rem between them is a
+          target-separation number and a pill that wide would not fit the
+          narrower pane the wide-screen split gives this box. */}
       <div className="heard-tools">
         <HeardButton onSelect={again} label={heard.listening ? 'Listening. Dwell to start again' : 'Listen again'}>
           <MicIcon />
@@ -155,6 +154,20 @@ export function HeardBox({
           </HeardButton>
         )}
       </div>
+
+      {/* What it says in the board's own language, under the words that were
+          said — the shape the Translations tab uses, and for the same reason:
+          the person reading this cannot necessarily read the line above it. */}
+      {heard.meaning && <p className="heard-meaning">{heard.meaning}</p>}
+
+      {/* A failure says what it was and nothing happens. A refused microphone
+          is the one worth naming exactly, since nothing in the app can fix it
+          and the browser is where it has to be allowed. */}
+      {heard.error && (
+        <p className="heard-error" role="alert">
+          {heard.error}
+        </p>
+      )}
     </div>
   )
 }

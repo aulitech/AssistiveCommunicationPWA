@@ -4,6 +4,8 @@ import App from '../../src/App'
 import { saveReplyKey } from '../../src/core/store'
 import { spoken } from '../setup'
 import { FakeRecognition, installRecognition, removeRecognition } from '../listen/fake-recognition'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 // Listen mode, driven through the real board.
 //
@@ -125,6 +127,42 @@ describe('the control', () => {
     // with it — which is the only reason the two states put it in one place.
     expect(wrap.querySelector(':scope > .topbar-listen')).not.toBeNull()
     expect($('.heard-wrap .topbar-listen')).toBeNull()
+  })
+
+  /**
+   * The three controls ride the heard box's lower border.
+   *
+   * On the border rather than in a row beneath it, so the box costs the board the
+   * height of a box and not the height of a box and a toolbar — which matters
+   * more here than on any other strip, since what is underneath is the board
+   * somebody answers the question from.
+   *
+   * The testable half is the order: riding the border means sitting between the
+   * box and what comes under it, and the CSS pulls them up from there. Whether
+   * they land *on* the line is a question for the deploy preview, jsdom laying
+   * nothing out.
+   */
+  it('rides the box lower border, between it and what is written under it', async () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
+    vi.stubGlobal('fetch', translates('Do you want tea?'))
+    renderApp({ language: 'es' })
+    hear('¿Quieres té?')
+
+    click(translateBtn())
+    await act(async () => {})
+
+    const inOrder = [...$('.heard-wrap')!.children].map(el => el.className.split(' ')[0])
+    expect(inOrder).toEqual(['heard-text', 'heard-tools', 'heard-meaning'])
+  })
+
+  // They sit *on* a border now, and a control painted on one with nothing behind
+  // it shows the border and the words through — the reason `.topbar-modes` is
+  // opaque. A ground each rather than one pill: two rem apart, one pill would be
+  // wider than the pane the wide-screen split gives this box.
+  it('paints a ground under each of them', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const rule = css.slice(css.indexOf('.heard-btn {'))
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/background: *#000/)
   })
 
   it('opens a box above the message, and closes it again', () => {

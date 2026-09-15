@@ -434,43 +434,88 @@ export function Topbar({
             the wrapper rather than off either box. */}
         {listener.open && <HeardBox listener={listener} messageEmpty={value.trim() === ''} />}
 
-        <textarea
-          ref={textareaRef}
-          className={cx('text-display', caret.active && 'dwelling')}
-          style={dwellVar(settings.actionDwellMs)}
-          aria-label={editMode ? 'Phrase text' : 'Composed message'}
-          value={value}
-          onChange={e => {
-            write(e.target.value)
-            if (!editMode) trackCursor(e)
-          }}
-          // Only outside edit mode: the caret tracked here is the composer's, and
-          // it decides which word the grid filters on. A caret moved about in a
-          // phrase would narrow the board to a word that is not in the message.
-          onSelect={editMode ? undefined : trackCursor}
-          onPaste={linkInput.onPaste}
-          onDrop={linkInput.onDrop}
-          onDragOver={linkInput.onDragOver}
-          {...caret.props}
-          onClick={editMode ? undefined : trackCursor}
-          onKeyUp={editMode ? undefined : trackCursor}
-          placeholder={
-            editMode
-              ? 'Write a phrase, or hold one on the board to edit it…'
-              : settings.autoSpeak
-                ? 'Auto-speak is on — phrases are spoken, not collected here'
-                : 'Dwell on a phrase or type…'
-          }
-          rows={1}
-          spellCheck
-          autoCapitalize="sentences"
-          // The board opens with the caret already in the box, so somebody with a
-          // keyboard can type the first thing they want to say without having to
-          // put it there first — and putting it there is the one thing a dwell
-          // could not do until `useCaretDwell`. A programmatic focus does not
-          // raise a phone's on-screen keyboard, which needs a real gesture.
-          autoFocus
-        />
+        {/* The message box and what rides *its* borders, which after the split
+            above is not the same thing as what rides the wrapper's. The mic and
+            the two value controls stay on the wrapper, where they hold one point
+            on screen whether listen mode is open or not; this one has to follow
+            the box, because what it empties is the message. */}
+        <div className="message-wrap">
+          <textarea
+            ref={textareaRef}
+            className={cx('text-display', caret.active && 'dwelling')}
+            style={dwellVar(settings.actionDwellMs)}
+            aria-label={editMode ? 'Phrase text' : 'Composed message'}
+            value={value}
+            onChange={e => {
+              write(e.target.value)
+              if (!editMode) trackCursor(e)
+            }}
+            // Only outside edit mode: the caret tracked here is the composer's, and
+            // it decides which word the grid filters on. A caret moved about in a
+            // phrase would narrow the board to a word that is not in the message.
+            onSelect={editMode ? undefined : trackCursor}
+            onPaste={linkInput.onPaste}
+            onDrop={linkInput.onDrop}
+            onDragOver={linkInput.onDragOver}
+            {...caret.props}
+            onClick={editMode ? undefined : trackCursor}
+            onKeyUp={editMode ? undefined : trackCursor}
+            placeholder={
+              editMode
+                ? 'Write a phrase, or hold one on the board to edit it…'
+                : settings.autoSpeak
+                  ? 'Auto-speak is on — phrases are spoken, not collected here'
+                  : 'Dwell on a phrase or type…'
+            }
+            rows={1}
+            spellCheck
+            autoCapitalize="sentences"
+            // The board opens with the caret already in the box, so somebody with a
+            // keyboard can type the first thing they want to say without having to
+            // put it there first — and putting it there is the one thing a dwell
+            // could not do until `useCaretDwell`. A programmatic focus does not
+            // raise a phone's on-screen keyboard, which needs a real gesture.
+            autoFocus
+          />
+
+          {/* The slot that empties the box, at the **left end of its lower
+              border** — of the message, or in edit mode of the phrase being
+              written along with whatever it was pointed at.
+
+              It was a full-size button in the rail, and moving it onto the
+              border is the bargain the mode strip already struck on the upper
+              one: the board gets the width back, and what it costs is a smaller
+              painted control overlapping the box, with an invisible area around
+              it a tracker can still hit. It keeps its place across both modes,
+              which is what makes the mode a change of meaning rather than a
+              change of layout.
+
+              The lower border rather than the upper because the upper one is
+              full: a mode in the middle, the values at the right, the microphone
+              at the left. Down here it shares the line with the edit strip,
+              which is centred, and has the left end to itself. */}
+          <div className="topbar-clear">
+            {editMode ? (
+              <ActionButton
+                className="on-border"
+                onSelect={() => startNew()}
+                label="Start a new phrase"
+                disabled={isUntouched}
+              >
+                <PlusIcon />
+              </ActionButton>
+            ) : (
+              <ActionButton
+                className="on-border"
+                onSelect={clearOrUndo}
+                label={showUndo ? 'Undo' : 'Clear'}
+                disabled={!canClear}
+              >
+                {showUndo ? <UndoIcon /> : <ClearIcon />}
+              </ActionButton>
+            )}
+          </div>
+        </div>
 
         {/* Listen mode, at the box's upper-**left** corner, riding the same
             border the modes ride at its middle and the two values ride at the
@@ -482,42 +527,6 @@ export function Topbar({
             **Not drawn at all where the browser cannot listen.** A button that
             does nothing is worse than no button anywhere, and on a board aimed
             at by gaze it is a target spent for nothing. */}
-        {/* The slot that empties the box, on the box's **left** border — of the
-            message, or in edit mode of the phrase being written along with
-            whatever it was pointed at.
-
-            It was a full-size button in the rail, and moving it here is the
-            bargain the mode strip already struck on the top border: the board
-            gets the width back, and what it costs is a smaller painted control
-            overlapping the box, with an invisible area around it a tracker can
-            still hit. It keeps its place across both modes, which is what makes
-            the mode a change of meaning rather than a change of layout.
-
-            **Anchored to the top of the box rather than centred on it**, so it
-            does not slide down the border as the message grows into five
-            lines. */}
-        <div className="topbar-clear">
-          {editMode ? (
-            <ActionButton
-              className="on-border"
-              onSelect={() => startNew()}
-              label="Start a new phrase"
-              disabled={isUntouched}
-            >
-              <PlusIcon />
-            </ActionButton>
-          ) : (
-            <ActionButton
-              className="on-border"
-              onSelect={clearOrUndo}
-              label={showUndo ? 'Undo' : 'Clear'}
-              disabled={!canClear}
-            >
-              {showUndo ? <UndoIcon /> : <ClearIcon />}
-            </ActionButton>
-          )}
-        </div>
-
         {listener.available && (
           <div className="topbar-listen">
             <ModeToggle

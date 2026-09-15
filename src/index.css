@@ -107,7 +107,11 @@ body {
   /* The top padding is half the mode strip, which is built out of rem itself —
      so it is written in rem too and the two cannot come apart when the root
      font-size changes. */
-  padding: 1rem 10px 10px;
+  /* Equal top and bottom, because the box now carries a strip on each border
+     outside edit mode as well as in it, and each needs half its own height of
+     room or it hangs over the bar. In edit mode `--edit-bar-inset` takes the
+     bottom, being the larger of the two. */
+  padding: 1rem 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
@@ -119,8 +123,22 @@ body {
   --message-max-height: min(11rem, 33dvh);
 }
 
-.text-display {
+/* The message box and the one strip that belongs to it rather than to the pair
+   of boxes. The wrapper exists only to be positioned against: the microphone and
+   the two value controls hang off `.text-display-wrap`, where they hold one point
+   on screen whether listen mode is open or not, but the control that empties the
+   message has to follow the message — on a wide screen the wrapper's left edge is
+   the *question's* left edge, and a Clear there would be a Clear on somebody
+   else's words. `min-width: 0` for the reason the wrapper has it. */
+.message-wrap {
+  position: relative;
   flex: 1;
+  min-width: 0;
+}
+
+.text-display {
+  display: block;
+  width: 100%;
   /* In rem, like the type inside it: a box fixed in pixels around text that
      scales is a box that clips the moment anybody turns the zoom up. One line
      of 1.35rem at 1.4, plus this padding, is 3.4rem — so the pair of numbers
@@ -415,7 +433,13 @@ body {
      a size. Stacked, they are half a rem apart, which is the margin the heard
      box used to carry itself. */
   column-gap: 2rem;
-  row-gap: 0.5rem;
+  /* Stacked, this gap holds two things that reach into it: the heard box's tools
+     hang half their height below it, and the mode strip stands half its height
+     above the message box. Two rem leaves a rem of air between them and keeps the
+     stacked height exactly what it was before the tools moved onto the border —
+     the row they used to sit in was taller than the half of one that hangs down
+     now. */
+  row-gap: 2rem;
   /* Top-aligned rather than stretched. Both boxes grow with what is in them, and
      a message box stretched to the height of the question beside it would be a
      box sized by somebody else's words. */
@@ -458,35 +482,36 @@ body {
   border-radius: 999px;
 }
 
-/* Clear, or undo — and in edit mode, start a new phrase — on the box's **left**
-   border, below the microphone.
+/* Clear, or undo — and in edit mode, start a new phrase — at the **left end of
+   the message box's lower border**, mirroring the microphone at the left end of
+   the upper one.
  *
- * It was a full-size button in the rail beside the box. Moving it onto the
- * border is the bargain the mode strip already struck on the top one: the board
- * gets 3.5rem of width back, and what it costs is a control painted small enough
- * to sit on a border, with an invisible area around it that a head or eye
- * tracker can still hit — `.icon-btn.on-border::before`.
+ * It was a full-size button in the rail beside the box. Moving it onto a border
+ * is the bargain the mode strip already struck: the board gets 3.5rem of width
+ * back, and what it costs is a control painted small enough to sit on a border,
+ * with an invisible area around it that a head or eye tracker can still hit —
+ * `.icon-btn.on-border::before`.
  *
- * **2.25rem down, which is the spacing the mode strip already uses.** The left
- * border of a box 3.5rem tall is not long enough for two controls and the 2rem
- * of air `.topbar-choices` and `.heard-tools` keep between theirs — so the
- * measure here is the other one this app already lives by: the three mode
- * toggles sit 2.25rem apart, centre to centre, and so do these two. Any lower
- * and the control hangs off the bottom of a one-line box.
+ * **The lower border, because the upper one is full** — a mode in the middle,
+ * the values at the right, the microphone at the left. Two controls on the left
+ * of a box 3.5rem tall cannot keep the air this app puts between gaze targets;
+ * one at each end of the box can, and the distance only grows as the box does.
  *
- * **Measured from the top of the box, not from its middle**, because the top is
- * the edge that stays put: the box grows downward to five lines, and a control
- * centred on it would slide down the border as somebody typed.
+ * Down here it shares the line with `.edit-bar`, which is centred, and has the
+ * left end to itself. On a screen too narrow for that strip's own content the
+ * two meet, which is why this one is a layer above: it is the smaller target and
+ * the fixed one, and the strip it would be under scrolls sideways to reach the
+ * rest of itself.
  *
- * Straddling the border rather than sitting inside it, which is what puts it
- * *on* the border — and what `.keyboard-btn`'s margin is widened for, since the
- * half that hangs outside would otherwise reach across the button beside it. */
+ * Positioned against `.message-wrap` rather than the wrapper the microphone hangs
+ * off, because what it empties is the message: on a wide screen with listen mode
+ * open, the wrapper's left edge is the question's. */
 .topbar-clear {
   position: absolute;
-  top: 2.25rem;
-  left: 0;
-  transform: translate(-50%, -50%);
-  z-index: 90;
+  bottom: 0;
+  left: 0.6rem;
+  transform: translateY(50%);
+  z-index: 91;
   display: flex;
   align-items: center;
   background: #000;
@@ -498,9 +523,16 @@ body {
    things rather than as one box that grew. Above the message on a narrow screen
    and beside it on a wide one — see the wide-screen rule below. */
 .heard-wrap {
+  /* The row of tools rides this box's lower border, which means pulling it up by
+     half its own height *and* by the gap it would otherwise sit below. Both
+     numbers are named here so the pull cannot come apart from what it is pulling
+     — the `--edit-bar-inset` lesson, one size smaller. */
+  --heard-tool: 2.2rem;
+  --heard-gap: 0.4rem;
+
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--heard-gap);
   /* A whole line, so the message box falls underneath it. The wide-screen rule
      below is the one place that changes. `min-width: 0` because a textarea will
      not shrink below the width its `cols` implies without it, and there it is
@@ -563,7 +595,12 @@ body {
   color: var(--danger);
 }
 
+/* On the box's lower border rather than in a row beneath it. Pulled up by half
+   its own height, so its centre line lands on the border, and by the column gap
+   above it, which it is no longer sitting below. Everything after it — the
+   meaning, an error — starts clear of the half that hangs down. */
 .heard-tools {
+  margin-top: calc(var(--heard-tool) / -2 - var(--heard-gap));
   display: flex;
   align-items: center;
   /* Two rem apart, the target-separation number the rest of this app uses:
@@ -573,16 +610,22 @@ body {
   padding: 0 0.7rem;
 }
 
+/* A ground each, rather than one pill around all three. They sit *on* a border
+   now, and a control painted on one with nothing behind it shows the border and
+   the words through — the reason `.topbar-modes` is opaque. One pill would have
+   to be twelve rem wide to hold the two rem between them, which is more than the
+   narrower pane the wide-screen split gives this box. */
 .heard-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.2rem;
-  height: 2.2rem;
+  width: var(--heard-tool);
+  height: var(--heard-tool);
   padding: 0;
   border: none;
-  background: transparent;
+  border-radius: 999px;
+  background: #000;
   color: var(--text);
   cursor: pointer;
 }
@@ -624,7 +667,7 @@ body {
     flex: 35 1 0;
   }
 
-  .text-display-wrap > .text-display {
+  .text-display-wrap > .message-wrap {
     flex: 65 1 0;
   }
 
@@ -635,11 +678,11 @@ body {
      the row of tools — ends exactly where the message box alone could, which is
      what makes opening listen mode here cost the board no height at all. It has
      to be capped by something: there are no dwell controls on this box, so
-     whatever scrolls out of it is out of reach of the person reading it.
-     2.6rem is that column's other two parts, the 2.2rem tools and the 0.4rem
-     gap above them. */
+     whatever scrolls out of it is out of reach of the person reading it. What
+     the column holds below the box is the half of the tools that hangs past its
+     border, the rest of them being on it. */
   .heard-text {
-    max-height: calc(var(--message-max-height) - 2.6rem);
+    max-height: calc(var(--message-max-height) - var(--heard-tool) / 2);
   }
 }
 
@@ -1074,12 +1117,7 @@ body {
 
 /* Beside the menu, and lit while the keyboard is up — the same cue the mode
    toggles use, because it is the same kind of claim: a surface is showing. */
-/* Wide enough for the half of `.topbar-clear` that hangs outside the box's left
-   border. At the 4px this was, that control's hit area reached a third of the
-   way across this button — two targets in one place, which is the worst thing
-   to give somebody aiming by gaze. It costs 24px of the 64px that came back
-   when the button between the two moved onto the border. */
-.icon-btn.keyboard-btn { margin-right: 1.75rem; }
+.icon-btn.keyboard-btn { margin-right: 4px; }
 .icon-btn.keyboard-btn.is-on { color: var(--accent); border-color: var(--accent); }
 
 /* ── Top panel scrim ── */

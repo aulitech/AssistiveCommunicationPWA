@@ -3564,15 +3564,15 @@ describe('the message box growing', () => {
 })
 
 /**
- * The slot that empties the box rides the box's **left** border.
+ * The slot that empties the box rides the **message box's** lower border.
  *
- * It was a full-size button in the rail beside the box, and moving it onto the
- * border is the bargain the mode strip already struck on the top one: the board
+ * It was a full-size button in the rail beside the box, and moving it onto a
+ * border is the bargain the mode strip already struck on the upper one: the board
  * gets the width back, and what it costs is a smaller painted control overlapping
  * the box with an invisible area around it a tracker can still hit.
  */
 describe('the slot that empties the box', () => {
-  const strip = () => $('.text-display-wrap > .topbar-clear')
+  const strip = () => $('.message-wrap > .topbar-clear')
 
   it('rides the box border rather than sitting in the rail beside it', () => {
     renderApp()
@@ -3581,6 +3581,22 @@ describe('the slot that empties the box', () => {
     // And nothing of it is left in the rail, which is the width the board gets
     // back — a button both here and there would be the same control twice.
     expect(iconBtn('Clear')!.closest('.topbar-clear')).not.toBeNull()
+  })
+
+  /**
+   * **It follows the message box, not the pair of boxes.**
+   *
+   * The microphone and the two value controls hang off the wrapper, which is the
+   * same size in the same place whether listen mode is open or not — that is what
+   * holds them at one point on screen. This one cannot do that: on a wide screen
+   * with listen mode open, the wrapper's left edge is the *question's* left edge,
+   * and a Clear riding that border would be a Clear on somebody else's words.
+   */
+  it('hangs off the message box rather than off the pair of them', () => {
+    renderApp()
+    const wrap = strip()!.parentElement!
+    expect(wrap.querySelector(':scope > .text-display'), 'it is not on the message box').not.toBeNull()
+    expect(wrap.querySelector(':scope > .heard-wrap'), 'the question is in here too').toBeNull()
   })
 
   /**
