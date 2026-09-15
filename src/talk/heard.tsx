@@ -62,7 +62,6 @@ function HeardButton({
 export function HeardBox({
   listener,
   fieldRef,
-  messageEmpty,
 }: {
   listener: Listener
   /**
@@ -73,19 +72,9 @@ export function HeardBox({
    * both is the bar they are in.
    */
   fieldRef: RefObject<HTMLTextAreaElement | null>
-  /**
-   * Whether the message box has room for a suggestion.
-   *
-   * **A suggestion never writes over words somebody already had.** The box's
-   * undo is a one-step toggle rather than a stack, so a suggestion that replaced
-   * a half-written message could not be walked back past it — which would make
-   * accepting a machine's words a thing that happened to somebody rather than a
-   * thing they chose. The control goes quiet instead, and says why.
-   */
-  messageEmpty: boolean
 }) {
   const { settings } = useSettings()
-  const { heard, correct, again, translate, suggest, canTranslate, canSuggest } = listener
+  const { heard, correct, again, translate, suggest, canTranslate, canSuggest, messageEmpty } = listener
 
   const write = useCallback((value: string) => correct(value), [correct])
 
@@ -138,7 +127,7 @@ export function HeardBox({
           <HeardButton
             onSelect={() => void translate()}
             label="Read this in your own language"
-            disabled={nothingHeard || heard.working}
+            disabled={nothingHeard || heard.asking !== ''}
           >
             <TranslateIcon />
           </HeardButton>
@@ -156,7 +145,7 @@ export function HeardBox({
                 ? 'Suggest a reply, into the message box'
                 : 'Suggest a reply. Clear the message first — a suggestion never writes over your own words'
             }
-            disabled={nothingHeard || heard.working || !messageEmpty}
+            disabled={nothingHeard || heard.asking !== '' || !messageEmpty}
           >
             <SuggestIcon />
           </HeardButton>

@@ -88,19 +88,6 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     setStoredReplyKey(next)
   }, [])
 
-  /**
-   * Listen mode: the other half of the conversation — see `use-listen.ts`.
-   *
-   * A suggested reply is `propose`d rather than set, so whatever was in the
-   * message box is one dwell on Undo away. **Nothing here speaks**, whatever
-   * mode the board is in.
-   */
-  const listener = useListen({
-    language: settings.language,
-    replyKey,
-    replyModel: settings.replyModel,
-    onSuggest: composer.propose,
-  })
   const { toast, flashToast } = useToast()
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -134,6 +121,24 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // every render: a callback depending on the whole of it would change identity
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
   const { insert: insertPhrase, text: message, currentWord, copy: copyMessage, speak: speakMessage } = composer
+
+  /**
+   * Listen mode: the other half of the conversation — see `use-listen.ts`.
+   *
+   * A suggested reply is `propose`d rather than set, so whatever was in the
+   * message box is one dwell on Undo away. **Nothing here speaks**, whatever
+   * mode the board is in.
+   */
+  const listener = useListen({
+    language: settings.language,
+    replyKey,
+    replyModel: settings.replyModel,
+    // Edit mode counts as not empty however little is in the draft: the box is
+    // showing a phrase there, and a reply landing in the message behind it
+    // would be one nobody could see and an exchange nobody asked to pay for.
+    messageEmpty: !editMode && message.trim() === '',
+    onSuggest: composer.propose,
+  })
 
   // Derived from the live phrase list so user-added categories get a tab and
   // fully-hidden categories lose theirs.

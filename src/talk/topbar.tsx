@@ -41,6 +41,7 @@ import {
   UndoIcon,
 } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
+import { useSettled } from '../ui/settle'
 import { PhraseEditBar } from './editors'
 import type { Composer } from './use-composer'
 import type { Editor } from './use-editor'
@@ -334,6 +335,26 @@ export function Topbar({
    */
   const value = editMode ? draft.text : text
   const question = listener.open ? listener.heard.said : ''
+
+  /**
+   * A reply is out, and the box it is coming to says so.
+   *
+   * **In the message box rather than in the corner**, unlike everything else
+   * this app waits on: a question is now answered without being asked to be, so
+   * the seconds between somebody being spoken to and words appearing are seconds
+   * in which nothing at all has happened as far as they can tell. The indicator
+   * stands where the first line of the reply will be, so what it says is *the
+   * words are coming here* rather than *the app is busy*.
+   *
+   * Only the reply. A translation goes under the question and has its own box to
+   * appear in; this is the one that lands somewhere else.
+   *
+   * It waits the same quarter-second every other indicator here waits — see
+   * `BusyIndicator`. Nothing is quick enough for that to matter often, but a
+   * key the service will not accept comes back in one round trip, and a spinner
+   * that appears and goes is worse on this screen than anywhere: the pointer is
+   * somebody's gaze, and a thing that moves in the corner of an eye aims it. */
+  const waiting = useSettled(listener.heard.asking === 'reply')
   useEffect(() => {
     const fit = () => {
       const boxes = [textareaRef.current, heardRef.current].filter(el => el !== null)
@@ -450,7 +471,7 @@ export function Topbar({
             first in both arrangements and in a screen reader. What keeps the
             two strips on the border from moving with it is that both hang off
             the wrapper rather than off either box. */}
-        {listener.open && <HeardBox listener={listener} fieldRef={heardRef} messageEmpty={value.trim() === ''} />}
+        {listener.open && <HeardBox listener={listener} fieldRef={heardRef} />}
 
         {/* The message box and what rides *its* borders, which after the split
             above is not the same thing as what rides the wrapper's. The mic and
@@ -478,12 +499,16 @@ export function Topbar({
             {...caret.props}
             onClick={editMode ? undefined : trackCursor}
             onKeyUp={editMode ? undefined : trackCursor}
+            // Nothing while the reply is out: the waiting line stands exactly
+            // where this does, and two greys in one place read as neither.
             placeholder={
-              editMode
-                ? 'Write a phrase, or hold one on the board to edit it…'
-                : settings.autoSpeak
-                  ? 'Auto-speak is on — phrases are spoken, not collected here'
-                  : 'Dwell on a phrase or type…'
+              waiting
+                ? ''
+                : editMode
+                  ? 'Write a phrase, or hold one on the board to edit it…'
+                  : settings.autoSpeak
+                    ? 'Auto-speak is on — phrases are spoken, not collected here'
+                    : 'Dwell on a phrase or type…'
             }
             rows={1}
             spellCheck
@@ -495,6 +520,18 @@ export function Topbar({
             // raise a phone's on-screen keyboard, which needs a real gesture.
             autoFocus
           />
+
+          {/* Never a target: `pointer-events: none`, like every other indicator
+              here. A dwell user has no way to dismiss something that catches
+              one, so nothing that merely reports may also answer. */}
+          <div className="message-busy" role="status" aria-live="polite">
+            {waiting && (
+              <p className="message-busy-line">
+                <span className="busy-spinner" aria-hidden="true" />
+                Thinking of a reply…
+              </p>
+            )}
+          </div>
 
           {/* The slot that empties the box, at the **left end of its lower
               border** — of the message, or in edit mode of the phrase being

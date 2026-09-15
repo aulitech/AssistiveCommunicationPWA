@@ -57,10 +57,21 @@ const listenAgain = () => tool(/listen again|dwell to start again/i)
 const translateBtn = () => tool(/own language/i)
 const suggestBtn = () => tool(/suggest a reply/i)
 
-/** Opens listen mode and delivers a question. */
+/** Opens listen mode and delivers a question, the recogniser still running. */
 function hear(question: string) {
   click(micBtn())
   act(() => FakeRecognition.last!.say({ transcript: question, isFinal: true }))
+  settle()
+}
+
+/**
+ * The same, and then the recogniser stops — which is what somebody stopping
+ * talking looks like, and the moment a question is answered without being asked
+ * to be.
+ */
+function heardAndDone(question: string) {
+  hear(question)
+  act(() => FakeRecognition.last!.finish())
   settle()
 }
 
@@ -387,6 +398,163 @@ describe('the suggested reply', () => {
     renderApp()
     hear('Do you want tea?')
     expect(suggestBtn()).toBeUndefined()
+  })
+
+  /**
+   * **A question that settles with nothing in the message box answers itself.**
+   *
+   * The dwell it saves is the point: somebody mid-conversation has just been
+   * spoken to and has a person waiting in front of them, and aiming at a button
+   * before the machine will even begin thinking spends the seconds this feature
+   * exists to give back.
+   *
+   * On the recogniser stopping rather than on a final result, because that is the
+   * one moment the whole of what was asked is in hand. A final result part-way
+   * through is half a question, and a reply to half a question is worse than no
+   * reply at all.
+   */
+  it('answers a settled question on its own, with nothing in the box', async () => {
+    const fetch = suggests('I am, thank you')
+    vi.stubGlobal('fetch', fetch)
+    withKey()
+
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(messageBox().value).toBe('I am, thank you')
+  })
+
+  // Still never spoken, however it was asked for. This is the rule everything
+  // here is arranged around, and asking without being asked to does not touch it.
+  it('does not speak the one it asked for itself, even with auto-speak on', async () => {
+    vi.stubGlobal('fetch', suggests('I am, thank you'))
+    withKey({ autoSpeak: true })
+
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+
+    expect(messageBox().value).toBe('I am, thank you')
+    expect(spoken, 'a machine’s words were spoken without being chosen').toEqual([])
+  })
+
+  // A suggestion never writes over words somebody already had, and that holds
+  // whether they asked for it or not — the box's undo is one step, so a
+  // suggestion that replaced a half-written message could not be walked back.
+  it('asks for nothing while there are words in the box', async () => {
+    const fetch = suggests('I am, thank you')
+    vi.stubGlobal('fetch', fetch)
+    withKey()
+    fireEvent.change(messageBox(), { target: { value: 'half a thought' } })
+    settle()
+
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+
+    expect(fetch).not.toHaveBeenCalled()
+    expect(messageBox().value).toBe('half a thought')
+  })
+
+  /**
+   * A failure leaves no question, only a reason there is not one.
+   *
+   * **The words have to have arrived first.** A microphone refused before
+   * anything was heard proves nothing about the guard — there would be no
+   * question to ask about either way — so this one hears most of a sentence and
+   * then loses the microphone, which is the case where half a question is
+   * sitting there looking answerable.
+   */
+  it('asks for nothing when the listening failed part-way through', async () => {
+    const fetch = suggests('I am, thank you')
+    vi.stubGlobal('fetch', fetch)
+    withKey()
+
+    hear('Are you comf')
+    act(() => FakeRecognition.last!.fail('not-allowed'))
+    settle()
+    await act(async () => {})
+
+    expect(fetch, 'half a question was sent off to be answered').not.toHaveBeenCalled()
+    expect(messageBox().value).toBe('')
+  })
+
+  /**
+   * Nothing is asked for on anybody's behalf without a key of their own — the
+   * same line the control follows, which is not drawn at all without one.
+   *
+   * **The service refusing is not the guard.** `suggestReply` reads the key
+   * again and answers "no key" without going anywhere, so no request is proof of
+   * very little on its own. What the guard is for is everything around the
+   * request: a board with this feature switched off must not blink a waiting
+   * line at somebody and then write a line under their question telling them to
+   * go and set up an API account.
+   */
+  it('asks for nothing at all until a key is set up', async () => {
+    const fetch = suggests('I am, thank you')
+    vi.stubGlobal('fetch', fetch)
+    renderApp()
+
+    heardAndDone('Are you comfortable')
+    act(() => void vi.advanceTimersByTime(300))
+    await act(async () => {})
+
+    expect(fetch).not.toHaveBeenCalled()
+    expect($('.message-busy-line'), 'a board with no key said a reply was coming').toBeNull()
+    expect($('.heard-error'), 'a board with no key was told to go and set one up').toBeNull()
+  })
+
+  /**
+   * Edit mode counts as *not* empty, however little is in the draft.
+   *
+   * The box is showing a phrase being written there, so a reply would land in
+   * the message behind it — one nobody could see, and an exchange nobody asked
+   * to pay for.
+   */
+  it('asks for nothing while the box is showing a phrase instead', async () => {
+    const fetch = suggests('I am, thank you')
+    vi.stubGlobal('fetch', fetch)
+    withKey()
+    click($('.edit-toggle'))
+    expect(messageBox().value, 'the draft is not empty, so this proves nothing').toBe('')
+
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  /**
+   * The box the reply is coming to says so, and stands where the first line of
+   * it will be — the seconds between somebody being spoken to and words
+   * appearing are seconds in which nothing has happened as far as they can tell.
+   *
+   * It waits the quarter-second every indicator here waits, so the clock has to
+   * be advanced past it.
+   */
+  it('says a reply is coming, in the box it is coming to', async () => {
+    let answer: (body: unknown) => void = () => {}
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>(resolve => {
+            answer = body =>
+              resolve(new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } }))
+          }),
+      ),
+    )
+    withKey()
+
+    heardAndDone('Are you comfortable')
+    act(() => void vi.advanceTimersByTime(300))
+    expect($('.message-busy-line')?.textContent).toMatch(/reply/i)
+
+    await act(async () => {
+      answer({ content: [{ type: 'text', text: 'I am, thank you' }] })
+    })
+    settle()
+    expect($('.message-busy-line'), 'the waiting line outlived the wait').toBeNull()
+    expect(messageBox().value).toBe('I am, thank you')
   })
 
   it('goes into the message box', async () => {

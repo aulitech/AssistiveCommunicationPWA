@@ -318,6 +318,31 @@ describe('the shape of the source tree', () => {
   })
 
   /**
+   * **Every animation names keyframes that exist.**
+   *
+   * A CSS animation whose name nothing defines does not fail — it simply never
+   * runs, silently, and what it was animating sits still. On this app that is a
+   * dwell control that fills instantly or not at all, which reads as a broken
+   * control rather than as a missing rule.
+   *
+   * It nearly shipped: renaming the keyframe the message box fills with left the
+   * Aliases panel's fields pointing at a name that had gone, and nothing in the
+   * build, the types or the tests would have said so.
+   */
+  it('animates nothing by a name it has not defined', () => {
+    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+
+    const defined = new Set([...css.matchAll(/@keyframes +([\w-]+)/g)].map(m => m[1]))
+    expect(defined.size, 'the stylesheet defines no keyframes at all — did they move?').toBeGreaterThan(0)
+
+    // The name is the one part of the shorthand that is not a time, a count, a
+    // timing function or a keyword — and here it is always written first.
+    const used = [...css.matchAll(/animation: *([\w-]+)/g)].map(m => m[1]!).filter(name => name !== 'none')
+    const missing = [...new Set(used)].filter(name => !defined.has(name))
+    expect(missing, 'animated by a name no @keyframes defines').toEqual([])
+  })
+
+  /**
    * **How tall a box may get is one number, not two.**
    *
    * The message box and the heard box are held to one height by measurement —

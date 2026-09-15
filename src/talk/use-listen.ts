@@ -32,18 +32,26 @@ export interface Heard {
   meaning: string
   /** Whether the microphone is open right now. */
   listening: boolean
-  /** Whether a translation or a suggestion is still out. */
-  working: boolean
+  /**
+   * Which of the two is still out, and `''` for neither.
+   *
+   * One field rather than a flag each, because the difference is visible: the
+   * reply draws a waiting line in the message box it is going to land in, and
+   * the translation does not. Two booleans would be two things to keep agreeing
+   * that only one of them can ever be true.
+   */
+  asking: '' | 'meaning' | 'reply'
   /** The last thing that went wrong, for the line under the box. */
   error: string
 }
 
-const EMPTY: Heard = { said: '', meaning: '', listening: false, working: false, error: '' }
+const EMPTY: Heard = { said: '', meaning: '', listening: false, asking: '', error: '' }
 
 export function useListen({
   language,
   replyKey,
   replyModel,
+  messageEmpty,
   onSuggest,
 }: {
   /** What the board is spoken as, which is also what the microphone listens for. */
@@ -56,6 +64,19 @@ export function useListen({
   replyKey: string
   /** Which model writes the reply — see `REPLY_MODELS`. */
   replyModel: string
+  /**
+   * Whether a suggestion has anywhere to land.
+   *
+   * **A suggestion never writes over words somebody already had** — the box's
+   * undo is a one-step toggle, so one that replaced a half-written message could
+   * not be walked back past it. It is also what decides whether a question is
+   * answered without being asked to be.
+   *
+   * Edit mode counts as *not* empty however little is in the draft: the box is
+   * showing a phrase there, and a reply landing in the message behind it would
+   * be one nobody could see and an exchange nobody asked to pay for.
+   */
+  messageEmpty: boolean
   /** Where a suggested reply goes. Never spoken — see above. */
   onSuggest: (text: string, blankAt: number) => void
 }) {
@@ -90,24 +111,95 @@ export function useListen({
   // open by a component nobody can see is the worst version of this feature.
   useEffect(() => stopListening, [stopListening])
 
+  /**
+   * A reply to a question, into the message box.
+   *
+   * `asked` is the meaning where there is one and the heard words otherwise: a
+   * model reading a question in the language it was asked in answers it just as
+   * well, and the translation is there for the user rather than for the model.
+   */
+  const ask = useCallback(
+    async (asked: string) => {
+      if (!asked) return
+      askedRef.current++
+      const mine = askedRef.current
+      setHeard(h => ({ ...h, asking: 'reply', error: '' }))
+
+      // Read at the moment of asking rather than held in state: a reply can be
+      // several seconds out, and the day's window has to be the one that is true
+      // when the question goes rather than when the box was opened.
+      const result = await suggestReply(asked, language, replyModel, loadReplyContext())
+      if (mine !== askedRef.current) return
+      setHeard(h => ({ ...h, asking: '', error: result.status === 'ok' ? '' : result.error }))
+      if (result.status !== 'ok') return
+
+      // The exchange, so the next question is answered as part of the same
+      // conversation. Written back through storage for the reason the sent list
+      // is: two replies can land without a render in between.
+      saveReplyContext(addReplyTurn(loadReplyContext(), asked, result.text))
+      onSuggestRef.current(result.text, result.blankAt)
+    },
+    [language, replyModel],
+  )
+
+  /**
+   * The same asking, for a question nobody asked to have answered.
+   *
+   * **The dwell it saves is the point.** Somebody mid-conversation has just been
+   * spoken to and has a person waiting in front of them; making them aim at a
+   * button before the machine will even begin thinking spends the seconds this
+   * feature exists to give back. With words already in the box there is nothing
+   * to do — a suggestion never writes over them — so the control stays, for
+   * clearing the box and asking again, or correcting the question first.
+   *
+   * **Through a ref, because `startListening` has to keep its identity.** It is
+   * `again`, and it is what the recogniser's callbacks close over: rebuilt on
+   * every keystroke in the message box, it would be rebuilt in the middle of
+   * somebody's question. Declared above that hook rather than beside the rest of
+   * the asking, since a ref has to exist before the callback that reads it.
+   */
+  const answer = useCallback(
+    (asked: string) => {
+      if (!replyKey || !messageEmpty) return
+      void ask(asked)
+    },
+    [ask, messageEmpty, replyKey],
+  )
+  const answerRef = useRef(answer)
+  useEffect(() => {
+    answerRef.current = answer
+  }, [answer])
+
   const startListening = useCallback(() => {
     askedRef.current++
     stopListening()
     setHeard({ ...EMPTY, listening: true })
 
     const mine = askedRef.current
+    // What the recogniser last had. Kept here rather than read back off state,
+    // because the answer goes out in the same tick the listening ends in and
+    // state is a render behind it.
+    let latest = ''
     stopRef.current = listen(language, {
       onHeard: said => {
         if (mine !== askedRef.current) return
         // Interim results, so the box fills as the words arrive: a box that
         // stays empty for four seconds and then fills is indistinguishable from
         // a box that is broken.
+        latest = said
         setHeard(h => ({ ...h, said }))
       },
       onDone: error => {
         if (mine !== askedRef.current) return
         stopRef.current = null
         setHeard(h => ({ ...h, listening: false, error: error ?? '' }))
+        // **The question has settled.** The recogniser stops when somebody stops
+        // talking, and that is the one moment the whole of what they asked is in
+        // hand — a final result part-way through is half a question, and a reply
+        // to half a question is worse than no reply at all. Nothing is asked
+        // after a failure: there is no question there, only a reason there is
+        // not one.
+        if (!error) answerRef.current(latest.trim())
       },
     })
   }, [language, stopListening])
@@ -147,47 +239,20 @@ export function useListen({
     if (!asked) return
     askedRef.current++
     const mine = askedRef.current
-    setHeard(h => ({ ...h, working: true, error: '' }))
+    setHeard(h => ({ ...h, asking: 'meaning', error: '' }))
 
     const result = await translateHeard(asked)
     if (mine !== askedRef.current) return
     setHeard(h => ({
       ...h,
-      working: false,
+      asking: '',
       meaning: result.status === 'ok' ? result.text : '',
       error: result.status === 'ok' ? '' : result.error,
     }))
   }, [heard.said])
 
-  /**
-   * A reply to the question, into the message box.
-   *
-   * The words asked about are the meaning where there is one and the heard words
-   * otherwise: a model reading the question in the language it was asked in
-   * answers it just as well, and the translation is there for the user rather
-   * than for the model.
-   */
-  const suggest = useCallback(async () => {
-    const asked = (heard.meaning || heard.said).trim()
-    if (!asked) return
-    askedRef.current++
-    const mine = askedRef.current
-    setHeard(h => ({ ...h, working: true, error: '' }))
-
-    // Read at the moment of asking rather than held in state: a reply can be
-    // several seconds out, and the day's window has to be the one that is true
-    // when the question goes rather than when the box was opened.
-    const result = await suggestReply(asked, language, replyModel, loadReplyContext())
-    if (mine !== askedRef.current) return
-    setHeard(h => ({ ...h, working: false, error: result.status === 'ok' ? '' : result.error }))
-    if (result.status !== 'ok') return
-
-    // The exchange, so the next question is answered as part of the same
-    // conversation. Written back through storage for the reason the sent list
-    // is: two replies can land without a render in between.
-    saveReplyContext(addReplyTurn(loadReplyContext(), asked, result.text))
-    onSuggestRef.current(result.text, result.blankAt)
-  }, [heard.meaning, heard.said, language, replyModel])
+  /** Asked for by a dwell on the control under the box. */
+  const suggest = useCallback(() => ask((heard.meaning || heard.said).trim()), [ask, heard.meaning, heard.said])
 
   return {
     /** Whether the box above the message is shown at all. */
@@ -214,6 +279,11 @@ export function useListen({
     canTranslate: hasTranslateKey(),
     /** Whether a key has been set up for suggested replies. */
     canSuggest: Boolean(replyKey),
+    /**
+     * Handed straight back, so the control under the box and the question that
+     * answers itself are asking one thing rather than two that have to agree.
+     */
+    messageEmpty,
   }
 }
 
