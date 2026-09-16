@@ -17,7 +17,8 @@
 // top-centre of the message box, which now answers to a mode rather than to the
 // caret. Rest was already there, so that surface was never entirely the box's.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { compose, parseSegments } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { chooseLanguage, chooseVoice } from '../core/store'
 import { LanguagePicker } from '../voice/language-picker'
@@ -33,6 +34,7 @@ import {
   EditIcon,
   KeyboardIcon,
   MenuIcon,
+  MicIcon,
   PasteIcon,
   PlusIcon,
   SpeakIcon,
@@ -40,9 +42,12 @@ import {
   UndoIcon,
 } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
+import { useSettled } from '../ui/settle'
 import { PhraseEditBar } from './editors'
 import type { Composer } from './use-composer'
 import type { Editor } from './use-editor'
+import type { Listener } from './use-listen'
+import { HeardBox } from './heard'
 
 function ActionButton({
   onSelect,
@@ -235,6 +240,7 @@ export function Topbar({
   onSpeak,
   onCopy,
   onPasted,
+  listener,
 }: {
   composer: Composer
   /** The phrase being written, which in edit mode is what the box holds. */
@@ -262,6 +268,8 @@ export function Topbar({
   onCopy: () => void
   /** Says what came of asking, so the screen can report a refusal out loud. */
   onPasted: (result: PasteResult) => void
+  /** Listen mode: the microphone, and the box above the message — see `use-listen.ts`. */
+  listener: Listener
 }) {
   const { settings, update } = useSettings()
   const wide = useWideScreen()
@@ -280,6 +288,15 @@ export function Topbar({
   const { text, setText, showUndo, canClear, clearOrUndo, textareaRef, trackCursor, setCursor } = composer
   const { draft, isUntouched, startNew, setText: setDraftText } = editor
 
+  /**
+   * What the phrase *reads* as, for the voice picker's sample.
+   *
+   * Not what it is written as: choosing a voice speaks a sample the moment it is
+   * chosen, and nobody wants to hear "open curly bracket, quote, red, quote"
+   * read out — least of all charged to an account by the character.
+   */
+  const spokenDraft = useMemo(() => compose(parseSegments(draft.text)), [draft.text])
+
   // One box, two things in it: the message being composed, and — in edit mode —
   // the phrase being written. Which one is showing decides everything below,
   // because a keystroke has to go to the right one of the two.
@@ -296,39 +313,77 @@ export function Topbar({
   })
 
   /**
-   * The box grows with what is in it, up to a few lines.
+   * The box the question lands in. Made here rather than in `HeardBox`, because
+   * the two boxes are held to one height and this bar is the only thing that can
+   * measure both.
+   */
+  const heardRef = useRef<HTMLTextAreaElement>(null)
+
+  /**
+   * Both boxes grow with what is in them, up to a few lines — **and to the same
+   * height as each other**, whichever is holding more deciding it.
    *
-   * It was one line, fixed, with the overflow scrolled and the scrollbar hidden
-   * — so a message longer than the box went above the fold and stayed there.
-   * Every other surface in this app has dwell controls for scrolling; this one
-   * has none, and nothing to hang them on, so what scrolls out of it is gone as
-   * far as a gaze user is concerned.
+   * The message box was one line, fixed, with the overflow scrolled and the
+   * scrollbar hidden — so a message longer than the box went above the fold and
+   * stayed there. Every other surface in this app has dwell controls for
+   * scrolling; these two have none, and nothing to hang them on, so what scrolls
+   * out of one is gone as far as a gaze user is concerned.
+   *
+   * **One height for the pair**, because on a wide screen they stand side by
+   * side: two boxes of somebody's speech at different heights read as two
+   * unrelated things rather than as the two halves of one exchange, and the
+   * question is not a caption on the answer.
    *
    * Measured rather than counted: a line is however many characters fit at this
    * text size and this width, which is not a number this can know. The cap is in
-   * the stylesheet, where `max-height` clamps whatever is set here — so the box
-   * cannot eat the board however long the message gets.
+   * the stylesheet, where one `max-height` clamps both — so the pair cannot eat
+   * the board however long either of them gets.
    *
    * **Where nothing can be measured, nothing is set.** `scrollHeight` is 0 in
    * jsdom, and a box set to nought is a box nobody can see; the same fallback
    * the grid's windowing makes, for the same reason.
    */
   const value = editMode ? draft.text : text
+  const question = listener.open ? listener.heard.said : ''
+
+  /**
+   * A reply is out, and the box it is coming to says so.
+   *
+   * **In the message box rather than in the corner**, unlike everything else
+   * this app waits on: a question is now answered without being asked to be, so
+   * the seconds between somebody being spoken to and words appearing are seconds
+   * in which nothing at all has happened as far as they can tell. The indicator
+   * stands where the first line of the reply will be, so what it says is *the
+   * words are coming here* rather than *the app is busy*.
+   *
+   * Only the reply. A translation goes under the question and has its own box to
+   * appear in; this is the one that lands somewhere else.
+   *
+   * It waits the same quarter-second every other indicator here waits — see
+   * `BusyIndicator`. Nothing is quick enough for that to matter often, but a
+   * key the service will not accept comes back in one round trip, and a spinner
+   * that appears and goes is worse on this screen than anywhere: the pointer is
+   * somebody's gaze, and a thing that moves in the corner of an eye aims it. */
+  const waiting = useSettled(listener.heard.asking === 'reply')
   useEffect(() => {
-    const el = textareaRef.current
-    if (!el) return
     const fit = () => {
-      // Back to one line first, or the box only ever grows: `scrollHeight`
-      // includes whatever height it is already holding.
-      el.style.height = ''
-      if (el.scrollHeight) el.style.height = `${el.scrollHeight}px`
+      const boxes = [textareaRef.current, heardRef.current].filter(el => el !== null)
+      if (boxes.length === 0) return
+      // Back to one line first, and **both of them before either is measured**:
+      // `scrollHeight` includes whatever height a box is already holding, so one
+      // still standing at the other's height would report it straight back and
+      // the pair would only ever grow.
+      for (const el of boxes) el.style.height = ''
+      const tallest = Math.max(...boxes.map(el => el.scrollHeight))
+      if (!tallest) return
+      for (const el of boxes) el.style.height = `${tallest}px`
     }
     fit()
     // The width decides where the lines break, and the width changes with the
-    // window — a phone turned on its side rewraps every line in the box.
+    // window — a phone turned on its side rewraps every line in both boxes.
     window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
-  }, [value, textareaRef, settings.zoom])
+  }, [value, question, listener.open, textareaRef, settings.zoom])
 
   // A link pasted or dropped here becomes `[label](url)`, so the message reads
   // as the page's name and still carries the address when it is copied out. Into
@@ -410,157 +465,285 @@ export function Topbar({
         <KeyboardIcon />
       </ActionButton>
 
-      {/* The left slot empties the box in both modes — of the message, or of the
-          phrase being written along with whatever it was pointed at. */}
-      {editMode ? (
-        <ActionButton
-          className="left"
-          onSelect={() => startNew()}
-          label="Start a new phrase"
-          disabled={isUntouched}
-        >
-          <PlusIcon />
-        </ActionButton>
-      ) : (
-        <ActionButton
-          className="left"
-          onSelect={clearOrUndo}
-          label={showUndo ? 'Undo' : 'Clear'}
-          disabled={!canClear}
-        >
-          {showUndo ? <UndoIcon /> : <ClearIcon />}
-        </ActionButton>
-      )}
-
       {/* The box and whatever rides its border. A wrapper only so the strip
           below can be positioned against **the box**: everything else on this
           bar is centred on the bar itself, which is 4px off the box's true
           centre and nobody can see — but a corner found that way would be out
           by the whole width of the action rail. */}
       <div className="text-display-wrap">
-        <textarea
-          ref={textareaRef}
-          className={cx('text-display', caret.active && 'dwelling')}
-          style={dwellVar(settings.actionDwellMs)}
-          aria-label={editMode ? 'Phrase text' : 'Composed message'}
-          value={value}
-          onChange={e => {
-            write(e.target.value)
-            if (!editMode) trackCursor(e)
-          }}
-          // Only outside edit mode: the caret tracked here is the composer's, and
-          // it decides which word the grid filters on. A caret moved about in a
-          // phrase would narrow the board to a word that is not in the message.
-          onSelect={editMode ? undefined : trackCursor}
-          onPaste={linkInput.onPaste}
-          onDrop={linkInput.onDrop}
-          onDragOver={linkInput.onDragOver}
-          {...caret.props}
-          onClick={editMode ? undefined : trackCursor}
-          onKeyUp={editMode ? undefined : trackCursor}
-          placeholder={
-            editMode
-              ? 'Write a phrase, or hold one on the board to edit it…'
-              : settings.autoSpeak
-                ? 'Auto-speak is on — phrases are spoken, not collected here'
-                : 'Dwell on a phrase or type…'
-          }
-          rows={1}
-          spellCheck
-          autoCapitalize="sentences"
-          // The board opens with the caret already in the box, so somebody with a
-          // keyboard can type the first thing they want to say without having to
-          // put it there first — and putting it there is the one thing a dwell
-          // could not do until `useCaretDwell`. A programmatic focus does not
-          // raise a phone's on-screen keyboard, which needs a real gesture.
-          autoFocus
-        />
+        {/* What was heard, beside the message rather than in it — or above it
+            on a screen with no width to spare, which is the stylesheet's call
+            and not this file's. Two boxes either way, and one of them is
+            somebody else's words: mixing them would make the question and the
+            answer one thing to be untangled by whoever is waiting for a reply.
 
-        {/* The language and the voice, at the box's upper-right corner, riding
-            the same border the modes ride at its middle.
+            It goes *before* the message in the markup, so the question reads
+            first in both arrangements and in a screen reader. What keeps the
+            two strips on the border from moving with it is that both hang off
+            the wrapper rather than off either box. */}
+        {listener.open && <HeardBox listener={listener} fieldRef={heardRef} />}
 
-            **Their faces are the values**: the tag itself, `en-US`, and the
-            voice's bare name. Six rem each — enough for "Samantha" and for any
-            tag there is, and past that an ellipsis, with the whole of it on the
-            control for a screen reader. Two words is what fits on a border; the
-            settings panel is where the full names are.
+        {/* The message box and what rides *its* borders, which after the split
+            above is not the same thing as what rides the wrapper's. The mic and
+            the two value controls stay on the wrapper, where they hold one point
+            on screen whether listen mode is open or not; this one has to follow
+            the box, because what it empties is the message. */}
+        <div className="message-wrap">
+          <textarea
+            ref={textareaRef}
+            className={cx('text-display', caret.active && 'dwelling')}
+            style={dwellVar(settings.actionDwellMs)}
+            aria-label={editMode ? 'Phrase text' : 'Composed message'}
+            value={value}
+            onChange={e => {
+              write(e.target.value)
+              if (!editMode) trackCursor(e)
+            }}
+            // Only outside edit mode: the caret tracked here is the composer's, and
+            // it decides which word the grid filters on. A caret moved about in a
+            // phrase would narrow the board to a word that is not in the message.
+            onSelect={editMode ? undefined : trackCursor}
+            onPaste={linkInput.onPaste}
+            onDrop={linkInput.onDrop}
+            onDragOver={linkInput.onDragOver}
+            {...caret.props}
+            onClick={editMode ? undefined : trackCursor}
+            onKeyUp={editMode ? undefined : trackCursor}
+            // Nothing while the reply is out: the waiting line stands exactly
+            // where this does, and two greys in one place read as neither.
+            placeholder={
+              waiting
+                ? ''
+                : editMode
+                  ? 'Write a phrase, or hold one on the board to edit it…'
+                  : settings.autoSpeak
+                    ? 'Auto-speak is on — phrases are spoken, not collected here'
+                    : 'Dwell on a phrase or type…'
+            }
+            rows={1}
+            spellCheck
+            autoCapitalize="sentences"
+            // The board opens with the caret already in the box, so somebody with a
+            // keyboard can type the first thing they want to say without having to
+            // put it there first — and putting it there is the one thing a dwell
+            // could not do until `useCaretDwell`. A programmatic focus does not
+            // raise a phone's on-screen keyboard, which needs a real gesture.
+            autoFocus
+          />
 
-            Its own strip, not the modes'. That one holds exactly three, found
-            by position without being read, and `tests/app/App.test.tsx` asserts
-            it — nothing may be inserted. These are a different kind of thing
-            anyway: a mode is on or off, and these are one value out of many.
+          {/* Never a target: `pointer-events: none`, like every other indicator
+              here. A dwell user has no way to dismiss something that catches
+              one, so nothing that merely reports may also answer. */}
+          <div className="message-busy" role="status" aria-live="polite">
+            {waiting && (
+              <p className="message-busy-line">
+                <span className="busy-spinner" aria-hidden="true" />
+                Thinking of a reply…
+              </p>
+            )}
+          </div>
 
-            Not rendered at all on a narrow screen rather than hidden: each
-            builds the device's voice list, which is real work to do for
-            something never shown. */}
-        {wide && (
-          <div className="topbar-choices">
-            <LanguagePicker value={settings.language} onChange={onChooseLanguage}>
-              {({ label, open, isOpen }) => (
-                <ChoiceButton label={`Spoken language: ${label}. Choose another`} on={isOpen} onOpen={open}>
-                  {settings.language || 'auto'}
-                </ChoiceButton>
+          {/* The slot that empties the box, at the **left end of its lower
+              border** — of the message, or in edit mode of the phrase being
+              written along with whatever it was pointed at.
+
+              It was a full-size button in the rail, and moving it onto the
+              border is the bargain the mode strip already struck on the upper
+              one: the board gets the width back, and what it costs is a smaller
+              painted control overlapping the box, with an invisible area around
+              it a tracker can still hit. It keeps its place across both modes,
+              which is what makes the mode a change of meaning rather than a
+              change of layout.
+
+              The lower border rather than the upper because the upper one is
+              full: a mode in the middle, the values at the right, the microphone
+              at the left. Down here it shares the line with the edit strip,
+              which is centred, and has the left end to itself. */}
+          <div className="topbar-clear">
+            {editMode ? (
+              <ActionButton
+                className="on-border"
+                onSelect={() => startNew()}
+                label="Start a new phrase"
+                disabled={isUntouched}
+              >
+                <PlusIcon />
+              </ActionButton>
+            ) : (
+              <ActionButton
+                className="on-border"
+                onSelect={clearOrUndo}
+                label={showUndo ? 'Undo' : 'Clear'}
+                disabled={!canClear}
+              >
+                {showUndo ? <UndoIcon /> : <ClearIcon />}
+              </ActionButton>
+            )}
+          </div>
+
+          {/* The three that act on what is in the box, at the **upper right** of
+              its top border — where the language and the voice used to sit, and
+              they have gone to the bottom.
+
+              They were full-size buttons in a rail beside the box, and this is
+              the last of that rail: with them and the slot that empties the box
+              on its borders, what is left outside is the menu and the keyboard,
+              which are about the app rather than about the message. The board
+              gets the whole of that width.
+
+              **Three in both modes, in the same three places.** Outside edit
+              mode they are how a message leaves; inside it they are what becomes
+              of the phrase in the box. Paste means the same thing either way,
+              which is why it keeps the end of the row while the two beside it
+              change. */}
+          <div className="topbar-actions">
+            {/* Paste keeps the middle in both modes, being the one of the three
+                that means the same thing either way — the keyboard route into a
+                text box is Ctrl-V, which is exactly the input this app exists
+                without. Never disabled: what is on the clipboard is not this
+                app's to know until it asks. */}
+            {editMode ? (
+              <ActionButton
+                className="on-border danger"
+                onSelect={onDeletePhrase}
+                label={draft.kept ? `Forget this ${draft.kept}` : 'Delete phrase'}
+                disabled={draft.isNew}
+              >
+                <TrashIcon />
+              </ActionButton>
+            ) : (
+              <ActionButton className="on-border" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
+                <CopyIcon />
+              </ActionButton>
+            )}
+
+            <ActionButton className="on-border" onSelect={paste} label="Paste from clipboard">
+              <PasteIcon />
+            </ActionButton>
+
+            {/* **Last, and half again the size of the two beside it.** It is the
+                one the whole board exists to reach: everything else here edits
+                what is in the box, and this is what takes it out of the box and
+                into the room. Last because a row is read to its end and the end
+                is where a hand — or a gaze — comes to rest.
+
+                Edit mode puts Save in the same place at the same size, for the
+                reason the other two keep theirs: the mode is a change of meaning
+                rather than a change of layout, and Save is what this mode's box
+                is for. */}
+            {editMode ? (
+              <ActionButton
+                className="on-border is-primary"
+                onSelect={onSavePhrase}
+                label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
+                disabled={!draft.canSave}
+              >
+                <CheckIcon />
+              </ActionButton>
+            ) : (
+              <ActionButton className="on-border is-primary" onSelect={onSpeak} label="Speak" disabled={!text}>
+                <SpeakIcon />
+              </ActionButton>
+            )}
+          </div>
+
+          {/* The language and the voice, at the box's lower-right corner.
+
+              **Their faces are the values**: the tag itself, `en-US`, and the
+              voice's bare name. Six rem each — enough for "Samantha" and for any
+              tag there is, and past that an ellipsis, with the whole of it on the
+              control for a screen reader. Two words is what fits on a border; the
+              settings panel is where the full names are.
+
+              **In edit mode they are the phrase's, not the board's.** The box is
+              the phrase editor there, so everything riding its borders is about
+              the phrase in it — which is why the edit strip below no longer
+              carries a voice picker of its own: one pair of controls, meaning
+              whichever of the two the mode says, rather than two pairs that look
+              alike and are not. The language is the language that voice is *for*:
+              a phrase's own voice is remembered per language, so choosing one
+              says which of them is being given a voice, and it is still the
+              board's language because that is the one the lookup will use.
+
+              Not rendered at all on a narrow screen rather than hidden: each
+              builds the device's voice list, which is real work to do for
+              something never shown. **Edit mode is the exception**, at any width:
+              this is the only place a phrase can be given a voice of its own now,
+              and a control that exists on a monitor and not on a phone is a
+              feature somebody cannot reach rather than one they have to scroll
+              to. The cost it was gated on is a cost worth paying for the mode
+              somebody entered in order to change a phrase. */}
+          {(wide || editMode) && (
+            <div className="topbar-choices">
+              <LanguagePicker value={settings.language} onChange={onChooseLanguage}>
+                {({ label, open, isOpen }) => (
+                  <ChoiceButton
+                    label={
+                      editMode
+                        ? `Language this phrase's voice is for: ${label}. Choose another`
+                        : `Spoken language: ${label}. Choose another`
+                    }
+                    on={isOpen}
+                    onOpen={open}
+                  >
+                    {settings.language || 'auto'}
+                  </ChoiceButton>
+                )}
+              </LanguagePicker>
+
+              {editMode ? (
+                <VoicePicker
+                  value={draft.voice}
+                  onChange={editor.setVoice}
+                  defaultLabel="Same as everything else"
+                  sampleText={spokenDraft}
+                >
+                  {({ label, name, open, isOpen }) => (
+                    <ChoiceButton
+                      label={`Voice for this phrase: ${label}. Choose another`}
+                      on={isOpen}
+                      onOpen={open}
+                    >
+                      {name}
+                    </ChoiceButton>
+                  )}
+                </VoicePicker>
+              ) : (
+                <VoicePicker value={settings.voiceURI} onChange={onChooseVoice} defaultLabel="Default">
+                  {({ label, name, open, isOpen }) => (
+                    <ChoiceButton label={`Voice: ${label}. Choose another`} on={isOpen} onOpen={open}>
+                      {name}
+                    </ChoiceButton>
+                  )}
+                </VoicePicker>
               )}
-            </LanguagePicker>
+            </div>
+          )}
+        </div>
 
-            <VoicePicker value={settings.voiceURI} onChange={onChooseVoice} defaultLabel="Default">
-              {({ label, name, open, isOpen }) => (
-                <ChoiceButton label={`Voice: ${label}. Choose another`} on={isOpen} onOpen={open}>
-                  {name}
-                </ChoiceButton>
-              )}
-            </VoicePicker>
+        {/* Listen mode, at the box's upper-**left** corner, riding the same
+            border the modes ride at its middle and the two values ride at the
+            right. The three corners of that border are now all spoken for, and
+            each holds a different kind of thing: a mode in the middle, a value
+            at the right, and at the left the one control that opens a surface
+            of its own.
+
+            **Not drawn at all where the browser cannot listen.** A button that
+            does nothing is worse than no button anywhere, and on a board aimed
+            at by gaze it is a target spent for nothing. */}
+        {listener.available && (
+          <div className="topbar-listen">
+            <ModeToggle
+              className="listen-toggle"
+              on={listener.open}
+              onToggle={listener.toggle}
+              label={listener.open ? 'Stop listening' : 'Listen to a question'}
+            >
+              <MicIcon />
+            </ModeToggle>
           </div>
         )}
       </div>
-
-      {/* Three on the right in both modes, in the same three places. Outside
-          edit mode they are how a message leaves; inside it they are what
-          becomes of the phrase in the box. Paste is the one that means the same
-          thing either way, so it keeps its place at the end. */}
-      {editMode ? (
-        <>
-          <ActionButton
-            className="right"
-            onSelect={onSavePhrase}
-            label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
-            disabled={!draft.canSave}
-          >
-            <CheckIcon />
-          </ActionButton>
-
-          {/* Quiet rather than gone while there is nothing to delete: a control
-              that comes and goes moves the ones beside it, and these are aimed
-              at rather than read. */}
-          <ActionButton
-            className="right danger"
-            onSelect={onDeletePhrase}
-            label={draft.kept ? `Forget this ${draft.kept}` : 'Delete phrase'}
-            disabled={draft.isNew}
-          >
-            <TrashIcon />
-          </ActionButton>
-        </>
-      ) : (
-        <>
-          <ActionButton className="right" onSelect={onSpeak} label="Speak" disabled={!text}>
-            <SpeakIcon />
-          </ActionButton>
-
-          <ActionButton className="right" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
-            <CopyIcon />
-          </ActionButton>
-        </>
-      )}
-
-      {/* Beside copy, because they are the pair. The keyboard route into this box
-          is Ctrl-V, which a dwell user does not have — so a control asks on their
-          behalf. Never disabled: what is on the clipboard is not this app's to
-          know until it asks, so a paste that turns out to have nothing behind it
-          says so rather than being greyed out on a guess. */}
-      <ActionButton className="right" onSelect={paste} label="Paste from clipboard">
-        <PasteIcon />
-      </ActionButton>
 
       {/* The other strip, on the box's lower border, and centred on it exactly
           as the modes are on the upper one. A phrase has two things besides its
@@ -572,7 +755,6 @@ export function Topbar({
           categories={categories}
           countFor={countFor}
           onCategory={editor.setCategory}
-          onVoice={editor.setVoice}
           onCreateCategory={onCreateCategory}
         />
       )}

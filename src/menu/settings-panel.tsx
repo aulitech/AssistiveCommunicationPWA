@@ -13,8 +13,24 @@ import { type AliasStore } from '../core/phrases'
 import { buildBackup } from '../core/backup'
 import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
 import { useSettings } from '../ui/settings'
-import { DEFAULT_SETTINGS, chooseLanguage, chooseVoice, factoryReset } from '../core/store'
-import { PanelButton, ScrollPane, SettingRow, SettingSpinner } from '../ui/controls'
+import {
+  DEFAULT_SETTINGS,
+  REPLY_MODELS,
+  chooseLanguage,
+  forgetReplyContext,
+  chooseVoice,
+  factoryReset,
+  replyModelName,
+} from '../core/store'
+import {
+  PanelButton,
+  PickerModal,
+  PickerTile,
+  PickerTrigger,
+  ScrollPane,
+  SettingRow,
+  SettingSpinner,
+} from '../ui/controls'
 import { useDwellControl } from '../ui/dwell'
 import { CopyIcon, EyeIcon, EyeOffIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
@@ -106,7 +122,7 @@ function LanguageRow() {
    * It sat on a row of its own while the key was the user's to supply. There is
    * no key to supply now, so it belongs on the control that starts the sending
    * — and it says the shape of it rather than the mechanism: what never leaves,
-   * what does, once each, and that the red bar still never waits.
+   * what does, once each, and that the emergency bar still never waits.
    *
    * The second case is a build with no key in it. That is invisible from the
    * board — phrases somebody wrote are simply spoken in English — so it is said
@@ -148,6 +164,8 @@ export function SettingsPanel({
   sync,
   account,
   onAccountChange,
+  replyKey,
+  onReplyKeyChange,
 }: {
   /** Only so the reset confirmation can offer a backup before it wipes them. */
   store: PhraseStore
@@ -161,6 +179,9 @@ export function SettingsPanel({
    */
   account: ElevenLabsAccount | null
   onAccountChange: (next: ElevenLabsAccount | null) => void
+  /** The key behind a suggested reply, held by the screen because sync sends it. */
+  replyKey: string
+  onReplyKeyChange: (next: string) => void
 }) {
   const { settings, update } = useSettings()
   const [confirmingReset, setConfirmingReset] = useState(false)
@@ -269,6 +290,7 @@ export function SettingsPanel({
         <VoiceRow />
         <SyncRow sync={sync} />
         <ElevenLabsRow account={account} onChange={onAccountChange} />
+        <SuggestedRepliesRow value={replyKey} onChange={onReplyKeyChange} />
 
         {/* Last, and away from the values it undoes. Every revert above puts one
             setting back; this puts the whole device back, and the two should not
@@ -672,3 +694,112 @@ function ElevenLabsRow({
 // ── ProfilePanel ──────────────────────────────────────────────────────────────
 // Supplies the values behind {contact} and {name.nickname}. Typed rather than
 // dwelled: it is one-off setup, usually done by whoever sets the device up.
+
+/**
+ * The key behind a suggested reply.
+ *
+ * **Theirs, like the ElevenLabs key and unlike the translation key**, and the
+ * difference is not a preference. A Google key can be pinned to one site by
+ * referrer, so Peri's own can be inlined into the bundle and what a lifted one
+ * costs is quota. Nothing restricts an Anthropic key that way: one shipped in
+ * this bundle would be one anybody could lift and spend without limit. So it is
+ * set up here, and it bills the person who chose the feature.
+ *
+ * Typed rather than dwelled, like the rest of the one-off setup. Hidden once it
+ * is set, with the eye and the copy beside it, because the second device needs
+ * the same one and this panel spans the viewport in rooms with other people in
+ * them.
+ */
+function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  const { settings, update } = useSettings()
+  const [typed, setTyped] = useState('')
+  const [choosing, setChoosing] = useState(false)
+  const [forgotten, setForgotten] = useState(false)
+
+  const save = useCallback(() => {
+    const key = typed.trim()
+    if (!key) return
+    setTyped('')
+    onChange(key)
+  }, [typed, onChange])
+
+  return (
+    <div className="setting-row eleven-row">
+      <span className="setting-label">Suggested replies</span>
+      <div className="setting-control eleven-control">
+        {value ? (
+          <>
+            <span className="eleven-status">Set up</span>
+            <PanelButton kind="danger" label="Remove" onActivate={() => onChange('')} />
+            <SecretField value={value} name="the API key" label="Suggested replies API key" />
+
+            {/* Only with a key, because without one it would set nothing. A full
+                screen of tiles rather than a list that drops down, for the
+                reason every choice in this app is one: an operating system draws
+                a native list outside the page, where nothing can be hovered and
+                so nothing can be dwelled. */}
+            <PickerTrigger
+              className="reply-model-trigger"
+              label={replyModelName(settings.replyModel)}
+              name={`Model for suggested replies: ${replyModelName(settings.replyModel)}. Choose another`}
+              open={choosing}
+              onOpen={() => setChoosing(true)}
+            />
+
+            {/* Housekeeping rather than something wanted mid-conversation, so it
+                is here and not on the board. It goes on its own anyway after a
+                day; this is for the person who wants it gone now. */}
+            <PanelButton
+              kind="plain"
+              label={forgotten ? 'Conversation forgotten' : "Forget today's conversation"}
+              onActivate={() => {
+                forgetReplyContext()
+                setForgotten(true)
+              }}
+              disabled={forgotten}
+            />
+          </>
+        ) : (
+          <>
+            <SecretField
+              value={typed}
+              name="the API key"
+              label="Suggested replies API key"
+              placeholder="Paste your Anthropic API key"
+              onChange={setTyped}
+              onEnter={save}
+            />
+            <PanelButton kind="primary" label="Save" onActivate={save} disabled={typed.trim() === ''} />
+          </>
+        )}
+        <p className="eleven-note">
+          {value
+            ? "The microphone button on the message box can suggest a reply to a question it heard. The question is sent to Anthropic on your own account and your own credits, and where the answer needs looking up it is searched for on the web as well. Today's questions and replies are kept on this device so a conversation carries on making sense, and forgotten after a day. A suggestion is only ever put in the message box — Peri never speaks one for you."
+            : 'Optional. Lets the microphone button suggest a reply to a question it heard, using your own Anthropic account. Questions that need looking up are searched for on the web. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
+        </p>
+      </div>
+
+      {choosing && (
+        <PickerModal
+          title="Model for suggested replies"
+          hint="Quicker, or better at reading a question. Somebody is waiting in front of you, so the quickest is the default."
+          onDone={() => setChoosing(false)}
+          onCancel={() => setChoosing(false)}
+        >
+          {REPLY_MODELS.map(model => (
+            <PickerTile
+              key={model.id}
+              name={model.name}
+              detail={model.detail}
+              selected={model.id === settings.replyModel}
+              onSelect={() => {
+                update({ replyModel: model.id })
+                setChoosing(false)
+              }}
+            />
+          ))}
+        </PickerModal>
+      )}
+    </div>
+  )
+}

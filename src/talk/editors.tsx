@@ -1,17 +1,18 @@
 // Editing what is on the board.
 //
 // The phrase editor is not here any more: in edit mode the message box *is* the
-// editor, and the strip below it — `PhraseEditBar` — carries the two things a
-// phrase has besides its words, its category and its voice. What is left in this
-// file is that strip, the grid its category is chosen from, and the one dialog
-// that survives, which is about a category rather than a phrase.
+// editor, and the strip below it — `PhraseEditBar` — says what is being edited
+// and where it is filed. **Its voice is not here either**: that rides the box's
+// lower-right corner with the language, which in edit mode is the phrase's pair
+// rather than the board's — one pair of controls meaning whichever of the two
+// the mode says, rather than two pairs that look alike and are not. What is left
+// in this file is that strip, the grid a category is chosen from, and the one
+// dialog that survives, which is about a category rather than a phrase.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
-import { compose, parseSegments } from '../core/phrases'
 import { PickerModal, PickerTile } from '../ui/controls'
-import { VoicePicker } from '../voice/picker'
 import { cx, dwellVar } from '../ui/style'
 import { type Draft } from './use-editor'
 
@@ -158,22 +159,14 @@ export function PhraseEditBar({
   categories,
   countFor,
   onCategory,
-  onVoice,
   onCreateCategory,
 }: {
   draft: Draft
   categories: string[]
   countFor: (name: string) => number
   onCategory: (name: string) => void
-  onVoice: (voiceURI: string) => void
   onCreateCategory: () => void
 }) {
-  // What the phrase reads as, not what it is written as: the voice picker
-  // speaks a sample the moment a voice is chosen, and nobody wants to hear
-  // "open curly bracket, quote, red, quote" read out — least of all charged to
-  // an account by the character.
-  const spoken = useMemo(() => compose(parseSegments(draft.text)), [draft.text])
-
   return (
     <div className="edit-bar" role="group" aria-label="Phrase being edited">
       {/* What is being edited — or, where the words are already on the board,
@@ -207,17 +200,6 @@ export function PhraseEditBar({
           onCreate={onCreateCategory}
         />
       )}
-
-      {/* Optional, and off by default: a board with one voice is the ordinary
-          case, and this is for the phrases that want another — somebody quoting
-          a person, a name said the way its owner says it, a phrase that has to
-          cut through a noisy room. */}
-      <VoicePicker
-        value={draft.voice}
-        onChange={onVoice}
-        defaultLabel="Same as everything else"
-        sampleText={spoken}
-      />
     </div>
   )
 }

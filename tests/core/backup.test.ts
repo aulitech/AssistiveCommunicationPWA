@@ -14,9 +14,16 @@ import {
   type AppState,
   type Backup,
 } from '../../src/core/backup'
-import { DEFAULT_SETTINGS, emptyStore, type PhraseStore } from '../../src/core/store'
+import { DEFAULT_REPLY_MODEL, DEFAULT_SETTINGS, emptyStore, type PhraseStore } from '../../src/core/store'
 import { EMPTY_ALIASES, type AliasStore } from '../../src/core/phrases'
-import { saveElevenLabs, saveSent, saveTranslated, saveUsage } from '../../src/core/store'
+import {
+  saveElevenLabs,
+  saveReplyContext,
+  saveReplyKey,
+  saveSent,
+  saveTranslated,
+  saveUsage,
+} from '../../src/core/store'
 
 // A store with something of the user's in every field, and the map of ids to
 // categories the app would hand alongside it.
@@ -280,6 +287,10 @@ describe('reading a backup back', () => {
           voicesByLanguage: { 'es-PR': 'Monica', 'Klingon, obviously': 'Worf', vi: 42, '': 'Samantha' },
           autoSpeak: 'yes',
           zoom: 9,
+          // A model this build has never heard of. It is handed to somebody
+          // else's API, so a file must not be able to choose one that fails on
+          // the first question rather than in the settings panel.
+          replyModel: 'some-model-from-later',
         },
       }),
     )
@@ -304,7 +315,26 @@ describe('reading a backup back', () => {
       // A file does not get to make the text nine times its size, which would
       // take the settings panel down with it.
       zoom: 2,
+      // Nor name a model this build cannot call.
+      replyModel: DEFAULT_REPLY_MODEL,
     })
+  })
+
+  /**
+   * The other half of holding it to a list: a model the build *does* know has to
+   * survive the trip, or the setting would quietly go back to the default every
+   * time a board was restored or arrived from another device.
+   */
+  it('carries a model it knows through a file unchanged', () => {
+    const result = parseBackup(
+      JSON.stringify({
+        format: BACKUP_FORMAT,
+        version: 1,
+        settings: { replyModel: 'claude-sonnet-5' },
+      }),
+    )
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.backup.settings?.replyModel).toBe('claude-sonnet-5')
   })
 
   it('falls back to the defaults for a setting that is missing or nonsense', () => {
@@ -606,6 +636,33 @@ describe('what a backup must never carry', () => {
 
     expect(file).not.toContain('poitrine')
     expect(file).not.toContain('My chest hurts')
+  })
+
+  /**
+   * And nor does the key behind a suggested reply. Same rule as the ElevenLabs
+   * key, same reason: a backup is a file made to be handed to somebody else, and
+   * a key in one hands over an account somebody is billed for.
+   */
+  it('leaves the key for suggested replies out of the file', () => {
+    saveReplyKey('sk-ant-secret-1234')
+    const { state, categoryById } = fixture()
+    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+
+    expect(file).not.toContain('sk-ant-secret-1234')
+  })
+
+  /**
+   * Nor today's conversation. It is a record of what somebody was actually asked
+   * in a care room, which is the same kind of thing as the Sent list and gets
+   * the same answer.
+   */
+  it('leaves the questions it was asked today out of the file', () => {
+    saveReplyContext([{ at: Date.now(), question: 'Did the chest pain come back?', reply: 'Yes, this morning' }])
+    const { state, categoryById } = fixture()
+    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+
+    expect(file).not.toContain('chest pain')
+    expect(file).not.toContain('this morning')
   })
 
   // The chosen voice does travel, and on a device with no account of its own it

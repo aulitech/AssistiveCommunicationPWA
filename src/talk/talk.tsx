@@ -18,11 +18,14 @@ import { search } from '../core/search'
 import { sortPhrases } from '../core/sort'
 import {
   loadElevenLabs,
+  forgetReplyContext,
+  loadReplyKey,
   loadPhraseSorts,
   loadRecent,
   sameAccount,
   saveElevenLabs,
   savePhraseSorts,
+  saveReplyKey,
   saveRecent,
   setSortFor,
   sortFor,
@@ -52,6 +55,7 @@ import { useBoard } from './use-board'
 import { useComposer } from './use-composer'
 import { useEditor } from './use-editor'
 import { SENT_CATEGORY, SENT_FILTER, useSent } from './use-sent'
+import { useListen } from './use-listen'
 import { TRANSLATED_CATEGORY, TRANSLATED_FILTER, useTranslated, voiceForTranslated } from './use-translated'
 import { useUsage } from './use-usage'
 import { useToast } from './use-toast'
@@ -67,6 +71,23 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // language is the one translation that is nowhere on the board.
   const translated = useTranslated()
   const composer = useComposer({ onTranslated: translated.record })
+  /**
+   * The key behind a suggested reply, held here for the same two reasons the
+   * account above is: it is part of what synchronizing sends, and a settings row
+   * holding its own copy would go stale the moment a board arrived carrying a
+   * different one.
+   */
+  const [replyKey, setStoredReplyKey] = useState(loadReplyKey)
+  const setReplyKey = useCallback((next: string) => {
+    if (next === loadReplyKey()) return
+    saveReplyKey(next)
+    // Taking the key away takes today's conversation with it. What is left
+    // otherwise is a transcript of what somebody was asked, kept on behalf of a
+    // feature they have just switched off.
+    if (!next) forgetReplyContext()
+    setStoredReplyKey(next)
+  }, [])
+
   const { toast, flashToast } = useToast()
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -100,6 +121,24 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // every render: a callback depending on the whole of it would change identity
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
   const { insert: insertPhrase, text: message, currentWord, copy: copyMessage, speak: speakMessage } = composer
+
+  /**
+   * Listen mode: the other half of the conversation — see `use-listen.ts`.
+   *
+   * A suggested reply is `propose`d rather than set, so whatever was in the
+   * message box is one dwell on Undo away. **Nothing here speaks**, whatever
+   * mode the board is in.
+   */
+  const listener = useListen({
+    language: settings.language,
+    replyKey,
+    replyModel: settings.replyModel,
+    // Edit mode counts as not empty however little is in the draft: the box is
+    // showing a phrase there, and a reply landing in the message behind it
+    // would be one nobody could see and an exchange nobody asked to pay for.
+    messageEmpty: !editMode && message.trim() === '',
+    onSuggest: composer.propose,
+  })
 
   // Derived from the live phrase list so user-added categories get a tab and
   // fully-hidden categories lose theirs.
@@ -594,7 +633,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   )
 
   /** Everything sync carries: the board, and what a backup file may not hold. */
-  const syncPayload = useMemo(() => ({ backup: syncBackup, account }), [syncBackup, account])
+  const syncPayload = useMemo(() => ({ backup: syncBackup, account, replyKey }), [syncBackup, account, replyKey])
 
   // A board that arrived from another device lands exactly as a restored backup
   // does — in one go, with a line saying where it came from, because a grid that
@@ -609,9 +648,13 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // an ElevenLabs voice on one device still sound like itself on the next.
       // `setAccount` ignores one that has not changed — see there.
       setAccount(incoming.account)
+      // And the key behind a suggested reply, for the same reason: it is what
+      // makes the feature work on the second device without forty characters of
+      // noise being typed into it by dwell.
+      setReplyKey(incoming.replyKey)
       flashToast(`Board updated from your other device (${from})`)
     },
-    [board, store, settings, update, flashToast, setAccount],
+    [board, store, settings, update, flashToast, setAccount, setReplyKey],
   )
 
   // The shipped translations for whichever language the board is spoken in,
@@ -682,6 +725,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             onSpeak={handleSpeak}
             onCopy={handleCopy}
             onPasted={reportPaste}
+            listener={listener}
             categories={allCategories}
             countFor={countFor}
             onCreateCategory={openCategoryForDraft}
@@ -761,6 +805,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             sync={sync}
             account={account}
             onAccountChange={setAccount}
+            replyKey={replyKey}
+            onReplyKeyChange={setReplyKey}
           />
 
           {/* Portalled and fixed, so it is above a panel as well as above the

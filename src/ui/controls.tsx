@@ -10,8 +10,10 @@ import { createPortal } from 'react-dom'
 import { useDwellControl } from './dwell'
 import { useSettings } from './settings'
 import { ResetIcon } from './icons'
-import type { ProseSection } from '../core/prose'
+import { prosePieces, type ProseSection } from '../core/prose'
+import { PROSE_ICONS } from './prose-icons'
 import { cx, dwellVar } from './style'
+import { useSettled } from './settle'
 
 export function DwellCursor() {
   const ref = useRef<HTMLDivElement>(null)
@@ -392,18 +394,43 @@ export function ScrollPane({
   )
 }
 
+/**
+ * A line, with the icons it names drawn where they stand.
+ *
+ * `aria-hidden`, because the words either side already say what the control is:
+ * a screen reader reading "rest on the speaker-icon button" twice over is worse
+ * than one reading the sentence as written.
+ */
+function ProseLine({ line }: { line: string }) {
+  return (
+    <>
+      {prosePieces(line).map((piece, i) => {
+        if ('word' in piece) return piece.word
+        const Icon = PROSE_ICONS[piece.icon]
+        return Icon ? (
+          <span key={i} className="prose-icon" aria-hidden="true">
+            <Icon />
+          </span>
+        ) : null
+      })}
+    </>
+  )
+}
+
 function ProseBlocks({ blocks }: { blocks: ProseSection['blocks'] }) {
   return (
     <>
       {blocks.map((block, i) =>
         block.kind === 'text' ? (
           <p key={i} className="help-text">
-            {block.text}
+            <ProseLine line={block.text} />
           </p>
         ) : (
           <ul key={i} className="help-list">
             {block.items.map(item => (
-              <li key={item}>{item}</li>
+              <li key={item}>
+                <ProseLine line={item} />
+              </li>
             ))}
           </ul>
         ),
@@ -794,40 +821,6 @@ export function PickerFilter({
       <span className="picker-filter-count">{count}</span>
     </div>
   )
-}
-
-/**
- * How long the app has to be busy before it says so.
- *
- * A spinner that appears for the fifty milliseconds a warm sync takes is a
- * flicker, and a flicker costs more here than anywhere else: the pointer *is*
- * the user's gaze, so anything that catches the eye moves it — an indicator
- * that blinks does not just distract, it aims.
- */
-const BUSY_DELAY_MS = 250
-
-/**
- * True once `on` has stayed true for a moment. Going off is immediate: the
- * delay is there to swallow flickers, not to leave one on screen after the
- * work is done.
- *
- * Adjusted during render rather than in an effect, the way the grid tracks the
- * list it windowed — a pass showing "still working" after it has stopped is the
- * exact thing being avoided.
- */
-function useSettled(on: boolean): boolean {
-  const [shown, setShown] = useState(false)
-  const [wasOn, setWasOn] = useState(on)
-  if (wasOn !== on) {
-    setWasOn(on)
-    if (!on) setShown(false)
-  }
-  useEffect(() => {
-    if (!on) return
-    const timer = setTimeout(() => setShown(true), BUSY_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [on])
-  return shown
 }
 
 /**

@@ -28,10 +28,12 @@
   --text-muted: #b0b0b0;
   --accent: #22c55e;
   --accent-dim: rgba(34, 197, 94, 0.15);
-  /* Two reds' worth of meaning, told apart. `--danger` is destruction — delete
-     a phrase, empty the board, sign out — and `--urgent` is the emergency bar,
-     which is not destroying anything and must not be read as if it were.
-     Nothing outside those two ideas is red anywhere in the app. */
+  /* Two urgencies, told apart by **being different colours entirely**. `--danger`
+     is destruction — delete a phrase, empty the board, sign out — and it is the
+     only red in the app. `--urgent` is the emergency bar, which is not destroying
+     anything and must not be read as if it were: it was red, and a red bar said
+     *careful* where it needed to say *here, now*. Nothing outside those two ideas
+     is either colour anywhere in the app. */
   --danger: #ef4444;
   --urgent: #4fcaf0;
   --dwell-color: #22c55e;
@@ -107,14 +109,44 @@ body {
   /* The top padding is half the mode strip, which is built out of rem itself —
      so it is written in rem too and the two cannot come apart when the root
      font-size changes. */
-  padding: 1rem 10px 10px;
+  /* Half of the tallest strip on each border, or it hangs over the bar. The
+     upper one carries the 3rem control that speaks, which with its own padding
+     is 3.5rem; the lower one carries the two value controls, which are small.
+     In edit mode `--edit-bar-inset` takes the bottom, being the larger there. */
+  padding: 1.75rem 10px 1rem;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
+
+  /* How tall either box is allowed to get. **One number for both**, because the
+     two are held to one height — see `topbar.tsx` — and a pair kept equal by
+     measurement but capped by two different numbers would come apart at exactly
+     the point one of them was full. Five lines of 1.35rem at 1.4 plus the
+     padding, and never more than a third of a short screen. */
+  --box-max-height: min(11rem, 33dvh);
+  /* The padding both boxes take, as two numbers rather than one shorthand: the
+     waiting line inside the message box has to stand exactly where the first
+     line of text does, and it can only ask for the halves separately. */
+  --box-pad-y: 0.75rem;
+  --box-pad-x: 0.9rem;
+}
+
+/* The message box and the one strip that belongs to it rather than to the pair
+   of boxes. The wrapper exists only to be positioned against: the microphone and
+   the two value controls hang off `.text-display-wrap`, where they hold one point
+   on screen whether listen mode is open or not, but the control that empties the
+   message has to follow the message — on a wide screen the wrapper's left edge is
+   the *question's* left edge, and a Clear there would be a Clear on somebody
+   else's words. `min-width: 0` for the reason the wrapper has it. */
+.message-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 .text-display {
-  flex: 1;
+  display: block;
+  width: 100%;
   /* In rem, like the type inside it: a box fixed in pixels around text that
      scales is a box that clips the moment anybody turns the zoom up. One line
      of 1.35rem at 1.4, plus this padding, is 3.4rem — so the pair of numbers
@@ -126,8 +158,8 @@ body {
      at 1.4, plus the padding, and never more than a third of a short screen:
      the board underneath is what somebody is speaking with, and a message box
      that ate it would be a box with nothing to put in it. */
-  max-height: min(11rem, 33dvh);
-  padding: 0.75rem 0.9rem;
+  max-height: var(--box-max-height);
+  padding: var(--box-pad-y) var(--box-pad-x);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -143,6 +175,30 @@ body {
   cursor: text;
   user-select: text;
   -webkit-user-select: text;
+}
+
+/* Where the reply is coming, said in the box it is coming to. Standing at the
+   first line's own origin, in the placeholder's grey and the box's own type, so
+   it reads as the words arriving rather than as a badge stuck over them. */
+.message-busy {
+  position: absolute;
+  top: var(--box-pad-y);
+  left: var(--box-pad-x);
+  right: var(--box-pad-x);
+  /* Reports, never answers — a dwell user has no way to dismiss something that
+     catches one, so nothing here may also be a target. */
+  pointer-events: none;
+}
+
+.message-busy-line {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .text-display::-webkit-scrollbar { display: none; }
@@ -171,8 +227,60 @@ body {
   -webkit-user-select: none;
 }
 
-.icon-btn.left { margin-left: 0; margin-right: 8px; }
-.icon-btn.right { margin-left: 8px; margin-right: 0; }
+
+/* The same button painted small enough to ride a border — see `.topbar-clear`.
+   The bordered `--cell` square is dropped for the ground the strip paints, and
+   the invisible hit area is the one `.mode-btn` carries, since this is now the
+   same kind of control sitting in the same kind of place. */
+.icon-btn.on-border {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.icon-btn.on-border::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.icon-btn.on-border svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* **The one the whole board exists to reach**, and half again the size of the
+   two beside it: everything else on this border edits what is in the box, and
+   this is what takes it out of the box and into the room. Speak outside edit
+   mode, Save inside it — the same place at the same size, because the mode is a
+   change of meaning rather than a change of layout.
+ *
+ * Its glyph is 3rem, so the strip it rides is 3.5rem tall and the border it
+ * rides is the top of the box; `.topbar` padding-top is half of that, which is
+ * the rule the strip on that border has always followed. */
+.icon-btn.on-border.is-primary {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 10px;
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.icon-btn.on-border.is-primary svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Quiet rather than gone with nothing to say, the same as everywhere else here
+   — but the ground goes with it, or an empty box would still be showing the one
+   control on this bar that looks ready. */
+.icon-btn.on-border.is-primary:disabled {
+  background: transparent;
+  color: var(--text-muted);
+}
 
 .icon-btn svg {
   width: 22px;
@@ -374,10 +482,36 @@ body {
   flex: 1;
   min-width: 0;
   display: flex;
+  /* Two boxes once listen mode is open, and wrapping is what lets one rule lay
+     them out both ways: the heard box takes a whole line to itself and the
+     message falls underneath, until the wide-screen rule below puts them on one
+     line together. */
+  flex-wrap: wrap;
+  /* The gutter between them. **2rem is a target-separation number here rather
+     than a spacing one** — both of these are dwell targets, and a gaze crossing
+     from the question to the answer must not catch the wrong one on the way. A
+     flex gap does not shrink, so writing it here makes 2rem a floor as well as
+     a size. Stacked, they are half a rem apart, which is the margin the heard
+     box used to carry itself. */
+  column-gap: 2rem;
+  /* Stacked, this gap holds two things that reach into it: the heard box's tools
+     hang half their height below it, and the mode strip stands half its height
+     above the message box. Two rem leaves a rem of air between them and keeps the
+     stacked height exactly what it was before the tools moved onto the border —
+     the row they used to sit in was taller than the half of one that hangs down
+     now. */
+  row-gap: 2rem;
+  /* Top-aligned rather than stretched. Both boxes grow with what is in them, and
+     a message box stretched to the height of the question beside it would be a
+     box sized by somebody else's words. */
+  align-items: flex-start;
 }
 
-/* The language and the voice, at the box's upper-right corner, riding the same
-   border the modes ride at its middle.
+/* The language and the voice, now at the box's **lower**-right corner: the upper
+   one is the three that act on the message, and these are neither about the
+   message nor urgent — they are set once and left, which is the border to be on.
+   Against `.message-wrap`, because the pair of boxes ends wherever the taller of
+   the two does and that is not where this box's border falls.
 
    **No background of its own**, unlike the mode strip. That one is opaque
    because its three controls are transparent and the box would show through
@@ -389,11 +523,321 @@ body {
    Whether it is on screen is decided in `topbar.tsx`, not here — these are not
    cheap to mount and hide, each building the device's voice list — so this
    carries no breakpoint of its own. */
-.topbar-choices {
+/* Listen mode, at the box's upper-**left** corner, mirroring `.topbar-choices`
+   at the right and riding the same border the modes ride at the middle. Left
+   rather than right because the right is already two controls wide, and a gaze
+   crossing to reach the language must not pass over a microphone on the way.
+
+   **Opaque, for the reason `.topbar-modes` is.** The control inside it paints
+   nothing of its own, so it sat directly on the box's border with whatever had
+   been typed showing through around it. `.topbar-choices` needs no ground
+   because each of its two paints `--bg` and draws a border; this one does not.
+   Black rather than `--surface`, so the two grounds on this border match. */
+.topbar-listen {
+  position: absolute;
+  top: 0;
+  left: 0.6rem;
+  transform: translateY(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  background: #000;
+  padding: 0.25rem;
+  border-radius: 999px;
+}
+
+/* The three that act on what is in the box, at the **right end of its upper
+   border** — where the language and the voice used to sit, before they went to
+   the bottom.
+ *
+ * They were full-size buttons in a rail beside the box, and this is the last of
+ * that rail: with them and the slot that empties the box on its borders, what is
+ * left outside is the menu and the keyboard, which are about the app rather than
+ * about the message. The board gets the whole of that width.
+ *
+ * **1.25rem apart rather than the 0.75rem the mode strip packs its three into.**
+ * That much is what clears the invisible area each carries — `.on-border::before`
+ * reaches 8px past every edge — so no two of these overlap anywhere. The modes
+ * can afford to be tighter: they are three states of one thing, and picking the
+ * wrong one costs a dwell to put back. One of these deletes a phrase.
+ *
+ * Positioned against `.message-wrap`, not the pair of boxes: they act on the
+ * message, and on a wide screen with listen mode open the pair's corner belongs
+ * to the question. */
+.topbar-actions {
   position: absolute;
   top: 0;
   right: 0.6rem;
   transform: translateY(-50%);
+  z-index: 90;
+
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+
+  /* Opaque, for the reason `.topbar-modes` is: these paint nothing of their own
+     now, and sat on the border with it and the typed text showing through. */
+  background: #000;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+}
+
+/* Clear, or undo — and in edit mode, start a new phrase — at the **left end of
+   the message box's lower border**, mirroring the microphone at the left end of
+   the upper one.
+ *
+ * It was a full-size button in the rail beside the box. Moving it onto a border
+ * is the bargain the mode strip already struck: the board gets 3.5rem of width
+ * back, and what it costs is a control painted small enough to sit on a border,
+ * with an invisible area around it that a head or eye tracker can still hit —
+ * `.icon-btn.on-border::before`.
+ *
+ * **The lower border, because the upper one is full** — a mode in the middle,
+ * the values at the right, the microphone at the left. Two controls on the left
+ * of a box 3.5rem tall cannot keep the air this app puts between gaze targets;
+ * one at each end of the box can, and the distance only grows as the box does.
+ *
+ * Down here it shares the line with `.edit-bar`, which is centred, and has the
+ * left end to itself. On a screen too narrow for that strip's own content the
+ * two meet, which is why this one is a layer above: it is the smaller target and
+ * the fixed one, and the strip it would be under scrolls sideways to reach the
+ * rest of itself.
+ *
+ * Positioned against `.message-wrap` rather than the wrapper the microphone hangs
+ * off, because what it empties is the message: on a wide screen with listen mode
+ * open, the wrapper's left edge is the question's. */
+.topbar-clear {
+  position: absolute;
+  bottom: 0;
+  left: 0.6rem;
+  transform: translateY(50%);
+  z-index: 91;
+  display: flex;
+  align-items: center;
+  background: #000;
+  padding: 0.25rem;
+  border-radius: 999px;
+}
+
+/* The heard box: somebody else's words. Its own ground, so the two read as two
+   things rather than as one box that grew. Above the message on a narrow screen
+   and beside it on a wide one — see the wide-screen rule below. */
+.heard-wrap {
+  /* The row of tools rides this box's lower border, which means pulling it up by
+     half its own height *and* by the gap it would otherwise sit below. Both
+     numbers are named here so the pull cannot come apart from what it is pulling
+     — the `--edit-bar-inset` lesson, one size smaller. */
+  --heard-tool: 2.2rem;
+  --heard-gap: 0.4rem;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--heard-gap);
+  /* A whole line, so the message box falls underneath it. The wide-screen rule
+     below is the one place that changes. `min-width: 0` because a textarea will
+     not shrink below the width its `cols` implies without it, and there it is
+     asked to. */
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.heard-text {
+  /* The message box's twin: the same floor, the same padding, the same cap. The
+     two are held to one height by measurement — see `topbar.tsx` — and these are
+     what decide the height they are held to when neither is measurable, which is
+     every box before its first paint and every box under jsdom. Written as the
+     same numbers rather than as smaller ones, because two boxes set in the same
+     type and made the same height that still started their first line a quarter
+     of a rem apart would look like a mistake nobody could name. */
+  min-height: 3.5rem;
+  max-height: var(--box-max-height);
+  padding: var(--box-pad-y) var(--box-pad-x);
+  background: var(--bg);
+  /* Dashed, as edit mode marks the box it has taken over: this is a box that is
+     not the message, and the difference has to read without being looked at. */
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  /* **The same type as the message box**, and held to it by a test. These are
+     two boxes of somebody's speech read side by side at arm's length or more, and
+     setting the question smaller than the answer made a hierarchy out of what is
+     really two halves of one conversation — the question is the half the person
+     using the board did not write and has the most trouble following. The padding
+     stays tighter, which is a question of how much room the box takes rather than
+     of how the words in it are set. */
+  font-size: 1.35rem;
+  font-weight: 500;
+  font-family: var(--font);
+  line-height: 1.4;
+  color: var(--text);
+  resize: none;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* **Stacked, the pair is spending one screen's height between them.** They are
+   the same height as each other now, so a third of a short screen each is
+   two-thirds of it spent on a topbar, with the board somebody is answering from
+   in what is left. A fifth each while the question is on screen, which is the
+   share the question alone used to get.
+
+   A clamp on top of the shared cap rather than a second value for it: written
+   out again, the two would come apart, and the cap is already a number this app
+   only says once. The wide-screen rule below takes the clamp off, the pair
+   spending width there instead.
+
+   Selectors that can only match while the question is on screen, rather than a
+   class saying so — the heard box being in the document *is* the condition. */
+.heard-wrap .heard-text,
+.heard-wrap ~ .message-wrap .text-display {
+  max-height: min(var(--box-max-height), 20dvh);
+}
+
+/* The fill is painted as a background layer for the reason the message box
+   paints its own that way: an input can hold no children, so there is nowhere
+   to put a `.dwell-bar`.
+ *
+ * **It has to be `boxDwellFill` and not `dwellFillH`.** That one animates the
+ * element's own `width` from nought, which is right for a `.dwell-bar` inside a
+ * control and is the box itself collapsing and growing back when it is put on
+ * one — a box flickering under the pointer resting in it, with the text
+ * rewrapping and both boxes re-measuring all the way. The bar never even showed:
+ * `background-size` was left at nought the whole time. */
+.heard-text.dwelling {
+  background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
+  background-repeat: no-repeat;
+  background-position: bottom left;
+  background-size: 0 3px;
+  animation: boxDwellFill var(--dwell-duration, 1500ms) linear forwards;
+}
+
+/* No scrollbar, the same as the message box and for the same reason: the two are
+   one box in two places, and a gutter that comes and goes on one of them changes
+   the width the text wraps at — which changes the height, which is measured. */
+.heard-text { scrollbar-width: none; }
+.heard-text::-webkit-scrollbar { display: none; }
+
+/* The microphone is open. Not a flash and not a pulse: the pointer is somebody's
+   gaze, and something that moves in the corner of an eye aims it. */
+.heard-text.is-listening {
+  border-style: solid;
+  border-color: var(--accent);
+}
+
+/* What the question says in the reader's own language, under the words that
+   were said — the shape the Translations tab uses. */
+.heard-meaning {
+  margin: 0;
+  padding: 0 0.7rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.heard-error {
+  margin: 0;
+  padding: 0 0.7rem;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+/* On the box's lower border rather than in a row beneath it. Pulled up by half
+   its own height, so its centre line lands on the border, and by the column gap
+   above it, which it is no longer sitting below. Everything after it — the
+   meaning, an error — starts clear of the half that hangs down. */
+.heard-tools {
+  margin-top: calc(var(--heard-tool) / -2 - var(--heard-gap));
+  display: flex;
+  align-items: center;
+  /* Two rem apart, the target-separation number the rest of this app uses:
+     controls close enough for gaze jitter to cross between them are one control
+     that does the wrong thing. */
+  gap: 2rem;
+  padding: 0 0.7rem;
+}
+
+/* A ground each, rather than one pill around all three. They sit *on* a border
+   now, and a control painted on one with nothing behind it shows the border and
+   the words through — the reason `.topbar-modes` is opaque. One pill would have
+   to be twelve rem wide to hold the two rem between them, which is more than the
+   narrower pane the wide-screen split gives this box. */
+.heard-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--heard-tool);
+  height: var(--heard-tool);
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: #000;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.heard-btn svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.heard-btn[aria-disabled='true'] {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+/* ── Listen mode on a wide screen ── */
+/* The question beside the answer rather than above it, taking 35% of the box's
+   width to the message's 65%, with the wrapper's 2rem gutter between them.
+ *
+ * **What it buys is the board's height.** Stacked, opening listen mode pushes
+ * the grid down by the whole of the heard box and the tools under it — which is
+ * a row of phrases on a short screen, and on any screen it is the surface
+ * somebody is actually speaking from. A wide screen has width nobody is using
+ * and no height to spare, so the question goes beside the answer and the grid
+ * keeps its rows.
+ *
+ * **Neither strip on the border moves.** `.topbar-listen` and `.topbar-choices`
+ * are positioned against the wrapper, and the wrapper is the same size in the
+ * same place whether listen mode is open or not — so the microphone stays at one
+ * point on screen either way, riding the message box's corner while it is closed
+ * and the heard box's while it is open. It is the way *out* of listen mode as
+ * well as the way in, and a control that moved the moment it was used would be
+ * the worst one on this bar to have to hunt for.
+ *
+ * The same width `topbar.tsx` calls `WIDE_ENOUGH`, and one number on purpose:
+ * both ask whether the top of the screen has width to spare beyond the message.
+ * `tests/app/structure.test.ts` holds the two together. */
+@media (min-width: 1100px) {
+  .heard-wrap {
+    flex: 35 1 0;
+  }
+
+  .text-display-wrap > .message-wrap {
+    flex: 65 1 0;
+  }
+
+  /* Taller here, because the reason it was short has gone. Stacked, the two
+     boxes spend the same vertical room and a question grown to a third of the
+     screen would leave nothing to answer from; side by side they spend width
+     instead. Capped so that the whole column — the box, the gap under it and
+     the row of tools — ends exactly where the message box alone could, which is
+     what makes opening listen mode here cost the board no height at all. It has
+     to be capped by something: there are no dwell controls on this box, so
+     whatever scrolls out of it is out of reach of the person reading it. What
+     the column holds below the box is the half of the tools that hangs past its
+     border, the rest of them being on it. */
+  /* Side by side the pair spends width rather than height, so the clamp on a
+     short screen's share comes off and both go back to the shared cap. */
+  .heard-wrap .heard-text,
+  .heard-wrap ~ .message-wrap .text-display {
+    max-height: var(--box-max-height);
+  }
+}
+
+.topbar-choices {
+  position: absolute;
+  bottom: 0;
+  right: 0.6rem;
+  transform: translateY(50%);
   /* The modes' layer: above the app, below the panels and dialogs meant to
      cover it. */
   z-index: 90;
@@ -457,7 +901,7 @@ body {
 .topbar-modes {
   position: absolute;
   /* Matches `.topbar` padding-top — see the note there. */
-  top: 1rem;
+  top: 1.75rem;
   left: 50%;
   transform: translate(-50%, -50%);
   /* Above everything in the app, and below the panel and the dialogs, which are
@@ -1569,6 +2013,13 @@ body {
   padding-top: 2px;
 }
 
+/* The model behind a suggested reply. A line of its own under the key, because
+   the key field already takes a full line and a trigger wrapped onto the end of
+   it would read as part of the key rather than as a separate choice. */
+.reply-model-trigger {
+  flex-basis: 100%;
+}
+
 /* A value typed once and needed again later — the ElevenLabs key, the
    Synchronize passphrase. It takes a line of its own: a field and two buttons
    will not sit beside a label on a phone, and these are read character by
@@ -2011,10 +2462,13 @@ body {
   background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
   background-repeat: no-repeat;
   background-position: left bottom;
-  animation: composerDwellFill var(--dwell-duration, 800ms) linear forwards;
+  animation: boxDwellFill var(--dwell-duration, 800ms) linear forwards;
 }
 
-@keyframes composerDwellFill {
+/* Painted rather than sized, which is the whole of why the two boxes cannot use
+   the `dwellFillH` every other control's `.dwell-bar` uses: that one animates
+   `width`, and these have nothing inside them to be the bar. */
+@keyframes boxDwellFill {
   from { background-size: 0 3px; }
   to { background-size: 100% 3px; }
 }
@@ -2504,6 +2958,29 @@ body {
   animation: spin 0.8s linear infinite;
 }
 
+/* An icon named in a line of prose, drawn where it stands — see `prose-icons`.
+   Sized in `em` rather than `rem`, so it follows the type of whatever line it is
+   in rather than needing a rule per place prose appears, and nudged down by a
+   fraction so its middle sits on the middle of the letters beside it rather than
+   on their baseline. */
+.prose-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.22em;
+  /* The accent, because these are controls and every control in this app is
+     drawn in it while it is being worked. In running text that also tells an
+     icon from the words around it without a box or a rule to separate them. */
+  color: var(--accent);
+}
+
+.prose-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
 /* ── Focus ── */
 /* Every dwell control is also reachable by keyboard and switch access, so the
    focused one has to be obvious. */
@@ -2511,6 +2988,17 @@ body {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+/* **Except the two text boxes, which say it on their own border.** An outline
+   sits just outside a border, so the ring around a focused box was a second line
+   drawn around a single box — the same double line edit mode avoids by tinting
+   the border rather than drawing an outline over it. These are the only
+   focusable things here that paint their own focus, and the message box carries
+   `autoFocus`, so the app opened showing it. */
+.text-display:focus-visible,
+.heard-text:focus-visible {
+  outline: none;
 }
 
 .phrase-cell:focus-visible,
@@ -2773,7 +3261,7 @@ body {
   background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
   background-repeat: no-repeat;
   background-position: left bottom;
-  animation: composerDwellFill var(--dwell-duration, 800ms) linear forwards;
+  animation: boxDwellFill var(--dwell-duration, 800ms) linear forwards;
 }
 
 .profile-input::placeholder {
@@ -3526,7 +4014,7 @@ body {
 }
 
 /* The phrase in the air — the loudest thing on the bar, because it is what the
-   user is holding. Blue on a red bar, so it cannot be read as one of the
+   user is holding. A lighter blue on the bar's own, so it cannot be read as one of the
    emergency buttons it is sitting among. */
 .emergency-btn.is-held {
   cursor: grabbing;

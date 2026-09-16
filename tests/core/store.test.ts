@@ -1,11 +1,28 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import {
+  DEFAULT_REPLY_MODEL,
+  DEFAULT_SETTINGS,
+  REPLY_MODELS,
+  addReplyTurn,
   emptyStore,
+  factoryReset,
+  forgetReplyContext,
+  loadReplyContext,
+  loadSettings,
+  loadReplyKey,
+  loadSent,
   moveInOrder,
   orderByIds,
   readPhraseOrder,
   renameCategory,
   sameAccount,
+  readReplyModel,
+  replyModelName,
+  saveReplyContext,
+  saveReplyKey,
+  saveSent,
+  saveSettings,
+  type ReplyTurn,
 } from '../../src/core/store'
 
 // The arithmetic behind arranging things by hand. The two bars that use it are
@@ -166,5 +183,237 @@ describe('reading an arrangement back', () => {
 
   it('drops a category whose value is not a list at all', () => {
     expect(readPhraseOrder({ Food: 'a,b', Home: ['c'] })).toEqual({ Home: ['c'] })
+  })
+})
+
+/**
+ * The key behind a suggested reply. Its own storage name, which matters more
+ * than it looks: every one of these keys is a bare string under a bare name, so
+ * two of them sharing one would have each quietly overwriting the other.
+ */
+describe('the key for suggested replies', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('round-trips', () => {
+    saveReplyKey('sk-ant-key')
+    expect(loadReplyKey()).toBe('sk-ant-key')
+  })
+
+  it('is empty before one has been given', () => {
+    expect(loadReplyKey()).toBe('')
+  })
+
+  it('is trimmed on the way in, since it was pasted', () => {
+    saveReplyKey('  sk-ant-key  ')
+    expect(loadReplyKey()).toBe('sk-ant-key')
+  })
+
+  it('is removed by an empty one rather than stored as one', () => {
+    saveReplyKey('sk-ant-key')
+    saveReplyKey('   ')
+    expect(loadReplyKey()).toBe('')
+    expect(localStorage.getItem('peri_reply')).toBeNull()
+  })
+
+  it('is kept under a name of its own', () => {
+    saveSent([{ id: 's1', text: 'I need the toilet' }])
+    saveReplyKey('sk-ant-key')
+
+    expect(loadSent()).toHaveLength(1)
+    expect(localStorage.getItem('peri_reply')).toBe('sk-ant-key')
+  })
+
+  it('is cleared by a factory reset', () => {
+    saveReplyKey('sk-ant-key')
+    factoryReset()
+    expect(loadReplyKey()).toBe('')
+  })
+})
+
+/**
+ * Which model writes a suggested reply.
+ *
+ * A closed list rather than a free string, and every test here is about that:
+ * the name goes to somebody else's API, so a board carrying one this build has
+ * never heard of has to fall back to something that works rather than fail on
+ * the first question somebody is asked.
+ */
+describe('the model behind a suggested reply', () => {
+  beforeEach(() => localStorage.clear())
+
+  /**
+   * The first three on one axis and the fourth on another. Fable is last rather
+   * than slotted among them because it is a different voice rather than a faster
+   * or a slower one, and the ordering claim is only about the three.
+   */
+  it('offers the models it can call, the first three quickest first', () => {
+    expect(REPLY_MODELS.map(m => m.id)).toEqual([
+      'claude-haiku-4-5-20251001',
+      'claude-sonnet-5',
+      'claude-opus-5',
+      'claude-fable-5-1',
+    ])
+  })
+
+  // Somebody is waiting in front of you. A better sentence that arrives ten
+  // seconds later is not a better sentence.
+  it('starts on the quickest', () => {
+    expect(DEFAULT_REPLY_MODEL).toBe(REPLY_MODELS[0].id)
+    expect(DEFAULT_SETTINGS.replyModel).toBe(DEFAULT_REPLY_MODEL)
+  })
+
+  it('names every one of them, and something for one it has never heard of', () => {
+    for (const model of REPLY_MODELS) expect(replyModelName(model.id)).toBe(model.name)
+    expect(replyModelName('some-model-from-later')).toBe(replyModelName(DEFAULT_REPLY_MODEL))
+  })
+
+  it('takes a model it knows', () => {
+    expect(readReplyModel('claude-opus-5')).toBe('claude-opus-5')
+  })
+
+  it('falls back for anything else at all', () => {
+    for (const raw of ['some-model-from-later', '', null, undefined, 7, {}, ['claude-opus-5']]) {
+      expect(readReplyModel(raw), String(raw)).toBe(DEFAULT_REPLY_MODEL)
+    }
+  })
+
+  it('round-trips through storage', () => {
+    saveSettings({ ...DEFAULT_SETTINGS, replyModel: 'claude-sonnet-5' })
+    expect(loadSettings().replyModel).toBe('claude-sonnet-5')
+  })
+
+  /**
+   * The case this guards. A board opened in a later release, then opened again
+   * in this one, carries a model this build cannot call — and the symptom would
+   * be the suggestion failing rather than the setting looking wrong.
+   */
+  it('reads a stored model this build does not know as the default', () => {
+    localStorage.setItem('dwellspeak_settings', JSON.stringify({ replyModel: 'some-model-from-later' }))
+    expect(loadSettings().replyModel).toBe(DEFAULT_REPLY_MODEL)
+  })
+
+  it('reads a damaged one as the default rather than throwing', () => {
+    localStorage.setItem('dwellspeak_settings', JSON.stringify({ replyModel: { id: 'claude-opus-5' } }))
+    expect(loadSettings().replyModel).toBe(DEFAULT_REPLY_MODEL)
+  })
+})
+
+/**
+ * Today's conversation, and the day it lasts.
+ *
+ * It is a record of what somebody was actually asked in a care room, so the
+ * window is not a convenience: what is kept is kept on their behalf, and a day
+ * is the longest any of it is worth holding.
+ */
+describe('what was asked and answered today', () => {
+  const HOUR = 60 * 60 * 1000
+  const NOW = 1_800_000_000_000
+
+  beforeEach(() => localStorage.clear())
+
+  it('keeps an exchange, oldest first', () => {
+    let turns = addReplyTurn([], 'Tea or coffee?', 'Tea please', NOW)
+    turns = addReplyTurn(turns, 'Milk?', 'Yes please', NOW + 1000)
+    expect(turns.map(t => t.question)).toEqual(['Tea or coffee?', 'Milk?'])
+  })
+
+  it('does not change the list it was given', () => {
+    const once = addReplyTurn([], 'Tea or coffee?', 'Tea please', NOW)
+    addReplyTurn(once, 'Milk?', 'Yes please', NOW + 1000)
+    expect(once).toHaveLength(1)
+  })
+
+  it('refuses an exchange with nothing on one side of it', () => {
+    expect(addReplyTurn([], '   ', 'Tea please', NOW)).toEqual([])
+    expect(addReplyTurn([], 'Tea or coffee?', '  ', NOW)).toEqual([])
+  })
+
+  it('drops what happened more than a day ago as it adds', () => {
+    const old = addReplyTurn([], 'Yesterday', 'A while back', NOW - 25 * HOUR)
+    const now = addReplyTurn(old, 'Today', 'Just now', NOW)
+    expect(now.map(t => t.question)).toEqual(['Today'])
+  })
+
+  it('keeps what happened within the day', () => {
+    const earlier = addReplyTurn([], 'This morning', 'Earlier', NOW - 23 * HOUR)
+    const now = addReplyTurn(earlier, 'Now', 'Just now', NOW)
+    expect(now).toHaveLength(2)
+  })
+
+  it('keeps the last twenty and no more', () => {
+    let turns: ReplyTurn[] = []
+    for (let i = 0; i < 30; i++) turns = addReplyTurn(turns, `q${i}`, `a${i}`, NOW + i)
+    expect(turns).toHaveLength(20)
+    expect(turns[0].question).toBe('q10')
+  })
+
+  /**
+   * Pruned on the way out as well as in, so a board left open overnight forgets
+   * on its own rather than waiting for the next question to notice.
+   */
+  it('forgets a stale exchange on the way out, with nothing written', () => {
+    saveReplyContext([
+      { at: NOW - 25 * HOUR, question: 'Yesterday', reply: 'A while back' },
+      { at: NOW - HOUR, question: 'This afternoon', reply: 'Earlier' },
+    ])
+    expect(loadReplyContext(NOW).map(t => t.question)).toEqual(['This afternoon'])
+  })
+
+  /**
+   * Capped on the way out as well as in. What is in storage was not necessarily
+   * written by this release — a longer window from an earlier one, or a file
+   * somebody edited — and every turn read back is one more sent to the model and
+   * paid for.
+   */
+  it('reads back at most twenty, however many were written', () => {
+    saveReplyContext(Array.from({ length: 30 }, (_, i) => ({ at: NOW + i, question: `q${i}`, reply: `a${i}` })))
+    const read = loadReplyContext(NOW + 30)
+    expect(read).toHaveLength(20)
+    expect(read[0].question).toBe('q10')
+  })
+
+  it('round-trips what is still current', () => {
+    const turns = addReplyTurn([], 'Tea or coffee?', 'Tea please', NOW)
+    saveReplyContext(turns)
+    expect(loadReplyContext(NOW)).toEqual(turns)
+  })
+
+  it('reads nothing out of damage', () => {
+    for (const raw of ['not json', '{}', 'null', '7', '"tea"']) {
+      localStorage.setItem('peri_reply_context', raw)
+      expect(loadReplyContext(NOW), raw).toEqual([])
+    }
+  })
+
+  it('drops the entries it cannot use and keeps the rest', () => {
+    localStorage.setItem(
+      'peri_reply_context',
+      JSON.stringify([
+        { at: NOW, question: 'Good', reply: 'Fine' },
+        { at: NOW, question: 'No reply' },
+        { at: NOW, reply: 'No question' },
+        { question: 'No clock', reply: 'Fine' },
+        { at: 'soon', question: 'Bad clock', reply: 'Fine' },
+        null,
+        7,
+      ]),
+    )
+    expect(loadReplyContext(NOW).map(t => t.question)).toEqual(['Good'])
+  })
+
+  it('takes the key away entirely when there is nothing left', () => {
+    saveReplyContext([{ at: NOW, question: 'Tea?', reply: 'Please' }])
+    saveReplyContext([])
+    expect(localStorage.getItem('peri_reply_context')).toBeNull()
+  })
+
+  it('is forgotten on its own, and by a factory reset', () => {
+    saveReplyContext([{ at: NOW, question: 'Tea?', reply: 'Please' }])
+    forgetReplyContext()
+    expect(loadReplyContext(NOW)).toEqual([])
+
+    saveReplyContext([{ at: NOW, question: 'Tea?', reply: 'Please' }])
+    factoryReset()
+    expect(loadReplyContext(NOW)).toEqual([])
   })
 })

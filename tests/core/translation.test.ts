@@ -25,7 +25,7 @@ import {
 
 beforeEach(() => forgetTranslations())
 
-/** The six the red bar speaks. Hand-written in every table, never generated. */
+/** The six the emergency bar speaks. Hand-written in every table, never generated. */
 const EMERGENCY = ['Help me!', "I'm in pain", 'Call 911', 'Get a doctor', "I can't breathe", 'Call my family']
 
 /** Every table in the directory, so a language added tomorrow cannot skip the check. */
@@ -147,7 +147,7 @@ describe('the shipped tables', () => {
    * This was `['es', 'fr']`, and Vietnamese arrived carrying none of the six.
    * The tool generates from the phrase table, these six are not in it, and a
    * language with no file to merge into simply gets none. Nothing threw and no
-   * test failed: the red bar just fell back to English, which is the one place
+   * test failed: the emergency bar just fell back to English, which is the one place
    * in this app that must never quietly do that.
    */
   it.each(TABLES)('carries every emergency phrase in %s, the one bar that cannot wait', async table => {

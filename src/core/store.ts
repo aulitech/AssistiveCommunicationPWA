@@ -20,6 +20,8 @@ const ALIASES_KEY = 'peri_aliases'
 const ALIAS_SORT_KEY = 'peri_alias_sort'
 const USER_KEY = 'dwellspeak_user'
 const ELEVENLABS_KEY = 'peri_elevenlabs'
+const REPLY_KEY = 'peri_reply'
+const REPLY_CONTEXT_KEY = 'peri_reply_context'
 const TRANSLATIONS_KEY = 'peri_translations'
 const SENT_KEY = 'peri_sent'
 const TRANSLATED_KEY = 'peri_translated'
@@ -88,7 +90,59 @@ export interface Settings {
    * means fewer phrases and more scrolling. This grows only what is read.
    */
   zoom: number
+  /**
+   * Which model writes a suggested reply — see `listen/suggest.ts`.
+   *
+   * A closed list rather than a free string, and `readReplyModel` is what holds
+   * it to one. A model name is handed to somebody else's API, and a board
+   * restored from a file naming one this build has never heard of should fall
+   * back to something that works rather than fail on the first question
+   * somebody is asked.
+   */
+  replyModel: string
 }
+
+/**
+ * The models a suggested reply may be written by.
+ *
+ * **The first three are ordered by how long they take**, which is the axis that
+ * matters most here: this is somebody mid-conversation with a person waiting in
+ * front of them. The default is the quickest for that reason, the same reason
+ * the ElevenLabs voice is Flash — a better sentence that arrives ten seconds
+ * later is not a better sentence.
+ *
+ * The fourth is not on that axis at all, which is why it is last rather than
+ * slotted among them: it is a different voice rather than a faster or a slower
+ * one, and somebody who wants their board to sound less like a form is choosing
+ * something other than speed.
+ *
+ * Here rather than beside the service that calls them, because this is where
+ * the setting is validated and `core/` cannot reach `listen/`.
+ */
+export const REPLY_MODELS: { id: string; name: string; detail: string }[] = [
+  { id: 'claude-haiku-4-5-20251001', name: 'Quickest', detail: 'Haiku 4.5. Answers in about a second' },
+  {
+    id: 'claude-sonnet-5',
+    name: 'Better',
+    detail: 'Sonnet 5. A little slower, and reads a question more closely',
+  },
+  { id: 'claude-opus-5', name: 'Best', detail: 'Opus 5. The slowest, for questions that need thinking about' },
+  {
+    id: 'claude-fable-5-1',
+    name: 'Warmest',
+    detail: 'Fable 5.1. Writes more like a person and less like a form',
+  },
+]
+
+export const DEFAULT_REPLY_MODEL = REPLY_MODELS[0].id
+
+/** A model this build knows, or the default. Asked of storage and of a file alike. */
+export const readReplyModel = (raw: unknown): string =>
+  REPLY_MODELS.find(m => m.id === raw)?.id ?? DEFAULT_REPLY_MODEL
+
+/** What a model is called, for a control that has to say which one is on. */
+export const replyModelName = (id: string): string =>
+  REPLY_MODELS.find(m => m.id === id)?.name ?? replyModelName(DEFAULT_REPLY_MODEL)
 
 export const DEFAULT_SETTINGS: Settings = {
   phraseDwellMs: 1500,
@@ -104,6 +158,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // to say a thing has nothing to find first.
   autoSpeak: true,
   zoom: 1,
+  replyModel: DEFAULT_REPLY_MODEL,
 }
 
 /**
@@ -155,6 +210,11 @@ export function loadSettings(): Settings {
         raw?.voicesByLanguage && typeof raw.voicesByLanguage === 'object'
           ? (raw.voicesByLanguage as Record<string, string>)
           : DEFAULT_SETTINGS.voicesByLanguage,
+      // Held to the list rather than spread, for the reason above and one more:
+      // this one is handed to somebody else's API, and a board that had been
+      // opened in a later release naming a model this build never heard of
+      // would fail on the first question somebody was asked.
+      replyModel: readReplyModel(raw?.replyModel),
     }
   } catch {
     return DEFAULT_SETTINGS
@@ -936,6 +996,109 @@ export function saveElevenLabs(account: ElevenLabsAccount | null) {
   else localStorage.removeItem(ELEVENLABS_KEY)
 }
 
+// ── The key behind a suggested reply ──────────────────────────────────────────
+// Theirs, not ours, and for the reason the ElevenLabs key is theirs: it bills
+// them for something they chose. It could not be ours in any case — an Anthropic
+// key cannot be restricted to one site the way the translation key is, so one
+// inlined into this bundle would be one anybody could lift and spend.
+//
+// It follows every rule that key follows: **never in a backup**, which is a file
+// made to be handed to somebody else, and it **does travel in a snapshot**, which
+// is sealed with the user's own passphrase and reaches their own devices and
+// nowhere else.
+
+/** The key, or empty for a board that has not been given one. */
+export function loadReplyKey(): string {
+  try {
+    const raw: unknown = localStorage.getItem(REPLY_KEY)
+    return typeof raw === 'string' ? raw.trim() : ''
+  } catch {
+    return ''
+  }
+}
+
+export function saveReplyKey(key: string) {
+  const trimmed = key.trim()
+  if (trimmed) localStorage.setItem(REPLY_KEY, trimmed)
+  else localStorage.removeItem(REPLY_KEY)
+}
+
+// ── What has been asked and answered today ────────────────────────────────────
+// A conversation rather than a series of unrelated questions: "tea or coffee?"
+// followed by "milk?" is one exchange, and a reply to the second that had never
+// seen the first would be answering a different question.
+//
+// **It expires.** A day is the longest any of it is worth keeping — a carer's
+// shift, a hospital visit, an afternoon — and a transcript of what was said to
+// somebody in a care room is not a thing to hold on to on their behalf. Pruned
+// on the way *out* as well as on the way in, so a board left open overnight
+// forgets on its own rather than waiting for the next question to notice.
+//
+// It is a record of what somebody was actually asked, so it follows the Sent
+// list's rules exactly: its own key, never in a backup, never in a snapshot, and
+// cleared by a factory reset.
+
+/** One exchange: what was asked, and what was offered back. */
+export interface ReplyTurn {
+  at: number
+  question: string
+  reply: string
+}
+
+/** How long an exchange is worth remembering. */
+export const REPLY_CONTEXT_MS = 24 * 60 * 60 * 1000
+
+/**
+ * How many exchanges go back to the model.
+ *
+ * Every one of them is sent again with the next question, so this is paid for
+ * in tokens and in the seconds somebody is waiting. Twenty is a long
+ * conversation and a short prompt.
+ */
+const REPLY_CONTEXT_LIMIT = 20
+
+/** Today's exchanges, oldest first, with anything older than a day already gone. */
+export function loadReplyContext(now = Date.now()): ReplyTurn[] {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(REPLY_CONTEXT_KEY) ?? '[]')
+    if (!Array.isArray(raw)) return []
+    return (raw as ReplyTurn[])
+      .filter(
+        (t): t is ReplyTurn =>
+          typeof t === 'object' &&
+          t !== null &&
+          typeof t.question === 'string' &&
+          typeof t.reply === 'string' &&
+          typeof t.at === 'number' &&
+          Number.isFinite(t.at) &&
+          now - t.at < REPLY_CONTEXT_MS,
+      )
+      .slice(-REPLY_CONTEXT_LIMIT)
+  } catch {
+    return []
+  }
+}
+
+export function saveReplyContext(turns: ReplyTurn[]) {
+  if (turns.length === 0) localStorage.removeItem(REPLY_CONTEXT_KEY)
+  else localStorage.setItem(REPLY_CONTEXT_KEY, JSON.stringify(turns))
+}
+
+/** The exchanges after this one, with the day's window applied. */
+export function addReplyTurn(turns: ReplyTurn[], question: string, reply: string, at = Date.now()): ReplyTurn[] {
+  const asked = question.trim()
+  const said = reply.trim()
+  if (!asked || !said) return turns
+  return [...turns.filter(t => at - t.at < REPLY_CONTEXT_MS), { at, question: asked, reply: said }].slice(
+    -REPLY_CONTEXT_LIMIT,
+  )
+}
+
+/** Forget the conversation. Its own control, beside the key it belongs to. */
+export function forgetReplyContext() {
+  localStorage.removeItem(REPLY_CONTEXT_KEY)
+}
+
 // ── Who is signed in ─────────────────────────────────────────────────────────
 // Deliberately not part of a backup: a file that could sign you in as someone
 // else is a file that could sign someone else in as you.
@@ -1077,6 +1240,8 @@ const RESETTABLE_KEYS = [
   ALIASES_KEY,
   ALIAS_SORT_KEY,
   ELEVENLABS_KEY,
+  REPLY_KEY,
+  REPLY_CONTEXT_KEY,
   TRANSLATIONS_KEY,
   SENT_KEY,
   TRANSLATED_KEY,

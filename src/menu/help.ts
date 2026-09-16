@@ -20,17 +20,24 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Overview',
     blocks: [
       text(
-        'Peri is a board of phrases you speak with. Rest the pointer on a phrase to add it to the message at the top, then rest on the speaker button to say it aloud. Nothing needs a click.',
+        'Peri is a board of phrases you speak with. Rest the pointer on a phrase to add it to the message at the top, then rest on :speak: to say it aloud. Nothing needs a click.',
       ),
-      text('The screen has four parts:'),
+      text('The screen has three parts:'),
       list(
-        'The message box across the top, with the buttons that clear, speak and copy it.',
-        'A strip on the top edge of that box holding the three modes: edit on the left, Rest in the middle, auto-speak on the right.',
+        'The message box across the top, with its controls on its own edges.',
         'The category tabs, and below them the grid of phrases, with arrows down the right for moving through it.',
-        'The red bar at the bottom, for the things that cannot wait.',
+        'The blue bar at the bottom, for the things that cannot wait.',
+      ),
+      text('Everything the message box needs sits on its four edges rather than in a row of buttons beside it:'),
+      list(
+        'Along the top edge, in the middle: the three modes — :edit: on the left, Rest in the middle, :auto-speak: on the right.',
+        'Top left corner: :listen:, which opens a second box for what somebody is saying to you.',
+        'Top right corner: :copy:, :paste: and :speak:. The last is the largest thing on the bar, because it is the one the whole board exists to reach.',
+        'Bottom left corner: :clear:, which empties the box — and afterwards offers :undo:.',
+        'Bottom right corner: the language and the voice.',
       ),
       text(
-        'Everything you change stays on this device. The menu button opens your details, your settings, a guide, and a way to save it all to a file.',
+        'Everything you change stays on this device. :menu: opens your details, your settings, this guide, and a way to save it all to a file. :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
       ),
     ],
   },
@@ -54,16 +61,18 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Use the tabs above the grid to show one category at a time.',
         'The buttons on the right scroll the grid: the middle two move a little at a time and keep going while you rest on them, the outer two jump to the very top or bottom.',
       ),
-      text(
-        'When the message is ready, rest on the speaker button to say it aloud, or the copy button to send it somewhere else.',
+      text('When the message is ready, the three at the top right of the box are what becomes of it:'),
+      list(
+        ':speak: says it aloud. It is the biggest button on the bar and it sits at the end of the row.',
+        ':copy: puts it on the clipboard to send somewhere else.',
+        ':paste: brings in whatever was last copied, at the point the caret is sitting — into the message, or into a phrase being written.',
       ),
       text(
-        'The paste button beside copy brings in whatever was last copied, at the point the caret is sitting — into the message, or into a phrase being written.',
+        'If a paste says it was blocked, allow clipboard access for Peri in your browser settings. Firefox does not offer the clipboard to a web page at all — there, use Ctrl+V if you have a keyboard.',
       ),
       text(
-        'If it says it was blocked, allow clipboard access for Peri in your browser settings. Firefox does not offer the clipboard to a web page at all — there, use Ctrl+V if you have a keyboard.',
+        ':clear: at the bottom left of the box empties it, and then turns into :undo: so the clearing can be taken back.',
       ),
-      text('The button on the left clears the message, and afterwards offers to undo the clearing.'),
       text(
         'The last phrase you chose stays marked on the board, so you can see which one it was and where it has moved to. The mark goes as soon as you choose anything else.',
       ),
@@ -76,8 +85,8 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The button at the very top of the scrolling buttons, above the one that jumps to the top, sets the order the phrases are shown in.',
       ),
       list(
-        'Custom order is your own order for that category — the order the board came in, until you arrange it yourself.',
-        'A to Z puts them in alphabetical order by what each one says.',
+        ':own-order: Custom order is your own order for that category — the order the board came in, until you arrange it yourself.',
+        ':alphabetical: A to Z puts them in alphabetical order by what each one says.',
         'Recently used puts whatever you said last at the front.',
         'Most used puts whatever you say most often at the front.',
       ),
@@ -104,7 +113,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Putting the phrases in your own order',
     blocks: [
       text(
-        'You can also arrange a category by hand, the same way you arrange the category tabs. Turn on edit mode, open the category you want, and rest on the arrange button just under the order button at the top of the scrolling buttons.',
+        'You can also arrange a category by hand, the same way you arrange the category tabs. Turn on :edit: mode, open the category you want, and rest on :arrange: just under the order button at the top of the scrolling buttons.',
       ),
       list(
         'Rest on a phrase to pick it up. It lifts, and the screen says what you are holding.',
@@ -121,7 +130,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'A phrase you add later goes at the end rather than disturbing what you arranged. Rewording a phrase leaves it exactly where you put it.',
       ),
-      text('Rest on the arrange button again when you are done. Leaving edit mode switches it off too.'),
+      text('Rest on :arrange: again when you are done. Leaving edit mode switches it off too.'),
     ],
   },
   {
@@ -186,23 +195,24 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Speaking straight away',
     blocks: [
       text(
-        'The speaker button to the right of the Rest bar, along the top edge of the message box, is auto-speak. It lights up when it is on, and it is on every time Peri is opened, so the board can always talk straight away.',
+        ':auto-speak: to the right of the Rest bar, along the top edge of the message box, is auto-speak. It lights up when it is on, and it is on every time Peri is opened, so the board can always talk straight away.',
       ),
       text(
         'With auto-speak on, every phrase you choose is spoken the moment you choose it, and nothing is collected in the message box. This suits quick back-and-forth conversation.',
       ),
-      text(
-        'The two buttons either side of Rest move between three ways of working: auto-speak, editing phrases, and building a message.',
+      text('The two buttons either side of Rest move between three ways of working:'),
+      list(
+        ':auto-speak: Auto-speak — a phrase is spoken the moment you choose it.',
+        ':edit: Edit — a phrase you choose opens in the box to be reworded.',
+        'Neither one on — a phrase you choose goes into the box, to be part of a longer sentence.',
       ),
-      text(
-        'Turning auto-speak off goes to edit mode. Turning edit mode off comes back to building a message, where a phrase you choose goes into the box to be part of a longer sentence.',
-      ),
+      text('Turning :auto-speak: off goes to edit mode. Turning :edit: off comes back to building a message.'),
     ],
   },
   {
     title: 'Emergency phrases',
     blocks: [
-      text('The red bar along the bottom is always there, on every screen.'),
+      text('The blue bar along the bottom is always there, on every screen.'),
       text('Resting on one speaks it immediately — it is never added to the message box first.'),
       text(
         'These use the same dwell time as everything else, so they are no easier to trigger by accident than any other button.',
@@ -213,30 +223,40 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Changing the phrases',
     blocks: [
       text(
-        'The pencil button to the left of the Rest bar, along the top edge of the message box, turns on edit mode. Auto-speak switches off while it is on: the two ask opposite things of a dwell on a phrase.',
+        ':edit: to the left of the Rest bar, along the top edge of the message box, turns on edit mode. Auto-speak switches off while it is on: the two ask opposite things of a dwell on a phrase.',
       ),
       text(
-        'In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again, and a second strip appears along the bottom edge of the box holding the category and the voice.',
+        'In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again.',
       ),
+      text('The controls on the box mean something else while it is on, in the same places:'),
+      list(
+        ':save: at the end of the top row saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for.',
+        ':delete: removes the phrase it came from. A phrase you added goes; one that came with the app is hidden.',
+        ':add: at the bottom left starts a new phrase — where :clear: is the rest of the time.',
+        'A strip under the box says what is being edited, and what category it is filed under.',
+        "The two at the bottom right corner become this phrase's own: the voice it is said in, and the language that voice is for.",
+      ),
+      text('And on the board itself:'),
       list(
         'Choose any phrase to bring it into the box and change its wording.',
-        'The tick saves what is in the box; the bin deletes the phrase it came from; the + starts a new one.',
         'A new phrase starts in the category and voice you last used, so adding several in a row takes one choice rather than one each.',
-        'Use the + at the end of the red bar to add an emergency phrase.',
-        'The arrows beside it rearrange the red bar: choose a phrase to pick it up, then choose where it should go. Choosing it again puts it back.',
+        'Use :add: at the end of the blue bar to add an emergency phrase.',
+        ':arrange: beside it rearranges the blue bar: choose a phrase to pick it up, then choose where it should go. Choosing it again puts it back.',
+      ),
+      text('Links behave a little differently from other text:'),
+      list(
         'Paste or drag a web link into the message box or a phrase and it becomes the name of the page. The address is still there when you copy the message, but it is not read aloud.',
         'A phrase that is only a link opens it in a new tab instead of speaking. A phrase with words around a link is still spoken as usual.',
         'If a link does not open, allow pop-ups for Peri in your browser settings. Browsers only open new tabs off the back of a tap or a key press, and dwelling is neither.',
-        'Delete removes a phrase you added, and hides one that came with the app.',
       ),
-      text('Turn edit mode off again to go back to speaking.'),
+      text('Turn :edit: off again to go back to speaking.'),
     ],
   },
   {
     title: 'Aliases',
     blocks: [
       text(
-        'Open the menu and choose Aliases. Each one is a named list of words, and a phrase that writes that name in curly brackets offers the list to choose from.',
+        'Open :menu: and choose Aliases. Each one is a named list of words, and a phrase that writes that name in curly brackets offers the list to choose from.',
       ),
       text(
         'Peri comes with nine — pronouns, directions, body parts and so on — and two of them start empty: contacts, and your name. Fill those in and phrases such as "This is …" and "I\'m going to call …" come to life.',
@@ -245,7 +265,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'With one word on a list it is filled in for you; with several, you are asked which one you mean. Take words off any list, or add your own.',
       ),
       text(
-        'The + at the top adds a list of your own, called new-list until you rename it. The pencil beside it turns every heading into a name box, each with an × to delete that list. The arrow beside those puts back the last list you deleted.',
+        'Three buttons sit above the lists: :add: adds one of your own, called new-list until you rename it; :edit: turns every heading into a name box with an × beside it to delete that list; :undo: puts back the last list you deleted.',
       ),
       text(
         'Any list can be renamed or deleted, including the ones Peri comes with. Doing that leaves a blank in the phrases that used it, since those were written with the old name in them.',
@@ -253,11 +273,12 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'The lists all start closed, so what you arrive at is their names. Choose one to open it and it comes to the top of the panel; choosing another folds the first away again.',
       ),
-      text(
-        'An open list shows its words as a grid, with four buttons above it. The first switches between A to Z and the order you put the words in. The second arranges them: choose a word to pick it up, then choose where it should go.',
-      ),
-      text(
-        'The third turns every word into a box you can retype, with an × beside it to take that word off. Words can only be deleted there, so resting on one you are simply reading cannot lose it. The fourth puts back the last word you deleted, and again for the one before that.',
+      text('An open list shows its words as a grid, with four buttons above it:'),
+      list(
+        ':alphabetical: or :own-order: switches between A to Z and the order you put the words in.',
+        ':arrange: moves them: choose a word to pick it up, then choose where it should go.',
+        ':edit: turns every word into a box you can retype, with an × beside it to take that word off. Words can only be deleted there, so resting on one you are simply reading cannot lose it.',
+        ':undo: puts back the last word you deleted, and again for the one before that.',
       ),
       text(
         'Every box here takes the caret from where you rest: hold still over the text and the caret lands under the pointer. Keep resting and the word under it is picked out; keep resting once more and the whole box is, ready to be typed over.',
@@ -268,7 +289,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Settings',
     blocks: [
       text(
-        'Open the menu and choose Settings. Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.',
+        'Open :menu: and choose Settings. Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.',
       ),
       text('Settings and Aliases scroll if there is more than fits, using the same arrows as the phrase grid.'),
       list(
@@ -277,6 +298,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Action dwell — how long to rest on buttons and menus.',
         'Volume and Speed — how the voice sounds.',
         'Voice — opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
+      ),
+      text(
+        'Every setting has a :reset: beside it that puts it back to how it came. It is quiet while the setting is already there.',
       ),
       text(
         'If phrases are being chosen by accident, make the dwell times longer. If waiting feels slow, make them shorter. There is no wrong setting — only what suits you.',
@@ -328,7 +352,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'They use your own ElevenLabs credits. A phrase said again costs nothing — Peri keeps what it already fetched, and keeps it when you close the app.',
         'With Synchronize on, a phrase paid for on one device is not paid for again on another. The audio waits on the server, locked with your passphrase like everything else.',
         'If one cannot be fetched, Peri speaks with the device voice instead rather than saying nothing.',
-        'The red emergency bar always uses the device voice, so it stays instant and works offline.',
+        'The blue emergency bar always uses the device voice, so it stays instant and works offline.',
       ),
       text(
         'Choosing one of these voices means the words you speak are sent to ElevenLabs to be turned into audio. Unlink the account, or pick a device voice, and nothing is sent.',
@@ -357,7 +381,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The phrases Peri comes with are translated already. They are instant, they work with no internet, and nothing about them is sent anywhere.',
         'Phrases you wrote yourself, phrases with a blank filled in, and messages you build out of several are not. Those are translated as you go, by Peri, using its own account — there is nothing to set up and nothing to pay for.',
         'Anything translated once is kept on the device, so the second time is instant and costs nothing.',
-        'The red emergency bar never waits for a translation. A phrase it already has, it says in your chosen language; one it does not, it says in the words you wrote — instantly, either way.',
+        'The blue emergency bar never waits for a translation. A phrase it already has, it says in your chosen language; one it does not, it says in the words you wrote — instantly, either way.',
       ),
       text(
         'The phrases you wrote yourself are sent to Google to be translated, once each, and the answer is kept on your device so they are not sent again. The phrases Peri ships are never sent anywhere, because they are translated before the app is built. Setting the language back to your device default stops all of it.',
@@ -367,6 +391,71 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'There is nothing to link and no key to keep safe. Translating is part of the app, unlike a better voice, which is an account of your own — so if you ever see a phrase come out in English when it should not have, it is a phrase Peri could not reach the service for, not something you forgot to set up.',
+      ),
+    ],
+  },
+  {
+    title: 'Hearing a question',
+    blocks: [
+      text(
+        ':listen: at the top left of the message box listens to whoever is talking to you. What it hears appears in a box of its own — beside the message on a wide screen, above it on a narrow one — where you can correct it, read it in your own language, and answer it.',
+      ),
+      list(
+        'Rest on :listen: to start, and again to stop and close the box.',
+        'The box fills as the words arrive, so you can see it is working.',
+        'It is the same kind of box as the message one, in the same size of writing, and it grows to match it. Rest on it to put the caret in, and rest longer to select a word or the lot — recognisers mis-hear names.',
+      ),
+      text('Its own controls ride its lower edge:'),
+      list(
+        ':clear: empties it **and starts listening again**, which is what you want when what came back was wrong. There is no separate button for the microphone.',
+        ':undo: puts the words back and stops listening, if you cleared it by mistake.',
+        ':translate: reads the question in your own language, underneath the words that were said.',
+        ':suggest: offers a reply, and puts it in the message box.',
+      ),
+      text(
+        'Your browser does the listening, not Peri. Most browsers send what the microphone picks up to a speech service of their own to turn it into words — the same one behind dictation elsewhere on your device. That is between you and your browser, and it does not pass through us.',
+      ),
+      text(
+        'The first time you use it your browser asks your permission. If you refuse, the box says so and nothing else about the board changes.',
+      ),
+      text(
+        'Nothing heard is kept. Closing the box forgets it, and it is never in a backup file and never sent to your other devices.',
+      ),
+    ],
+  },
+  {
+    title: 'Getting a suggested reply',
+    blocks: [
+      text(
+        'With an Anthropic account set up under Settings, Peri can offer a reply to the question that was heard and put it in the message box.',
+      ),
+      text(
+        'It asks on its own as soon as the person talking to you stops, so long as the message box is empty — you do not have to ask for it. :suggest: under the heard box asks again, which is what you want after correcting the question or clearing the box.',
+      ),
+      list(
+        'It is only ever a suggestion. Peri never speaks it for you — it waits in the message box like anything else you have written, and you say it by resting on :speak:.',
+        'You can change every word of it first, or :clear: it and say something else entirely.',
+        'It will not write over a message you have already started, and it does not ask for one either — so a message half written is how you tell it to stay out of the way.',
+        'While it is thinking, the message box says so. A reply usually takes a second or two, longer if it has to look something up.',
+        'It answers questions about the world, and looks one up if it has to. It does not answer questions about you: it has never met you, so anything about what you did, felt or want comes back as a gap for you to fill in, with the caret already sitting in it.',
+      ),
+      text(
+        'The question is sent to Anthropic to be answered, on your own account and your own credits. Nothing is sent by listening alone — it goes when a reply is being written, which is as soon as a question finishes unless there is already something in the message box.',
+      ),
+      text(
+        'Where the answer needs looking up, it is searched for on the web, so the question reaches a search index too. That takes a few seconds, which is why it only happens when the question really needs it.',
+      ),
+      text(
+        'Your key is never in a backup file, and with Synchronize on it travels encrypted to your own devices like the ElevenLabs one.',
+      ),
+      text(
+        'Questions and replies from the last day are kept on this device and sent with the next one, so a conversation carries on making sense — asked "tea or coffee" and then "milk?", it knows what the second one is about. They are forgotten after a day, and the same Settings row has a button to forget them now.',
+      ),
+      text(
+        'That row also lets you choose which model writes the reply. Quickest is the default, because somebody is waiting in front of you. Two of the others read a question more closely and take a little longer, and the last one writes more like a person and less like a form.',
+      ),
+      text(
+        'Without a key nothing is offered and nothing is sent, and everything else about listening works exactly the same.',
       ),
     ],
   },
@@ -391,7 +480,10 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'A different voice for one phrase',
     blocks: [
       text(
-        'In edit mode, the strip under the message box has a Voice setting. It opens the same full screen of voices as Settings does, and each one you try says the phrase itself rather than a sample — so you hear how that sentence sounds in it.',
+        "In edit mode the two controls at the bottom right corner of the message box are the phrase's own rather than the board's: the voice it is said in, and the language that voice is for. Outside edit mode the same two are the board's, which is why there is only one pair to learn.",
+      ),
+      text(
+        'The voice one opens the same full screen of voices as Settings does, and each one you try says the phrase itself rather than a sample — so you hear how that sentence sounds in it.',
       ),
       text(
         'Leave it as "Same as everything else" for almost everything. Set it where a phrase wants a voice of its own: someone you are quoting, a name said the way its owner says it, something that has to cut through a noisy room.',
@@ -442,7 +534,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Backup and sharing',
     blocks: [
       text(
-        'Open the menu and choose Backup & sharing. Everything you have changed can be saved as one file: the phrases you added, the wording you changed, what you moved or removed, your details and your settings.',
+        'Open :menu: and choose Backup & sharing. Everything you have changed can be saved as one file: the phrases you added, the wording you changed, what you moved or removed, your details and your settings.',
       ),
       list(
         'Save a file keeps a copy in your downloads. Copy puts the same thing on the clipboard.',

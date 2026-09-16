@@ -23,7 +23,7 @@ export const PRIVACY: ProseDocument = {
   title: 'Privacy Policy',
   updated: UPDATED,
   intro:
-    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device. Three things are exceptions, and each is yours to switch on: linking an ElevenLabs account sends the words you speak to ElevenLabs to be turned into audio, setting a spoken language sends the phrases you wrote yourself to Google to be translated, and turning on Synchronize puts an encrypted copy of your board on our server so your other devices can fetch it. We cannot read that copy.',
+    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device. Five things are exceptions, and each is yours to switch on. Linking an ElevenLabs account sends the words you speak to ElevenLabs to be turned into audio. Setting a spoken language sends the phrases you wrote yourself to Google to be translated. Turning on Synchronize puts an encrypted copy of your board on our server so your other devices can fetch it, and we cannot read that copy. Using the microphone lets your browser send what it hears to a speech service of its own. And asking for a suggested reply sends that question to Anthropic on your own account.',
   sections: [
     {
       title: 'What we collect',
@@ -38,17 +38,45 @@ export const PRIVACY: ProseDocument = {
           'Your word lists — names, contacts and anything else you add under Aliases.',
           'Which account you last signed in with, if any.',
           'Your ElevenLabs API key, if you linked an account.',
+          'Your Anthropic API key, if you set one up for suggested replies.',
           'The audio a linked ElevenLabs account has made for you, so that a phrase you have paid to have spoken is not paid for twice.',
           'Your Synchronize passphrase, if you turned that on.',
           'How often you use each phrase and when you last used one, which is what lets the grid be ordered by what you use.',
           'The messages you have spoken or copied, under the Sent tab.',
           'What you have said in another language, and which language, under the Translations tab.',
+          'Questions you asked for a suggested reply to, and the replies, for a day.',
         ),
         text(
-          'None of this leaves your device unless you turn on Synchronize, and what leaves then is encrypted — see the next section. Neither your ElevenLabs key nor your Synchronize passphrase is included in a backup file, so sharing a backup does not share your account or your other devices. The passphrase never leaves your device at all; the key travels between your own devices, inside the encryption, so the voices you pay for work on all of them.',
+          'None of this leaves your device unless you turn on Synchronize, and what leaves then is encrypted — see the Synchronizing section. No API key and no Synchronize passphrase is ever included in a backup file, so sharing a backup does not share your account or your other devices. The passphrase never leaves your device at all; the keys travel between your own devices, inside the encryption, so what you pay for works on all of them.',
         ),
         text(
-          'Three things on that list go nowhere at all: how often you use each phrase, the messages under the Sent tab, and the translations under the Translations tab. All three are a record of what you actually said, so all three stay on the device that recorded them — none is in a backup file, and none is in what Synchronize sends to your other devices. A factory reset clears them.',
+          'Four things on that list go nowhere at all: how often you use each phrase, the messages under the Sent tab, the translations under the Translations tab, and the day of questions kept for suggested replies. All four are a record of what you actually said or were asked, so all four stay on the device that recorded them — none is in a backup file, and none is in what Synchronize sends to your other devices. A factory reset clears them.',
+        ),
+      ],
+    },
+    {
+      title: 'Listening',
+      blocks: [
+        text(
+          'The microphone button on the message box is off until you press it. While it is on, Peri asks your browser to turn what the microphone hears into words, and shows them in a box of its own beside the message.',
+        ),
+        text(
+          "The listening is your browser's, not ours. Most browsers do it by sending the audio to a speech service of their own — the same one behind dictation elsewhere on your device — and what they do with it is governed by their privacy policy and your device maker's, not by this one. It does not pass through us and we never receive it. Your browser asks your permission the first time, and you can take it back in your browser at any point.",
+        ),
+        text(
+          'What was heard is not kept. It lives in that box until you close it, and it is never in a backup file and never sent to your other devices.',
+        ),
+        text(
+          'Questions you asked for a reply to, and the replies offered, are kept on this device for a day so that a conversation carries on making sense. They are forgotten after that, forgotten at once if you remove the key, and there is a button in the Settings row to forget them now. They are never in a backup file and never sent to your other devices.',
+        ),
+        text(
+          'Reading a heard question in your own language sends it to Google to be translated, exactly as the phrases you write yourself are sent — see Speech below. It is sent only when you ask for it.',
+        ),
+        text(
+          'A suggested reply sends the question to Anthropic, using an API key of your own that you set up under Settings. **With a key set up, this happens on its own**: when the person talking to you stops and your message box is empty, the question goes to be answered without your asking. Leave anything in the message box and it does not. Nothing about you goes with it beyond the question itself, and nothing is sent by listening alone. What Anthropic does with it is governed by their policy, not this one. Remove the key, and nothing is ever sent there. A suggestion is only ever put into the message box for you to read, change or discard — Peri never speaks one for you.',
+        ),
+        text(
+          'Where answering needs something looked up, Anthropic searches the web for it, so the question reaches a search provider as well. That happens only inside a reply, and only when the question needs it.',
         ),
       ],
     },
@@ -56,7 +84,7 @@ export const PRIVACY: ProseDocument = {
       title: 'Synchronizing',
       blocks: [
         text(
-          'Synchronize is off until you turn it on. While it is on, a copy of your board — your phrases, categories, word lists and settings, and your ElevenLabs key if you have linked an account — is kept on a server we run, so that the other devices you sign in to can fetch it.',
+          'Synchronize is off until you turn it on. While it is on, a copy of your board — your phrases, categories, word lists and settings, and your ElevenLabs and Anthropic keys if you have set them up — is kept on a server we run, so that the other devices you sign in to can fetch it.',
         ),
         text(
           'If you have linked an ElevenLabs account, the audio it makes is kept there too, one clip at a time and separately from the board. This is so that a phrase you have already paid to have spoken on one device is not paid for again on the next. Each clip is encrypted exactly as the board is, under an address worked out from the words and the voice, and nobody without your passphrase can work out either. Erasing the copy erases the audio with it.',

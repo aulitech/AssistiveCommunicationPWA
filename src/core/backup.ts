@@ -24,6 +24,7 @@
 import { EMPTY_ALIASES, type AliasStore, type Aliases } from './phrases'
 import {
   readPhraseOrder,
+  readReplyModel,
   readVoiceOverrides,
   DEFAULT_SETTINGS,
   readAliases,
@@ -330,6 +331,9 @@ function readSettings(v: unknown): Settings | undefined {
     // the default is on.
     autoSpeak: typeof v.autoSpeak === 'boolean' ? v.autoSpeak : DEFAULT_SETTINGS.autoSpeak,
     zoom: num(v.zoom, SETTING_LIMITS.zoom, DEFAULT_SETTINGS.zoom),
+    // Held to the list this build knows, exactly as `loadSettings` holds it. A
+    // file is the more likely of the two to name a model from a later release.
+    replyModel: readReplyModel(v.replyModel),
   }
 }
 

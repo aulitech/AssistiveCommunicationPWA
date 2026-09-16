@@ -9,7 +9,7 @@
 // says the words as they were written and the listener gets the original rather
 // than silence. Every failure is a value, exactly as in `sync/client.ts`.
 
-import { translationTarget } from '../core/translation'
+import { SOURCE_LANGUAGE, translationTarget } from '../core/translation'
 import { reportFailure } from '../core/report'
 
 const ENDPOINT = 'https://translation.googleapis.com/language/translate/v2'
@@ -101,16 +101,17 @@ export function decodeEntities(text: string): string {
   })
 }
 
-/** One phrase, into one language. */
-export async function translate(text: string, tag: string): Promise<TranslateResult> {
-  if (!text.trim()) return fail('Nothing to translate')
-  // Named rather than lumped in with the rest, because this one is not a
-  // service failing: it is a build that went out without its key, and the only
-  // symptom on the board is a phrase quietly spoken in English.
+/**
+ * One piece of text, from one language into another.
+ *
+ * The codes are the service's own rather than the tags Peri stores — `tag` is
+ * turned into one by `translationTarget` before it gets here. `source` may be
+ * empty, which asks the service to work it out; that costs a little accuracy on
+ * three words and is the only option in the one place it is used.
+ */
+async function ask(text: string, target: string, source: string): Promise<TranslateResult> {
   const key = translateKey()
   if (!key) return fail('No translation key was built into this app')
-  const target = translationTarget(tag)
-  if (!target) return fail(`Nothing here translates into ${tag}`)
 
   try {
     const response = await fetch(ENDPOINT, {
@@ -118,14 +119,7 @@ export async function translate(text: string, tag: string): Promise<TranslateRes
       // In a header rather than on the query string: a key in a URL ends up in
       // logs, in history and in a referrer.
       headers: { 'X-goog-api-key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        q: [text],
-        target,
-        // The board is written in English, and saying so is both quicker and
-        // better than letting three words be guessed at.
-        source: 'en',
-        format: 'text',
-      }),
+      body: JSON.stringify({ q: [text], target, format: 'text', ...(source ? { source } : {}) }),
     })
     if (!response.ok) return fail(describe(response.status))
 
@@ -137,4 +131,33 @@ export async function translate(text: string, tag: string): Promise<TranslateRes
   } catch {
     return fail('Could not reach the translation service')
   }
+}
+
+/** One phrase, into one language. */
+export async function translate(text: string, tag: string): Promise<TranslateResult> {
+  if (!text.trim()) return fail('Nothing to translate')
+  const target = translationTarget(tag)
+  if (!target) return fail(`Nothing here translates into ${tag}`)
+  // The board is written in English, and saying so is both quicker and better
+  // than letting three words be guessed at.
+  return ask(text, target, SOURCE_LANGUAGE)
+}
+
+/**
+ * A heard question, into the language the board is written in.
+ *
+ * **The other direction, and the only place this app goes that way.** Everything
+ * else here translates *out* of the board so a listener can follow it; listen
+ * mode translates *in*, so the person using the board can read what was asked.
+ *
+ * The source is deliberately not named. What the setting holds is what the board
+ * is *spoken* as, and a question in the room may not be in it at all — a nurse
+ * switching to English mid-sentence is the ordinary case, not an edge one — so
+ * the service is left to work it out from the words themselves. Naming it wrongly
+ * is worse than not naming it: the service would translate as though it had been
+ * told the truth.
+ */
+export async function translateHeard(text: string): Promise<TranslateResult> {
+  if (!text.trim()) return fail('Nothing to translate')
+  return ask(text, SOURCE_LANGUAGE, '')
 }

@@ -5,7 +5,7 @@
 // rather than silence. Every failure is a value, exactly as in sync.
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { decodeEntities, hasTranslateKey, translate } from '../../src/translate/client'
+import { decodeEntities, hasTranslateKey, translate, translateHeard } from '../../src/translate/client'
 import { warnings } from '../setup'
 
 const KEY = 'key-1234'
@@ -241,5 +241,75 @@ describe('what reaches the console', () => {
     expect(warnings).toHaveLength(1)
     expect(warnings[0], 'a phrase reached the console').not.toContain('chest')
     expect(warnings[0], 'a key reached the console').not.toContain('key-1234-secret')
+  })
+})
+
+/**
+ * The other direction, and the only place this app goes that way.
+ *
+ * Everything else translates *out* of the board so a listener can follow it.
+ * Listen mode translates *in*, so the person using the board can read what was
+ * asked of them.
+ */
+describe('a question heard through the microphone', () => {
+  it('comes back in the language the board is written in', async () => {
+    const fetcher = answers({ data: { translations: [{ translatedText: 'Do you want tea?' }] } })
+
+    await expect(translateHeard('¿Quieres té?')).resolves.toEqual({
+      status: 'ok',
+      text: 'Do you want tea?',
+    })
+    expect(JSON.parse(String(fetcher.mock.calls[0]![1].body)).target).toBe('en')
+  })
+
+  /**
+   * **The source is deliberately not named.** What the setting holds is what the
+   * board is *spoken* as, and a question in the room may not be in it at all — a
+   * nurse switching to English mid-sentence is the ordinary case, not an edge
+   * one. Naming it wrongly is worse than not naming it: the service would
+   * translate as though it had been told the truth.
+   */
+  it('lets the service work out what was said, rather than telling it', async () => {
+    const fetcher = answers({ data: { translations: [{ translatedText: 'Do you want tea?' }] } })
+    await translateHeard('¿Quieres té?')
+    expect(JSON.parse(String(fetcher.mock.calls[0]![1].body))).not.toHaveProperty('source')
+  })
+
+  it('is unescaped like everything else that comes back', async () => {
+    answers({ data: { translations: [{ translatedText: 'What&#39;s your name?' }] } })
+    await expect(translateHeard('¿Cómo te llamas?')).resolves.toEqual({
+      status: 'ok',
+      text: "What's your name?",
+    })
+  })
+
+  it('refuses to ask about nothing', async () => {
+    const fetcher = answers({})
+    const result = await translateHeard('   ')
+    expect(result.status).toBe('error')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('is a value rather than a throw when the service will not answer', async () => {
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    await expect(translateHeard('¿Quieres té?')).resolves.toEqual({
+      status: 'error',
+      error: expect.stringMatching(/could not reach/i),
+    })
+  })
+
+  it('says so when the build went out without a key', async () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '')
+    const fetcher = answers({})
+    const result = await translateHeard('¿Quieres té?')
+    expect(result.status).toBe('error')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  // Somebody else's question is words too, and the same rule covers them.
+  it('never puts the question in the console', async () => {
+    answers({}, { status: 403 })
+    await translateHeard('¿Le duele el pecho?')
+    expect(warnings.join(' ')).not.toContain('pecho')
   })
 })

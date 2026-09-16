@@ -71,6 +71,13 @@ export interface Snapshot {
    * to sync from an older release would take the account off the others.
    */
   account?: ElevenLabsAccount | null
+  /**
+   * The key behind a suggested reply, or null for a device with none. Optional
+   * and three-stated for exactly the reason above: a snapshot written before
+   * this existed says nothing about it, and silence must not read as an
+   * instruction to take it away.
+   */
+  replyKey?: string | null
 }
 
 /**
@@ -117,6 +124,14 @@ export function keepDeviceSettings(incoming: Settings, mine: Settings): Settings
 export interface SyncPayload {
   backup: Backup
   account: ElevenLabsAccount | null
+  /**
+   * The key behind a suggested reply, or empty for a device without one.
+   *
+   * Travels for the reason the ElevenLabs account does: it is what makes the
+   * feature work on the second device without typing forty characters of noise
+   * into it by dwell. Never in a backup, for the reason that one is not.
+   */
+  replyKey: string
 }
 
 /** A snapshot, or null — the same guard, on the inside of the lock. */
@@ -132,6 +147,10 @@ export function parseSnapshot(value: unknown): Snapshot | null {
   // first two are instructions — see `Snapshot.account`.
   if (s.account === null) snapshot.account = null
   else if (isAccount(s.account)) snapshot.account = s.account
+  // The same three, for the same reason: a snapshot written before this existed
+  // says nothing about the key, and silence must not read as "take it away".
+  if (s.replyKey === null) snapshot.replyKey = null
+  else if (typeof s.replyKey === 'string' && s.replyKey !== '') snapshot.replyKey = s.replyKey
   return snapshot
 }
 

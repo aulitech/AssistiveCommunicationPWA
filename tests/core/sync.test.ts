@@ -152,6 +152,32 @@ describe('reading a snapshot', () => {
       expect(parseSnapshot({ ...base, account: { apiKey: 'sk-key' } })?.account).toBeUndefined()
     })
   })
+
+  /**
+   * The key behind a suggested reply, and the same three states for the same
+   * reason: a snapshot written before it travelled says nothing about one, and
+   * silence must not be read as an instruction to take it away.
+   */
+  describe('the key for suggested replies it may carry', () => {
+    it('takes a key', () => {
+      expect(parseSnapshot({ ...base, replyKey: 'sk-ant-key' })?.replyKey).toBe('sk-ant-key')
+    })
+
+    it('takes an explicit "no key" as an instruction', () => {
+      expect(parseSnapshot({ ...base, replyKey: null })?.replyKey).toBeNull()
+    })
+
+    it('leaves it out entirely where the snapshot said nothing', () => {
+      const parsed = parseSnapshot(base)
+      expect('replyKey' in parsed!, 'silence was turned into a removal').toBe(false)
+    })
+
+    it('says nothing rather than taking something that is not a key', () => {
+      expect(parseSnapshot({ ...base, replyKey: '' })?.replyKey).toBeUndefined()
+      expect(parseSnapshot({ ...base, replyKey: 7 })?.replyKey).toBeUndefined()
+      expect(parseSnapshot({ ...base, replyKey: {} })?.replyKey).toBeUndefined()
+    })
+  })
 })
 
 /**

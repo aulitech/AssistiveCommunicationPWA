@@ -94,6 +94,34 @@ export function useComposer({
     [text],
   )
 
+  /**
+   * Put something in the box that the user did not type.
+   *
+   * The one caller is a suggested reply — see `listen/suggest.ts` — and what
+   * makes that safe is not here: **the control refuses to run at all while the
+   * box has something in it**, because this box's undo is a one-step toggle
+   * rather than a stack and could not walk back past a suggestion. So this is
+   * `setText` with the caret put at the end, and it is a named thing only so
+   * that the one rule about it has somewhere to live. **It never speaks**,
+   * whatever mode the board is in.
+   */
+  const propose = useCallback((suggestion: string, blankAt = -1) => {
+    setText(suggestion)
+    // Into the first gap where there is one, so the fact the model was not told
+    // is typed straight into the hole it left — the same landing a
+    // fill-in-the-blank phrase gets. The end of the text otherwise.
+    const at = blankAt >= 0 ? blankAt : suggestion.length
+    setCursorPos(at)
+    const el = textareaRef.current
+    // After the render that wrote the text, or the box is still holding the old
+    // value and the caret lands in the middle of it.
+    setTimeout(() => {
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(at, at)
+    }, 0)
+  }, [])
+
   const clearOrUndo = useCallback(() => {
     if (text) {
       setHistory(h => [...h, text])
@@ -125,6 +153,7 @@ export function useComposer({
     trackCursor,
     setCursor,
     insert,
+    propose,
     clearOrUndo,
     copy,
     speak: speakIt,

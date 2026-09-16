@@ -23,7 +23,7 @@ const LAYERS: string[][] = [
   ['core'], //            what Peri knows and keeps
   ['ui'], //              the shared controls
   ['translate'], //       words into other words, before anything says them
-  ['voice', 'sync'], //   the two that talk to something outside this device
+  ['voice', 'sync', 'listen'], // the three that talk to something outside this device
   ['menu'], //            the panel that slides down
   ['talk', 'signin', 'legal'], // the three screens
   ['.'], //               App and main, which reach anything
@@ -290,6 +290,136 @@ describe('the shape of the source tree', () => {
       expect(value, `the probe and the dwell hook disagree about ${name}`).toBe(hook[name])
     }
     expect(Object.keys(probe)).toContain('STALL_MS')
+  })
+
+  /**
+   * The same rule for the microphone probe, which answers a different question
+   * about a different API.
+   *
+   * It is the instrument deciding whether listen mode can be given a device
+   * setting at all — `SpeechRecognition` is documented to take neither a device
+   * nor a stream, and the probe is what tests that claim against real hardware.
+   * So it has to be reaching for **the same object the app reaches for**. A
+   * probe measuring one recogniser while the app used another would answer a
+   * question nobody asked.
+   */
+  it('keeps the microphone probe reaching for the same recogniser the app does', () => {
+    const names = (text: string) =>
+      [...new Set([...text.matchAll(/\b(webkitSpeechRecognition|SpeechRecognition)\b/g)].map(m => m[1]))].sort()
+
+    const app = names(readFileSync(resolve(SRC, 'listen/recognition.ts'), 'utf8'))
+    const probe = names(readFileSync(resolve(process.cwd(), 'tools/mic-probe.html'), 'utf8'))
+
+    expect(app, 'the app names no recogniser — did it move?').toEqual([
+      'SpeechRecognition',
+      'webkitSpeechRecognition',
+    ])
+    expect(probe, 'the probe and the app disagree about what to ask for').toEqual(app)
+  })
+
+  /**
+   * **Every icon a line of prose names is one that can be drawn.**
+   *
+   * A mark nothing defines draws nothing — the sentence keeps its spacing and
+   * quietly loses the thing it was pointing at, which in a guide whose whole job
+   * is to say *this button, the one that looks like this* is the worst way for
+   * it to be wrong. Nothing else would catch it: the mark is a string, so it
+   * costs no type error and no failing render.
+   */
+  it('names no icon in its prose that it cannot draw', () => {
+    const drawable = new Set(
+      [...readFileSync(resolve(SRC, 'ui/prose-icons.tsx'), 'utf8').matchAll(/^ {2}'?([a-z][a-z-]*)'?:/gm)].map(
+        m => m[1],
+      ),
+    )
+    expect(drawable.size, 'nothing can be drawn at all — did the table move?').toBeGreaterThan(0)
+
+    const named = ['menu/help.ts', 'legal/legal.ts'].flatMap(file =>
+      [...readFileSync(resolve(SRC, file), 'utf8').matchAll(/:([a-z][a-z-]*):/g)].map(m => m[1]!),
+    )
+    expect(named.length, 'the guide names no icons at all — did the marks move?').toBeGreaterThan(0)
+
+    const missing = [...new Set(named)].filter(name => !drawable.has(name))
+    expect(missing, 'named in the prose and not in the icon table').toEqual([])
+  })
+
+  /**
+   * **Every animation names keyframes that exist.**
+   *
+   * A CSS animation whose name nothing defines does not fail — it simply never
+   * runs, silently, and what it was animating sits still. On this app that is a
+   * dwell control that fills instantly or not at all, which reads as a broken
+   * control rather than as a missing rule.
+   *
+   * It nearly shipped: renaming the keyframe the message box fills with left the
+   * Aliases panel's fields pointing at a name that had gone, and nothing in the
+   * build, the types or the tests would have said so.
+   */
+  it('animates nothing by a name it has not defined', () => {
+    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+
+    const defined = new Set([...css.matchAll(/@keyframes +([\w-]+)/g)].map(m => m[1]))
+    expect(defined.size, 'the stylesheet defines no keyframes at all — did they move?').toBeGreaterThan(0)
+
+    // The name is the one part of the shorthand that is not a time, a count, a
+    // timing function or a keyword — and here it is always written first.
+    const used = [...css.matchAll(/animation: *([\w-]+)/g)].map(m => m[1]!).filter(name => name !== 'none')
+    const missing = [...new Set(used)].filter(name => !defined.has(name))
+    expect(missing, 'animated by a name no @keyframes defines').toEqual([])
+  })
+
+  /**
+   * **How tall a box may get is one number, not two.**
+   *
+   * The message box and the heard box are held to one height by measurement —
+   * see `topbar.tsx` — and a pair kept equal that way but capped by two numbers
+   * would come apart at exactly the point one of them filled up. Even the clamp
+   * that halves their share of a short screen while they are stacked is written
+   * as a clamp *on* the cap rather than as a second value for it.
+   *
+   * Restated rather than derived is the `--edit-bar-inset` story, where a padding
+   * grew and the strip that had to match it stayed where it was, 20px below the
+   * border it rides.
+   */
+  it('caps either box from one number rather than two', () => {
+    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+
+    const cap = css.match(/--box-max-height: *([^;]+);/)?.[1]
+    expect(cap, 'the stylesheet no longer names how tall a box may get').toBeDefined()
+
+    // Anything else wanting that height has to ask for the token. Written out a
+    // second time is exactly how the pair stops matching.
+    expect(css.split(cap!).length - 1, `${cap} is written down more than once`).toBe(1)
+  })
+
+  /**
+   * **The app has one idea of what a wide screen is, not two.**
+   *
+   * `topbar.tsx` asks the question in JavaScript, because the two controls it
+   * gates are not cheap to mount and hide — each builds the device's voice list.
+   * The stylesheet asks it again for listen mode, where the question is whether
+   * the heard box can sit beside the message rather than above it.
+   *
+   * Two answers to one question would mean a band of widths where the app has
+   * decided the screen is wide for one purpose and narrow for another, which is
+   * the sort of thing nobody sees until they are holding a tablet at exactly
+   * that size.
+   */
+  it('keeps the stylesheet and the topbar agreeing on what a wide screen is', () => {
+    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const topbar = readFileSync(resolve(SRC, 'talk/topbar.tsx'), 'utf8')
+
+    const inCode = topbar.match(/WIDE_ENOUGH = '\(min-width: (\d+)px\)'/)?.[1]
+    expect(inCode, 'the topbar no longer names a wide screen — did it move?').toBeDefined()
+
+    // Only the queries that ask about width alone. The banded ones — a range,
+    // or a width with an orientation — are about the bars giving up arrows on a
+    // phone, which is a different question with a different answer.
+    const inCss = [...css.matchAll(/@media \(min-width: (\d+)px\) \{/g)].map(m => m[1])
+    expect(inCss, 'the stylesheet no longer has a wide-screen rule').not.toEqual([])
+    for (const width of inCss) {
+      expect(width, 'the stylesheet and the topbar disagree about a wide screen').toBe(inCode)
+    }
   })
 
   /**
