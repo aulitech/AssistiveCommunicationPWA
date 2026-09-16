@@ -53,7 +53,8 @@ const micBtn = () => $('.listen-toggle')
 const heardBox = () => $<HTMLTextAreaElement>('.heard-text')
 const messageBox = () => $<HTMLTextAreaElement>('.text-display')!
 const tool = (label: RegExp) => $$('.heard-btn').find(b => label.test(b.getAttribute('aria-label') ?? ''))
-const listenAgain = () => tool(/listen again|dwell to start again/i)
+const clearHeard = () => tool(/^clear/i)
+const undoHeard = () => tool(/^undo/i)
 const translateBtn = () => tool(/own language/i)
 const suggestBtn = () => tool(/suggest a reply/i)
 
@@ -154,34 +155,55 @@ describe('the control', () => {
    */
   it('empties and refills with the glyphs the message box uses', () => {
     renderApp()
-    const clear = () => tool(/^clear$/i)
-    const undo = () => tool(/^undo$/i)
-
     click(micBtn())
-    expect(clear()?.getAttribute('aria-disabled'), 'offered with nothing to empty').toBe('true')
+    expect(clearHeard()?.getAttribute('aria-disabled'), 'offered with nothing to empty').toBe('true')
 
     act(() => FakeRecognition.last!.say({ transcript: 'Do you want tea', isFinal: true }))
     settle()
-    click(clear())
+    click(clearHeard())
     expect(heardBox()!.value).toBe('')
 
     // And back, which is the half that matters: the words were somebody else's
     // and there is no second copy of them anywhere.
-    click(undo())
+    click(undoHeard())
     expect(heardBox()!.value).toBe('Do you want tea')
   })
 
-  // Listening again is a box filling with something new, not a box emptied on
-  // purpose — an undo reaching past it would put back words nobody is talking
-  // about any more.
-  it('has nothing to put back once it is listening again', () => {
+  /**
+   * **The one control works the microphone too, which is why there is no button
+   * for it.**
+   *
+   * Emptying this box has one reason behind it — what came back was wrong — and
+   * what somebody wants next is to be listened to again. Undo is that decision
+   * taken back, so it stops. A row with a listen button in it asked somebody to
+   * make two dwells out of one intention.
+   */
+  it('listens again on clear, and stops on undo', () => {
     renderApp()
     hear('Do you want tea')
-    click(tool(/^clear$/i))
-    click(listenAgain())
+    const before = FakeRecognition.made
 
-    expect(tool(/^undo$/i), 'an undo survived a fresh question').toBeUndefined()
-    expect(tool(/^clear$/i)?.getAttribute('aria-disabled')).toBe('true')
+    click(clearHeard())
+    expect(FakeRecognition.made, 'clearing did not start listening again').toBe(before + 1)
+    expect(FakeRecognition.last!.started).toBe(true)
+
+    click(undoHeard())
+    expect(FakeRecognition.last!.stopped, 'undo left the microphone open').toBe(true)
+    expect(heardBox()!.value).toBe('Do you want tea')
+  })
+
+  // Opening the box is a box with nothing behind it. An undo reaching past the
+  // opening into the last conversation would put back words nobody is talking
+  // about any more.
+  it('has nothing to put back in a box just opened', () => {
+    renderApp()
+    hear('Do you want tea')
+    click(clearHeard())
+    click(micBtn())
+    click(micBtn())
+
+    expect(undoHeard(), 'an undo survived the box being closed and opened').toBeUndefined()
+    expect(clearHeard()?.getAttribute('aria-disabled')).toBe('true')
   })
 
   /**
@@ -213,8 +235,12 @@ describe('the control', () => {
     // rest of the row depends on what this build and this board can do, so only
     // the two that are always there are named.
     const tools = $$('.heard-tools .heard-btn').map(b => b.getAttribute('aria-label') ?? '')
-    expect(tools[0], 'the control that empties the box is not first').toBe('Clear')
-    expect(tools[1]).toMatch(/listen/i)
+    expect(tools[0], 'the control that empties the box is not first').toMatch(/^clear/i)
+    // And nothing aims at the microphone: clearing starts it, undo stops it.
+    expect(
+      tools.filter(l => /^listen/i.test(l)),
+      'something still aims at the microphone',
+    ).toEqual([])
   })
 
   /**
@@ -369,12 +395,12 @@ describe('the question', () => {
     expect(heardBox()!.value).toBe('Do you want tea or toffee?')
   })
 
-  it('can be listened for again', () => {
+  it('can be listened for again, by emptying the box', () => {
     renderApp()
     hear('Do you want tea?')
     const before = FakeRecognition.made
 
-    click(listenAgain())
+    click(clearHeard())
 
     expect(FakeRecognition.made).toBe(before + 1)
     expect(heardBox()!.value).toBe('')
@@ -733,7 +759,7 @@ describe('the suggested reply', () => {
     click(suggestBtn())
     await act(async () => {})
 
-    click(listenAgain())
+    click(clearHeard())
     act(() => FakeRecognition.last!.say({ transcript: 'Milk?', isFinal: true }))
     settle()
     // The box holds the first suggestion, and a suggestion never writes over

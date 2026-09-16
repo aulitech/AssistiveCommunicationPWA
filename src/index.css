@@ -28,10 +28,12 @@
   --text-muted: #b0b0b0;
   --accent: #22c55e;
   --accent-dim: rgba(34, 197, 94, 0.15);
-  /* Two reds' worth of meaning, told apart. `--danger` is destruction — delete
-     a phrase, empty the board, sign out — and `--urgent` is the emergency bar,
-     which is not destroying anything and must not be read as if it were.
-     Nothing outside those two ideas is red anywhere in the app. */
+  /* Two urgencies, told apart by **being different colours entirely**. `--danger`
+     is destruction — delete a phrase, empty the board, sign out — and it is the
+     only red in the app. `--urgent` is the emergency bar, which is not destroying
+     anything and must not be read as if it were: it was red, and a red bar said
+     *careful* where it needed to say *here, now*. Nothing outside those two ideas
+     is either colour anywhere in the app. */
   --danger: #ef4444;
   --urgent: #4fcaf0;
   --dwell-color: #22c55e;
@@ -107,11 +109,11 @@ body {
   /* The top padding is half the mode strip, which is built out of rem itself —
      so it is written in rem too and the two cannot come apart when the root
      font-size changes. */
-  /* Equal top and bottom, because the box now carries a strip on each border
-     outside edit mode as well as in it, and each needs half its own height of
-     room or it hangs over the bar. In edit mode `--edit-bar-inset` takes the
-     bottom, being the larger of the two. */
-  padding: 1rem 10px;
+  /* Half of the tallest strip on each border, or it hangs over the bar. The
+     upper one carries the 3rem control that speaks, which with its own padding
+     is 3.5rem; the lower one carries the two value controls, which are small.
+     In edit mode `--edit-bar-inset` takes the bottom, being the larger there. */
+  padding: 1.75rem 10px 1rem;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
@@ -248,6 +250,36 @@ body {
 .icon-btn.on-border svg {
   width: 1.2rem;
   height: 1.2rem;
+}
+
+/* **The one the whole board exists to reach**, and half again the size of the
+   two beside it: everything else on this border edits what is in the box, and
+   this is what takes it out of the box and into the room. Speak outside edit
+   mode, Save inside it — the same place at the same size, because the mode is a
+   change of meaning rather than a change of layout.
+ *
+ * Its glyph is 3rem, so the strip it rides is 3.5rem tall and the border it
+ * rides is the top of the box; `.topbar` padding-top is half of that, which is
+ * the rule the strip on that border has always followed. */
+.icon-btn.on-border.is-primary {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 10px;
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.icon-btn.on-border.is-primary svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Quiet rather than gone with nothing to say, the same as everywhere else here
+   — but the ground goes with it, or an empty box would still be showing the one
+   control on this bar that looks ready. */
+.icon-btn.on-border.is-primary:disabled {
+  background: transparent;
+  color: var(--text-muted);
 }
 
 .icon-btn svg {
@@ -869,7 +901,7 @@ body {
 .topbar-modes {
   position: absolute;
   /* Matches `.topbar` padding-top — see the note there. */
-  top: 1rem;
+  top: 1.75rem;
   left: 50%;
   transform: translate(-50%, -50%);
   /* Above everything in the app, and below the panel and the dialogs, which are
@@ -2926,6 +2958,29 @@ body {
   animation: spin 0.8s linear infinite;
 }
 
+/* An icon named in a line of prose, drawn where it stands — see `prose-icons`.
+   Sized in `em` rather than `rem`, so it follows the type of whatever line it is
+   in rather than needing a rule per place prose appears, and nudged down by a
+   fraction so its middle sits on the middle of the letters beside it rather than
+   on their baseline. */
+.prose-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.22em;
+  /* The accent, because these are controls and every control in this app is
+     drawn in it while it is being worked. In running text that also tells an
+     icon from the words around it without a box or a rule to separate them. */
+  color: var(--accent);
+}
+
+.prose-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
 /* ── Focus ── */
 /* Every dwell control is also reachable by keyboard and switch access, so the
    focused one has to be obvious. */
@@ -3959,7 +4014,7 @@ body {
 }
 
 /* The phrase in the air — the loudest thing on the bar, because it is what the
-   user is holding. Blue on a red bar, so it cannot be read as one of the
+   user is holding. A lighter blue on the bar's own, so it cannot be read as one of the
    emergency buttons it is sitting among. */
 .emergency-btn.is-held {
   cursor: grabbing;

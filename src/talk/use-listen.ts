@@ -184,11 +184,6 @@ export function useListen({
     askedRef.current++
     stopListening()
     setHeard({ ...EMPTY, listening: true })
-    // Nothing to put back: what undo exists for is a box emptied on purpose, and
-    // this is a box filling with something new. An undo that reached past a
-    // fresh question into the one before it would be putting back words nobody
-    // is talking about any more.
-    setCleared([])
 
     const mine = askedRef.current
     // What the recogniser last had. Kept here rather than read back off state,
@@ -231,6 +226,10 @@ export function useListen({
       // question is still held in memory after they have put it away, and it is
       // the sort of question this app should not need asking twice.
       setHeard(EMPTY)
+      // **Here and not on the way back in**, which would be the same guard
+      // written twice: closing is the only way out of this box, so a box being
+      // opened has already had its undo stack emptied. What it exists for is an
+      // undo reaching past a whole conversation into the one before it.
       setCleared([])
       return
     }
@@ -247,21 +246,37 @@ export function useListen({
   /**
    * Clear when there is something to clear; otherwise put the last one back.
    *
+   * **And it works the microphone, which is why there is no control for that.**
+   * Emptying this box has one reason behind it — what came back was wrong — and
+   * what somebody wants next is to be listened to again, so clearing starts
+   * listening. Undo is that decision taken back, so it stops. One control, two
+   * glyphs, and the microphone follows the words rather than being aimed at
+   * separately: a row with a listen button in it asked somebody to make two
+   * dwells out of one intention.
+   *
    * The meaning goes with the words and does not come back with them: it is a
    * translation of what was in the box, and the box has been emptied and filled
    * again since. A stale meaning under restored words is the same wrongness a
    * stale one under corrected words would be.
    */
   const clearOrUndo = useCallback(() => {
-    askedRef.current++
     if (heard.said) {
       setCleared(c => [...c, heard.said])
-      setHeard(h => ({ ...h, said: '', meaning: '', error: '' }))
-    } else if (cleared.length) {
-      setHeard(h => ({ ...h, said: cleared[cleared.length - 1]!, meaning: '', error: '' }))
-      setCleared(c => c.slice(0, -1))
+      startListening()
+      return
     }
-  }, [cleared, heard.said])
+    if (!cleared.length) return
+    askedRef.current++
+    stopListening()
+    setHeard(h => ({
+      ...h,
+      listening: false,
+      said: cleared[cleared.length - 1]!,
+      meaning: '',
+      error: '',
+    }))
+    setCleared(c => c.slice(0, -1))
+  }, [cleared, heard.said, startListening, stopListening])
 
   /**
    * What the question says in the board's own language.
@@ -294,8 +309,6 @@ export function useListen({
     open,
     heard,
     toggle,
-    /** Listen again, for a question that was missed or interrupted. */
-    again: startListening,
     stop: stopListening,
     correct,
     clearOrUndo,

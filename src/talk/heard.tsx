@@ -16,10 +16,11 @@
 // put a caret in the middle of a sentence — so the same `useCaretDwell` that
 // made the message box reachable makes this one correctable.
 //
-// Three controls ride its lower border, and each is offered only where there is
-// something behind it: listen again, read it in your own language, and suggest a
-// reply. On the border rather than in a row beneath it, so the box costs the
-// board the height of a box and not the height of a box and a toolbar.
+// Its controls ride the lower border rather than sitting in a row beneath it, so
+// the box costs the board the height of a box and not the height of a box and a
+// toolbar. There is no button for the microphone: clearing the box starts it and
+// undo stops it, because emptying this box has one reason behind it — what came
+// back was wrong — and what somebody wants next is to be listened to again.
 // The third is the one that writes anywhere else in the app, and what it writes
 // goes into the message box through the composer's own undo — see
 // `listen/suggest.ts` for why that matters more here than anywhere.
@@ -29,7 +30,7 @@ import { useSettings } from '../ui/settings'
 import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
 import { cx, dwellVar } from '../ui/style'
-import { ClearIcon, MicIcon, SuggestIcon, TranslateIcon, UndoIcon } from '../ui/icons'
+import { ClearIcon, SuggestIcon, TranslateIcon, UndoIcon } from '../ui/icons'
 import type { Listener } from './use-listen'
 
 function HeardButton({
@@ -77,7 +78,6 @@ export function HeardBox({
   const {
     heard,
     correct,
-    again,
     translate,
     suggest,
     clearOrUndo,
@@ -139,12 +139,12 @@ export function HeardBox({
             to empty the box — which makes this the gesture most worth being able
             to take back, since what it threw away is the only copy of what was
             said to somebody. */}
-        <HeardButton onSelect={clearOrUndo} label={showUndo ? 'Undo' : 'Clear'} disabled={!canClear}>
+        <HeardButton
+          onSelect={clearOrUndo}
+          label={showUndo ? 'Undo. Put the question back and stop listening' : 'Clear, and listen again'}
+          disabled={!canClear}
+        >
           {showUndo ? <UndoIcon /> : <ClearIcon />}
-        </HeardButton>
-
-        <HeardButton onSelect={again} label={heard.listening ? 'Listening. Dwell to start again' : 'Listen again'}>
-          <MicIcon />
         </HeardButton>
 
         {canTranslate && (

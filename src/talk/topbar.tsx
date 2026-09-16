@@ -17,7 +17,8 @@
 // top-centre of the message box, which now answers to a mode rather than to the
 // caret. Rest was already there, so that surface was never entirely the box's.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { compose, parseSegments } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { chooseLanguage, chooseVoice } from '../core/store'
 import { LanguagePicker } from '../voice/language-picker'
@@ -286,6 +287,15 @@ export function Topbar({
   )
   const { text, setText, showUndo, canClear, clearOrUndo, textareaRef, trackCursor, setCursor } = composer
   const { draft, isUntouched, startNew, setText: setDraftText } = editor
+
+  /**
+   * What the phrase *reads* as, for the voice picker's sample.
+   *
+   * Not what it is written as: choosing a voice speaks a sample the moment it is
+   * chosen, and nobody wants to hear "open curly bracket, quote, red, quote"
+   * read out — least of all charged to an account by the character.
+   */
+  const spokenDraft = useMemo(() => compose(parseSegments(draft.text)), [draft.text])
 
   // One box, two things in it: the message being composed, and — in edit mode —
   // the phrase being written. Which one is showing decides everything below,
@@ -587,57 +597,57 @@ export function Topbar({
               which is why it keeps the end of the row while the two beside it
               change. */}
           <div className="topbar-actions">
-            {/* Three on the right in both modes, in the same three places. Outside
-              edit mode they are how a message leaves; inside it they are what
-              becomes of the phrase in the box. Paste is the one that means the same
-              thing either way, so it keeps its place at the end. */}
+            {/* Paste keeps the middle in both modes, being the one of the three
+                that means the same thing either way — the keyboard route into a
+                text box is Ctrl-V, which is exactly the input this app exists
+                without. Never disabled: what is on the clipboard is not this
+                app's to know until it asks. */}
             {editMode ? (
-              <>
-                <ActionButton
-                  className="on-border"
-                  onSelect={onSavePhrase}
-                  label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
-                  disabled={!draft.canSave}
-                >
-                  <CheckIcon />
-                </ActionButton>
-
-                {/* Quiet rather than gone while there is nothing to delete: a control
-                  that comes and goes moves the ones beside it, and these are aimed
-                  at rather than read. */}
-                <ActionButton
-                  className="on-border danger"
-                  onSelect={onDeletePhrase}
-                  label={draft.kept ? `Forget this ${draft.kept}` : 'Delete phrase'}
-                  disabled={draft.isNew}
-                >
-                  <TrashIcon />
-                </ActionButton>
-              </>
+              <ActionButton
+                className="on-border danger"
+                onSelect={onDeletePhrase}
+                label={draft.kept ? `Forget this ${draft.kept}` : 'Delete phrase'}
+                disabled={draft.isNew}
+              >
+                <TrashIcon />
+              </ActionButton>
             ) : (
-              <>
-                <ActionButton className="on-border" onSelect={onSpeak} label="Speak" disabled={!text}>
-                  <SpeakIcon />
-                </ActionButton>
-
-                <ActionButton className="on-border" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
-                  <CopyIcon />
-                </ActionButton>
-              </>
+              <ActionButton className="on-border" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
+                <CopyIcon />
+              </ActionButton>
             )}
 
-            {/* Beside copy, because they are the pair. The keyboard route into this box
-              is Ctrl-V, which a dwell user does not have — so a control asks on their
-              behalf. Never disabled: what is on the clipboard is not this app's to
-              know until it asks, so a paste that turns out to have nothing behind it
-              says so rather than being greyed out on a guess. */}
             <ActionButton className="on-border" onSelect={paste} label="Paste from clipboard">
               <PasteIcon />
             </ActionButton>
+
+            {/* **Last, and half again the size of the two beside it.** It is the
+                one the whole board exists to reach: everything else here edits
+                what is in the box, and this is what takes it out of the box and
+                into the room. Last because a row is read to its end and the end
+                is where a hand — or a gaze — comes to rest.
+
+                Edit mode puts Save in the same place at the same size, for the
+                reason the other two keep theirs: the mode is a change of meaning
+                rather than a change of layout, and Save is what this mode's box
+                is for. */}
+            {editMode ? (
+              <ActionButton
+                className="on-border is-primary"
+                onSelect={onSavePhrase}
+                label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
+                disabled={!draft.canSave}
+              >
+                <CheckIcon />
+              </ActionButton>
+            ) : (
+              <ActionButton className="on-border is-primary" onSelect={onSpeak} label="Speak" disabled={!text}>
+                <SpeakIcon />
+              </ActionButton>
+            )}
           </div>
 
-          {/* The language and the voice, at the box's upper-right corner, riding
-              the same border the modes ride at its middle.
+          {/* The language and the voice, at the box's lower-right corner.
 
               **Their faces are the values**: the tag itself, `en-US`, and the
               voice's bare name. Six rem each — enough for "Samantha" and for any
@@ -645,31 +655,68 @@ export function Topbar({
               control for a screen reader. Two words is what fits on a border; the
               settings panel is where the full names are.
 
-              Its own strip, not the modes'. That one holds exactly three, found
-              by position without being read, and `tests/app/App.test.tsx` asserts
-              it — nothing may be inserted. These are a different kind of thing
-              anyway: a mode is on or off, and these are one value out of many.
+              **In edit mode they are the phrase's, not the board's.** The box is
+              the phrase editor there, so everything riding its borders is about
+              the phrase in it — which is why the edit strip below no longer
+              carries a voice picker of its own: one pair of controls, meaning
+              whichever of the two the mode says, rather than two pairs that look
+              alike and are not. The language is the language that voice is *for*:
+              a phrase's own voice is remembered per language, so choosing one
+              says which of them is being given a voice, and it is still the
+              board's language because that is the one the lookup will use.
 
               Not rendered at all on a narrow screen rather than hidden: each
               builds the device's voice list, which is real work to do for
-              something never shown. */}
-          {wide && (
+              something never shown. **Edit mode is the exception**, at any width:
+              this is the only place a phrase can be given a voice of its own now,
+              and a control that exists on a monitor and not on a phone is a
+              feature somebody cannot reach rather than one they have to scroll
+              to. The cost it was gated on is a cost worth paying for the mode
+              somebody entered in order to change a phrase. */}
+          {(wide || editMode) && (
             <div className="topbar-choices">
               <LanguagePicker value={settings.language} onChange={onChooseLanguage}>
                 {({ label, open, isOpen }) => (
-                  <ChoiceButton label={`Spoken language: ${label}. Choose another`} on={isOpen} onOpen={open}>
+                  <ChoiceButton
+                    label={
+                      editMode
+                        ? `Language this phrase's voice is for: ${label}. Choose another`
+                        : `Spoken language: ${label}. Choose another`
+                    }
+                    on={isOpen}
+                    onOpen={open}
+                  >
                     {settings.language || 'auto'}
                   </ChoiceButton>
                 )}
               </LanguagePicker>
 
-              <VoicePicker value={settings.voiceURI} onChange={onChooseVoice} defaultLabel="Default">
-                {({ label, name, open, isOpen }) => (
-                  <ChoiceButton label={`Voice: ${label}. Choose another`} on={isOpen} onOpen={open}>
-                    {name}
-                  </ChoiceButton>
-                )}
-              </VoicePicker>
+              {editMode ? (
+                <VoicePicker
+                  value={draft.voice}
+                  onChange={editor.setVoice}
+                  defaultLabel="Same as everything else"
+                  sampleText={spokenDraft}
+                >
+                  {({ label, name, open, isOpen }) => (
+                    <ChoiceButton
+                      label={`Voice for this phrase: ${label}. Choose another`}
+                      on={isOpen}
+                      onOpen={open}
+                    >
+                      {name}
+                    </ChoiceButton>
+                  )}
+                </VoicePicker>
+              ) : (
+                <VoicePicker value={settings.voiceURI} onChange={onChooseVoice} defaultLabel="Default">
+                  {({ label, name, open, isOpen }) => (
+                    <ChoiceButton label={`Voice: ${label}. Choose another`} on={isOpen} onOpen={open}>
+                      {name}
+                    </ChoiceButton>
+                  )}
+                </VoicePicker>
+              )}
             </div>
           )}
         </div>
@@ -708,7 +755,6 @@ export function Topbar({
           categories={categories}
           countFor={countFor}
           onCategory={editor.setCategory}
-          onVoice={editor.setVoice}
           onCreateCategory={onCreateCategory}
         />
       )}

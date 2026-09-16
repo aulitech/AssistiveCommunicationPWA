@@ -58,7 +58,7 @@ export const PRIVACY: ProseDocument = {
       title: 'Listening',
       blocks: [
         text(
-          'The microphone button on the message box is off until you press it. While it is on, Peri asks your browser to turn what the microphone hears into words, and shows them in a box above the message.',
+          'The microphone button on the message box is off until you press it. While it is on, Peri asks your browser to turn what the microphone hears into words, and shows them in a box of its own beside the message.',
         ),
         text(
           "The listening is your browser's, not ours. Most browsers do it by sending the audio to a speech service of their own — the same one behind dictation elsewhere on your device — and what they do with it is governed by their privacy policy and your device maker's, not by this one. It does not pass through us and we never receive it. Your browser asks your permission the first time, and you can take it back in your browser at any point.",
@@ -73,10 +73,10 @@ export const PRIVACY: ProseDocument = {
           'Reading a heard question in your own language sends it to Google to be translated, exactly as the phrases you write yourself are sent — see Speech below. It is sent only when you ask for it.',
         ),
         text(
-          'Asking for a suggested reply sends the question to Anthropic, using an API key of your own that you set up under Settings. It is sent only when you ask for a reply, never by listening, and nothing about you goes with it beyond the question itself. What Anthropic does with it is governed by their policy, not this one. Remove the key, and nothing is ever sent there. A suggestion is only ever put into the message box for you to read, change or discard — Peri never speaks one for you.',
+          'A suggested reply sends the question to Anthropic, using an API key of your own that you set up under Settings. **With a key set up, this happens on its own**: when the person talking to you stops and your message box is empty, the question goes to be answered without your asking. Leave anything in the message box and it does not. Nothing about you goes with it beyond the question itself, and nothing is sent by listening alone. What Anthropic does with it is governed by their policy, not this one. Remove the key, and nothing is ever sent there. A suggestion is only ever put into the message box for you to read, change or discard — Peri never speaks one for you.',
         ),
         text(
-          'Where answering needs something looked up, Anthropic searches the web for it, so the question reaches a search provider as well. That happens only inside a reply you asked for, and only when the question needs it.',
+          'Where answering needs something looked up, Anthropic searches the web for it, so the question reaches a search provider as well. That happens only inside a reply, and only when the question needs it.',
         ),
       ],
     },

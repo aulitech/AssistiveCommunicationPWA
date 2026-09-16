@@ -10,7 +10,8 @@ import { createPortal } from 'react-dom'
 import { useDwellControl } from './dwell'
 import { useSettings } from './settings'
 import { ResetIcon } from './icons'
-import type { ProseSection } from '../core/prose'
+import { prosePieces, type ProseSection } from '../core/prose'
+import { PROSE_ICONS } from './prose-icons'
 import { cx, dwellVar } from './style'
 import { useSettled } from './settle'
 
@@ -393,18 +394,43 @@ export function ScrollPane({
   )
 }
 
+/**
+ * A line, with the icons it names drawn where they stand.
+ *
+ * `aria-hidden`, because the words either side already say what the control is:
+ * a screen reader reading "rest on the speaker-icon button" twice over is worse
+ * than one reading the sentence as written.
+ */
+function ProseLine({ line }: { line: string }) {
+  return (
+    <>
+      {prosePieces(line).map((piece, i) => {
+        if ('word' in piece) return piece.word
+        const Icon = PROSE_ICONS[piece.icon]
+        return Icon ? (
+          <span key={i} className="prose-icon" aria-hidden="true">
+            <Icon />
+          </span>
+        ) : null
+      })}
+    </>
+  )
+}
+
 function ProseBlocks({ blocks }: { blocks: ProseSection['blocks'] }) {
   return (
     <>
       {blocks.map((block, i) =>
         block.kind === 'text' ? (
           <p key={i} className="help-text">
-            {block.text}
+            <ProseLine line={block.text} />
           </p>
         ) : (
           <ul key={i} className="help-list">
             {block.items.map(item => (
-              <li key={item}>{item}</li>
+              <li key={item}>
+                <ProseLine line={item} />
+              </li>
             ))}
           </ul>
         ),

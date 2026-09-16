@@ -49,8 +49,8 @@ describe('the user guide', () => {
     ['linked voices', /ElevenLabs/],
     ['the sent list', /Sent tab/],
     ['texting acronyms', /Texting category/],
-    ['a voice per phrase', /Voice setting/],
-    ['the paste button, and what to do when it is refused', /paste button/i],
+    ['a voice per phrase', /voice it is said in/i],
+    ['what to do when a paste is refused', /allow clipboard access/i],
     ['clipboard access having to be allowed', /allow clipboard access/i],
     ['the choice syntax, for whoever writes the phrases', /\{'red', 'blue'\}/],
     ['an empty pair leaving a blank', /\{\} ?—|brackets with nothing in them/i],
@@ -68,7 +68,7 @@ describe('the user guide', () => {
   it('opens with an overview of the whole screen', () => {
     expect(HELP_SECTIONS[0].title).toBe('Overview')
     const overview = HELP_SECTIONS[0].blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items))
-    for (const part of [/message/i, /Rest/, /categor/i, /red bar/i]) {
+    for (const part of [/message/i, /Rest/, /categor/i, /blue bar/i]) {
       expect(
         overview.some(l => part.test(l)),
         `the overview does not mention ${part}`,

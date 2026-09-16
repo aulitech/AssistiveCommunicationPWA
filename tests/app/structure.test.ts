@@ -318,6 +318,32 @@ describe('the shape of the source tree', () => {
   })
 
   /**
+   * **Every icon a line of prose names is one that can be drawn.**
+   *
+   * A mark nothing defines draws nothing — the sentence keeps its spacing and
+   * quietly loses the thing it was pointing at, which in a guide whose whole job
+   * is to say *this button, the one that looks like this* is the worst way for
+   * it to be wrong. Nothing else would catch it: the mark is a string, so it
+   * costs no type error and no failing render.
+   */
+  it('names no icon in its prose that it cannot draw', () => {
+    const drawable = new Set(
+      [...readFileSync(resolve(SRC, 'ui/prose-icons.tsx'), 'utf8').matchAll(/^ {2}'?([a-z][a-z-]*)'?:/gm)].map(
+        m => m[1],
+      ),
+    )
+    expect(drawable.size, 'nothing can be drawn at all — did the table move?').toBeGreaterThan(0)
+
+    const named = ['menu/help.ts', 'legal/legal.ts'].flatMap(file =>
+      [...readFileSync(resolve(SRC, file), 'utf8').matchAll(/:([a-z][a-z-]*):/g)].map(m => m[1]!),
+    )
+    expect(named.length, 'the guide names no icons at all — did the marks move?').toBeGreaterThan(0)
+
+    const missing = [...new Set(named)].filter(name => !drawable.has(name))
+    expect(missing, 'named in the prose and not in the icon table').toEqual([])
+  })
+
+  /**
    * **Every animation names keyframes that exist.**
    *
    * A CSS animation whose name nothing defines does not fail — it simply never

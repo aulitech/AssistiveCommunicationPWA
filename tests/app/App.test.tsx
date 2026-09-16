@@ -90,6 +90,12 @@ const slotCell = () =>
 const box = () => $<HTMLTextAreaElement>('.text-display')!
 const iconBtn = (label: string) =>
   $$<HTMLButtonElement>('.icon-btn').find(b => b.getAttribute('aria-label') === label)
+/**
+ * The voice control on the box's lower-right corner, which in edit mode is the
+ * phrase's own. Settings has a `.voice-trigger` of its own and this is not it.
+ */
+const phraseVoice = () =>
+  $$('.topbar-choices .choice-btn').find(b => /^voice/i.test(b.getAttribute('aria-label') ?? ''))
 const writeIn = (el: Element, value: string) => {
   fireEvent.change(el, { target: { value } })
   settle()
@@ -842,15 +848,25 @@ describe('edit mode', () => {
     })
   })
 
-  // The strip rides the lower border of the message box, exactly as the modes
-  // ride the upper one — which it can only do from inside the bar the box is in.
-  it('puts the category and the voice on the message box itself', () => {
+  /**
+   * The strip rides the lower border of the message box, exactly as the modes
+   * ride the upper one — which it can only do from inside the bar the box is in.
+   *
+   * **The voice is not in it.** A phrase's voice is the pair at the box's
+   * lower-right corner in edit mode, the same pair that is the board's outside
+   * it: one pair of controls meaning whichever of the two the mode says, rather
+   * than two pairs that look alike and are not.
+   */
+  it('puts the category on the message box itself, and the voice on its corner', () => {
     renderApp()
     click(editToggle())
 
     expect($('.topbar > .edit-bar')).not.toBeNull()
     expect($('.edit-bar .category-trigger')).not.toBeNull()
-    expect($('.edit-bar .voice-trigger')).not.toBeNull()
+    expect($('.edit-bar .voice-trigger'), 'the strip still carries a voice of its own').toBeNull()
+
+    const voice = $$('.topbar-choices .choice-btn').map(b => b.getAttribute('aria-label') ?? '')
+    expect(voice.some(l => /voice for this phrase/i.test(l))).toBe(true)
   })
 
   // The two numbers that put it there. `.topbar` padding-bottom is where the
@@ -2933,7 +2949,7 @@ describe('rendering only part of a long grid', () => {
 describe('starting from the last choice made', () => {
   const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
   const enterEditMode = () => click(editToggle())
-  const voiceTrigger = () => $('.voice-trigger')
+  const voiceTrigger = phraseVoice
   const flush = async () => {
     await act(async () => {
       await Promise.resolve()
@@ -3070,7 +3086,7 @@ describe('starting from the last choice made', () => {
 describe('giving a phrase its own voice', () => {
   const LINKED = { apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel', collection: 'premade' }] }
   const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
-  const voiceTrigger = () => $('.voice-trigger')
+  const voiceTrigger = phraseVoice
   /**
    * The same grid Settings uses. Choosing previews the voice, so what it spoke
    * is cleared afterwards — the tests below are about what saying the *phrase*
@@ -4780,10 +4796,26 @@ describe('pasting by dwell', () => {
 
   // Paste keeps the end of the row while the two beside it change with the mode,
   // being the one of the three that means the same thing either way.
-  it('sits to the right of copy, on the box upper border', () => {
+  /**
+   * Paste keeps the **middle** of the row in both modes, being the one of the
+   * three that means the same thing either way. What is at the end is what the
+   * mode is for — speak, or in edit mode save — and it is half again the size of
+   * the two beside it.
+   */
+  it('sits between copy and speak, on the box upper border', () => {
     renderApp()
     const actions = $$('.topbar-actions .icon-btn').map(b => b.getAttribute('aria-label'))
-    expect(actions).toEqual(['Speak', 'Copy to clipboard', 'Paste from clipboard'])
+    expect(actions).toEqual(['Copy to clipboard', 'Paste from clipboard', 'Speak'])
+
+    // The end of the row is what the mode is for, and it is the one drawn large.
+    const primary = () => $('.topbar-actions .icon-btn:last-child')!
+    expect(primary().getAttribute('aria-label')).toBe('Speak')
+    expect(primary().classList.contains('is-primary'), 'speak is not the large one').toBe(true)
+
+    click(editToggle())
+    const editing = $$('.topbar-actions .icon-btn').map(b => b.getAttribute('aria-label'))
+    expect(editing).toEqual(['Delete phrase', 'Paste from clipboard', 'Save phrase'])
+    expect(primary().classList.contains('is-primary'), 'save is not the large one').toBe(true)
   })
 
   // Never disabled: what is on the clipboard is not this app's to know until it

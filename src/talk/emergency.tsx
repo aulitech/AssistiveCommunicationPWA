@@ -1,4 +1,4 @@
-// The red bar along the bottom. Always visible, on every screen of the app, and
+// The blue bar along the bottom. Always visible, on every screen of the app, and
 // spoken the moment it is chosen rather than composed into the message first.
 //
 // Which button sits where matters more here than anywhere else: this is the one

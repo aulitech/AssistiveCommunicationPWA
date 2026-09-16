@@ -122,7 +122,7 @@ function LanguageRow() {
    * It sat on a row of its own while the key was the user's to supply. There is
    * no key to supply now, so it belongs on the control that starts the sending
    * — and it says the shape of it rather than the mechanism: what never leaves,
-   * what does, once each, and that the red bar still never waits.
+   * what does, once each, and that the emergency bar still never waits.
    *
    * The second case is a build with no key in it. That is invisible from the
    * board — phrases somebody wrote are simply spoken in English — so it is said
