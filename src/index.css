@@ -225,7 +225,6 @@ body {
   -webkit-user-select: none;
 }
 
-.icon-btn.right { margin-left: 8px; margin-right: 0; }
 
 /* The same button painted small enough to ride a border — see `.topbar-clear`.
    The bordered `--cell` square is dropped for the ground the strip paints, and
@@ -476,8 +475,11 @@ body {
   align-items: flex-start;
 }
 
-/* The language and the voice, at the box's upper-right corner, riding the same
-   border the modes ride at its middle.
+/* The language and the voice, now at the box's **lower**-right corner: the upper
+   one is the three that act on the message, and these are neither about the
+   message nor urgent — they are set once and left, which is the border to be on.
+   Against `.message-wrap`, because the pair of boxes ends wherever the taller of
+   the two does and that is not where this box's border falls.
 
    **No background of its own**, unlike the mode strip. That one is opaque
    because its three controls are transparent and the box would show through
@@ -509,6 +511,42 @@ body {
   align-items: center;
   background: #000;
   padding: 0.25rem;
+  border-radius: 999px;
+}
+
+/* The three that act on what is in the box, at the **right end of its upper
+   border** — where the language and the voice used to sit, before they went to
+   the bottom.
+ *
+ * They were full-size buttons in a rail beside the box, and this is the last of
+ * that rail: with them and the slot that empties the box on its borders, what is
+ * left outside is the menu and the keyboard, which are about the app rather than
+ * about the message. The board gets the whole of that width.
+ *
+ * **1.25rem apart rather than the 0.75rem the mode strip packs its three into.**
+ * That much is what clears the invisible area each carries — `.on-border::before`
+ * reaches 8px past every edge — so no two of these overlap anywhere. The modes
+ * can afford to be tighter: they are three states of one thing, and picking the
+ * wrong one costs a dwell to put back. One of these deletes a phrase.
+ *
+ * Positioned against `.message-wrap`, not the pair of boxes: they act on the
+ * message, and on a wide screen with listen mode open the pair's corner belongs
+ * to the question. */
+.topbar-actions {
+  position: absolute;
+  top: 0;
+  right: 0.6rem;
+  transform: translateY(-50%);
+  z-index: 90;
+
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+
+  /* Opaque, for the reason `.topbar-modes` is: these paint nothing of their own
+     now, and sat on the border with it and the typed text showing through. */
+  background: #000;
+  padding: 0.25rem 0.6rem;
   border-radius: 999px;
 }
 
@@ -765,9 +803,9 @@ body {
 
 .topbar-choices {
   position: absolute;
-  top: 0;
+  bottom: 0;
   right: 0.6rem;
-  transform: translateY(-50%);
+  transform: translateY(50%);
   /* The modes' layer: above the app, below the panels and dialogs meant to
      cover it. */
   z-index: 90;

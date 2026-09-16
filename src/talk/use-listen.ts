@@ -82,6 +82,16 @@ export function useListen({
 }) {
   const [open, setOpen] = useState(false)
   const [heard, setHeard] = useState<Heard>(EMPTY)
+  /**
+   * What clearing the box took away, so one dwell puts it back.
+   *
+   * The same one-step toggle the message box has, and the same controls drawn
+   * with the same two glyphs: a recogniser mis-hears, and the answer to a
+   * question that came out as nonsense is to empty the box and listen again —
+   * which is exactly the gesture somebody needs to be able to take back, since
+   * what it threw away was the only copy of what was said to them.
+   */
+  const [cleared, setCleared] = useState<string[]>([])
 
   /** The way to stop whatever is listening now, or null when nothing is. */
   const stopRef = useRef<(() => void) | null>(null)
@@ -174,6 +184,11 @@ export function useListen({
     askedRef.current++
     stopListening()
     setHeard({ ...EMPTY, listening: true })
+    // Nothing to put back: what undo exists for is a box emptied on purpose, and
+    // this is a box filling with something new. An undo that reached past a
+    // fresh question into the one before it would be putting back words nobody
+    // is talking about any more.
+    setCleared([])
 
     const mine = askedRef.current
     // What the recogniser last had. Kept here rather than read back off state,
@@ -216,6 +231,7 @@ export function useListen({
       // question is still held in memory after they have put it away, and it is
       // the sort of question this app should not need asking twice.
       setHeard(EMPTY)
+      setCleared([])
       return
     }
     setOpen(true)
@@ -227,6 +243,25 @@ export function useListen({
     askedRef.current++
     setHeard(h => ({ ...h, said, meaning: '', error: '' }))
   }, [])
+
+  /**
+   * Clear when there is something to clear; otherwise put the last one back.
+   *
+   * The meaning goes with the words and does not come back with them: it is a
+   * translation of what was in the box, and the box has been emptied and filled
+   * again since. A stale meaning under restored words is the same wrongness a
+   * stale one under corrected words would be.
+   */
+  const clearOrUndo = useCallback(() => {
+    askedRef.current++
+    if (heard.said) {
+      setCleared(c => [...c, heard.said])
+      setHeard(h => ({ ...h, said: '', meaning: '', error: '' }))
+    } else if (cleared.length) {
+      setHeard(h => ({ ...h, said: cleared[cleared.length - 1]!, meaning: '', error: '' }))
+      setCleared(c => c.slice(0, -1))
+    }
+  }, [cleared, heard.said])
 
   /**
    * What the question says in the board's own language.
@@ -263,6 +298,10 @@ export function useListen({
     again: startListening,
     stop: stopListening,
     correct,
+    clearOrUndo,
+    /** Which of the two the one control is offering, exactly as the composer's does. */
+    showUndo: !heard.said && cleared.length > 0,
+    canClear: Boolean(heard.said) || cleared.length > 0,
     translate,
     suggest,
     /** Whether this browser can listen at all. The control is not drawn if not. */

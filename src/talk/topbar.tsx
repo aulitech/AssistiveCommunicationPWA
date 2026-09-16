@@ -570,6 +570,108 @@ export function Topbar({
               </ActionButton>
             )}
           </div>
+
+          {/* The three that act on what is in the box, at the **upper right** of
+              its top border — where the language and the voice used to sit, and
+              they have gone to the bottom.
+
+              They were full-size buttons in a rail beside the box, and this is
+              the last of that rail: with them and the slot that empties the box
+              on its borders, what is left outside is the menu and the keyboard,
+              which are about the app rather than about the message. The board
+              gets the whole of that width.
+
+              **Three in both modes, in the same three places.** Outside edit
+              mode they are how a message leaves; inside it they are what becomes
+              of the phrase in the box. Paste means the same thing either way,
+              which is why it keeps the end of the row while the two beside it
+              change. */}
+          <div className="topbar-actions">
+            {/* Three on the right in both modes, in the same three places. Outside
+              edit mode they are how a message leaves; inside it they are what
+              becomes of the phrase in the box. Paste is the one that means the same
+              thing either way, so it keeps its place at the end. */}
+            {editMode ? (
+              <>
+                <ActionButton
+                  className="on-border"
+                  onSelect={onSavePhrase}
+                  label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
+                  disabled={!draft.canSave}
+                >
+                  <CheckIcon />
+                </ActionButton>
+
+                {/* Quiet rather than gone while there is nothing to delete: a control
+                  that comes and goes moves the ones beside it, and these are aimed
+                  at rather than read. */}
+                <ActionButton
+                  className="on-border danger"
+                  onSelect={onDeletePhrase}
+                  label={draft.kept ? `Forget this ${draft.kept}` : 'Delete phrase'}
+                  disabled={draft.isNew}
+                >
+                  <TrashIcon />
+                </ActionButton>
+              </>
+            ) : (
+              <>
+                <ActionButton className="on-border" onSelect={onSpeak} label="Speak" disabled={!text}>
+                  <SpeakIcon />
+                </ActionButton>
+
+                <ActionButton className="on-border" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
+                  <CopyIcon />
+                </ActionButton>
+              </>
+            )}
+
+            {/* Beside copy, because they are the pair. The keyboard route into this box
+              is Ctrl-V, which a dwell user does not have — so a control asks on their
+              behalf. Never disabled: what is on the clipboard is not this app's to
+              know until it asks, so a paste that turns out to have nothing behind it
+              says so rather than being greyed out on a guess. */}
+            <ActionButton className="on-border" onSelect={paste} label="Paste from clipboard">
+              <PasteIcon />
+            </ActionButton>
+          </div>
+
+          {/* The language and the voice, at the box's upper-right corner, riding
+              the same border the modes ride at its middle.
+
+              **Their faces are the values**: the tag itself, `en-US`, and the
+              voice's bare name. Six rem each — enough for "Samantha" and for any
+              tag there is, and past that an ellipsis, with the whole of it on the
+              control for a screen reader. Two words is what fits on a border; the
+              settings panel is where the full names are.
+
+              Its own strip, not the modes'. That one holds exactly three, found
+              by position without being read, and `tests/app/App.test.tsx` asserts
+              it — nothing may be inserted. These are a different kind of thing
+              anyway: a mode is on or off, and these are one value out of many.
+
+              Not rendered at all on a narrow screen rather than hidden: each
+              builds the device's voice list, which is real work to do for
+              something never shown. */}
+          {wide && (
+            <div className="topbar-choices">
+              <LanguagePicker value={settings.language} onChange={onChooseLanguage}>
+                {({ label, open, isOpen }) => (
+                  <ChoiceButton label={`Spoken language: ${label}. Choose another`} on={isOpen} onOpen={open}>
+                    {settings.language || 'auto'}
+                  </ChoiceButton>
+                )}
+              </LanguagePicker>
+
+              <VoicePicker value={settings.voiceURI} onChange={onChooseVoice} defaultLabel="Default">
+                {({ label, name, open, isOpen }) => (
+                  <ChoiceButton label={`Voice: ${label}. Choose another`} on={isOpen} onOpen={open}>
+                    {name}
+                  </ChoiceButton>
+                )}
+              </VoicePicker>
+            </div>
+          )}
         </div>
 
         {/* Listen mode, at the box's upper-**left** corner, riding the same
@@ -594,92 +696,7 @@ export function Topbar({
             </ModeToggle>
           </div>
         )}
-
-        {/* The language and the voice, at the box's upper-right corner, riding
-            the same border the modes ride at its middle.
-
-            **Their faces are the values**: the tag itself, `en-US`, and the
-            voice's bare name. Six rem each — enough for "Samantha" and for any
-            tag there is, and past that an ellipsis, with the whole of it on the
-            control for a screen reader. Two words is what fits on a border; the
-            settings panel is where the full names are.
-
-            Its own strip, not the modes'. That one holds exactly three, found
-            by position without being read, and `tests/app/App.test.tsx` asserts
-            it — nothing may be inserted. These are a different kind of thing
-            anyway: a mode is on or off, and these are one value out of many.
-
-            Not rendered at all on a narrow screen rather than hidden: each
-            builds the device's voice list, which is real work to do for
-            something never shown. */}
-        {wide && (
-          <div className="topbar-choices">
-            <LanguagePicker value={settings.language} onChange={onChooseLanguage}>
-              {({ label, open, isOpen }) => (
-                <ChoiceButton label={`Spoken language: ${label}. Choose another`} on={isOpen} onOpen={open}>
-                  {settings.language || 'auto'}
-                </ChoiceButton>
-              )}
-            </LanguagePicker>
-
-            <VoicePicker value={settings.voiceURI} onChange={onChooseVoice} defaultLabel="Default">
-              {({ label, name, open, isOpen }) => (
-                <ChoiceButton label={`Voice: ${label}. Choose another`} on={isOpen} onOpen={open}>
-                  {name}
-                </ChoiceButton>
-              )}
-            </VoicePicker>
-          </div>
-        )}
       </div>
-
-      {/* Three on the right in both modes, in the same three places. Outside
-          edit mode they are how a message leaves; inside it they are what
-          becomes of the phrase in the box. Paste is the one that means the same
-          thing either way, so it keeps its place at the end. */}
-      {editMode ? (
-        <>
-          <ActionButton
-            className="right"
-            onSelect={onSavePhrase}
-            label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
-            disabled={!draft.canSave}
-          >
-            <CheckIcon />
-          </ActionButton>
-
-          {/* Quiet rather than gone while there is nothing to delete: a control
-              that comes and goes moves the ones beside it, and these are aimed
-              at rather than read. */}
-          <ActionButton
-            className="right danger"
-            onSelect={onDeletePhrase}
-            label={draft.kept ? `Forget this ${draft.kept}` : 'Delete phrase'}
-            disabled={draft.isNew}
-          >
-            <TrashIcon />
-          </ActionButton>
-        </>
-      ) : (
-        <>
-          <ActionButton className="right" onSelect={onSpeak} label="Speak" disabled={!text}>
-            <SpeakIcon />
-          </ActionButton>
-
-          <ActionButton className="right" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
-            <CopyIcon />
-          </ActionButton>
-        </>
-      )}
-
-      {/* Beside copy, because they are the pair. The keyboard route into this box
-          is Ctrl-V, which a dwell user does not have — so a control asks on their
-          behalf. Never disabled: what is on the clipboard is not this app's to
-          know until it asks, so a paste that turns out to have nothing behind it
-          says so rather than being greyed out on a guess. */}
-      <ActionButton className="right" onSelect={paste} label="Paste from clipboard">
-        <PasteIcon />
-      </ActionButton>
 
       {/* The other strip, on the box's lower border, and centred on it exactly
           as the modes are on the upper one. A phrase has two things besides its

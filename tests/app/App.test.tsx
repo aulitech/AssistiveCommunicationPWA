@@ -3574,6 +3574,53 @@ describe('the message box growing', () => {
 describe('the slot that empties the box', () => {
   const strip = () => $('.message-wrap > .topbar-clear')
 
+  /**
+   * **Nothing acts on the message from outside the box any more.**
+   *
+   * The three that do sit on its upper border at the right; the one that empties
+   * it sits at the left of the lower one. What is left in the rail beside the box
+   * is the menu and the keyboard, which are about the app rather than about the
+   * message — and the board gets the whole of the width that came back.
+   *
+   * The strips hang off `.message-wrap` rather than off the pair of boxes: they
+   * act on the message, and on a wide screen with listen mode open the pair's
+   * corners belong to the question.
+   */
+  it('leaves nothing in the rail but the menu and the keyboard', () => {
+    renderApp()
+    const rail = $$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))
+    expect(rail).toEqual(['Open menu', 'Show the keyboard'])
+
+    for (const strip of ['.topbar-actions', '.topbar-clear']) {
+      expect($(`.message-wrap > ${strip}`), `${strip} is not on the message box`).not.toBeNull()
+    }
+  })
+
+  /**
+   * **Each of the box's four borders holds one kind of thing.**
+   *
+   * Upper: a mode in the middle, the microphone at the left, the three that act
+   * on the message at the right. Lower: the one that empties it at the left, and
+   * the language and the voice at the right — neither about the message and
+   * neither urgent, set once and left, which is the border to be on.
+   *
+   * Asserted against the text of the stylesheet, which is all jsdom allows —
+   * whether they land on the lines is a question for the deploy preview.
+   */
+  it('puts the two value controls on the lower border and the actions on the upper', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const edge = (selector: string) => {
+      const rule = css.slice(css.indexOf(`${selector} {`))
+      const block = rule.slice(0, rule.indexOf('}'))
+      return ['top', 'bottom'].filter(side => new RegExp(`^ *${side}: `, 'm').test(block))
+    }
+
+    expect(edge('.topbar-actions'), 'the three that act on the message left the upper border').toEqual(['top'])
+    expect(edge('.topbar-listen'), 'the microphone left the upper border').toEqual(['top'])
+    expect(edge('.topbar-choices'), 'the language and the voice are not on the lower border').toEqual(['bottom'])
+    expect(edge('.topbar-clear'), 'the one that empties the box is not on the lower border').toEqual(['bottom'])
+  })
+
   it('rides the box border rather than sitting in the rail beside it', () => {
     renderApp()
     expect(strip(), 'it is not on the box at all').not.toBeNull()
@@ -4731,10 +4778,12 @@ describe('pasting by dwell', () => {
     })
   }
 
-  it('sits to the right of copy', () => {
+  // Paste keeps the end of the row while the two beside it change with the mode,
+  // being the one of the three that means the same thing either way.
+  it('sits to the right of copy, on the box upper border', () => {
     renderApp()
-    const right = $$('.icon-btn.right').map(b => b.getAttribute('aria-label'))
-    expect(right).toEqual(['Speak', 'Copy to clipboard', 'Paste from clipboard'])
+    const actions = $$('.topbar-actions .icon-btn').map(b => b.getAttribute('aria-label'))
+    expect(actions).toEqual(['Speak', 'Copy to clipboard', 'Paste from clipboard'])
   })
 
   // Never disabled: what is on the clipboard is not this app's to know until it

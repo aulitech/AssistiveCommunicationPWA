@@ -29,7 +29,7 @@ import { useSettings } from '../ui/settings'
 import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
 import { cx, dwellVar } from '../ui/style'
-import { MicIcon, SuggestIcon, TranslateIcon } from '../ui/icons'
+import { ClearIcon, MicIcon, SuggestIcon, TranslateIcon, UndoIcon } from '../ui/icons'
 import type { Listener } from './use-listen'
 
 function HeardButton({
@@ -74,7 +74,19 @@ export function HeardBox({
   fieldRef: RefObject<HTMLTextAreaElement | null>
 }) {
   const { settings } = useSettings()
-  const { heard, correct, again, translate, suggest, canTranslate, canSuggest, messageEmpty } = listener
+  const {
+    heard,
+    correct,
+    again,
+    translate,
+    suggest,
+    clearOrUndo,
+    showUndo,
+    canClear,
+    canTranslate,
+    canSuggest,
+    messageEmpty,
+  } = listener
 
   const write = useCallback((value: string) => correct(value), [correct])
 
@@ -119,6 +131,18 @@ export function HeardBox({
           target-separation number and a pill that wide would not fit the
           narrower pane the wide-screen split gives this box. */}
       <div className="heard-tools">
+        {/* First, and the same two glyphs the message box empties itself with.
+            One box is what somebody is being asked and the other is what they
+            are about to say, and a control that means *empty this* has to look
+            the same on both or it is two controls to learn. A recogniser
+            mis-hears, and the answer to a question that came out as nonsense is
+            to empty the box — which makes this the gesture most worth being able
+            to take back, since what it threw away is the only copy of what was
+            said to somebody. */}
+        <HeardButton onSelect={clearOrUndo} label={showUndo ? 'Undo' : 'Clear'} disabled={!canClear}>
+          {showUndo ? <UndoIcon /> : <ClearIcon />}
+        </HeardButton>
+
         <HeardButton onSelect={again} label={heard.listening ? 'Listening. Dwell to start again' : 'Listen again'}>
           <MicIcon />
         </HeardButton>

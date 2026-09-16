@@ -141,6 +141,50 @@ describe('the control', () => {
   })
 
   /**
+   * **The same two glyphs both boxes empty themselves with.**
+   *
+   * One box is what somebody is being asked and the other is what they are about
+   * to say, and a control meaning *empty this* has to look the same on both or
+   * it is two controls to learn rather than one.
+   *
+   * It is the gesture most worth being able to take back here: a recogniser
+   * mis-hears, the answer to a question that came out as nonsense is to empty
+   * the box, and what that throws away is the only copy of what was said to
+   * somebody.
+   */
+  it('empties and refills with the glyphs the message box uses', () => {
+    renderApp()
+    const clear = () => tool(/^clear$/i)
+    const undo = () => tool(/^undo$/i)
+
+    click(micBtn())
+    expect(clear()?.getAttribute('aria-disabled'), 'offered with nothing to empty').toBe('true')
+
+    act(() => FakeRecognition.last!.say({ transcript: 'Do you want tea', isFinal: true }))
+    settle()
+    click(clear())
+    expect(heardBox()!.value).toBe('')
+
+    // And back, which is the half that matters: the words were somebody else's
+    // and there is no second copy of them anywhere.
+    click(undo())
+    expect(heardBox()!.value).toBe('Do you want tea')
+  })
+
+  // Listening again is a box filling with something new, not a box emptied on
+  // purpose — an undo reaching past it would put back words nobody is talking
+  // about any more.
+  it('has nothing to put back once it is listening again', () => {
+    renderApp()
+    hear('Do you want tea')
+    click(tool(/^clear$/i))
+    click(listenAgain())
+
+    expect(tool(/^undo$/i), 'an undo survived a fresh question').toBeUndefined()
+    expect(tool(/^clear$/i)?.getAttribute('aria-disabled')).toBe('true')
+  })
+
+  /**
    * The three controls ride the heard box's lower border.
    *
    * On the border rather than in a row beneath it, so the box costs the board the
@@ -164,6 +208,13 @@ describe('the control', () => {
 
     const inOrder = [...$('.heard-wrap')!.children].map(el => el.className.split(' ')[0])
     expect(inOrder).toEqual(['heard-text', 'heard-tools', 'heard-meaning'])
+
+    // Empty first, then the ones that do something with what is in the box. The
+    // rest of the row depends on what this build and this board can do, so only
+    // the two that are always there are named.
+    const tools = $$('.heard-tools .heard-btn').map(b => b.getAttribute('aria-label') ?? '')
+    expect(tools[0], 'the control that empties the box is not first').toBe('Clear')
+    expect(tools[1]).toMatch(/listen/i)
   })
 
   /**
