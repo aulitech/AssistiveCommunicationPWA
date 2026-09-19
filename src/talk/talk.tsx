@@ -122,6 +122,13 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
   const { insert: insertPhrase, text: message, currentWord, copy: copyMessage, speak: speakMessage } = composer
 
+  // What a suggested reply prefers to be, the emergency bar included: those are
+  // the person's phrases as much as the grid's are.
+  const replyPhrases = useMemo(
+    () => [...board.mainPhrases, ...board.emergencyPhrases],
+    [board.mainPhrases, board.emergencyPhrases],
+  )
+
   /**
    * Listen mode: the other half of the conversation — see `use-listen.ts`.
    *
@@ -133,6 +140,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     language: settings.language,
     replyKey,
     replyModel: settings.replyModel,
+    phrases: replyPhrases,
     // Edit mode counts as not empty however little is in the draft: the box is
     // showing a phrase there, and a reply landing in the message behind it
     // would be one nobody could see and an exchange nobody asked to pay for.

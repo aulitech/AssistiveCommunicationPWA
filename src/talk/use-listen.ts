@@ -20,9 +20,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { canListen, listen } from '../listen/recognition'
-import { suggestReply } from '../listen/suggest'
+import { boardForReply, suggestReply } from '../listen/suggest'
 import { hasTranslateKey, translateHeard } from '../translate/client'
 import { addReplyTurn, loadReplyContext, saveReplyContext } from '../core/store'
+import { type Phrase } from '../core/phrases'
 
 /** What the box above the message is holding, and what is happening to it. */
 export interface Heard {
@@ -51,6 +52,7 @@ export function useListen({
   language,
   replyKey,
   replyModel,
+  phrases,
   messageEmpty,
   onSuggest,
 }: {
@@ -64,6 +66,15 @@ export function useListen({
   replyKey: string
   /** Which model writes the reply — see `REPLY_MODELS`. */
   replyModel: string
+  /**
+   * Every phrase on the board, which a reply prefers to be one of.
+   *
+   * **In the board's own order, never the order it is shown in.** The shown
+   * order follows use, so it changes every time a phrase is said — which would
+   * rebuild the cached board on nearly every question — and how often each one
+   * is used is the one record Peri keeps that goes nowhere at all.
+   */
+  phrases: Phrase[]
   /**
    * Whether a suggestion has anywhere to land.
    *
@@ -138,7 +149,9 @@ export function useListen({
       // Read at the moment of asking rather than held in state: a reply can be
       // several seconds out, and the day's window has to be the one that is true
       // when the question goes rather than when the box was opened.
-      const result = await suggestReply(asked, language, replyModel, loadReplyContext())
+      // The board is written out here rather than kept written out: most boards
+      // never ask for a reply at all, and one that does asks once a question.
+      const result = await suggestReply(asked, language, replyModel, loadReplyContext(), boardForReply(phrases))
       if (mine !== askedRef.current) return
       setHeard(h => ({ ...h, asking: '', error: result.status === 'ok' ? '' : result.error }))
       if (result.status !== 'ok') return
@@ -149,7 +162,7 @@ export function useListen({
       saveReplyContext(addReplyTurn(loadReplyContext(), asked, result.text))
       onSuggestRef.current(result.text, result.blankAt)
     },
-    [language, replyModel],
+    [language, replyModel, phrases],
   )
 
   /**

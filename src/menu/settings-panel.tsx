@@ -785,8 +785,8 @@ function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (ne
         )}
         <p className="eleven-note">
           {value
-            ? "The microphone button on the message box can suggest a reply to a question it heard. The question is sent to Anthropic on your own account and your own credits, and where the answer needs looking up it is searched for on the web as well. Today's questions and replies are kept on this device so a conversation carries on making sense, and forgotten after a day. A suggestion is only ever put in the message box — Peri never speaks one for you."
-            : 'Optional. Lets the microphone button suggest a reply to a question it heard, using your own Anthropic account. Questions that need looking up are searched for on the web. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
+            ? "The microphone button on the message box can suggest a reply to a question it heard. The question is sent to Anthropic on your own account and your own credits, with the phrases on your board so the reply can be one of your own, and where the answer needs looking up it is searched for on the web as well. Today's questions and replies are kept on this device so a conversation carries on making sense, and forgotten after a day. A suggestion is only ever put in the message box — Peri never speaks one for you."
+            : 'Optional. Lets the microphone button suggest a reply to a question it heard, using your own Anthropic account. The question goes with the phrases on your board, so the reply can be one of your own, and questions that need looking up are searched for on the web. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
         </p>
       </div>
 

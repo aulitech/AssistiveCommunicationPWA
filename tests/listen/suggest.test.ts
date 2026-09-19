@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { hasReplyKey, suggestReply } from '../../src/listen/suggest'
+import { boardForReply, hasReplyKey, suggestReply } from '../../src/listen/suggest'
 import { DEFAULT_REPLY_MODEL, saveReplyKey } from '../../src/core/store'
+import { makePhrase } from '../../src/core/phrases'
 import { warnings } from '../setup'
 
 // A suggested answer to a question that was heard.
@@ -25,14 +26,22 @@ const replies = (text: string) =>
 const refuses = (status: number) => vi.fn(async () => new Response(JSON.stringify({ error: {} }), { status }))
 
 /** The body of the one request that went out. */
+type SystemBlock = { type: string; text: string; cache_control?: { type: string; ttl?: string } }
+
 const sent = (fetcher: ReturnType<typeof vi.fn>) =>
   JSON.parse(String((fetcher.mock.calls as unknown as [string, RequestInit][])[0][1].body)) as {
     model: string
     max_tokens: number
-    system: string
+    system: SystemBlock[]
     tools: { type: string; name: string; max_uses: number }[]
     messages: { role: string; content: string }[]
   }
+
+/** Everything the model was told before the conversation, as one piece of text. */
+const brief = (fetcher: ReturnType<typeof vi.fn>) =>
+  sent(fetcher)
+    .system.map(block => block.text)
+    .join(' ')
 
 const headers = (fetcher: ReturnType<typeof vi.fn>) =>
   ((fetcher.mock.calls as unknown as [string, RequestInit][])[0][1].headers ?? {}) as Record<string, string>
@@ -135,9 +144,9 @@ describe('asking for a reply', () => {
     vi.stubGlobal('fetch', fetcher)
     await suggestReply('Did you take your tablets?', '')
 
-    const brief = sent(fetcher).system
-    expect(brief, 'the world is not off limits').toMatch(/question about the world you may answer/i)
-    expect(brief, 'the person is').toMatch(/never state what they did/i)
+    const told = brief(fetcher)
+    expect(told, 'the world is not off limits').toMatch(/question about the world you may answer/i)
+    expect(told, 'the person is').toMatch(/never state what they did/i)
   })
 
   /**
@@ -168,10 +177,10 @@ describe('asking for a reply', () => {
     vi.stubGlobal('fetch', fetcher)
     await suggestReply('Did you take your tablets?', '')
 
-    const brief = sent(fetcher).system
-    expect(brief).toMatch(/first person/i)
-    expect(brief).toMatch(/never state what they did/i)
-    expect(brief).toMatch(/at most two sentences/i)
+    const told = brief(fetcher)
+    expect(told).toMatch(/first person/i)
+    expect(told).toMatch(/never state what they did/i)
+    expect(told).toMatch(/at most two sentences/i)
   })
 
   /**
@@ -189,7 +198,7 @@ describe('asking for a reply', () => {
       month: '2-digit',
       day: '2-digit',
     })
-    expect(sent(fetcher).system).toContain(stamp)
+    expect(brief(fetcher)).toContain(stamp)
   })
 
   // The suggestion is going into the message box to be read by the person who
@@ -198,14 +207,14 @@ describe('asking for a reply', () => {
     const fetcher = replies('Té por favor')
     vi.stubGlobal('fetch', fetcher)
     await suggestReply('¿Quieres té o café?', 'es-PR')
-    expect(sent(fetcher).system).toContain('es-PR')
+    expect(brief(fetcher)).toContain('es-PR')
   })
 
   it('says nothing about a language when the board has none', async () => {
     const fetcher = replies('Tea please')
     vi.stubGlobal('fetch', fetcher)
     await suggestReply('Do you want tea?', '')
-    expect(sent(fetcher).system).not.toMatch(/Write the reply in/)
+    expect(brief(fetcher)).not.toMatch(/Write the reply in/)
   })
 
   /**
@@ -439,9 +448,9 @@ describe('a reply with a gap in it', () => {
     vi.stubGlobal('fetch', fetcher)
     await suggestReply('Did you take your tablets?', '')
 
-    const brief = sent(fetcher).system
-    expect(brief).toMatch(/gap where the fact goes/i)
-    expect(brief).toMatch(/never ask them a question back/i)
+    const told = brief(fetcher)
+    expect(told).toMatch(/gap where the fact goes/i)
+    expect(told).toMatch(/never ask them a question back/i)
   })
 
   it('opens the gap out and says where it landed', async () => {
@@ -533,5 +542,142 @@ describe('what was asked before', () => {
       'Yes please',
       'Someone just asked me: And sugar?',
     ])
+  })
+})
+
+/**
+ * **Their own words first.** Every phrase on the board goes with the question,
+ * and a reply that is one of them is in words the person chose, on a board they
+ * already know how to read.
+ */
+describe('the phrases on the board', () => {
+  const BOARD = ['Tea please', 'No thank you', 'I would like ___']
+  const ask = (language = '', board = BOARD) => {
+    const fetcher = replies('Tea please')
+    vi.stubGlobal('fetch', fetcher)
+    return suggestReply('Tea or coffee?', language, undefined, [], board).then(() => fetcher)
+  }
+  const boardBlock = (fetcher: ReturnType<typeof vi.fn>) => sent(fetcher).system.find(b => b.cache_control)
+
+  it('gives it every one of them, a line each', async () => {
+    const block = boardBlock(await ask())
+    expect(block?.text).toContain('\nTea please\nNo thank you\nI would like ___')
+  })
+
+  it('tells it to reply with one, word for word, where one fits', async () => {
+    const told = brief(await ask())
+    expect(told).toMatch(/exactly as it is written, gaps included/i)
+    expect(told).toMatch(/something new only when none of them fits/i)
+  })
+
+  /**
+   * **What they can say, not what is true of them.** The rule about whose facts
+   * lets the model state what "is in what you were sent", and a board holding
+   * "I have taken my tablets" was sent — so without this line the board would be
+   * read as the very evidence the rule exists to withhold.
+   */
+  it('tells it the phrases are not facts about them', async () => {
+    expect(brief(await ask())).toMatch(/what they are able to say, not facts about them/i)
+  })
+
+  /**
+   * Thirteen thousand tokens, the same from one question to the next. **Nothing
+   * that changes between questions may sit in the cached block or before it** —
+   * the date least of all, which would write the board again every morning and
+   * look like a cache that simply never works.
+   */
+  it('marks the board for an hour’s caching, with nothing that changes ahead of it', async () => {
+    const fetcher = await ask()
+    const { system } = sent(fetcher)
+    const at = system.findIndex(b => b.cache_control)
+
+    expect(system[at].cache_control).toEqual({ type: 'ephemeral', ttl: '1h' })
+    expect(
+      system.filter(b => b.cache_control),
+      'one mark, on the board',
+    ).toHaveLength(1)
+
+    const stamp = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' })
+    const cached = system
+      .slice(0, at + 1)
+      .map(b => b.text)
+      .join(' ')
+    expect(cached, 'the date is inside the cached part').not.toContain(stamp)
+    expect(cached, 'the question is inside the cached part').not.toContain('Tea or coffee?')
+    expect(
+      system
+        .slice(at + 1)
+        .map(b => b.text)
+        .join(' '),
+    ).toContain(stamp)
+  })
+
+  it('asks for no caching and says nothing about a board when there is none', async () => {
+    const fetcher = await ask('', [])
+    expect(boardBlock(fetcher)).toBeUndefined()
+    expect(brief(fetcher)).not.toMatch(/phrases on their board/i)
+  })
+
+  // The board is in the words it was written in; a reply asked for in another
+  // language must still be allowed to be one of them.
+  it('lets a reply in another language be a phrase off the board', async () => {
+    expect(brief(await ask('es-PR'))).toMatch(/Write the reply in es-PR, translating a phrase from their board/)
+    expect(brief(await ask('es-PR', []))).toMatch(/Write the reply in es-PR\./)
+  })
+})
+
+describe('the board as the model is given it', () => {
+  const lines = (...sources: string[]) => boardForReply(sources.map(source => makePhrase(source, 'Test')))
+
+  /**
+   * **A choice is a gap.** Which of them is theirs to say, and it is usually the
+   * very fact the model is kept from stating — "I want the red one" is a want.
+   * Written the way a gap in a reply is written, so a phrase chosen off the
+   * board lands with the caret in it, as one chosen off the grid does.
+   */
+  it('writes a slot with a choice in it as a gap', () => {
+    expect(lines("I want the {['red', 'blue']} one")).toEqual(['I want the ___ one'])
+  })
+
+  it('writes a slot with nothing in it as a gap', () => {
+    expect(lines('I need to see the doctor for {nosuchlist}.')).toEqual(['I need to see the doctor for ___.'])
+  })
+
+  // One option is how the board reads it: the word, with no choosing to do.
+  it('writes a slot with one option as that word', () => {
+    expect(lines("A cup of {['tea']}, please")).toEqual(['A cup of tea, please'])
+  })
+
+  it('takes the markup off, as speech does', () => {
+    expect(lines('**Help** me with _this_')).toEqual(['Help me with this'])
+  })
+
+  /**
+   * **The gaps are held apart from the markup** while it comes off. Two gaps
+   * with a word between them are three underscores, a word, and three more —
+   * which is emphasis, if the markup is read with the gaps already written in.
+   */
+  it('keeps two gaps as gaps rather than reading them as emphasis', () => {
+    expect(lines("Tell {['Ann', 'Bob']} that {['yes', 'no']}")).toEqual(['Tell ___ that ___'])
+  })
+
+  // A button for going somewhere; its label is nothing anybody says.
+  it('leaves out a phrase that is only a link, and keeps one that is a sentence', () => {
+    expect(
+      lines(
+        "[Today's menu](https://example.com/menu)",
+        'Have a look at [the menu](https://example.com/menu) later',
+      ),
+    ).toEqual(['Have a look at the menu later'])
+  })
+
+  // "Good morning" is filed under three categories on purpose, and three copies
+  // are three times the tokens and no more likely to be the answer.
+  it('gives each wording once', () => {
+    expect(lines('Good morning', 'Hello', 'Good morning')).toEqual(['Good morning', 'Hello'])
+  })
+
+  it('puts a phrase written over several lines on one', () => {
+    expect(lines('First this\nand then that')).toEqual(['First this and then that'])
   })
 })

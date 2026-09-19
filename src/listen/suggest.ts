@@ -25,7 +25,8 @@
 // exactly as it was with a line of text saying why.
 
 import { reportFailure } from '../core/report'
-import { BLANK } from '../core/phrases'
+import { BLANK, type Phrase } from '../core/phrases'
+import { soleLink, stripMarkdown } from '../core/markdown'
 import { loadReplyKey, readReplyModel, type ReplyTurn } from '../core/store'
 
 const ENDPOINT = 'https://api.anthropic.com/v1/messages'
@@ -147,6 +148,63 @@ const BRIEF = [
 const today = () => new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' })
 
 /**
+ * What the model is told about the board it is given.
+ *
+ * **Their own words first.** A reply that is one of their phrases is in words
+ * they chose, or at least kept, rather than a machine's — and it is a reply
+ * they have seen before, on a board they already know how to read.
+ *
+ * **What they can say, not what is true of them.** The rule above lets the model
+ * state what "is in what you were sent", and a board holding "I have taken my
+ * tablets" was sent. So the phrases are named as the opposite of evidence, in as
+ * many words, and a phrase stating something about them is held to the same
+ * rule as a sentence the model wrote itself: what to reach for instead is one
+ * with a gap where the fact goes, which a board full of fill-in-the-blank
+ * phrases usually has.
+ */
+const BOARD_BRIEF = [
+  'Below are the phrases on their board, one to a line.',
+  'Prefer them: when one of them answers the question, reply with it exactly as it is written, gaps included, rather than in words of your own.',
+  'They are what they are able to say, not facts about them. A phrase that states what they did, felt or want is held to the rule above like any other words, so use one with a gap where the fact goes instead, or write one.',
+  'Write something new only when none of them fits.',
+].join(' ')
+
+/** Where a slot sat, while the markup comes off around it. Never in a phrase. */
+const SLOT = '\uE001'
+
+/**
+ * The board as the model is given it: one line a phrase, written the way a gap
+ * in a reply is written, so a phrase chosen off it lands with its caret in the
+ * gap exactly as one chosen off the grid does.
+ *
+ * - **A slot with a choice in it is a gap.** Which of the choices is theirs to
+ *   say, and it is usually the fact the rule above keeps out of the model's
+ *   hands — "I want the red one" is a want. A slot with one option is that word,
+ *   which is how the board reads it.
+ * - **The words, not the markup**, for the reason speech and search take it
+ *   off: nobody says the asterisks. The markup comes off with the slots held in
+ *   place by a character nothing writes, so a gap's underscores are never read
+ *   as emphasis.
+ * - **Not a phrase that is only a link.** That is a button for going somewhere,
+ *   and its label is not something anybody says.
+ * - **Each wording once.** "Good morning" is filed under three categories, and a
+ *   phrase listed three times is three times the tokens and no more likely to
+ *   be the answer.
+ */
+export function boardForReply(phrases: Phrase[]): string[] {
+  const lines = new Set<string>()
+  for (const phrase of phrases) {
+    if (soleLink(phrase.segments)) continue
+    const written = phrase.segments
+      .map(s => (s.kind === 'text' ? s.text : s.options.length === 1 ? s.options[0] : SLOT))
+      .join('')
+    const line = stripMarkdown(written).split(SLOT).join('___').replace(/\s+/g, ' ').trim()
+    if (line) lines.add(line)
+  }
+  return [...lines]
+}
+
+/**
  * Ask for a reply to a question.
  *
  * `language` is what the reply should be written in, and it is the board's own
@@ -204,6 +262,8 @@ export async function suggestReply(
   language: string,
   model?: string,
   context: ReplyTurn[] = [],
+  /** The phrases on the board, from `boardForReply`. The model is told to prefer them. */
+  board: string[] = [],
 ): Promise<SuggestResult> {
   const asked = question.trim()
   if (!asked) return fail('Nothing to reply to')
@@ -227,9 +287,41 @@ export async function suggestReply(
         model: readReplyModel(model),
         max_tokens: MAX_TOKENS,
         tools: [SEARCH_TOOL],
-        system: [BRIEF, `Today is ${today()}.`, language && `Write the reply in ${language}.`]
-          .filter(Boolean)
-          .join(' '),
+        // **The board is cached.** It is thirteen thousand tokens on a board
+        // nobody has added to, and the same from one question to the next, so
+        // it carries the one mark and nothing that changes between questions
+        // sits in it or before it: the date goes after, the question in the
+        // messages. Read back, it costs a tenth of what reading it again would.
+        //
+        // **For an hour, not the default five minutes.** A conversation in a
+        // care room is not a chat: a question, then twenty minutes of nothing,
+        // then whoever comes through the door next. At five minutes nearly
+        // every question would pay to write the board again, and an hour's
+        // entry pays for its dearer write by the third question.
+        system: [
+          { type: 'text', text: BRIEF },
+          ...(board.length
+            ? [
+                {
+                  type: 'text',
+                  text: `${BOARD_BRIEF}\n\n${board.join('\n')}`,
+                  cache_control: { type: 'ephemeral', ttl: '1h' },
+                },
+              ]
+            : []),
+          {
+            type: 'text',
+            text: [
+              `Today is ${today()}.`,
+              // The board is in the words it was written in, and a reply in
+              // another language has to be allowed to be a phrase off it too.
+              language &&
+                `Write the reply in ${language}${board.length ? ', translating a phrase from their board if you use one' : ''}.`,
+            ]
+              .filter(Boolean)
+              .join(' '),
+          },
+        ],
         messages: [
           // Each exchange as the two turns it was, so the model reads the
           // conversation rather than a question with a summary bolted to it.
