@@ -5,7 +5,7 @@
 // progress. Anything here is used by more than one screen — a control with a
 // single caller lives with its caller.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDwellControl } from './dwell'
 import { useSettings } from './settings'
@@ -219,6 +219,26 @@ export function SettingSpinner({
   const inc = useCallback(() => onValue(clamp(value + step)), [value, step, onValue, clamp])
   const revert = useCallback(() => onValue(clamp(defaultValue)), [defaultValue, onValue, clamp])
 
+  /**
+   * The longest thing this spinner can ever write beside the figures, which is
+   * what its label is sized to.
+   *
+   * **Sized to what it could say, not to what it is saying.** The label was 32px
+   * whatever it held, which cut `1000ms` to `1000r` and ran `100%` into the +
+   * beside it. Fitting it to its content as it changed would fix that and move the
+   * + and the reset every time the value crossed a digit — and those are aimed at
+   * by position. So every value in range is written once and the widest kept.
+   * The ranges are a few dozen steps at most.
+   */
+  const widest = useMemo(() => {
+    let longest = ''
+    for (let v = min; v <= max; v += step) {
+      const said = format(clamp(v))
+      if (said.length > longest.length) longest = said
+    }
+    return longest
+  }, [min, max, step, format, clamp])
+
   return (
     <div className="setting-spinner">
       <StepBtn onAction={dec} label="Decrease">
@@ -241,7 +261,12 @@ export function SettingSpinner({
           if (!isNaN(n)) onValue(clamp(n))
         }}
       />
-      <span className="setting-formatted">{format(value)}</span>
+      {/* The widest value rides along as an attribute, drawn invisibly in the same
+          grid cell as the real one so the label is always that wide — and out of
+          the text, so a screen reader and a test both read the value alone. */}
+      <span className="setting-formatted" data-widest={widest}>
+        <span>{format(value)}</span>
+      </span>
       <StepBtn onAction={inc} label="Increase">
         +
       </StepBtn>

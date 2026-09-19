@@ -32,6 +32,7 @@ import {
   SettingRow,
   SettingSpinner,
 } from '../ui/controls'
+import { seconds } from '../ui/units'
 import { usePendingChoice } from '../ui/pending-choice'
 import { useDwellControl } from '../ui/dwell'
 import { CopyIcon, EyeIcon, EyeOffIcon } from '../ui/icons'
@@ -231,7 +232,7 @@ export function SettingsPanel({
             min={500}
             max={3000}
             step={100}
-            format={v => `${(v / 1000).toFixed(1)}s`}
+            format={seconds}
             onValue={v => update({ phraseDwellMs: v })}
           />
         </SettingRow>
@@ -243,7 +244,7 @@ export function SettingsPanel({
             min={300}
             max={2000}
             step={100}
-            format={v => `${(v / 1000).toFixed(1)}s`}
+            format={seconds}
             onValue={v => update({ actionDwellMs: v })}
           />
         </SettingRow>
@@ -260,7 +261,7 @@ export function SettingsPanel({
             min={100}
             max={2000}
             step={50}
-            format={v => `${v}ms`}
+            format={seconds}
             onValue={v => update({ repeatDelayMs: v })}
           />
         </SettingRow>

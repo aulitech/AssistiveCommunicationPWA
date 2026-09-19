@@ -8,6 +8,7 @@ import { useSettings } from '../ui/settings'
 import { DEFAULT_SETTINGS, type User } from '../core/store'
 import { AppLogoIcon, AppleIcon, FacebookIcon, GoogleIcon } from '../ui/icons'
 import { DwellButton, DwellCursor, DwellLink, ScrollPane, SettingSpinner } from '../ui/controls'
+import { seconds } from '../ui/units'
 
 const FEATURES = [
   { icon: '👁️', title: 'Dwell selection', body: 'No tapping or clicking — hover and hold to choose.' },
@@ -124,7 +125,7 @@ export function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
                   min={300}
                   max={2000}
                   step={100}
-                  format={v => `${(v / 1000).toFixed(1)}s`}
+                  format={seconds}
                   onValue={v => update({ actionDwellMs: v })}
                 />
               </div>

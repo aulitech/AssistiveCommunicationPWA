@@ -3618,6 +3618,54 @@ describe('the message box growing', () => {
  * gets the width back, and what it costs is a smaller painted control overlapping
  * the box with an invisible area around it a tracker can still hit.
  */
+/**
+ * **The modes never sit left of the message box.** They are centred on the bar,
+ * where Rest is looked for without looking; with the question beside the answer
+ * on a wide screen, the bar's centre is over the gap between the two boxes and
+ * edit sat on nothing. The stylesheet takes whichever is further right of the
+ * bar's centre and the place that puts the strip's left edge on the box's, and
+ * the bar measures the two numbers that second place needs.
+ *
+ * jsdom lays nothing out, so the geometry is supplied — the bargain the paging
+ * tests make. What is under test is what the app does with it.
+ */
+describe('the mode strip', () => {
+  const rule = () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const at = css.slice(css.indexOf('.topbar-modes {'))
+    return at.slice(0, at.indexOf('}'))
+  }
+
+  it('is held right of the message box’s left edge', () => {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this.classList.contains('topbar')) return new DOMRect(0, 0, 1280, 80)
+      if (this.classList.contains('message-wrap')) return new DOMRect(552, 16, 720, 56)
+      return new DOMRect(0, 0, 0, 0)
+    })
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('topbar-modes') ? 220 : 0
+    })
+    renderApp()
+
+    const bar = $('.topbar')!
+    expect(bar.style.getPropertyValue('--box-left'), 'where the box starts was not measured').toBe('552px')
+    expect(bar.style.getPropertyValue('--modes-half')).toBe('110px')
+    // The further right of the two: the bar's centre, or the strip's left edge
+    // on the box's. Pushed only as far as it has to go, not re-centred.
+    expect(rule(), 'the strip may be centred left of the box').toMatch(
+      /left: *max\(50%, *calc\(var\(--box-left, *0px\) \+ var\(--modes-half, *0px\)\)\)/,
+    )
+    vi.restoreAllMocks()
+  })
+
+  // Where nothing can be measured nothing is set, and the strip stays on the
+  // bar's centre — the first paint, and jsdom.
+  it('stays on the bar’s centre where nothing can be measured', () => {
+    renderApp()
+    expect($('.topbar')!.style.getPropertyValue('--box-left')).toBe('')
+  })
+})
+
 describe('the slot that empties the box', () => {
   const strip = () => $('.message-wrap > .topbar-clear')
 
@@ -4718,6 +4766,45 @@ describe('putting settings back', () => {
     })
   })
 
+  /**
+   * **The label beside the figures is as wide as the widest thing it can say.**
+   * It was 32px whatever it held, which cut `1000ms` to `1000r` and ran `100%`
+   * into the + beside it. Fitting it to what it is saying *now* would move the +
+   * and the reset every time the value crossed a digit, and those are aimed at by
+   * position — so it is sized to what it *could* say, drawn invisibly behind the
+   * real value, and a test and a screen reader both still read the value alone.
+   */
+  describe('the label beside the figures', () => {
+    const label = (name: string) => row(name).querySelector<HTMLElement>('.setting-formatted')!
+
+    it('is sized to the widest value its spinner can reach', () => {
+      renderApp({ repeatDelayMs: 1000 })
+      openSettings()
+      // Showing a whole second, sized for one with three figures after the point.
+      expect(label('Auto-repeat').textContent).toBe('1s')
+      expect(label('Auto-repeat').dataset.widest).toBe('0.100s')
+      expect(label('Text size').dataset.widest).toMatch(/^\d{3}%$/)
+    })
+
+    // Every time in seconds, with three figures after the point or none — the
+    // auto-repeat said `1000ms` while the dwells above it said `1.5s`.
+    it('writes every time in seconds', () => {
+      renderApp({ phraseDwellMs: 1500, actionDwellMs: 800, repeatDelayMs: 1050 })
+      openSettings()
+      expect(label('Phrase dwell').textContent).toBe('1.500s')
+      expect(label('Action dwell').textContent).toBe('0.800s')
+      expect(label('Auto-repeat').textContent).toBe('1.050s')
+    })
+
+    // The + and the reset line up down the list rather than each row's sitting
+    // where its own widest value put it: a column is a place to aim at.
+    it('is never narrower than a time, so every row lines up', () => {
+      const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+      const rule = css.slice(css.indexOf('.setting-formatted {'))
+      expect(rule.slice(0, rule.indexOf('}'))).toMatch(/min-width: *6\.5ch/)
+    })
+  })
+
   describe('one value at a time', () => {
     it('offers a revert on every value, naming what it goes back to', () => {
       renderApp()
@@ -4727,9 +4814,10 @@ describe('putting settings back', () => {
         .filter((l): l is string => !!l && l.startsWith('Reset '))
       expect(labels).toEqual([
         'Reset text size to 100%',
-        'Reset phrase dwell to 1.5s',
-        'Reset action dwell to 0.8s',
-        'Reset auto-repeat to 1000ms',
+        // Every time in seconds, with three figures after the point or none.
+        'Reset phrase dwell to 1.500s',
+        'Reset action dwell to 0.800s',
+        'Reset auto-repeat to 1s',
         'Reset volume to 100%',
         'Reset speed to 1.0×',
       ])
