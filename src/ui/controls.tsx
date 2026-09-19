@@ -311,20 +311,24 @@ function ScrollButton({
   onActivate,
   repeat,
   label,
+  idle,
 }: {
   action: ScrollAction
   onActivate: () => void
   repeat?: boolean
   /** What scrolls, where there is more than one thing on screen that could. */
   label?: string
+  /** Nowhere to go this way: kept in its place, answering to nothing. */
+  idle?: boolean
 }) {
   const { settings } = useSettings()
   const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, {
     repeatMs: repeat ? settings.repeatDelayMs : undefined,
+    disabled: idle,
   })
   return (
     <div
-      className={cx('pane-scroll-btn', active && 'dwelling')}
+      className={cx('pane-scroll-btn', active && 'dwelling', idle && 'is-idle')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
       aria-label={label ?? SCROLL_LABELS[action]}
@@ -368,22 +372,22 @@ export function BoxScroll({ edges, what }: { edges: ScrollEdges; what: string })
     <div className="box-scroll">
       {/* Both always drawn once either is, so each keeps its place: an arrow
           that came and went would move the other under a resting pointer. The
-          one with nowhere to go is inert rather than absent. */}
-      <div className={cx('box-scroll-slot', !edges.canUp && 'is-idle')}>
-        {edges.canUp && (
-          <ScrollButton action="up" repeat label={`Scroll the ${what} up`} onActivate={() => edges.nudge(-step)} />
-        )}
-      </div>
-      <div className={cx('box-scroll-slot', !edges.canDown && 'is-idle')}>
-        {edges.canDown && (
-          <ScrollButton
-            action="down"
-            repeat
-            label={`Scroll the ${what} down`}
-            onActivate={() => edges.nudge(step)}
-          />
-        )}
-      </div>
+          one with nowhere to go is inert rather than absent — the rule the
+          panes' rails follow, and the grid's. */}
+      <ScrollButton
+        action="up"
+        repeat
+        idle={!edges.canUp}
+        label={`Scroll the ${what} up`}
+        onActivate={() => edges.nudge(-step)}
+      />
+      <ScrollButton
+        action="down"
+        repeat
+        idle={!edges.canDown}
+        label={`Scroll the ${what} down`}
+        onActivate={() => edges.nudge(step)}
+      />
     </div>
   )
 }
@@ -491,19 +495,27 @@ export function ScrollPane({
 
   return (
     <div className={cx('scroll-pane', className)}>
-      {canUp && (
-        <div className="pane-scroll-row">
-          <ScrollButton action="top" onActivate={toTop} />
-          <ScrollButton action="up" repeat onActivate={() => nudge(-step)} />
-        </div>
-      )}
       <div ref={listRef} className={cx('scroll-pane-inner', paneClassName)}>
         {children}
       </div>
-      {canDown && (
-        <div className="pane-scroll-row">
-          <ScrollButton action="down" repeat onActivate={() => nudge(step)} />
-          <ScrollButton action="bottom" onActivate={toBottom} />
+      {/* **A rail on the right**, the shape the grid's has always had, rather
+          than a bar across the top and another across the bottom. One place for
+          everything that scrolls, so a gaze that has learnt where to go to move
+          the board goes to the same edge to move a panel — and the bars cost
+          the content two strips of height a short screen has no room for.
+
+          Only while there is somewhere to go at all, so a pane that fits keeps
+          its whole width. But then **all four, always**, the ones with nowhere
+          to go kept in place and answering to nothing. The four share the
+          rail's height, so one that came and went would stretch the others into
+          the space it left — a control moving under a pointer resting on it.
+          Ordered outward by how far each goes, as on the grid. */}
+      {(canUp || canDown) && (
+        <div className="pane-rail">
+          <ScrollButton action="top" idle={!canUp} onActivate={toTop} />
+          <ScrollButton action="up" idle={!canUp} repeat onActivate={() => nudge(-step)} />
+          <ScrollButton action="down" idle={!canDown} repeat onActivate={() => nudge(step)} />
+          <ScrollButton action="bottom" idle={!canDown} onActivate={toBottom} />
         </div>
       )}
     </div>

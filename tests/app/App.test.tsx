@@ -143,6 +143,11 @@ describe('sign-in', () => {
 describe('reaching the whole sign-in page', () => {
   const pane = () => $('.signin-page .scroll-pane-inner')!
   const arrows = () => $$('.pane-scroll-btn').map(b => b.getAttribute('aria-label'))
+  /** The ones that answer: an arrow with nowhere to go keeps its place, inert. */
+  const live = () =>
+    $$('.pane-scroll-btn')
+      .filter(b => b.getAttribute('aria-disabled') !== 'true')
+      .map(b => b.getAttribute('aria-label'))
 
   /** jsdom lays nothing out, so the overflow the arrows react to is supplied. */
   const setGeometry = (scrollTop: number, clientHeight: number, scrollHeight: number) => {
@@ -169,18 +174,44 @@ describe('reaching the whole sign-in page', () => {
   // arrows is content that cannot be reached at all — including the only way
   // into the app. A jump comes with each nudge: 500 pixels at 80 a time is six
   // dwells, which is a long way to ask somebody to travel.
+  /**
+   * **A rail on the right, with exactly the useful ones live.** Nothing at all
+   * while everything fits, so a short pane keeps its width. Past the fold, all
+   * four in the order the grid's rail uses — and the ones with nowhere to go
+   * stay in their place answering to nothing, because the four share the rail's
+   * height and one that came and went would stretch the rest into its space.
+   */
   it('offers dwell controls exactly when there is somewhere to go', () => {
     showSignIn()
     expect(arrows()).toEqual([])
+    expect($('.pane-rail'), 'a rail with nothing to scroll').toBeNull()
 
+    const ALL = ['Go to top', 'Scroll up', 'Scroll down', 'Go to bottom']
     setGeometry(0, 400, 900)
-    expect(arrows()).toEqual(['Scroll down', 'Go to bottom'])
+    expect(arrows(), 'the rail lost a control rather than keeping it quiet').toEqual(ALL)
+    expect(live()).toEqual(['Scroll down', 'Go to bottom'])
 
     setGeometry(250, 400, 900)
-    expect(arrows()).toEqual(['Go to top', 'Scroll up', 'Scroll down', 'Go to bottom'])
+    expect(live()).toEqual(ALL)
 
     setGeometry(500, 400, 900)
-    expect(arrows()).toEqual(['Go to top', 'Scroll up'])
+    expect(arrows()).toEqual(ALL)
+    expect(live()).toEqual(['Go to top', 'Scroll up'])
+  })
+
+  // The right-hand edge, which is where the grid's rail has always been: one
+  // edge to go to for everything that scrolls. The layout itself is jsdom's to
+  // ignore, so what is asserted is what puts it there.
+  it('puts the controls on the right of what they scroll', () => {
+    showSignIn()
+    setGeometry(0, 400, 900)
+    const scroller = $('.signin-page > .scroll-pane')!
+    expect(scroller.lastElementChild?.className, 'the rail is not after the content').toBe('pane-rail')
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const rule = css.slice(css.indexOf('.scroll-pane {'))
+    expect(rule.slice(0, rule.indexOf('}')), 'the pane stacks its controls again').not.toMatch(
+      /flex-direction: *column/,
+    )
   })
 
   // Holding a nudge keeps scrolling; a jump has nowhere further to go, so it
@@ -230,7 +261,7 @@ describe('reaching the whole sign-in page', () => {
 
     const scrollBy = vi.fn()
     pane().scrollBy = scrollBy
-    click($('.pane-scroll-btn'))
+    click($$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll down'))
 
     expect(scrollBy).toHaveBeenCalledWith({ top: 120, behavior: 'smooth' })
   })

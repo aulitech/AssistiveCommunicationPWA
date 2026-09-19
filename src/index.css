@@ -201,20 +201,16 @@ body {
   pointer-events: none;
 }
 
-.box-scroll-slot {
-  display: flex;
-  height: 2rem;
+.box-scroll .pane-scroll-btn {
+  flex: 0 0 2rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
   pointer-events: auto;
 }
 
 /* The end with nowhere to go keeps its place and answers to nothing, so the one
    that does never moves under a resting pointer. */
-.box-scroll-slot.is-idle { pointer-events: none; }
-
-.box-scroll .pane-scroll-btn {
-  border-radius: 6px;
-  border: 1px solid var(--border);
-}
+.box-scroll .pane-scroll-btn.is-idle { pointer-events: none; }
 
 /* The room the arrows stand in, taken from the words only while they are there. */
 .text-display.has-scroll,
@@ -2041,7 +2037,7 @@ body {
   text-align: center;
 }
 
-.setting-number:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+.setting-number:focus { border-color: var(--accent); }
 
 /* hide browser spinner arrows */
 .setting-number::-webkit-inner-spin-button,
@@ -2426,7 +2422,6 @@ body {
 /* Shared scrollable pane with dwell-driven arrows (voice list, help guide). */
 .scroll-pane {
   display: flex;
-  flex-direction: column;
   overflow: hidden;
   flex: 1;
   min-height: 0;
@@ -2436,22 +2431,43 @@ body {
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  /* Beside the rail now rather than above it, so it has to be allowed to give up
+     width as well as height. */
+  min-width: 0;
   scrollbar-width: none;
 }
+
+/* **The pane's scroll controls, down its right edge** — see `ScrollPane`. The
+   grid's rail in every particular that a gaze learns by: the same 44px, the same
+   edge, the four sharing the height so each is as tall as the pane allows, and
+   the same fill rising from the bottom. One edge for everything that scrolls. */
+.pane-rail {
+  display: flex;
+  flex-direction: column;
+  width: 44px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.pane-rail .pane-scroll-btn {
+  padding: 0;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.pane-rail .pane-scroll-btn:last-child { border-bottom: none; }
+/* The rule for a row of these draws a line between neighbours on the left; a
+   rail's neighbours are above and below. */
+.pane-rail .pane-scroll-btn + .pane-scroll-btn { border-left: none; }
+
+.pane-rail .pane-scroll-btn.dwelling { color: var(--text); }
 
 .scroll-pane-inner::-webkit-scrollbar { display: none; }
 
 /* Jump and nudge sit side by side rather than stacked: two full-width bars top
    and bottom would cost 56px of a pane that is height-constrained already, and
    splitting each bar in two costs none. */
-.pane-scroll-row {
-  display: flex;
-  flex-shrink: 0;
-  background: var(--surface);
-}
-
-.scroll-pane > .pane-scroll-row:first-child { border-bottom: 1px solid var(--border); }
-.scroll-pane > .pane-scroll-row:last-child { border-top: 1px solid var(--border); }
 
 .pane-scroll-btn {
   position: relative;
@@ -2469,7 +2485,32 @@ body {
 
 .pane-scroll-btn + .pane-scroll-btn { border-left: 1px solid var(--border); }
 .pane-scroll-btn.dwelling { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); }
-.pane-scroll-btn .dwell-bar { background: var(--accent); }
+
+/* **A fill that actually fills.** These carried a `.dwell-bar` and no rule ever
+   animated it, so holding one showed a tint and nothing counting down to the
+   moment it would fire — the one thing a dwell control has to show. It rises
+   from the bottom, as the grid's rail does, because that is the rail these now
+   are; the row of these under the category chips and the pair inside a text box
+   rise the same way. */
+.pane-scroll-btn .dwell-bar {
+  inset: 0;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: var(--accent-dim);
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+
+.pane-scroll-btn.dwelling .dwell-bar {
+  animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
+}
+
+/* Nowhere to go this way: in its place, answering to nothing, and plainly so. */
+.pane-scroll-btn.is-idle {
+  color: color-mix(in srgb, var(--text-muted) 35%, transparent);
+  cursor: default;
+}
 
 .voice-option {
   position: relative;
@@ -3101,11 +3142,25 @@ body {
    drawn around a single box — the same double line edit mode avoids by tinting
    the border rather than drawing an outline over it. These are the only
    focusable things here that paint their own focus, and the message box carries
-   `autoFocus`, so the app opened showing it. */
+   `autoFocus`, so the app opened showing it.
+ *
+ * **And every other text field**, which had the same double line: a field a
+ * dwell puts the caret in is a focused field, so every rest on a key or a
+ * passphrase in Settings drew its own accent border and a second ring three
+ * pixels outside it. `.caret-field` is every single-line field in the app — see
+ * `DwellInput` — and each says focus on its own border below. */
 .text-display:focus-visible,
-.heard-text:focus-visible {
+.heard-text:focus-visible,
+.caret-field:focus-visible {
   outline: none;
 }
+
+/* The one sign of focus a field gives, so that taking the ring away above takes
+   nothing a keyboard user was relying on. The heard box had the ring taken away
+   and was given nothing in its place, which left it the one field in the app
+   that showed no focus at all. */
+.caret-field:focus,
+.heard-text:focus { border-color: var(--accent); }
 
 .phrase-cell:focus-visible,
 .slot-option:focus-visible,
@@ -3776,10 +3831,12 @@ body {
 /* The factory reset, alone at the foot of Settings. Spaced well clear of the
    values above it: every revert up there puts one setting back and this puts the
    whole device back, and a pointer travelling to one must not cross the other. */
+/* No rule of its own above it: the last setting's row already draws one, and the
+   two were a pair of lines forty-odd pixels apart with nothing between them. The
+   space is what sets this apart from the settings above. */
 .setting-reset {
   margin-top: 28px;
   padding-top: 20px;
-  border-top: 1px solid var(--border);
 }
 
 /* ── Legal pages (/privacy, /terms) ── */

@@ -434,6 +434,37 @@ describe('the shape of the source tree', () => {
   })
 
   /**
+   * **A focused field draws one line, not two.** Every text field says it has
+   * focus by tinting its own border, and the app's focus ring draws three pixels
+   * outside whatever is focused — so every field a dwell had put the caret in
+   * wore two accent lines, one inside the other. Found on the message box first
+   * and fixed there alone, which left every key, passphrase and figure in
+   * Settings still doubled.
+   *
+   * So the ring is taken off every one of them, and each has to say focus on its
+   * own border instead — or taking the ring away takes the only sign of focus a
+   * keyboard user had.
+   */
+  it('draws a focused field once, on its own border', () => {
+    // Comments out first, or the one above a rule reads as part of its first selector.
+    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = (selector: string) => {
+      const found = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(m =>
+        m[1]!.split(',').some(sel => sel.trim() === selector),
+      )
+      return found?.[2] ?? ''
+    }
+    for (const field of ['.text-display', '.heard-text', '.caret-field']) {
+      expect(rule(`${field}:focus-visible`), `${field} still wears the ring outside its border`).toMatch(
+        /outline: *none/,
+      )
+      expect(rule(`${field}:focus`), `${field} shows no focus of its own once the ring is gone`).toMatch(
+        /border-color: *var\(--accent\)/,
+      )
+    }
+  })
+
+  /**
    * **Every animation names keyframes that exist.**
    *
    * A CSS animation whose name nothing defines does not fail — it simply never
