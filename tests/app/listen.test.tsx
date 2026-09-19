@@ -338,14 +338,13 @@ describe('the control', () => {
     expect(shape('.heard-text'), 'the two boxes are not the same box').toEqual(message)
   })
 
-  // They sit *on* a border now, and a control painted on one with nothing behind
-  // it shows the border and the words through — the reason `.topbar-modes` is
-  // opaque. A ground each rather than one pill: two rem apart, one pill would be
-  // wider than the pane the wide-screen split gives this box.
+  // A ground each rather than one pill round all three — two rem apart, one pill
+  // would be wider than the pane the wide-screen split gives this box — and the
+  // same ground every other control on either box's border stands on.
   it('paints a ground under each of them', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
     const rule = css.slice(css.indexOf('.heard-btn {'))
-    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/background: *#000/)
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/background: *var\(--border-ground\)/)
   })
 
   it('opens a box above the message, and closes it again', () => {

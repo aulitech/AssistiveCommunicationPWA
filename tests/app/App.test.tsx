@@ -3709,23 +3709,50 @@ describe('the slot that empties the box', () => {
   })
 
   /**
-   * **Both controls on this border need a ground painted for them.**
-   *
-   * Neither the microphone nor this one paints anything of its own, so on the
-   * bare border the box's own line and whatever had been typed showed through
-   * around the glyph. `.topbar-choices` is the exception and explains itself:
-   * each of its two paints `--bg` and draws a border.
+   * **Every control on the two boxes' borders stands on the one ground, at the
+   * microphone's size.** They were black grounds, then a set of different sizes —
+   * speak at twice everything else, the heard box's tools a little larger than
+   * the rest. One grey at fifteen per cent and one height now, so the border
+   * furniture reads as one set rather than as things added one at a time.
    *
    * Asserted against the text of the stylesheet, which is all jsdom allows —
-   * whether it *looks* right is a question for the deploy preview.
+   * whether it looks right is a question for the deploy preview.
    */
-  it('is painted on a ground of its own, as the microphone is', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
-    for (const strip of ['.topbar-clear', '.topbar-listen']) {
-      const rule = css.slice(css.indexOf(`${strip} {`))
-      const block = rule.slice(0, rule.indexOf('}'))
-      expect(block, `${strip} sits on the border with nothing behind it`).toMatch(/background: *#000/)
+  it('stands every border control on one grey ground, at the microphone’s size', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const block = (selector: string) => {
+      const rule = css.slice(css.indexOf(`${selector} {`))
+      return rule.slice(0, rule.indexOf('}'))
     }
+    const value = (selector: string, prop: string) =>
+      block(selector).match(new RegExp(`\\b${prop}: *([^;]+);`))?.[1]
+
+    // Grey at fifteen per cent *mixed into the bar*, not laid over it: these all
+    // sit on a border, and a see-through ground let the box's line run through
+    // the glyphs themselves.
+    expect(css, 'the ground is not a fifteen-per-cent grey').toMatch(
+      /--border-ground: *color-mix\(in srgb, rgb\(128 128 128\) 15%, var\(--surface\)\)/,
+    )
+    for (const strip of [
+      '.topbar-modes',
+      '.topbar-listen',
+      '.topbar-clear',
+      '.topbar-actions',
+      '.edit-bar',
+      '.heard-btn',
+      '.choice-btn',
+    ]) {
+      expect(value(strip, 'background'), `${strip} stands on a ground of its own`).toBe('var(--border-ground)')
+    }
+
+    // The microphone is a mode toggle; everything else on a border is measured by it.
+    const mic = { box: value('.mode-btn', 'height'), glyph: value('.mode-btn svg', 'height') }
+    expect(value('.icon-btn.on-border', 'height')).toBe(mic.box)
+    expect(value('.icon-btn.on-border svg', 'height')).toBe(mic.glyph)
+    expect(value('.heard-btn svg', 'height'), 'the heard box draws its glyphs at another size').toBe(mic.glyph)
+    expect(block('.icon-btn.on-border.is-primary'), 'speak is sized apart from the rest again').not.toMatch(
+      /(width|height):/,
+    )
   })
 })
 
