@@ -4942,6 +4942,8 @@ describe('the waiting indicator', () => {
  * what is asserted is what comes out of the synthesiser, not what the row says.
  */
 describe('the spoken language', () => {
+  const languageRow = () =>
+    [...document.querySelectorAll('.setting-row')].find(r => r.textContent?.includes('Spoken language'))
   const openSettings = () => {
     click(iconBtn('Open menu'))
     click([...document.querySelectorAll('[role="button"]')].find(b => b.textContent?.includes('Settings')))
@@ -4955,6 +4957,81 @@ describe('the spoken language', () => {
     )
     expect(row, 'there is no spoken language row').toBeTruthy()
     expect(row?.textContent).toContain('Device default')
+  })
+
+  /**
+   * **The grid waits for Done or Cancel.** It closed on the first tile a rest
+   * landed on, with a Cancel beside it that did what Done did — so somebody
+   * looking over the languages to find theirs chose whichever one their eye
+   * reached first. A tile marks the choice now and nothing is written until Done.
+   */
+  describe('choosing one', () => {
+    const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
+    const tile = (name: string) =>
+      inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === name)
+    const action = (label: string) =>
+      inDoc('.picker-modal-actions .panel-btn').find(b => b.getAttribute('aria-label') === label)
+    const stored = () => JSON.parse(localStorage.getItem('dwellspeak_settings') ?? '{}').language ?? ''
+    const openGrid = () => {
+      renderApp()
+      openSettings()
+      click(languageRow()!.querySelector('.picker-trigger'))
+    }
+    /** Any language this device offers other than the one the board is in. */
+    const another = () =>
+      inDoc('.picker-tile .picker-tile-name')
+        .map(n => n.textContent!)
+        .find(n => n !== 'Device default')!
+
+    it('stays open when a language is rested on, and writes nothing yet', () => {
+      openGrid()
+      const name = another()
+      click(tile(name))
+
+      expect(inDoc('.picker-modal'), 'the first tile closed the grid').toHaveLength(1)
+      expect(tile(name)!.getAttribute('aria-selected'), 'the tile does not show it is marked').toBe('true')
+      expect(stored(), 'written before anybody said Done').toBe('')
+    })
+
+    it('writes the one marked last when Done is chosen', () => {
+      openGrid()
+      const name = another()
+      click(tile(name))
+      click(action('Done'))
+
+      expect(inDoc('.picker-modal')).toHaveLength(0)
+      expect(stored(), 'Done kept nothing').not.toBe('')
+    })
+
+    /**
+     * **Done with nothing moved writes nothing.** Choosing the language the board
+     * is already in still writes the voice in use into the voice memory — a board
+     * set up before a voice was remembered per language has one in use and none
+     * remembered — and that is a change to the settings, which would travel to
+     * the other devices and arrive there as a notice about nothing.
+     */
+    it('writes nothing when Done is chosen with nothing changed', () => {
+      renderApp({ voiceURI: 'Samantha', voicesByLanguage: {} })
+      openSettings()
+      click(languageRow()!.querySelector('.picker-trigger'))
+      const before = localStorage.getItem('dwellspeak_settings')
+
+      click(action('Done'))
+      expect(inDoc('.picker-modal')).toHaveLength(0)
+      expect(localStorage.getItem('dwellspeak_settings'), 'a Done that changed nothing wrote the settings').toBe(
+        before,
+      )
+    })
+
+    // A Cancel that did what Done did was a second button meaning nothing.
+    it('writes nothing when cancelled', () => {
+      openGrid()
+      click(tile(another()))
+      click(action('Cancel'))
+
+      expect(inDoc('.picker-modal')).toHaveLength(0)
+      expect(stored()).toBe('')
+    })
   })
 
   it('is what a phrase is spoken in when no voice has been chosen', () => {
@@ -4977,8 +5054,6 @@ describe('the spoken language', () => {
    * leaving. It is one of three documents that have to agree — this, the guide,
    * and the privacy policy — so it is asserted rather than trusted.
    */
-  const languageRow = () =>
-    [...document.querySelectorAll('.setting-row')].find(r => r.textContent?.includes('Spoken language'))
 
   it('says what leaves the device once a language is set', () => {
     vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')

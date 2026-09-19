@@ -74,9 +74,14 @@ const tileNamed = (name: string) => tiles().find(t => t.querySelector('.picker-t
  * picker goes deaf for on its way out — every cell on the board has just moved,
  * and a person choosing what to do next takes longer than that anyway.
  */
+const pickerAction = (label: string) =>
+  inBody('.picker-modal-actions .panel-btn').find(b => b.getAttribute('aria-label') === label)
+
+/** Opens the grid, marks one, and says Done — a tile alone changes nothing now. */
 function chooseOrder(name: string) {
   click(sortBtn())
   click(tileNamed(name))
+  click(pickerAction('Done'))
   act(() => void vi.advanceTimersByTime(1000))
 }
 
@@ -159,12 +164,55 @@ describe('the control in the rail', () => {
     expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Custom order\./)
   })
 
-  // There is nothing to try out behind the scrim, so a second dwell on Done
-  // would be a target for nothing.
-  it('closes as soon as one is chosen', () => {
+  /**
+   * **A tile marks a choice and Done makes it.** It used to close on the first
+   * tile, on the grounds that there is nothing to try out behind the scrim — but
+   * a rest is how somebody looks at a tile as well as how they pick one, and a
+   * grid committing to the first tile the eye passes over is choosing for them.
+   */
+  it('waits for Done, and changes nothing before it', () => {
     renderApp()
-    chooseOrder('A to Z')
+    showSorted()
+    const before = onBoard()
+    click(sortBtn())
+    click(tileNamed('A to Z'))
+
+    expect(inBody('.picker-modal'), 'closed on the first tile').toHaveLength(1)
+    expect(tileNamed('A to Z')!.getAttribute('aria-selected'), 'the tile does not show it is marked').toBe('true')
+    expect(onBoard(), 'the board moved before anybody said Done').toEqual(before)
+
+    click(pickerAction('Done'))
     expect(inBody('.picker-modal')).toHaveLength(0)
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: A to Z\./)
+  })
+
+  // A Cancel that did what Done did was a second button meaning nothing.
+  it('changes nothing when cancelled', () => {
+    renderApp()
+    showSorted()
+    const before = sortBtn().getAttribute('aria-label')
+    click(sortBtn())
+    click(tileNamed('A to Z'))
+    click(pickerAction('Cancel'))
+
+    expect(inBody('.picker-modal')).toHaveLength(0)
+    expect(sortBtn().getAttribute('aria-label')).toBe(before)
+  })
+
+  // Cancelled out of and opened again, it shows what is chosen — not the tile it
+  // was told to forget.
+  it('opens on what is chosen, not on what was cancelled', () => {
+    renderApp()
+    showSorted()
+    click(sortBtn())
+    click(tileNamed('A to Z'))
+    click(pickerAction('Cancel'))
+    // Cancel lands the pointer on the board just as Done does, so it takes the
+    // same second's deafness — and a press inside it is refused like a rest.
+    act(() => void vi.advanceTimersByTime(1000))
+    click(sortBtn())
+
+    expect(tileNamed('A to Z')!.getAttribute('aria-selected'), 'still marked after a cancel').toBe('false')
   })
 
   it('says which one is chosen while the picker is open', () => {
@@ -555,11 +603,12 @@ describe('the change under a resting pointer', () => {
    * closes onto a pointer that has not moved. Without the guard the phrase that
    * arrives under it starts dwelling on nobody's instruction, and gets spoken.
    */
-  it('goes deaf for a second after the picker closes', () => {
+  it.each(['Done', 'Cancel'])('goes deaf for a second after the picker closes by %s', way => {
     renderApp()
     showSorted()
     click(sortBtn())
     click(tileNamed('A to Z'))
+    click(pickerAction(way))
     spoken.length = 0
 
     fireEvent.pointerEnter(cellFor('Apple')!)

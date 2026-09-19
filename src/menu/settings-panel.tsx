@@ -32,6 +32,7 @@ import {
   SettingRow,
   SettingSpinner,
 } from '../ui/controls'
+import { usePendingChoice } from '../ui/pending-choice'
 import { useDwellControl } from '../ui/dwell'
 import { CopyIcon, EyeIcon, EyeOffIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
@@ -720,8 +721,10 @@ function ElevenLabsRow({
 function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (next: string) => void }) {
   const { settings, update } = useSettings()
   const [typed, setTyped] = useState('')
-  const [choosing, setChoosing] = useState(false)
   const [forgotten, setForgotten] = useState(false)
+  // Marked on a rest, written on Done — see `usePendingChoice`.
+  const chooseModel = useCallback((replyModel: string) => update({ replyModel }), [update])
+  const model = usePendingChoice(settings.replyModel, chooseModel)
 
   const save = useCallback(() => {
     const key = typed.trim()
@@ -749,8 +752,8 @@ function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (ne
               className="reply-model-trigger"
               label={replyModelName(settings.replyModel)}
               name={`Model for suggested replies: ${replyModelName(settings.replyModel)}. Choose another`}
-              open={choosing}
-              onOpen={() => setChoosing(true)}
+              open={model.open}
+              onOpen={model.begin}
             />
 
             {/* Housekeeping rather than something wanted mid-conversation, so it
@@ -786,23 +789,20 @@ function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (ne
         </p>
       </div>
 
-      {choosing && (
+      {model.open && (
         <PickerModal
           title="Model for suggested replies"
           hint="Quicker, or better at reading a question. Somebody is waiting in front of you, so the quickest is the default."
-          onDone={() => setChoosing(false)}
-          onCancel={() => setChoosing(false)}
+          onDone={model.done}
+          onCancel={model.cancel}
         >
-          {REPLY_MODELS.map(model => (
+          {REPLY_MODELS.map(m => (
             <PickerTile
-              key={model.id}
-              name={model.name}
-              detail={model.detail}
-              selected={model.id === settings.replyModel}
-              onSelect={() => {
-                update({ replyModel: model.id })
-                setChoosing(false)
-              }}
+              key={m.id}
+              name={m.name}
+              detail={m.detail}
+              selected={m.id === model.pending}
+              onSelect={() => model.mark(m.id)}
             />
           ))}
         </PickerModal>

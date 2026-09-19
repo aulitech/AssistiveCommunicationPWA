@@ -9,6 +9,7 @@ import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
 import { useEdit } from '../ui/edit-mode'
 import { PickerModal, PickerTile } from '../ui/controls'
+import { usePendingChoice } from '../ui/pending-choice'
 import { stripMarkdown } from '../core/markdown'
 import { hasChoices, type Phrase } from '../core/phrases'
 import { sortName, sortsFor } from '../core/sort'
@@ -253,8 +254,12 @@ const SORT_ICONS: Record<PhraseSort, React.ReactNode> = {
  * A full-screen grid rather than a list that drops down, for the reason every
  * choice in this app is one — and a cycling button would be worse still here,
  * since four states behind one glyph is three dwells and a guess to reach the
- * one you want. **Choosing closes it**: there is nothing to preview behind the
- * scrim, so a second dwell on Done would be a target for nothing.
+ * one you want. **A tile marks a choice and Done makes it** — see
+ * `usePendingChoice`. It used to close on the first tile, on the grounds that
+ * there is nothing to preview behind the scrim and a second dwell on Done would
+ * be a target for nothing. But a rest is how somebody looks at a tile as well as
+ * how they pick one, and a grid that commits to the first tile the eye passes
+ * over is choosing for them — with a Cancel beside it that did what Done did.
  *
  * It **goes quiet rather than away** on the two tabs whose order is not the
  * user's to change. A control that comes and goes moves the ones below it, and
@@ -279,23 +284,19 @@ function SortControl({
   canArrange: boolean
   onChoose: (sort: PhraseSort) => void
 }) {
-  const [open, setOpen] = useState(false)
-
   // Closing puts the board back under a pointer that has not moved, and under a
   // new arrangement the cell arriving there is not the one that was there when
   // the picker opened. Same second the menu takes on its way out, for the same
-  // reason: a phrase must not be spoken by the screen moving.
-  const close = useCallback(() => {
-    setOpen(false)
-    holdDwells()
-  }, [])
+  // reason: a phrase must not be spoken by the screen moving. However it closes,
+  // since Cancel lands the pointer on the board just as Done does.
+  const { open, pending, mark, begin, done, cancel } = usePendingChoice(sort, onChoose, holdDwells)
 
   return (
     <>
       <ScrollBtn
         className="rail-tool sort-btn"
         disabled={Boolean(orderFixed)}
-        onAction={() => setOpen(true)}
+        onAction={begin}
         // The glyph says which order is on, so the name does too — a control
         // that has gone quiet, or that is read aloud, explains nothing by itself.
         label={
@@ -311,19 +312,16 @@ function SortControl({
         <PickerModal
           title="Order the phrases"
           hint="How every category is arranged"
-          onDone={close}
-          onCancel={close}
+          onDone={done}
+          onCancel={cancel}
         >
           {sortsFor(canArrange).map(option => (
             <PickerTile
               key={option.id}
               name={option.name}
               detail={option.detail}
-              selected={option.id === sort}
-              onSelect={() => {
-                onChoose(option.id)
-                close()
-              }}
+              selected={option.id === pending}
+              onSelect={() => mark(option.id)}
             />
           ))}
         </PickerModal>
