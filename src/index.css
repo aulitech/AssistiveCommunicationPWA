@@ -49,6 +49,18 @@
   /* The Peri mark's own gold. Used by the logo and nothing else — the interface
      stays green, so this never competes with a control for meaning. */
   --brand: #fcdd6b;
+  /* **The ground under every control that rides the message box and the heard
+     box** — the microphone, the modes, the actions, the one that empties a box,
+     the heard box's tools, the language and the voice, and the edit strip. One
+     value for all of them, so the border furniture reads as one set.
+   *
+   * **Grey at fifteen per cent, mixed rather than laid over.** It is the colour
+     a fifteen-per-cent grey makes on the bar, but opaque: every one of these sits
+     *on* a border, and a translucent ground let the box's border run straight
+     through the glyphs — the focused box's green line crossing copy, paste and
+     speak. Solid black was the first answer to that; this is the same answer in
+     the lighter grey. */
+  --border-ground: color-mix(in srgb, rgb(128 128 128) 15%, var(--surface));
 
 }
 
@@ -109,11 +121,10 @@ body {
   /* The top padding is half the mode strip, which is built out of rem itself —
      so it is written in rem too and the two cannot come apart when the root
      font-size changes. */
-  /* Half of the tallest strip on each border, or it hangs over the bar. The
-     upper one carries the 3rem control that speaks, which with its own padding
-     is 3.5rem; the lower one carries the two value controls, which are small.
-     In edit mode `--edit-bar-inset` takes the bottom, being the larger there. */
-  padding: 1.75rem 10px 1rem;
+  /* Half of the tallest strip on each border, or it hangs over the bar. Every
+     strip is the microphone's height now, 2rem, so this is a rem either way. In
+     edit mode `--edit-bar-inset` takes the bottom, being the larger there. */
+  padding: 1rem 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
@@ -302,35 +313,13 @@ body {
   height: 1.2rem;
 }
 
-/* **The one the whole board exists to reach**, and half again the size of the
-   two beside it: everything else on this border edits what is in the box, and
-   this is what takes it out of the box and into the room. Speak outside edit
-   mode, Save inside it — the same place at the same size, because the mode is a
-   change of meaning rather than a change of layout.
- *
- * Its glyph is 3rem, so the strip it rides is 3.5rem tall and the border it
- * rides is the top of the box; `.topbar` padding-top is half of that, which is
- * the rule the strip on that border has always followed. */
-.icon-btn.on-border.is-primary {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 10px;
-  background: var(--accent-dim);
-  color: var(--accent);
-}
-
-.icon-btn.on-border.is-primary svg {
-  width: 2rem;
-  height: 2rem;
-}
-
-/* Quiet rather than gone with nothing to say, the same as everywhere else here
-   — but the ground goes with it, or an empty box would still be showing the one
-   control on this bar that looks ready. */
-.icon-btn.on-border.is-primary:disabled {
-  background: transparent;
-  color: var(--text-muted);
-}
+/* **The one the whole board exists to reach** — speak outside edit mode, save
+   inside it — told apart by colour and by being last in its row, and no longer
+   by size: every control on the two boxes' borders is the microphone's height,
+   so the border furniture reads as one set. It was a 3rem glyph for a while.
+   Quiet in the muted grey with nothing to say, like everything else here. */
+.icon-btn.on-border.is-primary { color: var(--accent); }
+.icon-btn.on-border.is-primary:disabled { color: var(--text-muted); }
 
 .icon-btn svg {
   width: 22px;
@@ -591,7 +580,7 @@ body {
   z-index: 90;
   display: flex;
   align-items: center;
-  background: #000;
+  background: var(--border-ground);
   padding: 0.25rem;
   border-radius: 999px;
 }
@@ -627,7 +616,7 @@ body {
 
   /* Opaque, for the reason `.topbar-modes` is: these paint nothing of their own
      now, and sat on the border with it and the typed text showing through. */
-  background: #000;
+  background: var(--border-ground);
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
 }
@@ -664,7 +653,7 @@ body {
   z-index: 91;
   display: flex;
   align-items: center;
-  background: #000;
+  background: var(--border-ground);
   padding: 0.25rem;
   border-radius: 999px;
 }
@@ -677,7 +666,9 @@ body {
      half its own height *and* by the gap it would otherwise sit below. Both
      numbers are named here so the pull cannot come apart from what it is pulling
      — the `--edit-bar-inset` lesson, one size smaller. */
-  --heard-tool: 2.2rem;
+  /* The microphone's height — its 1.5rem control in its quarter-rem of ground —
+     so every control on either box's border is the one size. */
+  --heard-tool: 2rem;
   --heard-gap: 0.4rem;
 
   display: flex;
@@ -819,14 +810,14 @@ body {
   padding: 0;
   border: none;
   border-radius: 999px;
-  background: #000;
+  background: var(--border-ground);
   color: var(--text);
   cursor: pointer;
 }
 
 .heard-btn svg {
-  width: 1.3rem;
-  height: 1.3rem;
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
 .heard-btn[aria-disabled='true'] {
@@ -913,7 +904,7 @@ body {
   max-width: 6rem;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  background: var(--bg);
+  background: var(--border-ground);
   color: var(--text-muted);
   font-size: 0.8rem;
   line-height: 1.4;
@@ -951,7 +942,7 @@ body {
 .topbar-modes {
   position: absolute;
   /* Matches `.topbar` padding-top — see the note there. */
-  top: 1.75rem;
+  top: 1rem;
   left: 50%;
   transform: translate(-50%, -50%);
   /* Above everything in the app, and below the panel and the dialogs, which are
@@ -968,7 +959,7 @@ body {
      three controls had the box's border and whatever had been typed showing
      through the gaps between them. Black rather than `--surface` so the strip
      reads as its own thing rather than as part of the box it covers. */
-  background: #000;
+  background: var(--border-ground);
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
 }
@@ -2623,7 +2614,7 @@ body {
   max-width: calc(100% - 20px);
   overflow: hidden;
 
-  background: #000;
+  background: var(--border-ground);
   padding: 4px 10px;
   border-radius: 999px;
 }
@@ -2634,7 +2625,9 @@ body {
 .edit-bar .picker-trigger {
   padding: 5px 9px;
   font-size: 0.9rem;
-  background: var(--bg);
+  /* The strip's ground, not a second one laid on it — two fifteen-per-cent greys
+     stacked would be a different grey from every other control on the border. */
+  background: transparent;
 }
 
 .edit-bar .voice-trigger { width: 150px; }
