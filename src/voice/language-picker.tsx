@@ -10,8 +10,9 @@
 // choice in this app is one: an operating system draws a native list outside
 // the page, where nothing can be hovered and so nothing can be dwelled on.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PickerModal, PickerTile, PickerTrigger } from '../ui/controls'
+import { usePendingChoice } from '../ui/pending-choice'
 import { languageLabel, offeredLanguages } from './groups'
 import { subscribeVoices } from './speech'
 
@@ -27,27 +28,27 @@ export function LanguagePicker({
   children?: (props: { label: string; open: () => void; isOpen: boolean }) => React.ReactNode
 }) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
-  const [open, setOpen] = useState(false)
 
   useEffect(() => subscribeVoices(setVoices), [])
 
   const languages = useMemo(() => offeredLanguages(voices), [voices])
   const label = languageLabel(value, voices)
 
-  const choose = (tag: string) => {
-    onChange(tag, voices)
-    setOpen(false)
-  }
+  // Marked on a rest, written on Done — see `usePendingChoice`. Held rather than
+  // applied and put back, because choosing a language writes down the voice it
+  // is leaving, and one only passed over must not leave a voice behind it.
+  const commit = useCallback((tag: string) => onChange(tag, voices), [onChange, voices])
+  const { open, pending, mark, begin, done, cancel } = usePendingChoice(value, commit)
 
   return (
     <>
       {children ? (
-        children({ label, open: () => setOpen(true), isOpen: open })
+        children({ label, open: begin, isOpen: open })
       ) : (
         <PickerTrigger
           label={label}
           name={`Spoken language: ${label}. Choose another`}
-          onOpen={() => setOpen(true)}
+          onOpen={begin}
           open={open}
         />
       )}
@@ -55,14 +56,14 @@ export function LanguagePicker({
         <PickerModal
           title="Choose a spoken language"
           hint="The languages this device has voices for"
-          onDone={() => setOpen(false)}
-          onCancel={() => setOpen(false)}
+          onDone={done}
+          onCancel={cancel}
         >
           <PickerTile
             name="Device default"
             detail="Whatever this device speaks"
-            selected={value === ''}
-            onSelect={() => choose('')}
+            selected={pending === ''}
+            onSelect={() => mark('')}
           />
           {languages.map(l => (
             <PickerTile
@@ -73,8 +74,8 @@ export function LanguagePicker({
                   ? 'Peri translates it · no voice on this device'
                   : `${l.tag} · ${l.count} ${l.count === 1 ? 'voice' : 'voices'}`
               }
-              selected={value === l.tag}
-              onSelect={() => choose(l.tag)}
+              selected={pending === l.tag}
+              onSelect={() => mark(l.tag)}
             />
           ))}
         </PickerModal>

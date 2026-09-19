@@ -713,6 +713,34 @@ describe('the suggested reply', () => {
     expect(messageBox().value).toBe('')
   })
 
+  /**
+   * **The model grid waits for Done or Cancel**, like every grid here with those
+   * two on it. It closed on the first tile, with a Cancel that did what Done did.
+   */
+  it('marks a model on a rest and keeps it only on Done', () => {
+    withKey()
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+    click($('.reply-model-trigger'))
+
+    const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
+    const warmest = () =>
+      inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === 'Warmest')
+    const action = (label: string) =>
+      inDoc('.picker-modal-actions .panel-btn').find(b => b.getAttribute('aria-label') === label)
+    const stored = () => JSON.parse(localStorage.getItem('dwellspeak_settings') ?? '{}').replyModel
+
+    const before = stored()
+    click(warmest())
+    expect(inDoc('.picker-modal'), 'the first tile closed the grid').toHaveLength(1)
+    expect(warmest()!.getAttribute('aria-selected')).toBe('true')
+    expect(stored(), 'written before anybody said Done').toBe(before)
+
+    click(action('Done'))
+    expect(inDoc('.picker-modal')).toHaveLength(0)
+    expect(stored()).toBe('claude-fable-5-1')
+  })
+
   it('is written by the model chosen in Settings', async () => {
     const fetcher = suggests('Tea please')
     vi.stubGlobal('fetch', fetcher)
