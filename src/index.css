@@ -943,7 +943,14 @@ body {
   position: absolute;
   /* Matches `.topbar` padding-top — see the note there. */
   top: 1rem;
-  left: 50%;
+  /* **The bar's centre, or far enough right that the strip's left edge is the
+     message box's — whichever is further right.** The two numbers are measured in
+     `topbar.tsx`; unmeasured they are nought and this is the bar's centre, as it
+     always was. On a wide screen with the question beside the answer, the bar's
+     centre is over the gap between the two boxes, and the strip is pushed right
+     just far enough to sit on the message box rather than re-centred on it — so
+     Rest moves as little as it can when listen mode opens. */
+  left: max(50%, calc(var(--box-left, 0px) + var(--modes-half, 0px)));
   transform: translate(-50%, -50%);
   /* Above everything in the app, and below the panel and the dialogs, which are
      meant to cover it. `.topbar` is `position: relative` with no z-index of its
@@ -2035,12 +2042,32 @@ body {
 .setting-number::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .setting-number[type=number] { -moz-appearance: textfield; }
 
+/* **As wide as the widest thing it can say**, never narrower and never changing.
+   It was 32px, which cut `1000ms` to `1000r` and ran `100%` into the + beside it.
+   The widest value is drawn invisibly in the same grid cell as the real one — see
+   `SettingSpinner` — so the width is exact in whatever font the device has, and
+   the + and the reset beside it stay where a gaze learnt to find them. */
 .setting-formatted {
+  display: inline-grid;
+  /* And never narrower than a time, the longest thing any spinner here says —
+     `1.500s` — so the + and the reset line up down the whole list rather than
+     each row's sitting where its own widest value put it. They are aimed at by
+     position, and a column is a place; six rows each a little off is not. The
+     sizer above still wins for anything longer. */
+  min-width: 6.5ch;
   font-size: 0.9rem;
   color: var(--text-muted);
-  width: 32px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
+
+.setting-formatted::before {
+  content: attr(data-widest);
+  visibility: hidden;
+  grid-area: 1 / 1;
+}
+
+.setting-formatted > span { grid-area: 1 / 1; }
 
 /* Linking an ElevenLabs account. Stacks under its label rather than sitting on
    one line: a key field, a button, an error and a note do not fit beside a

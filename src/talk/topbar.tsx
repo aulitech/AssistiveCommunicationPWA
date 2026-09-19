@@ -17,7 +17,7 @@
 // top-centre of the message box, which now answers to a mode rather than to the
 // caret. Rest was already there, so that surface was never entirely the box's.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { compose, parseSegments } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { chooseLanguage, chooseVoice } from '../core/store'
@@ -427,8 +427,53 @@ export function Topbar({
     void linkInput.pasteFromClipboard().then(onPasted)
   }, [linkInput, onPasted])
 
+  /**
+   * **The modes never sit left of the message box.**
+   *
+   * They are centred on the bar, which is where Rest was found and where it is
+   * looked for without looking — and on a bar holding one box, the bar's centre
+   * is on the box. With the question beside the answer on a wide screen it is
+   * not: the message box starts a third of the way across, and the strip centred
+   * on the bar hung over the gap between the two boxes with edit sitting on
+   * nothing at all.
+   *
+   * So the stylesheet takes whichever is further right of two places — the bar's
+   * centre, or just far enough right that the strip's left edge is the box's
+   * — and this measures the two numbers the second needs. Pushed only as far as
+   * it has to go rather than re-centred on the box, because re-centring would
+   * move Rest a long way every time listen mode opened, and a control that
+   * jumps when a different one is used is one that has to be found again.
+   *
+   * **Where nothing can be measured, nothing is set**, and the strip stays on the
+   * bar's centre — jsdom, and the first paint.
+   */
+  const barRef = useRef<HTMLElement>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const modesRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const bar = barRef.current
+    const box = boxRef.current
+    const modes = modesRef.current
+    if (!bar || !box || !modes) return
+    const place = () => {
+      const half = modes.offsetWidth / 2
+      if (!half) return
+      bar.style.setProperty(
+        '--box-left',
+        `${box.getBoundingClientRect().left - bar.getBoundingClientRect().left}px`,
+      )
+      bar.style.setProperty('--modes-half', `${half}px`)
+    }
+    place()
+    // The box moves when listen mode opens and closes and when the window does,
+    // and each of those changes the size of one of these three.
+    const watch = new ResizeObserver(place)
+    for (const el of [bar, box, modes]) watch.observe(el)
+    return () => watch.disconnect()
+  }, [])
+
   return (
-    <header className="topbar">
+    <header ref={barRef} className="topbar">
       {/* The three modes, straddling the top edge of the message box — the
           middle of the screen's top, where a gaze on its way anywhere passes.
           Edit and auto-speak came up from the grid rail to join Rest, which was
@@ -442,7 +487,7 @@ export function Topbar({
           both a thing being spoken from and a thing being rewritten — so each
           reads as pressed only while it is the one that is on, and switching one
           on switches the other off. */}
-      <div className="topbar-modes">
+      <div ref={modesRef} className="topbar-modes">
         <ModeToggle
           className="edit-toggle"
           on={editMode}
@@ -503,7 +548,7 @@ export function Topbar({
             the two value controls stay on the wrapper, where they hold one point
             on screen whether listen mode is open or not; this one has to follow
             the box, because what it empties is the message. */}
-        <div className="message-wrap">
+        <div ref={boxRef} className="message-wrap">
           <textarea
             ref={textareaRef}
             className={cx(
