@@ -208,9 +208,12 @@ describe('the two text boxes, past their cap', () => {
     fireEvent.change(box, { target: { value: 'long enough' } })
     settle()
 
-    expect($$('.box-scroll .box-scroll-slot')).toHaveLength(2)
-    expect(arrow(/scroll the message up/i), 'offered a way up with nothing above').toBeUndefined()
-    expect($('.box-scroll .box-scroll-slot.is-idle')).not.toBeNull()
+    expect($$('.box-scroll .pane-scroll-btn')).toHaveLength(2)
+    expect(
+      arrow(/scroll the message up/i)!.getAttribute('aria-disabled'),
+      'offered a way up with nothing above',
+    ).toBe('true')
+    expect(arrow(/scroll the message down/i)!.getAttribute('aria-disabled')).toBeNull()
   })
 })
 
