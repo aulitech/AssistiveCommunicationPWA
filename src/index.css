@@ -177,6 +177,60 @@ body {
   -webkit-user-select: text;
 }
 
+/* Up and down inside a text box that has more in it than shows — see
+   `BoxScroll`. Down the box's right edge, in padding the box gives up only while
+   they are there (`.has-scroll`), so no word ever sits under one.
+ *
+ * **Inset from the top and the bottom** by more than the strips on the message
+ * box's border reach into it: the three actions stand 1.75rem into its upper
+ * right corner and the language and the voice most of a rem into its lower one.
+ * Two targets in one place is the one thing this layout must never do. The inset
+ * only matters at the cap, which is the only time these are drawn, and the cap
+ * leaves room for both. */
+.box-scroll {
+  position: absolute;
+  top: 2rem;
+  bottom: 1.1rem;
+  right: 0.3rem;
+  width: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 2;
+  /* The column is a frame, not a target; only the two buttons in it are. */
+  pointer-events: none;
+}
+
+.box-scroll-slot {
+  display: flex;
+  height: 2rem;
+  pointer-events: auto;
+}
+
+/* The end with nowhere to go keeps its place and answers to nothing, so the one
+   that does never moves under a resting pointer. */
+.box-scroll-slot.is-idle { pointer-events: none; }
+
+.box-scroll .pane-scroll-btn {
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+/* The room the arrows stand in, taken from the words only while they are there. */
+.text-display.has-scroll,
+.heard-text.has-scroll {
+  padding-right: calc(var(--box-pad-x) + 2.3rem);
+}
+
+/* The heard box and its arrows, positioned against the box rather than against
+   everything the column holds under it. Its height is the box's, so the tools
+   below still ride the box's lower border. */
+.heard-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Where the reply is coming, said in the box it is coming to. Standing at the
    first line's own origin, in the placeholder's grey and the box's own type, so
    it reads as the words arriving rather than as a badge stuck over them. */
@@ -2519,18 +2573,20 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* A phone is narrower than the two triggers and a title laid side by side, so
-     the strip scrolls sideways rather than running off both edges of it. */
+  /* **It never scrolls**, which it used to: sideways, on a phone, with nothing a
+     gaze could use to do it — so the category trigger at its far end was the
+     one control in the app a dwell user could see the edge of and not reach.
+     The voice has gone to the box's corner since, which left a title and one
+     trigger; the title is what gives way now, down to an ellipsis, and the
+     control never leaves the strip. */
   max-width: calc(100% - 20px);
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: hidden;
 
   background: #000;
   padding: 4px 10px;
   border-radius: 999px;
 }
 
-.edit-bar::-webkit-scrollbar { display: none; }
 
 /* Tighter than the same control in a settings row: this one is riding a border
    rather than sitting in a panel, and every pixel of it is a pixel of grid. */
@@ -2548,6 +2604,11 @@ body {
   color: var(--text-muted);
   white-space: nowrap;
   padding-left: 2px;
+  /* What gives way on a narrow screen, so the trigger beside it never does. The
+     whole of it is still read out: the strip carries its own label. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Saying why Save has gone quiet. Amber rather than the danger red: nothing is
@@ -2691,8 +2752,12 @@ body {
   padding: 24px;
   width: 100%;
   max-width: 720px;
-  max-height: 80vh;
-  overflow-y: auto;
+  /* dvh, not vh: on a phone `vh` is the viewport with the browser chrome hidden,
+     so a picker sized in it runs under the address bar and its last row cannot
+     be reached. The dialog does not scroll — the options inside it do, by dwell,
+     so the preview above them and Cancel below them never leave the screen. */
+  max-height: 80dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2725,7 +2790,22 @@ body {
   color: var(--text-muted);
 }
 
+/* The options' pane, which is the part of the picker that grows and so the part
+   that scrolls. `min-height: 0` lets it give up height to the dialog's cap rather
+   than pushing Cancel off the bottom. */
+.slot-scroller {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-radius: 10px;
+}
+
 .slot-options {
+  /* Room for the lift a held option makes, which would otherwise be clipped at
+     the pane's edge. */
+  padding: 4px 2px;
+}
+
+.slot-options-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
@@ -2979,6 +3059,32 @@ body {
 .prose-icon svg {
   width: 100%;
   height: 100%;
+}
+
+/* A link answering to dwell — see `DwellLink`. The fill is an underline that
+   grows across the words, since a link is a run of text rather than a box and a
+   bar under a box would be under nothing. Padded a little and pulled back by the
+   same amount, so it is a larger target than the letters without moving them. */
+.dwell-link {
+  position: relative;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 0.3em 0.15em;
+  margin: -0.3em -0.15em;
+  border-radius: 4px;
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-repeat: no-repeat;
+  background-position: left 88%;
+  background-size: 100% 1px;
+}
+
+.dwell-link.dwelling {
+  animation: linkDwellFill var(--dwell-duration, 800ms) linear forwards;
+}
+
+@keyframes linkDwellFill {
+  from { background-size: 0 3px; }
+  to { background-size: 100% 3px; }
 }
 
 /* ── Focus ── */
@@ -3257,7 +3363,13 @@ body {
    Every step of a hold replays it — caret, then the word, then the lot — so the
    next one is visibly coming and holding still is a thing with a result. See
    `useCaretDwell`. */
-.profile-input.dwelling {
+/* The fill on every single-line field in the app — see `DwellInput`. Painted
+   rather than drawn in a bar, for the reason the message box paints its own: an
+   input can hold no children, so there is nowhere to put a `.dwell-bar`. Its own
+   class rather than the Aliases panel's, because the key fields in Settings, a
+   category's name and the number in a spinner are the same kind of thing and do
+   not look like an alias. */
+.caret-field.dwelling {
   background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
   background-repeat: no-repeat;
   background-position: left bottom;
@@ -3573,19 +3685,16 @@ body {
    Enter on the input itself — never for a timer. Laying the input over the whole
    button means a click anywhere on it counts, rather than Peri having to
    synthesise one that the browser would refuse. */
-.backup-file { position: relative; }
-
+/* Where the browser's picker hands its answer back, and nothing else: the button
+   in front of it is the target — see `chooseFile`. Not `display: none`, which
+   some browsers take as a reason to refuse to open a picker for it at all. */
 .backup-file-input {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  width: 1px;
+  height: 1px;
   opacity: 0;
-  cursor: pointer;
-  font-size: 0;
+  pointer-events: none;
 }
-
-.backup-file:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .backup-incoming {
   display: flex;
@@ -3679,9 +3788,18 @@ body {
 .legal-page {
   height: 100vh;
   height: 100dvh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
+}
+
+/* The document inside a pane with dwell controls above and below it, rather than
+   a page that scrolled by wheel alone — see `legal-page.tsx`. The padding moves
+   in here so the controls sit at the very edges of the screen, where a gaze
+   finds an edge without having to find a control. */
+.legal-body {
   padding: 32px 20px 64px;
 }
 
@@ -3691,14 +3809,9 @@ body {
 }
 
 .legal-back {
-  display: inline-block;
-  margin-bottom: 20px;
+  margin: 0 0 20px;
   font-size: 1.05rem;
-  color: var(--accent);
-  text-decoration: none;
 }
-
-.legal-back:hover { text-decoration: underline; }
 
 .legal-title {
   margin: 0 0 4px;
@@ -3730,14 +3843,6 @@ body {
   color: var(--text-muted);
 }
 
-.help-legal-links a,
-.signin-legal a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.help-legal-links a:hover,
-.signin-legal a:hover { text-decoration: underline; }
 
 /* Documents are for reading, and the app disables selection globally. */
 .legal-page, .legal-page * {

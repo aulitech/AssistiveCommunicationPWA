@@ -4585,9 +4585,25 @@ describe('legal pages', () => {
     expect($('.legal-page')).not.toBeNull()
   })
 
-  it('offers a way back to the app', () => {
+  /**
+   * **A way back that a dwell can take.** It was a plain anchor, which answers
+   * to a click — the one input a gaze user does not have — so somebody who
+   * reached the policy by dwell from the guide could read it and not leave it.
+   */
+  it('offers a way back to the app that answers to a dwell', () => {
     at('/terms')
-    expect($<HTMLAnchorElement>('.legal-back')?.getAttribute('href')).toBe('/')
+    const back = $<HTMLAnchorElement>('.legal-back a')!
+    expect(back.getAttribute('href')).toBe('/')
+
+    fireEvent.pointerEnter(back)
+    expect(back.className, 'resting on the way back starts nothing').toMatch(/dwelling/)
+  })
+
+  // A document that scrolled by wheel alone was a document read as far as the
+  // first screen and no further.
+  it('scrolls by dwell, like every other long thing here', () => {
+    at('/privacy')
+    expect($('.legal-page .scroll-pane .legal-body'), 'the document is not in a dwell pane').not.toBeNull()
   })
 
   it('leaves other paths on the app', () => {

@@ -66,11 +66,18 @@ export default function App() {
 
   const ctx = useMemo(() => ({ settings, update }), [settings, update])
 
-  if (legalDoc) return <LegalPage doc={legalDoc} />
-
+  // The legal pages inside the provider as well, though they need no account:
+  // they are driven by dwell now, and a dwell there should take the time this
+  // person set rather than the one the app ships with.
   return (
     <SettingsCtx.Provider value={ctx}>
-      {user ? <TalkScreen user={user} onSignOut={handleSignOut} /> : <SignInPage onSignIn={handleSignIn} />}
+      {legalDoc ? (
+        <LegalPage doc={legalDoc} />
+      ) : user ? (
+        <TalkScreen user={user} onSignOut={handleSignOut} />
+      ) : (
+        <SignInPage onSignIn={handleSignIn} />
+      )}
     </SettingsCtx.Provider>
   )
 }

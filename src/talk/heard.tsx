@@ -30,6 +30,8 @@ import { useSettings } from '../ui/settings'
 import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
 import { cx, dwellVar } from '../ui/style'
+import { BoxScroll } from '../ui/controls'
+import type { ScrollEdges } from '../ui/scroll-edges'
 import { ClearIcon, SuggestIcon, TranslateIcon, UndoIcon } from '../ui/icons'
 import type { Listener } from './use-listen'
 
@@ -63,6 +65,7 @@ function HeardButton({
 export function HeardBox({
   listener,
   fieldRef,
+  edges,
 }: {
   listener: Listener
   /**
@@ -73,6 +76,8 @@ export function HeardBox({
    * both is the bar they are in.
    */
   fieldRef: RefObject<HTMLTextAreaElement | null>
+  /** Whether the box has more in it than shows — measured by the bar, beside the height. */
+  edges: ScrollEdges
 }) {
   const { settings } = useSettings()
   const {
@@ -106,18 +111,29 @@ export function HeardBox({
 
   return (
     <div className="heard-wrap">
-      <textarea
-        ref={fieldRef}
-        className={cx('heard-text', caret.active && 'dwelling', heard.listening && 'is-listening')}
-        style={dwellVar(settings.actionDwellMs)}
-        aria-label="Question heard"
-        value={heard.said}
-        onChange={e => write(e.target.value)}
-        placeholder={heard.listening ? 'Listening…' : 'Nothing heard yet'}
-        rows={1}
-        spellCheck
-        {...caret.props}
-      />
+      {/* The box and the arrows that scroll it, together: the arrows sit inside
+          the box's right edge and have to be positioned against the box rather
+          than against everything under it. */}
+      <div className="heard-field">
+        <textarea
+          ref={fieldRef}
+          className={cx(
+            'heard-text',
+            caret.active && 'dwelling',
+            heard.listening && 'is-listening',
+            (edges.canUp || edges.canDown) && 'has-scroll',
+          )}
+          style={dwellVar(settings.actionDwellMs)}
+          aria-label="Question heard"
+          value={heard.said}
+          onChange={e => write(e.target.value)}
+          placeholder={heard.listening ? 'Listening…' : 'Nothing heard yet'}
+          rows={1}
+          spellCheck
+          {...caret.props}
+        />
+        <BoxScroll edges={edges} what="question" />
+      </div>
 
       {/* The three controls, riding the box's lower border rather than sitting
           in a row under it — the bargain every strip on the message box strikes,
