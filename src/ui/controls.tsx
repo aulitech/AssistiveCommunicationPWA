@@ -14,6 +14,8 @@ import { prosePieces, type ProseSection } from '../core/prose'
 import { PROSE_ICONS } from './prose-icons'
 import { cx, dwellVar } from './style'
 import { useSettled } from './settle'
+import { useScrollEdges, type ScrollEdges } from './scroll-edges'
+import { useCaretDwell } from './caret'
 
 export function DwellCursor() {
   const ref = useRef<HTMLDivElement>(null)
@@ -222,12 +224,17 @@ export function SettingSpinner({
       <StepBtn onAction={dec} label="Decrease">
         −
       </StepBtn>
-      <input
+      {/* The value in figures, for anybody who would rather type one than step to
+          it — and so it takes the caret by dwell, or Peri's own keyboard could
+          not reach it. **Text rather than `number`**, because a number field
+          refuses `setSelectionRange`, which is how the caret is placed: the
+          dwell would have thrown the moment it fired. `inputMode` keeps the
+          keypad a phone would have offered. */}
+      <DwellInput
         className="setting-number"
-        type="number"
-        min={min}
-        max={max}
-        step={step}
+        type="text"
+        inputMode="numeric"
+        aria-label={`${name} value`}
         value={value}
         onChange={e => {
           const n = Number(e.target.value)
@@ -303,10 +310,13 @@ function ScrollButton({
   action,
   onActivate,
   repeat,
+  label,
 }: {
   action: ScrollAction
   onActivate: () => void
   repeat?: boolean
+  /** What scrolls, where there is more than one thing on screen that could. */
+  label?: string
 }) {
   const { settings } = useSettings()
   const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, {
@@ -317,12 +327,142 @@ function ScrollButton({
       className={cx('pane-scroll-btn', active && 'dwelling')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
-      aria-label={SCROLL_LABELS[action]}
+      aria-label={label ?? SCROLL_LABELS[action]}
       {...props}
     >
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
       <ScrollGlyph action={action} />
     </div>
+  )
+}
+
+/**
+ * How far one step moves a box: two lines of its 1.35rem type at 1.4, near
+ * enough, so each step leaves a line from before on screen to read on from. A
+ * nudge repeats while it is held, so this is the grain of the scroll rather than
+ * its reach. One number for both boxes, being the same box in two places.
+ */
+const BOX_SCROLL_STEP = 60
+
+/**
+ * Up and down for a text box that scrolls itself — the message, and the
+ * question heard.
+ *
+ * **Those were the two surfaces in this app with no way to scroll them by
+ * dwell.** Both grow with what is in them up to a cap, and past the cap the rest
+ * was scrolled out of the box with nothing to bring it back: a pane can hang its
+ * controls above and below its content, but a textarea holds no children, so
+ * there was nowhere to put them. They go *inside* the box's right edge instead,
+ * in padding the box gives up only while they are there, so no word sits under
+ * a control.
+ *
+ * **Only while there is somewhere to go**, one of each and never the jumps.
+ * These ride a box somebody aims into for the caret, and every target added to it
+ * is one more thing a rest meant for the words might land on; a nudge repeats
+ * while it is held, so it crosses any distance the jumps would.
+ */
+export function BoxScroll({ edges, what }: { edges: ScrollEdges; what: string }) {
+  const step = BOX_SCROLL_STEP
+  if (!edges.canUp && !edges.canDown) return null
+  return (
+    <div className="box-scroll">
+      {/* Both always drawn once either is, so each keeps its place: an arrow
+          that came and went would move the other under a resting pointer. The
+          one with nowhere to go is inert rather than absent. */}
+      <div className={cx('box-scroll-slot', !edges.canUp && 'is-idle')}>
+        {edges.canUp && (
+          <ScrollButton action="up" repeat label={`Scroll the ${what} up`} onActivate={() => edges.nudge(-step)} />
+        )}
+      </div>
+      <div className={cx('box-scroll-slot', !edges.canDown && 'is-idle')}>
+        {edges.canDown && (
+          <ScrollButton
+            action="down"
+            repeat
+            label={`Scroll the ${what} down`}
+            onActivate={() => edges.nudge(step)}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * A text box aimed at by dwell: resting places the caret, **going on resting
+ * takes the word, then the lot**, which is how a gaze selects at all — see
+ * `useCaretDwell`.
+ *
+ * Every single-line field in the app is one of these. A field you cannot put the
+ * caret into is one you can only ever clear and retype; one you cannot *focus*
+ * without a click is one Peri's own keyboard cannot type into either, since that
+ * types into whatever field has the caret — which is how an API key or a sync
+ * passphrase was set up on a board driven by gaze: it was not.
+ *
+ * `caret-field` carries the fill, painted as a background layer for the reason
+ * the message box paints its own: an input can hold no children, so there is
+ * nowhere to put a `.dwell-bar`. Anything else about how it looks is the
+ * caller's class.
+ */
+export function DwellInput({ className, ref: outer, ...rest }: React.ComponentProps<'input'>) {
+  const { settings } = useSettings()
+  const inner = useRef<HTMLInputElement>(null)
+  const { active, props } = useCaretDwell(inner, settings.actionDwellMs, { selectOnHold: true })
+  const ref = useCallback(
+    (el: HTMLInputElement | null) => {
+      inner.current = el
+      if (typeof outer === 'function') outer(el)
+      else if (outer) outer.current = el
+    },
+    [outer],
+  )
+  return (
+    <input
+      ref={ref}
+      className={cx('caret-field', className, active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      {...props}
+      {...rest}
+    />
+  )
+}
+
+/**
+ * A link aimed at by dwell. **This app had four plain anchors** — to the privacy
+ * policy and the terms from the sign-in page and the guide, and the way back from
+ * those pages — and a plain anchor answers to a click, which is the one input a
+ * gaze user does not have. Somebody reading the policy by dwell could open it and
+ * then had no way back to their board.
+ *
+ * **The same tab, always.** A new tab needs a click to be allowed, and a dwell is
+ * a timer with no click in it, so opening one would be refused for exactly the
+ * people this is for. These pages are the app's own and each has a way back,
+ * which a tab somebody could not close would not.
+ *
+ * A real `<a>` underneath, so a mouse, a keyboard and a screen reader all find
+ * the link they expect and the address shows where a browser shows addresses.
+ */
+export function DwellLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const { settings } = useSettings()
+  const go = useCallback(() => window.location.assign(href), [href])
+  const { active, props } = useDwellControl(settings.actionDwellMs, go)
+  return (
+    <a
+      href={href}
+      className={cx('dwell-link', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      {...props}
+      // The anchor would navigate on a click by itself, past the guard the dwell
+      // hook's own click handler carries — a click landing in the second after the
+      // screen moved is refused there, and has to be refused here too, since on a
+      // gaze rig that sends real clicks the click *is* the dwell.
+      onClick={e => {
+        e.preventDefault()
+        props.onClick()
+      }}
+    >
+      {children}
+    </a>
   )
 }
 
@@ -347,38 +487,14 @@ export function ScrollPane({
   children: React.ReactNode
 }) {
   const listRef = useRef<HTMLDivElement>(null)
-  const [canUp, setCanUp] = useState(false)
-  const [canDown, setCanDown] = useState(false)
-
-  const update = useCallback(() => {
-    const el = listRef.current
-    if (!el) return
-    setCanUp(el.scrollTop > 0)
-    setCanDown(el.scrollTop + el.clientHeight < el.scrollHeight - 1)
-  }, [])
-
-  useEffect(() => {
-    const el = listRef.current
-    if (!el) return
-    update()
-    el.addEventListener('scroll', update, { passive: true })
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    return () => {
-      el.removeEventListener('scroll', update)
-      ro.disconnect()
-    }
-  }, [update])
-
-  const scrollBy = useCallback((dy: number) => listRef.current?.scrollBy({ top: dy, behavior: 'smooth' }), [])
-  const scrollTo = useCallback((top: number) => listRef.current?.scrollTo({ top, behavior: 'smooth' }), [])
+  const { canUp, canDown, nudge, toTop, toBottom } = useScrollEdges(listRef)
 
   return (
     <div className={cx('scroll-pane', className)}>
       {canUp && (
         <div className="pane-scroll-row">
-          <ScrollButton action="top" onActivate={() => scrollTo(0)} />
-          <ScrollButton action="up" repeat onActivate={() => scrollBy(-step)} />
+          <ScrollButton action="top" onActivate={toTop} />
+          <ScrollButton action="up" repeat onActivate={() => nudge(-step)} />
         </div>
       )}
       <div ref={listRef} className={cx('scroll-pane-inner', paneClassName)}>
@@ -386,8 +502,8 @@ export function ScrollPane({
       </div>
       {canDown && (
         <div className="pane-scroll-row">
-          <ScrollButton action="down" repeat onActivate={() => scrollBy(step)} />
-          <ScrollButton action="bottom" onActivate={() => scrollTo(listRef.current?.scrollHeight ?? 0)} />
+          <ScrollButton action="down" repeat onActivate={() => nudge(step)} />
+          <ScrollButton action="bottom" onActivate={toBottom} />
         </div>
       )}
     </div>

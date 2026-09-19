@@ -318,6 +318,96 @@ describe('the shape of the source tree', () => {
   })
 
   /**
+   * **Nothing in the app answers only to a press.**
+   *
+   * An audit found four plain anchors, three text fields that took the caret
+   * only on a click, and a file button a rest did nothing to — each of them a
+   * control somebody working the board by gaze alone could see and not use, and
+   * none of them failing a test, since a test that clicks proves nothing about
+   * whether a rest does anything. `tests/app/reach.test.tsx` drives each one by
+   * resting. This is what stops the next one being written.
+   *
+   * So the source may hold an anchor only inside `DwellLink`, a single-line
+   * field only inside `DwellInput`, and no native `<select>` at all — an
+   * operating system draws its list outside the page, where nothing can be
+   * hovered. A textarea has to carry the caret dwell's own handlers. The one
+   * bare input left is where the file picker hands its answer back, which is
+   * nothing a pointer or a keyboard may land on.
+   */
+  it('holds every link, field and list to the dwell-driven version of itself', () => {
+    // Comments first: half the prose in this tree explains why something is
+    // *not* a `<select>`, and would otherwise count as one.
+    const code = (path: string) =>
+      readFileSync(path, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+    // To the end of the tag, which for a field is its `/>` rather than the first
+    // `>` — every handler written as an arrow has one of those in it.
+    const found = (tag: string, end = '/>') =>
+      sources()
+        .filter(path => path.endsWith('.tsx'))
+        .flatMap(path =>
+          [...code(path).matchAll(new RegExp(`<${tag}[\\s>][^]*?${end}`, 'g'))].map(m => ({
+            file: relative(SRC, path),
+            tag: m[0],
+          })),
+        )
+
+    expect(
+      found('a', '>').map(f => f.file),
+      'an anchor outside DwellLink answers to a click and nothing else',
+    ).toEqual(['ui/controls.tsx'])
+
+    expect(found('select', '>'), 'a native list is drawn where nothing can be hovered').toEqual([])
+
+    const inputs = found('input')
+    expect(inputs.map(f => f.file).sort(), 'a field outside DwellInput takes the caret only on a click').toEqual([
+      'menu/backup-panel.tsx',
+      'ui/controls.tsx',
+    ])
+    const picker = inputs.find(f => f.file === 'menu/backup-panel.tsx')!.tag
+    expect(picker, 'the bare input left is the file picker').toMatch(/type="file"/)
+    expect(picker, 'the file input is a second target beside its button').toMatch(/aria-hidden="true"/)
+    expect(picker).toMatch(/tabIndex=\{-1\}/)
+
+    const boxes = found('textarea')
+    expect(boxes.length, 'no text boxes at all — did they move?').toBeGreaterThan(0)
+    for (const box of boxes) {
+      expect(box.tag, `a textarea in ${box.file} has no caret dwell on it`).toMatch(/\{\.\.\.caret\.props\}/)
+    }
+  })
+
+  /**
+   * **Everything that scrolls has a way to scroll it by dwell.** A wheel, a
+   * trackpad and a scrollbar are all things a gaze user does not have, so what
+   * scrolls out of reach of the only input somebody has is simply gone. Three
+   * surfaces did: the slot chooser, the legal pages, and the edit strip — the
+   * first two now scroll in a pane, and the third no longer scrolls at all.
+   *
+   * The list below is every surface allowed to scroll, and **what scrolls it**.
+   * A new one fails here until somebody writes down which controls reach it,
+   * which is the whole of the point: a scrolling surface is a decision, not a
+   * default.
+   */
+  it('lets nothing scroll that a dwell cannot scroll', () => {
+    const SCROLLED_BY: Record<string, string> = {
+      '.text-display': 'BoxScroll, inside its right edge',
+      '.heard-text': 'BoxScroll, inside its right edge',
+      '.filter-scroll': 'the category bar’s own arrows',
+      '.grid-wrapper': 'the grid rail',
+      '.scroll-row-inner': 'ScrollRow’s arrows',
+      '.scroll-pane-inner': 'ScrollPane’s controls above and below',
+    }
+    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const scrolling = [...css.matchAll(/([^{}]+)\{[^{}]*overflow(?:-x|-y)?: *(?:auto|scroll)[^{}]*\}/g)].map(m =>
+      m[1]!.replace(/\/\*[\s\S]*?\*\//g, '').trim(),
+    )
+    expect(scrolling.sort(), 'something scrolls that nothing is written down as scrolling').toEqual(
+      Object.keys(SCROLLED_BY).sort(),
+    )
+  })
+
+  /**
    * **Every icon a line of prose names is one that can be drawn.**
    *
    * A mark nothing defines draws nothing — the sentence keeps its spacing and

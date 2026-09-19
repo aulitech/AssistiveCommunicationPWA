@@ -1,6 +1,6 @@
 // Menu → Backup & sharing. The screen over the format in `backup.ts`.
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
 import { type AliasStore } from '../core/phrases'
@@ -146,6 +146,33 @@ export function BackupPanel({
     [load],
   )
 
+  /**
+   * The file picker, asked for by the button in front of it.
+   *
+   * **The picker only opens for a real click or tap**, and a dwell is a timer
+   * with no press in it — so for somebody working the board by gaze alone this
+   * is refused every time. It used to be refused in silence: a label wrapping a
+   * hidden input, so a dwell on it did nothing at all and looked like a broken
+   * control. Now it asks the same way everything else here asks, and says so
+   * when the browser says no, naming the way that does work.
+   *
+   * `showPicker` rather than `click()` because it is the one of the two that
+   * *says* it was refused: `click()` without a press is dropped without a word.
+   * Where there is no `showPicker` at all `click()` is all there is.
+   */
+  const fileRef = useRef<HTMLInputElement>(null)
+  const chooseFile = useCallback(() => {
+    const input = fileRef.current
+    if (!input) return
+    setError('')
+    if (typeof input.showPicker !== 'function') return input.click()
+    try {
+      input.showPicker()
+    } catch {
+      setError('Your browser only opens a file on a real click or tap. Paste a backup works by resting.')
+    }
+  }, [])
+
   const paste = useCallback(() => {
     navigator.clipboard
       ?.readText?.()
@@ -255,22 +282,22 @@ export function BackupPanel({
           </div>
         ) : (
           <div className="backup-actions">
-            {/* A real <input> rather than a dwell button that clicks one: the
-                file picker belongs to the browser and only opens for a genuine
-                click or an Enter on the input itself. Filling the label with it
-                means a click anywhere on the button opens it, and a keyboard
-                lands on it in the ordinary way. Clipboard is the way in for
-                anyone whose dwell never produces a click at all. */}
-            <label className="panel-btn plain backup-file">
-              <input
-                type="file"
-                className="backup-file-input"
-                accept="application/json,.json"
-                aria-label="Choose a backup file"
-                onChange={readFile}
-              />
-              Choose a file
-            </label>
+            {/* A dwell button in front of an input nobody aims at. The input is
+                where the browser's picker hands its answer back, and is hidden
+                from pointer and keyboard alike so there is one target here and
+                not two — see `chooseFile` for what a dwell on the button can and
+                cannot do. A click still opens the picker, through the button,
+                because a click carries the press the browser is waiting for. */}
+            <input
+              ref={fileRef}
+              type="file"
+              className="backup-file-input"
+              accept="application/json,.json"
+              tabIndex={-1}
+              aria-hidden="true"
+              onChange={readFile}
+            />
+            <PanelButton kind="plain" label="Choose a file" onActivate={chooseFile} />
             <PanelButton kind="plain" label="Paste a backup" onActivate={paste} />
           </div>
         )}

@@ -43,6 +43,8 @@ import {
 } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { useSettled } from '../ui/settle'
+import { useScrollEdges } from '../ui/scroll-edges'
+import { BoxScroll } from '../ui/controls'
 import { PhraseEditBar } from './editors'
 import type { Composer } from './use-composer'
 import type { Editor } from './use-editor'
@@ -320,6 +322,16 @@ export function Topbar({
   const heardRef = useRef<HTMLTextAreaElement>(null)
 
   /**
+   * Whether either box has more in it than shows, for the arrows inside them.
+   * Measured here, beside the heights, because a box at its cap grows *inside*
+   * without growing outside, and nothing fires for that but the fit below.
+   */
+  const messageEdges = useScrollEdges(textareaRef)
+  const heardEdges = useScrollEdges(heardRef, listener.open)
+  const { update: remeasureMessage } = messageEdges
+  const { update: remeasureHeard } = heardEdges
+
+  /**
    * Both boxes grow with what is in them, up to a few lines — **and to the same
    * height as each other**, whichever is holding more deciding it.
    *
@@ -375,15 +387,18 @@ export function Topbar({
       // the pair would only ever grow.
       for (const el of boxes) el.style.height = ''
       const tallest = Math.max(...boxes.map(el => el.scrollHeight))
-      if (!tallest) return
-      for (const el of boxes) el.style.height = `${tallest}px`
+      if (tallest) for (const el of boxes) el.style.height = `${tallest}px`
+      // Whatever the heights did, whether there is more than shows is a fresh
+      // question — the cap is where a box stops growing and starts scrolling.
+      remeasureMessage()
+      remeasureHeard()
     }
     fit()
     // The width decides where the lines break, and the width changes with the
     // window — a phone turned on its side rewraps every line in both boxes.
     window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
-  }, [value, question, listener.open, textareaRef, settings.zoom])
+  }, [value, question, listener.open, textareaRef, settings.zoom, remeasureMessage, remeasureHeard])
 
   // A link pasted or dropped here becomes `[label](url)`, so the message reads
   // as the page's name and still carries the address when it is copied out. Into
@@ -481,7 +496,7 @@ export function Topbar({
             first in both arrangements and in a screen reader. What keeps the
             two strips on the border from moving with it is that both hang off
             the wrapper rather than off either box. */}
-        {listener.open && <HeardBox listener={listener} fieldRef={heardRef} />}
+        {listener.open && <HeardBox listener={listener} fieldRef={heardRef} edges={heardEdges} />}
 
         {/* The message box and what rides *its* borders, which after the split
             above is not the same thing as what rides the wrapper's. The mic and
@@ -491,7 +506,11 @@ export function Topbar({
         <div className="message-wrap">
           <textarea
             ref={textareaRef}
-            className={cx('text-display', caret.active && 'dwelling')}
+            className={cx(
+              'text-display',
+              caret.active && 'dwelling',
+              (messageEdges.canUp || messageEdges.canDown) && 'has-scroll',
+            )}
             style={dwellVar(settings.actionDwellMs)}
             aria-label={editMode ? 'Phrase text' : 'Composed message'}
             value={value}
@@ -530,6 +549,8 @@ export function Topbar({
             // raise a phone's on-screen keyboard, which needs a real gesture.
             autoFocus
           />
+
+          <BoxScroll edges={messageEdges} what="message" />
 
           {/* Never a target: `pointer-events: none`, like every other indicator
               here. A dwell user has no way to dismiss something that catches

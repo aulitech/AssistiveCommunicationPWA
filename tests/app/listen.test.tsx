@@ -229,7 +229,8 @@ describe('the control', () => {
     await act(async () => {})
 
     const inOrder = [...$('.heard-wrap')!.children].map(el => el.className.split(' ')[0])
-    expect(inOrder).toEqual(['heard-text', 'heard-tools', 'heard-meaning'])
+    expect(inOrder).toEqual(['heard-field', 'heard-tools', 'heard-meaning'])
+    expect($('.heard-field > .heard-text'), 'the box is not the first thing in its field').not.toBeNull()
 
     // Empty first, then the ones that do something with what is in the box. The
     // rest of the row depends on what this build and this board can do, so only

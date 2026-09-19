@@ -23,6 +23,7 @@ import {
   replyModelName,
 } from '../core/store'
 import {
+  DwellInput,
   PanelButton,
   PickerModal,
   PickerTile,
@@ -400,7 +401,13 @@ function SecretField({
 
   return (
     <div className="secret-field">
-      <input
+      {/* Takes the caret by dwell like every other field here. It did not, and
+          that made this the one row in Settings nobody driving the board by gaze
+          could fill in: Peri's own keyboard types into whatever field has the
+          caret, and nothing but a click could give it to this one. The row that
+          sets up the account a voice is paid from, the one that answers a
+          question, and the lock on the board were all a carer's job. */}
+      <DwellInput
         className="profile-input secret-input"
         type={shown ? 'text' : 'password'}
         value={value}

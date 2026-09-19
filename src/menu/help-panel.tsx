@@ -1,7 +1,7 @@
 // Menu → Help. The guide itself is data in `help.ts`; this renders it.
 
 import { HELP_SECTIONS } from './help'
-import { ProseSections, ScrollPane } from '../ui/controls'
+import { DwellLink, ProseSections, ScrollPane } from '../ui/controls'
 
 export function HelpPanel() {
   return (
@@ -15,7 +15,8 @@ export function HelpPanel() {
               to scroll past by dwell to reach the one you came for. */}
           <ProseSections sections={HELP_SECTIONS} collapsible />
           <p className="help-legal-links">
-            <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a>
+            <DwellLink href="/privacy">Privacy Policy</DwellLink> ·{' '}
+            <DwellLink href="/terms">Terms of Service</DwellLink>
           </p>
         </div>
       </ScrollPane>

@@ -6,6 +6,7 @@ import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
 import { BLANK, composeWithBlank, type Phrase } from '../core/phrases'
 import { cx, dwellVar } from '../ui/style'
+import { ScrollPane } from '../ui/controls'
 
 function SlotOption({ value, onPick }: { value: string; onPick: (v: string) => void }) {
   const { settings } = useSettings()
@@ -114,11 +115,17 @@ export function SlotPicker({
         <div className="slot-picker-step">
           Choose {steps.length > 1 ? `${step + 1} of ${steps.length}` : 'a word'}
         </div>
-        <div className="slot-options" role="group">
-          {options.map(option => (
-            <SlotOption key={option} value={option} onPick={pick} />
-          ))}
-        </div>
+        {/* **Scrolled by dwell**, which it was not. A list like `{bodyparts}` is
+            fifty words and a picker is a screen, so most of them sat below the
+            fold with nothing a gaze could use to reach them — and this is the
+            chooser somebody opens to say which part of them hurts. */}
+        <ScrollPane className="slot-scroller" paneClassName="slot-options" step={140}>
+          <div className="slot-options-grid" role="group">
+            {options.map(option => (
+              <SlotOption key={option} value={option} onPick={pick} />
+            ))}
+          </div>
+        </ScrollPane>
         <div
           className={cx('slot-cancel', cancelHook.active && 'dwelling')}
           style={dwellVar(settings.actionDwellMs)}

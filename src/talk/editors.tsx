@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
-import { PickerModal, PickerTile } from '../ui/controls'
+import { DwellInput, PickerModal, PickerTile } from '../ui/controls'
 import { cx, dwellVar } from '../ui/style'
 import { type Draft } from './use-editor'
 
@@ -252,7 +252,11 @@ export function CategoryModal({
       >
         <div className="edit-modal-title">{isNew ? 'Add category' : 'Rename category'}</div>
 
-        <input
+        {/* Focused on arrival, so typing works straight away; the dwell is for
+            putting the caret somewhere other than where that left it — renaming
+            "Medical" to "Medical history" is the end, and fixing a letter in the
+            middle is not. */}
+        <DwellInput
           className="edit-modal-input"
           value={value}
           onChange={e => setValue(e.target.value)}

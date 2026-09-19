@@ -7,7 +7,7 @@ import { SIGN_IN, SignInCancelled, configuredProviders, type Provider } from './
 import { useSettings } from '../ui/settings'
 import { DEFAULT_SETTINGS, type User } from '../core/store'
 import { AppLogoIcon, AppleIcon, FacebookIcon, GoogleIcon } from '../ui/icons'
-import { DwellButton, DwellCursor, ScrollPane, SettingSpinner } from '../ui/controls'
+import { DwellButton, DwellCursor, DwellLink, ScrollPane, SettingSpinner } from '../ui/controls'
 
 const FEATURES = [
   { icon: '👁️', title: 'Dwell selection', body: 'No tapping or clicking — hover and hold to choose.' },
@@ -171,9 +171,9 @@ export function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
               </DwellButton>
 
               <p className="signin-legal">
-                By continuing you agree to our <a href="/terms">Terms of Service</a> and{' '}
-                <a href="/privacy">Privacy Policy</a>. Signing in only personalises this device — your phrases and
-                settings are saved locally either way, and are not uploaded anywhere.
+                By continuing you agree to our <DwellLink href="/terms">Terms of Service</DwellLink> and{' '}
+                <DwellLink href="/privacy">Privacy Policy</DwellLink>. Signing in only personalises this device —
+                your phrases and settings are saved locally either way, and are not uploaded anywhere.
               </p>
             </>
           )}
