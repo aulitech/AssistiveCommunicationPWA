@@ -437,10 +437,14 @@ export const HELP_SECTIONS: ProseSection[] = [
         'You can change every word of it first, or :clear: it and say something else entirely.',
         'It will not write over a message you have already started, and it does not ask for one either — so a message half written is how you tell it to stay out of the way.',
         'While it is thinking, the message box says so. A reply usually takes a second or two, longer if it has to look something up.',
+        'It prefers your own words. Your phrases go with the question, and when one of them answers it, that phrase is what you are offered, word for word — with its gap left open where it has one.',
         'It answers questions about the world, and looks one up if it has to. It does not answer questions about you: it has never met you, so anything about what you did, felt or want comes back as a gap for you to fill in, with the caret already sitting in it.',
       ),
       text(
-        'The question is sent to Anthropic to be answered, on your own account and your own credits. Nothing is sent by listening alone — it goes when a reply is being written, which is as soon as a question finishes unless there is already something in the message box.',
+        'The question is sent to Anthropic to be answered, on your own account and your own credits, and the phrases on your board go with it — the ones Peri comes with and any you wrote yourself. How often you use each one does not.',
+      ),
+      text(
+        'Nothing is sent by listening alone — it goes when a reply is being written, which is as soon as a question finishes unless there is already something in the message box.',
       ),
       text(
         'Where the answer needs looking up, it is searched for on the web, so the question reaches a search index too. That takes a few seconds, which is why it only happens when the question really needs it.',

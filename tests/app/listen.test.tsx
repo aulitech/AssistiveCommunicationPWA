@@ -502,6 +502,51 @@ describe('the suggested reply', () => {
     expect(messageBox().value).toBe('I am, thank you')
   })
 
+  /**
+   * **The board goes with the question, as the board stands** — every phrase on
+   * it, the emergency bar's included, and in the order it was written rather
+   * than the order the grid shows. That order follows use, so it moves every
+   * time a phrase is said: sent in it, the board would be written to the cache
+   * afresh on nearly every question, and would carry how often each phrase is
+   * used, which is the one record Peri keeps that goes nowhere at all.
+   */
+  it('sends the board with the question, the same however it has been used since', async () => {
+    const fetch = suggests('I am, thank you')
+    vi.stubGlobal('fetch', fetch)
+    withKey()
+    const boardSent = (call: number) =>
+      (
+        JSON.parse(String((fetch.mock.calls as unknown as [string, RequestInit][])[call][1].body)) as {
+          system: { text: string; cache_control?: unknown }[]
+        }
+      ).system.find(b => b.cache_control)?.text ?? ''
+
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+    const first = boardSent(0)
+    expect(first.split('\n'), 'the user’s own phrase is not there').toContain('Apple')
+    expect(first.split('\n'), 'the emergency bar is not there').toContain("I'm in pain")
+
+    // Used, which puts it at the head of a grid in Most used order.
+    fireEvent.change(messageBox(), { target: { value: '' } })
+    settle()
+    click($$('.filter-tab').find(t => t.textContent === 'Sorted'))
+    click($$('.phrase-cell').find(c => c.textContent === 'Apple'))
+    expect(messageBox().value, 'the phrase was never used').toMatch(/Apple/)
+    fireEvent.change(messageBox(), { target: { value: '' } })
+    settle()
+
+    // Emptying the question listens again, and the next one answers itself.
+    click(clearHeard())
+    act(() => FakeRecognition.last!.say({ transcript: 'Anything else?', isFinal: true }))
+    act(() => FakeRecognition.last!.finish())
+    settle()
+    await act(async () => {})
+
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(boardSent(1), 'the board moved with the grid').toBe(first)
+  })
+
   // Still never spoken, however it was asked for. This is the rule everything
   // here is arranged around, and asking without being asked to does not touch it.
   it('does not speak the one it asked for itself, even with auto-speak on', async () => {
