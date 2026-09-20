@@ -13,10 +13,11 @@
 // were heard. A failed suggestion leaves the message box exactly as it was.
 // None of the three can stop somebody saying something.
 //
-// **A suggestion is never spoken.** It goes into the message box through the
-// composer's own history, so one dwell on Undo puts back whatever was there —
-// and it is said only when the person dwells on Speak, like any other message.
-// See `listen/suggest.ts` for the whole of that argument.
+// **A suggestion is never spoken.** The answers land on the board as cells to
+// choose between; choosing one puts it in the message box through the composer's
+// own history, so one dwell on Undo puts back whatever was there — and it is
+// said only when the person dwells on Speak, like any other message. See
+// `listen/suggest.ts` for the whole of that argument.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { canListen, listen } from '../listen/recognition'
@@ -24,6 +25,7 @@ import { boardForReply, suggestReply } from '../listen/suggest'
 import { hasTranslateKey, translateHeard } from '../translate/client'
 import { addReplyTurn, loadReplyContext, saveReplyContext } from '../core/store'
 import { type Phrase } from '../core/phrases'
+import { suggestionPhrases } from './suggestions'
 
 /** What the box above the message is holding, and what is happening to it. */
 export interface Heard {
@@ -37,8 +39,8 @@ export interface Heard {
    * Which of the two is still out, and `''` for neither.
    *
    * One field rather than a flag each, because the difference is visible: the
-   * reply draws a waiting line in the message box it is going to land in, and
-   * the translation does not. Two booleans would be two things to keep agreeing
+   * answers put a waiting line on the board they are going to land on, and the
+   * translation does not. Two booleans would be two things to keep agreeing
    * that only one of them can ever be true.
    */
   asking: '' | 'meaning' | 'reply'
@@ -54,7 +56,6 @@ export function useListen({
   replyModel,
   phrases,
   messageEmpty,
-  onSuggest,
 }: {
   /** What the board is spoken as, which is also what the microphone listens for. */
   language: string
@@ -88,8 +89,6 @@ export function useListen({
    * be one nobody could see and an exchange nobody asked to pay for.
    */
   messageEmpty: boolean
-  /** Where a suggested reply goes. Never spoken — see above. */
-  onSuggest: (text: string, blankAt: number) => void
 }) {
   const [open, setOpen] = useState(false)
   const [heard, setHeard] = useState<Heard>(EMPTY)
@@ -103,6 +102,14 @@ export function useListen({
    * what it threw away was the only copy of what was said to them.
    */
   const [cleared, setCleared] = useState<string[]>([])
+  /**
+   * The answers offered to whatever is in the box, as cells for the board.
+   *
+   * They live here rather than in the screen because they belong to the
+   * question: every way the question changes is a way they go stale, and all of
+   * those are in this file.
+   */
+  const [suggestions, setSuggestions] = useState<Phrase[]>([])
 
   /** The way to stop whatever is listening now, or null when nothing is. */
   const stopRef = useRef<(() => void) | null>(null)
@@ -113,15 +120,14 @@ export function useListen({
    */
   const askedRef = useRef(0)
   /**
-   * Read through a ref so a suggestion arriving after several renders goes to
-   * the composer as it is now, not as it was when the request went out. Written
-   * in an effect rather than during the render, which is a rule React enforces
-   * here.
+   * The question the answers on screen were asked about.
+   *
+   * A ref rather than state, because what reads it is `chose`, and `chose`
+   * reaches every memoised cell on the board — a callback that changed identity
+   * with each question would re-render a couple of thousand of them for a value
+   * none of them draws.
    */
-  const onSuggestRef = useRef(onSuggest)
-  useEffect(() => {
-    onSuggestRef.current = onSuggest
-  }, [onSuggest])
+  const askedForRef = useRef('')
 
   const stopListening = useCallback(() => {
     stopRef.current?.()
@@ -133,7 +139,7 @@ export function useListen({
   useEffect(() => stopListening, [stopListening])
 
   /**
-   * A reply to a question, into the message box.
+   * Answers to a question, onto the board.
    *
    * `asked` is the meaning where there is one and the heard words otherwise: a
    * model reading a question in the language it was asked in answers it just as
@@ -144,6 +150,11 @@ export function useListen({
       if (!asked) return
       askedRef.current++
       const mine = askedRef.current
+      askedForRef.current = asked
+      // Emptied on the way out rather than when they come back, so the board
+      // does not go on offering answers to the question that was just replaced
+      // while the new ones are still out.
+      setSuggestions([])
       setHeard(h => ({ ...h, asking: 'reply', error: '' }))
 
       // Read at the moment of asking rather than held in state: a reply can be
@@ -156,14 +167,31 @@ export function useListen({
       setHeard(h => ({ ...h, asking: '', error: result.status === 'ok' ? '' : result.error }))
       if (result.status !== 'ok') return
 
-      // The exchange, so the next question is answered as part of the same
-      // conversation. Written back through storage for the reason the sent list
-      // is: two replies can land without a render in between.
-      saveReplyContext(addReplyTurn(loadReplyContext(), asked, result.text))
-      onSuggestRef.current(result.text, result.blankAt)
+      setSuggestions(suggestionPhrases(result.replies, mine))
     },
     [language, replyModel, phrases],
   )
+
+  /**
+   * One of the answers taken, which is the only thing worth remembering about
+   * the exchange.
+   *
+   * **The one they chose, rather than the one the model put first.** Twenty
+   * answers are not an exchange; what was said is. A question nobody answered
+   * off the board leaves nothing behind at all, which is the honest record —
+   * the old single reply was written down whether or not anybody said it, so a
+   * conversation could carry on from words nobody had spoken.
+   */
+  const chose = useCallback((said: string) => {
+    // Read back rather than closed over, for the reason the sent list is: two
+    // can land without a render in between.
+    saveReplyContext(addReplyTurn(loadReplyContext(), askedForRef.current, said))
+  }, [])
+
+  /** One answer taken off the board in edit mode, where the bin forgets it. */
+  const forgetSuggestion = useCallback((id: string) => {
+    setSuggestions(list => list.filter(p => p.id !== id))
+  }, [])
 
   /**
    * The same asking, for a question nobody asked to have answered.
@@ -172,8 +200,9 @@ export function useListen({
    * spoken to and has a person waiting in front of them; making them aim at a
    * button before the machine will even begin thinking spends the seconds this
    * feature exists to give back. With words already in the box there is nothing
-   * to do — a suggestion never writes over them — so the control stays, for
-   * clearing the box and asking again, or correcting the question first.
+   * to do — a message half written is how somebody says they are already
+   * answering — so the control stays, for clearing the box and asking again, or
+   * correcting the question first.
    *
    * **Through a ref, because `startListening` has to keep its identity.** It is
    * `again`, and it is what the recogniser's callbacks close over: rebuilt on
@@ -196,6 +225,10 @@ export function useListen({
   const startListening = useCallback(() => {
     askedRef.current++
     stopListening()
+    // The answers go with the question they answered. A board still offering
+    // them while a new question is being heard is a board offering answers to
+    // something nobody asked.
+    setSuggestions([])
     setHeard({ ...EMPTY, listening: true })
 
     const mine = askedRef.current
@@ -239,6 +272,7 @@ export function useListen({
       // question is still held in memory after they have put it away, and it is
       // the sort of question this app should not need asking twice.
       setHeard(EMPTY)
+      setSuggestions([])
       // **Here and not on the way back in**, which would be the same guard
       // written twice: closing is the only way out of this box, so a box being
       // opened has already had its undo stack emptied. What it exists for is an
@@ -250,9 +284,15 @@ export function useListen({
     startListening()
   }, [open, startListening, stopListening])
 
-  /** Corrections, typed or dwelled into the box. The meaning goes stale with them. */
+  /**
+   * Corrections, typed or dwelled into the box. The meaning goes stale with
+   * them, and so do the answers: both were about the words that were there
+   * before, and an answer to a question somebody is in the middle of rewriting
+   * is worse than no answer — it is one they might take for the new one.
+   */
   const correct = useCallback((said: string) => {
     askedRef.current++
+    setSuggestions([])
     setHeard(h => ({ ...h, said, meaning: '', error: '' }))
   }, [])
 
@@ -321,6 +361,10 @@ export function useListen({
     /** Whether the box above the message is shown at all. */
     open,
     heard,
+    /** The answers on offer, as cells for the board. Empty until some come. */
+    suggestions,
+    chose,
+    forgetSuggestion,
     toggle,
     stop: stopListening,
     correct,

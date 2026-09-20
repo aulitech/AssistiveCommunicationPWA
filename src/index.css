@@ -238,30 +238,6 @@ body {
   flex-direction: column;
 }
 
-/* Where the reply is coming, said in the box it is coming to. Standing at the
-   first line's own origin, in the placeholder's grey and the box's own type, so
-   it reads as the words arriving rather than as a badge stuck over them. */
-.message-busy {
-  position: absolute;
-  top: var(--box-pad-y);
-  left: var(--box-pad-x);
-  right: var(--box-pad-x);
-  /* Reports, never answers — a dwell user has no way to dismiss something that
-     catches one, so nothing here may also be a target. */
-  pointer-events: none;
-}
-
-.message-busy-line {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-muted);
-  font-size: 1.35rem;
-  font-weight: 400;
-  line-height: 1.4;
-}
-
 .text-display::-webkit-scrollbar { display: none; }
 .text-display:focus { border-color: var(--accent); }
 .text-display::placeholder { color: var(--text-muted); font-weight: 400; }
@@ -1192,6 +1168,18 @@ body {
   color: var(--text-muted);
   text-align: center;
   margin-inline: auto;
+}
+
+/* Waiting for answers, said where the answers will land. The spinner sits on
+   the line rather than in the corner: a gaze already on the board should not
+   have to go looking for the news that cells are coming. Reports and never
+   answers — the paragraph is not a target and nothing in it is. */
+.grid-empty.is-busy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  pointer-events: none;
 }
 
 /* ── Phrase Cell ── */

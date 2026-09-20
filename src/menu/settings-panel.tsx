@@ -736,13 +736,13 @@ function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (ne
 
   return (
     <div className="setting-row eleven-row">
-      <span className="setting-label">Suggested replies</span>
+      <span className="setting-label">Suggested answers</span>
       <div className="setting-control eleven-control">
         {value ? (
           <>
             <span className="eleven-status">Set up</span>
             <PanelButton kind="danger" label="Remove" onActivate={() => onChange('')} />
-            <SecretField value={value} name="the API key" label="Suggested replies API key" />
+            <SecretField value={value} name="the API key" label="Suggested answers API key" />
 
             {/* Only with a key, because without one it would set nothing. A full
                 screen of tiles rather than a list that drops down, for the
@@ -775,7 +775,7 @@ function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (ne
             <SecretField
               value={typed}
               name="the API key"
-              label="Suggested replies API key"
+              label="Suggested answers API key"
               placeholder="Paste your Anthropic API key"
               onChange={setTyped}
               onEnter={save}
@@ -785,8 +785,8 @@ function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (ne
         )}
         <p className="eleven-note">
           {value
-            ? "The microphone button on the message box can suggest a reply to a question it heard. The question is sent to Anthropic on your own account and your own credits, with the phrases on your board so the reply can be one of your own, and where the answer needs looking up it is searched for on the web as well. Today's questions and replies are kept on this device so a conversation carries on making sense, and forgotten after a day. A suggestion is only ever put in the message box — Peri never speaks one for you."
-            : 'Optional. Lets the microphone button suggest a reply to a question it heard, using your own Anthropic account. The question goes with the phrases on your board, so the reply can be one of your own, and questions that need looking up are searched for on the web. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
+            ? "Listen mode can offer up to twenty answers to a question it heard, on the board under a tab called Answers. The question is sent to Anthropic on your own account and your own credits, with the phrases on your board so the answers can be your own words, and where an answer needs looking up it is searched for on the web as well. Today's questions and the answers you chose are kept on this device so a conversation carries on making sense, and forgotten after a day. Resting on an answer puts it in the message box — Peri never speaks one for you."
+            : 'Optional. Lets listen mode offer answers to a question it heard, on the board to choose between, using your own Anthropic account. The question goes with the phrases on your board, so the answers can be your own words, and questions that need looking up are searched for on the web. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
         </p>
       </div>
 

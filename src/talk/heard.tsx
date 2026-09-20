@@ -21,9 +21,10 @@
 // toolbar. There is no button for the microphone: clearing the box starts it and
 // undo stops it, because emptying this box has one reason behind it — what came
 // back was wrong — and what somebody wants next is to be listened to again.
-// The third is the one that writes anywhere else in the app, and what it writes
-// goes into the message box through the composer's own undo — see
-// `listen/suggest.ts` for why that matters more here than anywhere.
+// The third is the one that reaches anywhere else in the app: it fills the board
+// with answers to choose between, and the one chosen goes into the message box
+// through the composer's own undo — see `listen/suggest.ts` for why that matters
+// more here than anywhere.
 
 import { useCallback, type RefObject } from 'react'
 import { useSettings } from '../ui/settings'
@@ -176,14 +177,14 @@ export function HeardBox({
         {canSuggest && (
           <HeardButton
             onSelect={() => void suggest()}
-            // Named as an offer rather than an answer. It goes into the message
-            // box to be read and changed, and nothing here ever speaks it — and
-            // a control that has gone quiet explains nothing by itself, so the
-            // one thing it can still do is say what would let it work.
+            // Named for where they go. They land on the board to be chosen
+            // between, and nothing here ever speaks one — and a control that has
+            // gone quiet explains nothing by itself, so the one thing it can
+            // still do is say what would let it work.
             label={
               messageEmpty
-                ? 'Suggest a reply, into the message box'
-                : 'Suggest a reply. Clear the message first — a suggestion never writes over your own words'
+                ? 'Suggest answers, onto the board'
+                : 'Suggest answers. Clear the message first — a message half written is how you say you are already answering'
             }
             disabled={nothingHeard || heard.asking !== '' || !messageEmpty}
           >

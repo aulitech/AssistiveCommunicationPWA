@@ -1,44 +1,54 @@
-// A suggested answer to a question that was heard.
+// Suggested answers to a question that was heard.
 //
 // The riskiest thing in this app, and the comments below are mostly about that.
 // **Peri exists to say what somebody means**, and a machine offering words for
 // them to say is one step from a machine deciding what they meant. So the whole
 // design is arranged around one rule:
 //
-//   **A suggestion is never spoken.** It lands in the message box, where it can
-//   be read, changed, cleared or ignored, and it is said only when the person
-//   dwells on Speak — the same dwell every other message needs. Nothing here
-//   reaches the synthesiser, and nothing here is ever auto-spoken.
+//   **A suggestion is never spoken.** They arrive as answers on the board, to
+//   be read, chosen among or ignored; choosing one puts it in the message box,
+//   and it is said only when the person dwells on Speak — the same dwell every
+//   other message needs. Nothing here reaches the synthesiser.
 //
 // Three more things follow from it:
 //
-//   * **It goes through the box's own undo.** Whatever was in the box before is
-//     on the history stack, so one dwell on Undo puts their own words back.
-//   * **It is short, first person, and in the board's language**, because it is
-//     going to be read by the person who would have to say it, on a screen that
-//     is mostly grid.
+//   * **There are up to twenty of them**, because one reply is a machine
+//     deciding what somebody meant and twenty is a choice they make. One per
+//     line is the whole of the format — see `readReplies`.
+//   * **Each is short, first person, and in the board's language**, because
+//     they are going to be read by the person who would have to say them, on a
+//     screen that is mostly grid.
 //   * **The key is theirs.** It bills them for something they chose, the way the
 //     ElevenLabs key does — and unlike the translation key it cannot be made safe
 //     to inline, since nothing restricts an Anthropic key to one site.
 //
-// **Nothing throws.** Every failure is a value, and the worst case is a box left
-// exactly as it was with a line of text saying why.
+// **Nothing throws.** Every failure is a value, and the worst case is a board
+// left exactly as it was with a line of text saying why.
 
 import { reportFailure } from '../core/report'
-import { BLANK, type Phrase } from '../core/phrases'
+import { type Phrase } from '../core/phrases'
 import { soleLink, stripMarkdown } from '../core/markdown'
 import { loadReplyKey, readReplyModel, type ReplyTurn } from '../core/store'
 
 const ENDPOINT = 'https://api.anthropic.com/v1/messages'
 
 /**
- * Two sentences at the outside. Longer than that is not a reply, it is a speech.
+ * Twenty answers of two sentences at the outside, and a search query with them,
+ * since a query is output too.
  *
- * The budget covers a search query as well as the words, since both are output —
- * so it is not as tight as the two sentences it is protecting. What keeps the
- * reply short is the brief; this is only the backstop under it.
+ * It is a backstop rather than a limit anybody should reach: what keeps each
+ * answer short is the brief, and what keeps them few is `MAX_REPLIES`. Running
+ * out mid-list costs the last answer rather than the lot — a truncated line is
+ * dropped with the rest of the parse.
  */
-const MAX_TOKENS = 400
+const MAX_TOKENS = 1200
+
+/**
+ * How many answers the board is offered, and it is a number about the board
+ * rather than about the model: twenty cells is a screen somebody can read by
+ * gaze, and the twenty-first would be one nobody ever reaches.
+ */
+export const MAX_REPLIES = 20
 
 /**
  * Looking something up, when the model judges that it has to.
@@ -56,32 +66,44 @@ const MAX_TOKENS = 400
 const SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 1 }
 
 export type SuggestResult =
-  | {
-      status: 'ok'
-      text: string
-      /** Where the first gap landed, or -1. The caret goes there — see `BLANK`. */
-      blankAt: number
-    }
-  | { status: 'error'; error: string }
+  /** The answers as the model wrote them, best first — gaps and all. */
+  { status: 'ok'; replies: string[] } | { status: 'error'; error: string }
 
 /**
- * Two or more underscores, which is what the brief asks a gap to be written as.
+ * A line's own numbering or bullet, which the brief asks for and does not get.
  *
- * Two rather than exactly three, because a model asked for `___` will sometimes
- * write `__` or `____`, and a reply with visible underscores in it is worse than
- * one whose gap is a character wider than it was asked for.
+ * A model writing a list writes a list, and "1. Tea please" on a board is a
+ * phrase with a number in front of it that somebody's speaker reads out.
  */
-const GAP = /_{2,}/g
+const LIST_MARK = /^\s*(?:[-–—*•·]|\(?\d{1,2}[.):])\s+/
+
+/** Quotation marks around a whole line, for the same reason. */
+const QUOTED = /^["'“”‘’](.*)["'“”‘’]$/
 
 /**
- * The reply with its gaps opened out, and where the first one landed.
+ * The answers out of the run of text: **one to a line, and nothing else.**
  *
- * `BLANK` is the empty string, so taking a gap out leaves the text either side
- * of it spaced exactly as it was — and nothing before the first gap has moved,
- * which is what makes its index in the answer its index in the finished words.
+ * A format a model cannot half-follow is worth more here than a strict one: no
+ * JSON to be truncated, no beta header, and a line that came back malformed
+ * costs its own line rather than the whole list.
+ *
+ * - **Numbering and quotation marks come off**, because the brief asking for
+ *   neither is not the same as never getting them, and both end up spoken.
+ * - **The same answer twice is one answer**, matched without regard to case: a
+ *   second cell saying what the first says is a target spent for nothing.
+ * - **Twenty at the outside**, and the rest dropped rather than drawn.
  */
-function withGaps(said: string): { text: string; blankAt: number } {
-  return { text: said.replace(GAP, BLANK), blankAt: said.search(GAP) }
+function readReplies(said: string): string[] {
+  const seen = new Set<string>()
+  const replies: string[] = []
+  for (const raw of said.split('\n')) {
+    const line = raw.replace(LIST_MARK, '').replace(QUOTED, '$1').replace(/\s+/g, ' ').trim()
+    if (!line || seen.has(line.toLowerCase())) continue
+    seen.add(line.toLowerCase())
+    replies.push(line)
+    if (replies.length === MAX_REPLIES) break
+  }
+  return replies
 }
 
 function fail(error: string): SuggestResult {
@@ -104,7 +126,13 @@ function describe(status: number): string {
  * What the model is told about its job.
  *
  * Written to be read by whoever has to defend it. Every line is a limit rather
- * than an instruction to be clever: one reply, short, first person, no preamble.
+ * than an instruction to be clever: short answers, first person, no preamble.
+ *
+ * **Twenty answers rather than one**, which is the difference between a machine
+ * deciding what somebody meant and a machine laying out what they might mean.
+ * One reply put a stranger's sentence in the message box and left the person to
+ * accept it or start again by spelling; twenty fill the board they already
+ * choose everything else from, and the one they rest on is a choice.
  *
  * **A gap, not a question back.** What it must not state about them it leaves a
  * hole in, and the hole is the app's own blank: the caret lands in it and the
@@ -126,12 +154,14 @@ function describe(status: number): string {
 const BRIEF = [
   'You are helping someone who communicates through an assistive board.',
   'They have been asked a question out loud and need something to say back.',
-  'Write one short reply in the first person, as they would say it — at most two sentences.',
-  'Reply with the words themselves and nothing else: no preamble, no options, no quotation marks, no citations.',
+  `Write up to ${MAX_REPLIES} different replies they could choose between, in the first person, as they would say them — each at most two sentences.`,
+  'One reply to a line, best first, and nothing else on the line: no numbering, no bullets, no headings, no blank lines between them, no quotation marks, no citations.',
+  'Make them worth choosing between: the short plain answers first, then fuller ones, and never two that say the same thing.',
   'A question about the world you may answer, from what you know or by searching.',
   'A question about THEM you may not: never state what they did, felt, want, own, were given or were told, unless it is in what you were sent.',
   'If the question asks for one of those, write the reply with a gap where the fact goes, marked ___, and let them fill it in.',
   'Never ask them a question back and never say you do not know: a gap is the answer to anything you were not told.',
+  'Where a question has a handful of real answers, give each its own line rather than one line with a gap: "Tea please" and "Coffee please" rather than "I would like ___".',
 ].join(' ')
 
 /**
@@ -164,9 +194,9 @@ const today = () => new Date().toLocaleDateString('en-CA', { year: 'numeric', mo
  */
 const BOARD_BRIEF = [
   'Below are the phrases on their board, one to a line.',
-  'Prefer them: when one of them answers the question, reply with it exactly as it is written, gaps included, rather than in words of your own.',
+  'Prefer them: every one that answers the question goes in the list, exactly as it is written, gaps included, rather than in words of your own — and first, ahead of anything you write.',
   'They are what they are able to say, not facts about them. A phrase that states what they did, felt or want is held to the rule above like any other words, so use one with a gap where the fact goes instead, or write one.',
-  'Write something new only when none of them fits.',
+  'Write new ones to fill out the list where theirs do not cover the question.',
 ].join(' ')
 
 /** Where a slot sat, while the markup comes off around it. Never in a phrase. */
@@ -225,22 +255,22 @@ export function boardForReply(phrases: Phrase[]): string[] {
  * place too many.
  */
 /**
- * The reply out of the turn that came back, and **only the reply.**
+ * The answers out of the turn that came back, and **only the answers.**
  *
  * With a search in the turn there are several blocks: whatever the model said
  * before it looked anything up, the search itself, what came back, and then the
- * answer. Joining every text block would put "Let me look that up" into the
- * message box in front of the words, so the answer is taken as the run of text
- * **after the last block that is not text** — which is the search result where
- * there was one, and nothing at all where there was not.
+ * answer. Joining every text block would put "Let me look that up" on the board
+ * as an answer, so the answers are taken from the run of text **after the last
+ * block that is not text** — which is the search result where there was one,
+ * and nothing at all where there was not.
  *
  * **That cut is the whole of the guard**, and there is deliberately not a second
  * one filtering the slice by type as well: everything after the last non-text
  * block is text by construction, so a filter there could never fire and would
  * only make this look as though it were checked twice. What it protects against
  * is a block of some other kind carrying a `text` field — a model's own working,
- * put into an assistive board's message box for somebody to say out loud, is the
- * worst thing this could do.
+ * drawn on an assistive board for somebody to say out loud, is the worst thing
+ * this could do.
  */
 function readReply(content: { type?: string; text?: unknown }[]): SuggestResult {
   let from = 0
@@ -254,7 +284,8 @@ function readReply(content: { type?: string; text?: unknown }[]): SuggestResult 
     .join('')
     .trim()
 
-  return said ? { status: 'ok', ...withGaps(said) } : fail('The suggestion service sent back nothing')
+  const replies = readReplies(said)
+  return replies.length ? { status: 'ok', replies } : fail('The suggestion service sent back nothing')
 }
 
 export async function suggestReply(

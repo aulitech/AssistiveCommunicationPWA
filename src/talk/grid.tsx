@@ -487,6 +487,7 @@ export function PhraseGrid({
   phrases,
   listKey,
   emptyMessage,
+  busy,
   sort,
   orderFixed,
   canArrange,
@@ -505,6 +506,14 @@ export function PhraseGrid({
   listKey: string
   /** Shown when there is nothing to show, for filters that can legitimately be empty. */
   emptyMessage?: string
+  /**
+   * Whether what would fill the grid is still on its way — the answers to a
+   * question, which are the one thing here that arrives from a network. It
+   * spins beside the line rather than in the corner, because this is where the
+   * cells are going to land and a gaze already on the board should not have to
+   * go looking for the news that they are coming.
+   */
+  busy?: boolean
   /** Which of the four orders the list arrived in — the rail says which. */
   sort: PhraseSort
   /** Set on the two tabs that keep an order of their own: Sent, and Translations. */
@@ -652,7 +661,12 @@ export function PhraseGrid({
             />
           ))}
         </div>
-        {phrases.length === 0 && emptyMessage && <p className="grid-empty">{emptyMessage}</p>}
+        {phrases.length === 0 && emptyMessage && (
+          <p className={cx('grid-empty', busy && 'is-busy')} role="status" aria-live="polite">
+            {busy && <span className="busy-spinner" aria-hidden="true" />}
+            {emptyMessage}
+          </p>
+        )}
       </main>
       <GridScrollBar
         gridRef={gridRef}

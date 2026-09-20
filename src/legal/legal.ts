@@ -23,7 +23,7 @@ export const PRIVACY: ProseDocument = {
   title: 'Privacy Policy',
   updated: UPDATED,
   intro:
-    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device. Five things are exceptions, and each is yours to switch on. Linking an ElevenLabs account sends the words you speak to ElevenLabs to be turned into audio. Setting a spoken language sends the phrases you wrote yourself to Google to be translated. Turning on Synchronize puts an encrypted copy of your board on our server so your other devices can fetch it, and we cannot read that copy. Using the microphone lets your browser send what it hears to a speech service of its own. And asking for a suggested reply sends that question, with the phrases on your board, to Anthropic on your own account.',
+    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device. Five things are exceptions, and each is yours to switch on. Linking an ElevenLabs account sends the words you speak to ElevenLabs to be turned into audio. Setting a spoken language sends the phrases you wrote yourself to Google to be translated. Turning on Synchronize puts an encrypted copy of your board on our server so your other devices can fetch it, and we cannot read that copy. Using the microphone lets your browser send what it hears to a speech service of its own. And asking for suggested answers sends that question, with the phrases on your board, to Anthropic on your own account.',
   sections: [
     {
       title: 'What we collect',
@@ -38,7 +38,7 @@ export const PRIVACY: ProseDocument = {
           'Your word lists — names, contacts and anything else you add under Aliases.',
           'Which account you last signed in with, if any.',
           'Your ElevenLabs API key, if you linked an account.',
-          'Your Anthropic API key, if you set one up for suggested replies.',
+          'Your Anthropic API key, if you set one up for suggested answers.',
           'The audio a linked ElevenLabs account has made for you, so that a phrase you have paid to have spoken is not paid for twice.',
           'Your Synchronize passphrase, if you turned that on.',
           'How often you use each phrase and when you last used one, which is what lets the grid be ordered by what you use.',
@@ -50,7 +50,7 @@ export const PRIVACY: ProseDocument = {
           'None of this leaves your device unless you turn on Synchronize, and what leaves then is encrypted — see the Synchronizing section. No API key and no Synchronize passphrase is ever included in a backup file, so sharing a backup does not share your account or your other devices. The passphrase never leaves your device at all; the keys travel between your own devices, inside the encryption, so what you pay for works on all of them.',
         ),
         text(
-          'Four things on that list go nowhere at all: how often you use each phrase, the messages under the Sent tab, the translations under the Translations tab, and the day of questions kept for suggested replies. All four are a record of what you actually said or were asked, so all four stay on the device that recorded them — none is in a backup file, and none is in what Synchronize sends to your other devices. A factory reset clears them.',
+          'Four things on that list go nowhere at all: how often you use each phrase, the messages under the Sent tab, the translations under the Translations tab, and the day of questions kept for suggested answers. All four are a record of what you actually said or were asked, so all four stay on the device that recorded them — none is in a backup file, and none is in what Synchronize sends to your other devices. A factory reset clears them.',
         ),
       ],
     },
@@ -67,16 +67,16 @@ export const PRIVACY: ProseDocument = {
           'What was heard is not kept. It lives in that box until you close it, and it is never in a backup file and never sent to your other devices.',
         ),
         text(
-          'Questions you asked for a reply to, and the replies offered, are kept on this device for a day so that a conversation carries on making sense. They are forgotten after that, forgotten at once if you remove the key, and there is a button in the Settings row to forget them now. They are never in a backup file and never sent to your other devices.',
+          'Questions you asked for answers to, and the answer you chose from them, are kept on this device for a day so that a conversation carries on making sense. An answer you did not choose is not kept. They are forgotten after that, forgotten at once if you remove the key, and there is a button in the Settings row to forget them now. They are never in a backup file and never sent to your other devices.',
         ),
         text(
           'Reading a heard question in your own language sends it to Google to be translated, exactly as the phrases you write yourself are sent — see Speech below. It is sent only when you ask for it.',
         ),
         text(
-          'A suggested reply sends the question to Anthropic, using an API key of your own that you set up under Settings. **With a key set up, this happens on its own**: when the person talking to you stops and your message box is empty, the question goes to be answered without your asking. Leave anything in the message box and it does not. The phrases on your board go with it — the ones Peri comes with and any you wrote yourself, with a name filled in where a phrase has only one to choose from — so that the reply can be one of your own; how often you use each one does not. So do the day’s earlier questions and replies, described above. Nothing else about you goes with it, and nothing is sent by listening alone. What Anthropic does with it is governed by their policy, not this one. Remove the key, and nothing is ever sent there. A suggestion is only ever put into the message box for you to read, change or discard — Peri never speaks one for you.',
+          'Suggested answers send the question to Anthropic, using an API key of your own that you set up under Settings. **With a key set up, this happens on its own**: when the person talking to you stops and your message box is empty, the question goes to be answered without your asking. Leave anything in the message box and it does not. The phrases on your board go with it — the ones Peri comes with and any you wrote yourself, with a name filled in where a phrase has only one to choose from — so that the answers can be your own words; how often you use each one does not. So do the day’s earlier questions and the answers you chose, described above. Nothing else about you goes with it, and nothing is sent by listening alone. What Anthropic does with it is governed by their policy, not this one. Remove the key, and nothing is ever sent there. The answers are only ever drawn on the board for you to read, choose between or ignore, and the one you choose goes into the message box to read, change or discard — Peri never speaks one for you.',
         ),
         text(
-          'Where answering needs something looked up, Anthropic searches the web for it, so the question reaches a search provider as well. That happens only inside a reply, and only when the question needs it.',
+          'Where answering needs something looked up, Anthropic searches the web for it, so the question reaches a search provider as well. That happens only inside an answer, and only when the question needs it.',
         ),
       ],
     },
