@@ -51,6 +51,21 @@ const MAX_TOKENS = 1200
 export const MAX_REPLIES = 20
 
 /**
+ * How many of those may be phrases off their own board.
+ *
+ * **A third, and it is a cap rather than a target.** The board is worth having
+ * in the list — those are words they chose and already know how to read — and
+ * it is not worth the whole list: two thousand phrases hold something loosely
+ * on topic for any question ever asked, so a model told to offer the ones that
+ * fit filled all twenty from the table and the feature became a search of the
+ * board. What somebody is missing when they are asked something is usually the
+ * words they have not got.
+ *
+ * The brief asks for the third; this enforces it, because a brief is a request.
+ */
+const FROM_BOARD_CAP = Math.ceil(MAX_REPLIES / 3)
+
+/**
  * Looking something up, when the model judges that it has to.
  *
  * **The one capability here that costs time somebody is standing in front of
@@ -91,7 +106,8 @@ const QUOTED = /^["'“”‘’](.*)["'“”‘’]$/
  *   neither is not the same as never getting them, and both end up spoken.
  * - **The same answer twice is one answer**, matched without regard to case: a
  *   second cell saying what the first says is a target spent for nothing.
- * - **Twenty at the outside**, and the rest dropped rather than drawn.
+ * How many are kept is not decided here — see `mixed`, which has the board to
+ * compare them against.
  */
 function readReplies(said: string): string[] {
   const seen = new Set<string>()
@@ -101,9 +117,33 @@ function readReplies(said: string): string[] {
     if (!line || seen.has(line.toLowerCase())) continue
     seen.add(line.toLowerCase())
     replies.push(line)
-    if (replies.length === MAX_REPLIES) break
   }
   return replies
+}
+
+/**
+ * The list as it will be drawn: a third of it off their board at the outside,
+ * twenty cells at the outside, and otherwise exactly the order it came in.
+ *
+ * **The cap drops rather than reorders.** Best-first is the model's judgement
+ * and this has none to put in its place, so a list that came back all from the
+ * board loses its overflow and is drawn shorter — which is the visible sign
+ * that the brief was not followed, and better than twenty cells of a board the
+ * person can already read for themselves.
+ *
+ * Matched on the words, since that is what the board was sent as: a phrase the
+ * model reworded is one it wrote, which is the right side of the line anyway.
+ */
+function mixed(replies: string[], board: string[]): string[] {
+  const theirs = new Set(board.map(line => line.toLowerCase()))
+  let fromBoard = 0
+  const kept: string[] = []
+  for (const reply of replies) {
+    if (theirs.has(reply.toLowerCase()) && ++fromBoard > FROM_BOARD_CAP) continue
+    kept.push(reply)
+    if (kept.length === MAX_REPLIES) break
+  }
+  return kept
 }
 
 function fail(error: string): SuggestResult {
@@ -180,9 +220,13 @@ const today = () => new Date().toLocaleDateString('en-CA', { year: 'numeric', mo
 /**
  * What the model is told about the board it is given.
  *
- * **Their own words first.** A reply that is one of their phrases is in words
- * they chose, or at least kept, rather than a machine's — and it is a reply
- * they have seen before, on a board they already know how to read.
+ * **Their own words, but not only their own words.** A phrase off the board is
+ * in words they chose, or at least kept, and one they already know how to read
+ * — so they are worth a third of the list. They are not worth all of it: a
+ * board of two thousand phrases has something loosely on topic for any question
+ * ever asked, so "offer the ones that answer it" filled every cell from the
+ * table and the feature became a search of the board. What somebody is missing
+ * when they are asked something is usually the words they have *not* got.
  *
  * **What they can say, not what is true of them.** The rule above lets the model
  * state what "is in what you were sent", and a board holding "I have taken my
@@ -194,9 +238,11 @@ const today = () => new Date().toLocaleDateString('en-CA', { year: 'numeric', mo
  */
 const BOARD_BRIEF = [
   'Below are the phrases on their board, one to a line.',
-  'Prefer them: every one that answers the question goes in the list, exactly as it is written, gaps included, rather than in words of your own — and first, ahead of anything you write.',
+  `Use their own phrases for at most a third of the list — the ${FROM_BOARD_CAP} best of them at the outside, however many others would fit — written exactly as they are, gaps included.`,
   'They are what they are able to say, not facts about them. A phrase that states what they did, felt or want is held to the rule above like any other words, so use one with a gap where the fact goes instead, or write one.',
-  'Write new ones to fill out the list where theirs do not cover the question.',
+  'Write the rest of the list yourself, in their voice: the answers somebody would actually give, and above all the ones their board has not got.',
+  'Where the question needed looking up, let some of those use what you found.',
+  'Mix the three kinds through the list rather than grouping them, best first: the first few cells are the ones a tired reader gets to, and all of one kind there is a list that looks like one answer.',
 ].join(' ')
 
 /** Where a slot sat, while the markup comes off around it. Never in a phrase. */
@@ -272,7 +318,7 @@ export function boardForReply(phrases: Phrase[]): string[] {
  * drawn on an assistive board for somebody to say out loud, is the worst thing
  * this could do.
  */
-function readReply(content: { type?: string; text?: unknown }[]): SuggestResult {
+function readReply(content: { type?: string; text?: unknown }[]): string[] {
   let from = 0
   for (let i = 0; i < content.length; i++) {
     if (content[i].type !== 'text') from = i + 1
@@ -284,8 +330,7 @@ function readReply(content: { type?: string; text?: unknown }[]): SuggestResult 
     .join('')
     .trim()
 
-  const replies = readReplies(said)
-  return replies.length ? { status: 'ok', replies } : fail('The suggestion service sent back nothing')
+  return readReplies(said)
 }
 
 export async function suggestReply(
@@ -367,7 +412,8 @@ export async function suggestReply(
     if (!response.ok) return fail(describe(response.status))
 
     const body = (await response.json()) as { content?: { type?: string; text?: unknown }[] }
-    return readReply(body.content ?? [])
+    const replies = mixed(readReply(body.content ?? []), board)
+    return replies.length ? { status: 'ok', replies } : fail('The suggestion service sent back nothing')
   } catch {
     return fail('Could not reach the suggestion service')
   }

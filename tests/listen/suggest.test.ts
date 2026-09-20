@@ -590,11 +590,32 @@ describe('the phrases on the board', () => {
     expect(block?.text).toContain('\nTea please\nNo thank you\nI would like ___')
   })
 
-  it('tells it to offer them first, word for word, wherever they answer', async () => {
+  /**
+   * **A third of the list, and their own words exactly.** Told to offer the ones
+   * that answer the question, a model with two thousand phrases in front of it
+   * filled all twenty from the table: a board that size holds something loosely
+   * on topic for anything anybody ever asks, and the feature became a search of
+   * the board. What somebody is missing when they are asked something is
+   * usually the words they have not got.
+   */
+  it('tells it to use them for a third of the list, word for word', async () => {
     const told = brief(await ask())
-    expect(told).toMatch(/exactly as it is written, gaps included/i)
-    expect(told, 'their own phrases are not put first').toMatch(/first, ahead of anything you write/i)
-    expect(told).toMatch(/write new ones to fill out the list/i)
+    expect(told).toMatch(/exactly as they are, gaps included/i)
+    expect(told, 'no share of the list is named').toMatch(/at most a third of the list/i)
+    expect(told, 'nothing says who writes the rest').toMatch(/write the rest of the list yourself/i)
+    expect(told, 'nothing asks for the words their board has not got').toMatch(/their board has not got/i)
+  })
+
+  // A question that needed looking up is the one kind an assistive board cannot
+  // answer out of itself, and the search is already paid for by then.
+  it('tells it to answer from what it looked up as well', async () => {
+    expect(brief(await ask())).toMatch(/let some of those use what you found/i)
+  })
+
+  // The first few cells are the ones a tired reader gets to, and all of one
+  // kind there is a list that reads as a single answer.
+  it('asks for the three kinds mixed through the list rather than grouped', async () => {
+    expect(brief(await ask())).toMatch(/mix the three kinds through the list rather than grouping them/i)
   })
 
   /**
@@ -605,6 +626,56 @@ describe('the phrases on the board', () => {
    */
   it('tells it the phrases are not facts about them', async () => {
     expect(brief(await ask())).toMatch(/what they are able to say, not facts about them/i)
+  })
+
+  /**
+   * **The cap is enforced, because a brief is a request.** A list that came back
+   * all from the board loses its overflow and is drawn shorter — which is the
+   * visible sign the brief was not followed, and better than twenty cells of a
+   * board the person can read for themselves.
+   */
+  it('keeps no more than a third of the list from their board', async () => {
+    const board = [...Array(20)].map((_, i) => `Their phrase ${i}`)
+    const fetcher = replies(board.join('\n'))
+    vi.stubGlobal('fetch', fetcher)
+
+    const result = await suggestReply('What now?', '', undefined, [], board)
+    expect(result.status === 'ok' && result.replies).toHaveLength(7)
+    // The best of them, in the order the model put them in.
+    expect(result.status === 'ok' && result.replies[0]).toBe('Their phrase 0')
+  })
+
+  /**
+   * **It drops rather than reorders.** Best-first is the model's judgement and
+   * there is nothing here to put in its place, so what is kept is kept where it
+   * was — the overflow off the board goes and everything else stays put.
+   */
+  it('keeps everything it wrote itself, in the order it wrote them', async () => {
+    const board = [...Array(10)].map((_, i) => `Their phrase ${i}`)
+    const came = [
+      'Their phrase 0',
+      'Something it wrote',
+      'Their phrase 1',
+      'Another it wrote',
+      ...board.slice(2),
+      'A third it wrote',
+    ]
+    vi.stubGlobal('fetch', replies(came.join('\n')))
+
+    const result = await suggestReply('What now?', '', undefined, [], board)
+    const kept = result.status === 'ok' ? result.replies : []
+    expect(kept.filter(r => !board.includes(r))).toEqual([
+      'Something it wrote',
+      'Another it wrote',
+      'A third it wrote',
+    ])
+    expect(kept.filter(r => board.includes(r))).toHaveLength(7)
+    expect(kept.slice(0, 4)).toEqual([
+      'Their phrase 0',
+      'Something it wrote',
+      'Their phrase 1',
+      'Another it wrote',
+    ])
   })
 
   /**
