@@ -441,7 +441,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'They go when the question does. Correcting the question or closing the box takes them away, since they were answers to what was there before.',
         'It will not write over a message you have already started, and it does not ask for answers either — so a message half written is how you tell it to stay out of the way.',
         'While it is thinking, the Answers tab says so. They usually take a second or two, longer if it has to look something up.',
-        'It prefers your own words. Your phrases go with the question, and the ones that answer it are offered first, word for word — with any gap left open.',
+        'The answers come from three places: your own phrases, answers it writes itself, and anything it had to look up. Your phrases are up to a third of them, word for word, with any gap left open — the rest are words your board has not got, which is usually what you are short of when somebody asks you something.',
         'It answers questions about the world, and looks one up if it has to. It does not answer questions about you: it has never met you, so anything about what you did, felt or want comes back as a gap for you to fill in, with the caret landing in it when you choose that answer.',
       ),
       text(
