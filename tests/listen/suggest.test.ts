@@ -188,6 +188,57 @@ describe('asking for answers', () => {
    * France — so it dodged questions nobody could come to harm over and the whole
    * thing read as broken rather than careful.
    */
+  /**
+   * **An expert in whatever the question is about**, which is the one
+   * instruction here to be clever rather than careful, and it earns its place:
+   * the person answering cannot add the sentence the machine left out, since
+   * every correction costs them a letter at a time. A vague answer is not a
+   * starting point they can improve — it is the whole of what they get to say.
+   */
+  it('tells it to answer as somebody who knows the subject', async () => {
+    const fetcher = replies('Take it with food, not on an empty stomach')
+    vi.stubGlobal('fetch', fetcher)
+    await suggestReply('Do you know what that tablet does?', '')
+
+    const told = brief(fetcher)
+    expect(told, 'nothing asks for expertise').toMatch(/as an expert in whatever it is about/i)
+    expect(told, 'nothing asks for a particular answer').toMatch(
+      /accurate and particular rather than vague or hedged/i,
+    )
+  })
+
+  /**
+   * And **not** a lecture. Knowing the subject is not talking like it: these are
+   * words somebody says out loud to the person in front of them, through a
+   * synthesiser, at a pace that makes a paragraph an ordeal for both of them.
+   */
+  it('holds the expertise to two sentences of plain words', async () => {
+    const fetcher = replies('Take it with food')
+    vi.stubGlobal('fetch', fetcher)
+    await suggestReply('Do you know what that tablet does?', '')
+
+    const told = brief(fetcher)
+    expect(told).toMatch(/knowing the subject is not talking like one/i)
+    expect(told).toMatch(/never a lecture/i)
+    expect(told).toMatch(/at most two sentences/i)
+  })
+
+  /**
+   * **Expert in the subject, never about them.** The one line that must survive
+   * the expertise: a board that answered "yes, I took them at eight" to a
+   * question about medication would be putting a clinical claim in somebody's
+   * mouth, and an expert tone is exactly what would make it believed.
+   */
+  it('keeps the expertise off the person themselves', async () => {
+    const fetcher = replies('Tea please')
+    vi.stubGlobal('fetch', fetcher)
+    await suggestReply('Did you take your tablets?', '')
+
+    const told = brief(fetcher)
+    expect(told).toMatch(/expert in the subject and never about them/i)
+    expect(told).toMatch(/never state what they did/i)
+  })
+
   it('tells it which facts are not its to state', async () => {
     const fetcher = replies('Tea please')
     vi.stubGlobal('fetch', fetcher)

@@ -168,6 +168,14 @@ function describe(status: number): string {
  * Written to be read by whoever has to defend it. Every line is a limit rather
  * than an instruction to be clever: short answers, first person, no preamble.
  *
+ * **An expert in whatever the question is about, which is one instruction to be
+ * clever and it earns its place.** The person answering cannot add the
+ * sentence the machine left out — every correction costs them a letter at a
+ * time — so a vague or hedged answer is not a starting point they can improve,
+ * it is the whole of what they get to say. What that must not become is a
+ * lecture: expert in the *subject*, in two sentences of the plain words they
+ * would have used, and never expert about **them**.
+ *
  * **Twenty answers rather than one**, which is the difference between a machine
  * deciding what somebody meant and a machine laying out what they might mean.
  * One reply put a stranger's sentence in the message box and left the person to
@@ -198,7 +206,9 @@ const BRIEF = [
   'One reply to a line, best first, and nothing else on the line: no numbering, no bullets, no headings, no blank lines between them, no quotation marks, no citations.',
   'Make them worth choosing between: the short plain answers first, then fuller ones, and never two that say the same thing.',
   'A question about the world you may answer, from what you know or by searching.',
-  'A question about THEM you may not: never state what they did, felt, want, own, were given or were told, unless it is in what you were sent.',
+  'Answer it as an expert in whatever it is about — the medicine, the law, the car, the recipe, the league table — so what they say back is accurate and particular rather than vague or hedged, and worth saying to somebody who knows the subject themselves.',
+  'Knowing the subject is not talking like one: still at most two sentences, still the plain words they would say out loud, and never a lecture.',
+  'Expert in the subject and never about them. A question about THEM you may not answer: never state what they did, felt, want, own, were given or were told, unless it is in what you were sent.',
   'If the question asks for one of those, write the reply with a gap where the fact goes, marked ___, and let them fill it in.',
   'Never ask them a question back and never say you do not know: a gap is the answer to anything you were not told.',
   'Where a question has a handful of real answers, give each its own line rather than one line with a gap: "Tea please" and "Coffee please" rather than "I would like ___".',
