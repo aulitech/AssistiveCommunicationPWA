@@ -5,7 +5,7 @@
 // category is showing, whether the app is in edit mode or resting, and what to
 // say when an operation finishes.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { loadTranslations } from '../core/translation'
 import { cancelAllDwells, holdDwellsUntilMoved, RestingContext } from '../ui/dwell'
@@ -57,6 +57,7 @@ import { useEditor } from './use-editor'
 import { SENT_CATEGORY, SENT_FILTER, useSent } from './use-sent'
 import { useListen } from './use-listen'
 import { TRANSLATED_CATEGORY, TRANSLATED_FILTER, useTranslated, voiceForTranslated } from './use-translated'
+import { SUGGEST_CATEGORY, SUGGEST_FILTER } from './suggestions'
 import { useUsage } from './use-usage'
 import { useToast } from './use-toast'
 
@@ -120,7 +121,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // Pulled out rather than reached through `composer`, which is a fresh object
   // every render: a callback depending on the whole of it would change identity
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
-  const { insert: insertPhrase, text: message, currentWord, copy: copyMessage, speak: speakMessage } = composer
+  const {
+    insert: insertPhrase,
+    propose: proposeMessage,
+    text: message,
+    currentWord,
+    copy: copyMessage,
+    speak: speakMessage,
+  } = composer
 
   // What a suggested reply prefers to be, the emergency bar included: those are
   // the person's phrases as much as the grid's are.
@@ -132,9 +140,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   /**
    * Listen mode: the other half of the conversation — see `use-listen.ts`.
    *
-   * A suggested reply is `propose`d rather than set, so whatever was in the
-   * message box is one dwell on Undo away. **Nothing here speaks**, whatever
-   * mode the board is in.
+   * The answers it offers land on the board rather than in the message box, and
+   * one chosen is `propose`d rather than set, so whatever was in the box is one
+   * dwell on Undo away. **Nothing here speaks**, whatever mode the board is in.
    */
   const listener = useListen({
     language: settings.language,
@@ -145,8 +153,19 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     // showing a phrase there, and a reply landing in the message behind it
     // would be one nobody could see and an exchange nobody asked to pay for.
     messageEmpty: !editMode && message.trim() === '',
-    onSuggest: composer.propose,
   })
+
+  /**
+   * Whether the board is holding answers, or about to be.
+   *
+   * It covers the wait as well as the answers themselves, so the tab appears
+   * the moment a question goes off to be answered: the waiting line then stands
+   * where the answers will, rather than in the message box, which is not where
+   * anything is going to arrive any more.
+   */
+  const offering = listener.heard.asking === 'reply' || listener.suggestions.length > 0
+  /** The tab to go back to once the answers are gone. */
+  const beforeAnswers = useRef<string | null>(null)
 
   // Derived from the live phrase list so user-added categories get a tab and
   // fully-hidden categories lose theirs.
@@ -159,11 +178,48 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // not in the language the rest of the board is written in.
       { id: SENT_FILTER, label: SENT_CATEGORY, fixed: true },
       { id: 'all', label: 'All', fixed: true },
+      // Third, and only while there is a question being answered. Sent and All
+      // keep the places they are found in without looking; what gives way is
+      // the first category, and only for as long as somebody is being asked
+      // something.
+      ...(offering ? [{ id: SUGGEST_FILTER, label: SUGGEST_CATEGORY, fixed: true }] : []),
       ...allCategories.map(c => ({ id: c, label: c })),
       { id: TRANSLATED_FILTER, label: TRANSLATED_CATEGORY, fixed: true },
     ],
-    [allCategories],
+    [allCategories, offering],
   )
+
+  /**
+   * **The board goes to the answers, and comes back afterwards.**
+   *
+   * Somebody has just been spoken to and has a person waiting in front of them;
+   * a tab they have to find first spends the seconds this exists to give back.
+   * So the board shows them as they are asked for, and when the question is
+   * done with it goes back to the tab they were on rather than to All — a
+   * category they had chosen is where they were working.
+   *
+   * **Every cell on the board changes underneath a pointer that has not moved**,
+   * which is the hazard `holdDwellsUntilMoved` is for: nothing may be chosen
+   * until the gaze leaves whatever it is resting on. Twice, because the answers
+   * land in a second move a second or two after the tab does.
+   */
+  useEffect(() => {
+    if (offering) {
+      setActiveFilter(current => {
+        if (current !== SUGGEST_FILTER) beforeAnswers.current = current
+        return SUGGEST_FILTER
+      })
+    } else if (beforeAnswers.current !== null) {
+      const back = beforeAnswers.current
+      beforeAnswers.current = null
+      setActiveFilter(current => (current === SUGGEST_FILTER ? back : current))
+    } else {
+      // Nothing moved — the first render among other things, and a board deaf
+      // on arrival would refuse the first thing anybody chose.
+      return
+    }
+    holdDwellsUntilMoved()
+  }, [offering, listener.suggestions])
 
   // Emergency has no tab of its own, so it would otherwise be the one set of
   // phrases that could not be exported on its own.
@@ -175,29 +231,39 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     activeFilter === 'all' ||
     activeFilter === SENT_FILTER ||
     activeFilter === TRANSLATED_FILTER ||
+    (activeFilter === SUGGEST_FILTER && offering) ||
     allCategories.includes(activeFilter)
       ? activeFilter
       : 'all'
 
   const showingSent = effectiveFilter === SENT_FILTER
   const showingTranslated = effectiveFilter === TRANSLATED_FILTER
+  const showingSuggestions = effectiveFilter === SUGGEST_FILTER
 
   /**
    * Whether this tab is a category of its own: somewhere a hand arrangement can
    * be built, and so somewhere Custom order means anything. None of All, Sent
    * and Translations is one.
    */
-  const canArrange = effectiveFilter !== 'all' && !showingSent && !showingTranslated
+  const canArrange = effectiveFilter !== 'all' && !showingSent && !showingTranslated && !showingSuggestions
 
   /** What this tab is showing. A tab nobody has chosen for shows `DEFAULT_SORT`. */
   const phraseSort = sortFor(phraseSorts, effectiveFilter, canArrange)
 
   // Sent messages and translations are their own lists rather than part of the
   // board: both are a record of what was said, not phrases anybody added.
-  // Only what is being *composed* narrows the grid. In edit mode the box holds a
-  // phrase being written, and narrowing the board to a word of it would take
-  // away the phrases the user came to edit.
-  const filterWord = editMode ? '' : currentWord
+  /**
+   * Only what is being *composed* narrows the grid. In edit mode the box holds a
+   * phrase being written, and narrowing the board to a word of it would take
+   * away the phrases the user came to edit.
+   *
+   * **The answers are not narrowed either**, and for a sharper version of the
+   * same reason: they are alternatives to one question rather than completions
+   * of a word, and choosing one puts its words in the box — so the word at the
+   * caret would be a word of the answer they just took, and the other nineteen
+   * would disappear at the moment somebody wanted to compare them.
+   */
+  const filterWord = editMode || showingSuggestions ? '' : currentWord
 
   // How often each phrase is used. The board follows it live — see `use-usage.ts`.
   const usage = useUsage()
@@ -207,6 +273,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const { record: recordUsed, forget: forgetUsed } = usage
   // Pulled out for the same reason: both reach the memoised cells too.
   const { record: recordTranslated, forget: forgetTranslated } = translated
+  // And these two, which reach them from the answers side. Both are stable
+  // across a question changing, which is why they are callbacks on the hook
+  // rather than anything read off `heard`.
+  const { chose: listenerChose, forgetSuggestion } = listener
 
   // Arranged before it is searched, never after. Filtering to a category keeps
   // the order it is given and so does the ranking, so this decides ties within a
@@ -233,12 +303,16 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
         ? search(sent.phrases, SENT_CATEGORY, filterWord)
         : showingTranslated
           ? search(translated.phrases, TRANSLATED_CATEGORY, filterWord)
-          : search(arrangedPhrases, effectiveFilter, filterWord),
+          : showingSuggestions
+            ? search(listener.suggestions, SUGGEST_CATEGORY, filterWord)
+            : search(arrangedPhrases, effectiveFilter, filterWord),
     [
       showingSent,
       showingTranslated,
+      showingSuggestions,
       sent.phrases,
       translated.phrases,
+      listener.suggestions,
       arrangedPhrases,
       effectiveFilter,
       filterWord,
@@ -316,15 +390,36 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
   const handleSelectPhrase = useCallback(
     (phrase: Phrase) => {
+      /**
+       * **An answer is never spoken by the dwell that chose it**, whatever mode
+       * the board is in — the rule the whole of `listen/suggest.ts` is arranged
+       * around, and it matters more here than it did when there was one reply
+       * in the message box: a gaze resting on a cell is how somebody *reads*
+       * it, and with auto-speak on that rest would say a machine's sentence out
+       * loud before they had finished reading it.
+       *
+       * So it goes to the message box, through the composer's own history: one
+       * dwell on Undo puts back whatever was there, another answer replaces
+       * this one, and it is said when they rest on Speak.
+       */
+      if (showingSuggestions) {
+        // Recomposed rather than read off the phrase, for the offset alone — a
+        // gap has no characters to find in `phrase.text`.
+        const { text, blankAt } = composeWithBlank(phrase.segments)
+        proposeMessage(text, blankAt)
+        // The one they took is what the next question is answered alongside.
+        listenerChose(text)
+        return
+      }
       // Counted here rather than at the speaker, because this is the one place a
       // phrase is *chosen* — whatever it then does, speak, compose or open a
       // link. Edit mode never reaches here: a cell opens the editor instead.
       //
-      // Not under Sent or Translations. Those ids name a message or a
-      // translation rather than a phrase on the board, so counting them would
-      // fill the record with ids that can never match anything and never fall
-      // out.
-      if (!showingSent && !showingTranslated) {
+      // Not under Sent, Translations or the answers. Those ids name a message,
+      // a translation or something a model offered a minute ago rather than a
+      // phrase on the board, so counting them would fill the record with ids
+      // that can never match anything and never fall out.
+      if (!showingSent && !showingTranslated && !showingSuggestions) {
         recordUsed(phrase.id)
         // Under an order that follows use, the board rearranges on this very
         // dwell, and the pointer is resting on the cell that did it. Nothing may
@@ -364,7 +459,19 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
         phrase.lang,
       )
     },
-    [deliverPhrase, voiceFor, flashToast, showingSent, showingTranslated, recordUsed, phraseSort, settings],
+    [
+      deliverPhrase,
+      voiceFor,
+      flashToast,
+      showingSent,
+      showingTranslated,
+      showingSuggestions,
+      proposeMessage,
+      listenerChose,
+      recordUsed,
+      phraseSort,
+      settings,
+    ],
   )
 
   // ── Editing what is on the board ───────────────────────────────────────────
@@ -427,6 +534,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     // this path.
     if (keeping) {
       if (phrase.category === TRANSLATED_CATEGORY) forgetTranslated(phrase.id)
+      else if (phrase.category === SUGGEST_CATEGORY) forgetSuggestion(phrase.id)
       else sent.forget(phrase.id)
     } else {
       board.removePhrase(phrase.id)
@@ -435,7 +543,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     }
     startNew()
     flashToast(keeping ? 'Forgotten' : 'Deleted')
-  }, [draft, board, sent, forgetTranslated, forgetUsed, startNew, flashToast])
+  }, [draft, board, sent, forgetTranslated, forgetSuggestion, forgetUsed, startNew, flashToast])
 
   // ── Editing the categories ─────────────────────────────────────────────────
 
@@ -768,8 +876,15 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
                 ? 'Nothing said yet. Messages you speak or copy are kept here.'
                 : showingTranslated
                   ? 'Nothing translated yet. Set a spoken language in Settings, and what you say in it is kept here.'
-                  : undefined
+                  : showingSuggestions
+                    ? listener.heard.asking === 'reply'
+                      ? 'Thinking of some answers…'
+                      : 'No answers came back. Try asking again.'
+                    : undefined
             }
+            // The wait stands where the answers will, which is the whole reason
+            // the tab appears before they do.
+            busy={showingSuggestions && listener.heard.asking === 'reply'}
             sort={phraseSort}
             // Neither of these is a category. Both are a record in the order it
             // happened, newest first, and that is the whole of what they are
@@ -779,7 +894,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
                 ? 'Sent messages are always newest first'
                 : showingTranslated
                   ? 'Translations are always newest first'
-                  : undefined
+                  : showingSuggestions
+                    ? 'Answers are in the order they were offered'
+                    : undefined
             }
             canArrange={canArrange}
             onChooseSort={chooseSort}

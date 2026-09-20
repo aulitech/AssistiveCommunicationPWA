@@ -424,21 +424,25 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
-    title: 'Getting a suggested reply',
+    title: 'Getting suggested answers',
     blocks: [
       text(
-        'With an Anthropic account set up under Settings, Peri can offer a reply to the question that was heard and put it in the message box.',
+        'With an Anthropic account set up under Settings, Peri can offer answers to the question that was heard — up to twenty of them, on the board, under a tab called Answers.',
       ),
       text(
-        'It asks on its own as soon as the person talking to you stops, so long as the message box is empty — you do not have to ask for it. :suggest: under the heard box asks again, which is what you want after correcting the question or clearing the box.',
+        'It asks on its own as soon as the person talking to you stops, so long as the message box is empty — you do not have to ask for it. The board goes to the answers as they come, and back to where you were when the question is done with.',
+      ),
+      text(
+        ':suggest: under the heard box asks again, which is what you want after correcting the question or clearing the box.',
       ),
       list(
-        'It is only ever a suggestion. Peri never speaks it for you — it waits in the message box like anything else you have written, and you say it by resting on :speak:.',
-        'You can change every word of it first, or :clear: it and say something else entirely.',
-        'It will not write over a message you have already started, and it does not ask for one either — so a message half written is how you tell it to stay out of the way.',
-        'While it is thinking, the message box says so. A reply usually takes a second or two, longer if it has to look something up.',
-        'It prefers your own words. Your phrases go with the question, and when one of them answers it, that phrase is what you are offered, word for word — with its gap left open where it has one.',
-        'It answers questions about the world, and looks one up if it has to. It does not answer questions about you: it has never met you, so anything about what you did, felt or want comes back as a gap for you to fill in, with the caret already sitting in it.',
+        'They are only ever suggestions. Resting on one puts it in the message box — it is never spoken for you, even with auto-speak on, and you say it by resting on :speak:.',
+        'You can change every word of it first, rest on another answer to swap it, or :clear: it and say something else entirely.',
+        'They go when the question does. Correcting the question or closing the box takes them away, since they were answers to what was there before.',
+        'It will not write over a message you have already started, and it does not ask for answers either — so a message half written is how you tell it to stay out of the way.',
+        'While it is thinking, the Answers tab says so. They usually take a second or two, longer if it has to look something up.',
+        'It prefers your own words. Your phrases go with the question, and the ones that answer it are offered first, word for word — with any gap left open.',
+        'It answers questions about the world, and looks one up if it has to. It does not answer questions about you: it has never met you, so anything about what you did, felt or want comes back as a gap for you to fill in, with the caret landing in it when you choose that answer.',
       ),
       text(
         'The question is sent to Anthropic to be answered, on your own account and your own credits, and the phrases on your board go with it — the ones Peri comes with and any you wrote yourself. How often you use each one does not.',
@@ -453,10 +457,13 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Your key is never in a backup file, and with Synchronize on it travels encrypted to your own devices like the ElevenLabs one.',
       ),
       text(
-        'Questions and replies from the last day are kept on this device and sent with the next one, so a conversation carries on making sense — asked "tea or coffee" and then "milk?", it knows what the second one is about. They are forgotten after a day, and the same Settings row has a button to forget them now.',
+        'Questions from the last day are kept on this device with the answer you chose, and sent with the next question, so a conversation carries on making sense — asked "tea or coffee" and then "milk?", it knows what the second one is about.',
       ),
       text(
-        'That row also lets you choose which model writes the reply. Quickest is the default, because somebody is waiting in front of you. Two of the others read a question more closely and take a little longer, and the last one writes more like a person and less like a form.',
+        'An answer you did not take is not kept. They are forgotten after a day, and the same Settings row has a button to forget them now.',
+      ),
+      text(
+        'That row also lets you choose which model writes the answers. Quickest is the default, because somebody is waiting in front of you. Two of the others read a question more closely and take a little longer, and the last one writes more like a person and less like a form.',
       ),
       text(
         'Without a key nothing is offered and nothing is sent, and everything else about listening works exactly the same.',

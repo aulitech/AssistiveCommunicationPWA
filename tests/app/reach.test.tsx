@@ -82,7 +82,7 @@ describe('fields that take the caret by dwell', () => {
    * keyboard, which types into whatever field has the caret, could not reach
    * them, and setting any of the three up was a carer's job.
    */
-  it.each(['ElevenLabs API key', 'Suggested replies API key', 'Synchronize passphrase'])(
+  it.each(['ElevenLabs API key', 'Suggested answers API key', 'Synchronize passphrase'])(
     'lets a rest put the caret in the %s',
     label => {
       renderApp()

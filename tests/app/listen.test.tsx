@@ -56,7 +56,14 @@ const tool = (label: RegExp) => $$('.heard-btn').find(b => label.test(b.getAttri
 const clearHeard = () => tool(/^clear/i)
 const undoHeard = () => tool(/^undo/i)
 const translateBtn = () => tool(/own language/i)
-const suggestBtn = () => tool(/suggest a reply/i)
+const suggestBtn = () => tool(/suggest answers/i)
+
+/** The answers on the board, which is where they land — never the message box. */
+const answerCells = () => $$('.phrase-cell').map(c => c.textContent ?? '')
+const answerTab = () => $$('.filter-tab').find(t => (t.textContent ?? '').startsWith('Answers'))
+const waitingLine = () => $('.grid-empty.is-busy')
+/** Rests on the answer whose words these are. */
+const chooseAnswer = (text: string) => click($$('.phrase-cell').find(c => c.textContent === text))
 
 /** Opens listen mode and delivers a question, the recogniser still running. */
 function hear(question: string) {
@@ -490,8 +497,8 @@ describe('the suggested reply', () => {
    * through is half a question, and a reply to half a question is worse than no
    * reply at all.
    */
-  it('answers a settled question on its own, with nothing in the box', async () => {
-    const fetch = suggests('I am, thank you')
+  it('answers a settled question on its own, and fills the board with them', async () => {
+    const fetch = suggests('I am, thank you\nA bit cold\nCould I have a blanket?')
     vi.stubGlobal('fetch', fetch)
     withKey()
 
@@ -499,7 +506,129 @@ describe('the suggested reply', () => {
     await act(async () => {})
 
     expect(fetch).toHaveBeenCalledTimes(1)
+    // The board goes to them rather than leaving somebody to find the tab: a
+    // person is waiting in front of them.
+    expect(answerTab(), 'no tab for the answers').toBeDefined()
+    expect(answerCells()).toEqual(['I am, thank you', 'A bit cold', 'Could I have a blanket?'])
+    // **Nothing lands in the box by itself.** What goes there is what they
+    // choose, and until then the box is theirs.
+    expect(messageBox().value).toBe('')
+  })
+
+  /**
+   * **Twenty at the outside, however many came back.** Twenty cells is a screen
+   * somebody can read by gaze; the twenty-first is one nobody ever reaches, and
+   * the ones past it push the good answers off the fold.
+   */
+  it('draws no more than twenty of them', async () => {
+    vi.stubGlobal('fetch', suggests([...Array(30)].map((_, i) => `Answer ${i}`).join('\n')))
+    withKey()
+
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+
+    expect(answerCells()).toHaveLength(20)
+    expect(answerCells()[0]).toBe('Answer 0')
+  })
+
+  /**
+   * **Choosing one is what puts words in the message box**, through the
+   * composer's own history — so one dwell on Undo puts back whatever was there,
+   * and another answer replaces the one before it rather than piling up.
+   */
+  it('puts the one chosen in the message box, and replaces it with the next', async () => {
+    vi.stubGlobal('fetch', suggests('I am, thank you\nA bit cold'))
+    withKey()
+
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+
+    chooseAnswer('I am, thank you')
     expect(messageBox().value).toBe('I am, thank you')
+
+    // **The others are still there**, which is the point of twenty of them: the
+    // word at the caret is now a word of the answer they took, and narrowing to
+    // it would take the rest away at the moment somebody wanted to compare them.
+    expect(answerCells(), 'the other answers went away').toEqual(['I am, thank you', 'A bit cold'])
+
+    chooseAnswer('A bit cold')
+    expect(messageBox().value, 'the second was added to the first').toBe('A bit cold')
+  })
+
+  /**
+   * **The board comes back afterwards.** Closing the box ends the question, and
+   * what they were looking at before is where they were working — All is not.
+   */
+  it('takes the answers away with the question, and goes back where it was', async () => {
+    vi.stubGlobal('fetch', suggests('I am, thank you'))
+    withKey()
+    click($$('.filter-tab').find(t => t.textContent === 'Sorted'))
+
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+    expect(answerCells()).toEqual(['I am, thank you'])
+
+    // Closing listen mode, which is the end of that question altogether.
+    click(micBtn())
+    expect(answerTab(), 'the answers outlived the question').toBeUndefined()
+    expect($('.filter-tab.active')?.textContent).toBe('Sorted')
+  })
+
+  // Clearing the question listens again, and a board still offering answers to
+  // what was asked before is a board answering a question nobody asked.
+  it('takes them away when the box is emptied to listen again', async () => {
+    vi.stubGlobal('fetch', suggests('I am, thank you'))
+    withKey()
+
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+    expect(answerCells()).toEqual(['I am, thank you'])
+
+    click(clearHeard())
+    expect(answerTab(), 'the answers outlived the question they answered').toBeUndefined()
+  })
+
+  /**
+   * **Twenty cells land under a pointer that has not moved**, which is the
+   * hazard every live rearrangement here guards: arming happens on arrival, so
+   * the answer that appears under a resting gaze would otherwise be chosen by
+   * nobody's instruction. Nothing may be chosen until the gaze moves.
+   */
+  it('refuses the answer that lands under a motionless pointer', async () => {
+    vi.stubGlobal('fetch', suggests('I am, thank you\nA bit cold'))
+    withKey()
+
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+
+    // The browser's own doing: whatever arrives underneath gets a pointerenter.
+    const landed = $$('.phrase-cell')[0]
+    fireEvent.pointerEnter(landed)
+    act(() => void vi.advanceTimersByTime(2000))
+    expect(messageBox().value, 'an answer chose itself under a resting gaze').toBe('')
+
+    // Aimed somewhere else, it answers as it always did.
+    fireEvent.pointerMove(document.body, { clientX: 640, clientY: 400 })
+    chooseAnswer('A bit cold')
+    expect(messageBox().value).toBe('A bit cold')
+  })
+
+  /**
+   * **A question being rewritten has no answers.** They were offered to the
+   * words that were there before, and one left on screen is one somebody might
+   * take for an answer to what they are typing now.
+   */
+  it('takes them away when the question is corrected', async () => {
+    vi.stubGlobal('fetch', suggests('I am, thank you'))
+    withKey()
+
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+    expect(answerCells()).toHaveLength(1)
+
+    fireEvent.change(heardBox()!, { target: { value: 'Are you comfortable in that chair' } })
+    settle()
+    expect(answerTab()).toBeUndefined()
   })
 
   /**
@@ -547,17 +676,26 @@ describe('the suggested reply', () => {
     expect(boardSent(1), 'the board moved with the grid').toBe(first)
   })
 
-  // Still never spoken, however it was asked for. This is the rule everything
-  // here is arranged around, and asking without being asked to does not touch it.
-  it('does not speak the one it asked for itself, even with auto-speak on', async () => {
-    vi.stubGlobal('fetch', suggests('I am, thank you'))
+  /**
+   * Still never spoken, however it was asked for — the rule everything here is
+   * arranged around. It matters more on the board than it did in the box: a
+   * gaze resting on a cell is how somebody *reads* it, and with auto-speak on
+   * every other cell here is said the moment it is rested on. An answer is not,
+   * even the one it asked for without being asked.
+   */
+  it('speaks none of them, and not the one chosen either, with auto-speak on', async () => {
+    vi.stubGlobal('fetch', suggests('I am, thank you\nA bit cold'))
     withKey({ autoSpeak: true })
 
     heardAndDone('Are you comfortable')
     await act(async () => {})
-
-    expect(messageBox().value).toBe('I am, thank you')
     expect(spoken, 'a machine’s words were spoken without being chosen').toEqual([])
+
+    chooseAnswer('I am, thank you')
+    expect(spoken, 'a machine’s words were spoken by the dwell that chose them').toEqual([])
+    // It waits in the box like anything else written there, and is said on
+    // Speak — the same dwell every other message needs.
+    expect(messageBox().value).toBe('I am, thank you')
   })
 
   // A suggestion never writes over words somebody already had, and that holds
@@ -621,7 +759,8 @@ describe('the suggested reply', () => {
     await act(async () => {})
 
     expect(fetch).not.toHaveBeenCalled()
-    expect($('.message-busy-line'), 'a board with no key said a reply was coming').toBeNull()
+    expect(waitingLine(), 'a board with no key said answers were coming').toBeNull()
+    expect(answerTab(), 'a board with no key made room for answers').toBeUndefined()
     expect($('.heard-error'), 'a board with no key was told to go and set one up').toBeNull()
   })
 
@@ -646,14 +785,11 @@ describe('the suggested reply', () => {
   })
 
   /**
-   * The box the reply is coming to says so, and stands where the first line of
-   * it will be — the seconds between somebody being spoken to and words
-   * appearing are seconds in which nothing has happened as far as they can tell.
-   *
-   * It waits the quarter-second every indicator here waits, so the clock has to
-   * be advanced past it.
+   * The board the answers are coming to says so, where they will be — the
+   * seconds between somebody being spoken to and words appearing are seconds in
+   * which nothing has happened as far as they can tell.
    */
-  it('says a reply is coming, in the box it is coming to', async () => {
+  it('says the answers are coming, on the board they are coming to', async () => {
     let answer: (body: unknown) => void = () => {}
     vi.stubGlobal(
       'fetch',
@@ -669,25 +805,26 @@ describe('the suggested reply', () => {
 
     heardAndDone('Are you comfortable')
     act(() => void vi.advanceTimersByTime(300))
-    expect($('.message-busy-line')?.textContent).toMatch(/reply/i)
+    expect(waitingLine()?.textContent).toMatch(/answers/i)
+    expect(answerTab(), 'nowhere for the answers to land yet').toBeDefined()
 
     await act(async () => {
       answer({ content: [{ type: 'text', text: 'I am, thank you' }] })
     })
     settle()
-    expect($('.message-busy-line'), 'the waiting line outlived the wait').toBeNull()
-    expect(messageBox().value).toBe('I am, thank you')
+    expect(waitingLine(), 'the waiting line outlived the wait').toBeNull()
+    expect(answerCells()).toEqual(['I am, thank you'])
   })
 
-  it('goes into the message box', async () => {
-    vi.stubGlobal('fetch', suggests('Tea please'))
+  it('fills the board when the control is rested on too', async () => {
+    vi.stubGlobal('fetch', suggests('Tea please\nCoffee please'))
     withKey()
     hear('Do you want tea or coffee?')
 
     click(suggestBtn())
     await act(async () => {})
 
-    expect(messageBox().value).toBe('Tea please')
+    expect(answerCells()).toEqual(['Tea please', 'Coffee please'])
   })
 
   /**
@@ -696,16 +833,20 @@ describe('the suggested reply', () => {
    * message. Asserted with auto-speak on, which is the mode where everything
    * else on the board is spoken the moment it is chosen.
    */
-  it('is never spoken, not even with auto-speak on', async () => {
+  /**
+   * **They are not counted as phrases used.** Those ids name something a model
+   * offered a minute ago rather than anything on the board, so counting them
+   * would fill the record with ids that can never match and never fall out.
+   */
+  it('counts none of them towards how much a phrase is used', async () => {
     vi.stubGlobal('fetch', suggests('Tea please'))
-    withKey({ autoSpeak: true })
+    withKey()
     hear('Do you want tea or coffee?')
-
     click(suggestBtn())
     await act(async () => {})
 
-    expect(messageBox().value).toBe('Tea please')
-    expect(spoken, 'a machine’s words were spoken without being chosen').toEqual([])
+    chooseAnswer('Tea please')
+    expect(JSON.parse(localStorage.getItem('peri_usage') ?? '{}')).toEqual({})
   })
 
   /**
@@ -738,6 +879,7 @@ describe('the suggested reply', () => {
     hear('Do you want tea?')
     click(suggestBtn())
     await act(async () => {})
+    chooseAnswer('Tea please')
 
     click($$('.icon-btn').find(b => /clear/i.test(b.getAttribute('aria-label') ?? '')))
     click($$('.icon-btn').find(b => /undo/i.test(b.getAttribute('aria-label') ?? '')))
@@ -755,6 +897,7 @@ describe('the suggested reply', () => {
 
     expect($('.heard-error')?.textContent).toMatch(/could not reach/i)
     expect(messageBox().value).toBe('')
+    expect(answerTab(), 'a failure left a tab with nothing behind it').toBeUndefined()
   })
 
   /**
@@ -813,18 +956,60 @@ describe('the suggested reply', () => {
 
     click(suggestBtn())
     await act(async () => {})
-    act(() => void vi.advanceTimersByTime(50))
+    // Drawn as a blank on the cell rather than as three underscores somebody
+    // would have to say out loud.
+    expect($('.phrase-cell .phrase-slot.is-blank'), 'the gap is not a blank').not.toBeNull()
 
+    chooseAnswer('I took them at  this morning')
+    act(() => void vi.advanceTimersByTime(50))
     expect(messageBox().value).toBe('I took them at  this morning')
     expect(messageBox().selectionStart).toBe(15)
   })
 
   /**
-   * "Tea or coffee?" followed by "milk?" is one exchange. A reply to the second
-   * that had never seen the first would be answering a different question.
+   * "Tea or coffee?" followed by "milk?" is one exchange. An answer to the
+   * second that had never seen the first would be answering a different
+   * question.
+   *
+   * **What goes into the record is the one they took**, rather than whichever
+   * the model happened to put first. Twenty answers are not an exchange; what
+   * was said is — and the old single reply was written down whether or not
+   * anybody said it, so a conversation could carry on from words nobody spoke.
    */
-  it('answers the next question as part of the same conversation', async () => {
-    const fetcher = suggests('Yes please')
+  it('answers the next question alongside the answer that was taken', async () => {
+    const fetcher = suggests('Tea please\nCoffee please')
+    vi.stubGlobal('fetch', fetcher)
+    withKey()
+
+    hear('Tea or coffee?')
+    click(suggestBtn())
+    await act(async () => {})
+    chooseAnswer('Coffee please')
+
+    click(clearHeard())
+    act(() => FakeRecognition.last!.say({ transcript: 'Milk?', isFinal: true }))
+    settle()
+    // The box holds the answer they took, and nothing is asked for while there
+    // are words in it — a message half written says they are already answering.
+    click($$('.icon-btn').find(b => /clear/i.test(b.getAttribute('aria-label') ?? '')))
+    click(suggestBtn())
+    await act(async () => {})
+
+    const second = JSON.parse(String((fetcher.mock.calls as unknown as [string, RequestInit][])[1][1].body)) as {
+      messages: { role: string; content: string }[]
+    }
+    expect(second.messages.map(m => m.content)).toEqual([
+      'Someone just asked me: Tea or coffee?',
+      'Coffee please',
+      'Someone just asked me: Milk?',
+    ])
+  })
+
+  // Nothing was said, so there is nothing to carry forward. A question answered
+  // off somebody's own board leaves no machine's words behind pretending to be
+  // what they replied.
+  it('carries nothing forward from a question nobody answered off the board', async () => {
+    const fetcher = suggests('Tea please\nCoffee please')
     vi.stubGlobal('fetch', fetcher)
     withKey()
 
@@ -835,20 +1020,13 @@ describe('the suggested reply', () => {
     click(clearHeard())
     act(() => FakeRecognition.last!.say({ transcript: 'Milk?', isFinal: true }))
     settle()
-    // The box holds the first suggestion, and a suggestion never writes over
-    // one — so it goes before the second is asked for.
-    click($$('.icon-btn').find(b => /clear/i.test(b.getAttribute('aria-label') ?? '')))
     click(suggestBtn())
     await act(async () => {})
 
     const second = JSON.parse(String((fetcher.mock.calls as unknown as [string, RequestInit][])[1][1].body)) as {
       messages: { role: string; content: string }[]
     }
-    expect(second.messages.map(m => m.content)).toEqual([
-      'Someone just asked me: Tea or coffee?',
-      'Yes please',
-      'Someone just asked me: Milk?',
-    ])
+    expect(second.messages.map(m => m.content)).toEqual(['Someone just asked me: Milk?'])
   })
 
   it('says so when the key is not accepted', async () => {

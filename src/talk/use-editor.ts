@@ -16,6 +16,7 @@ import { cancelAllDwells } from '../ui/dwell'
 import { type Phrase } from '../core/phrases'
 import { SENT_CATEGORY } from './use-sent'
 import { TRANSLATED_CATEGORY } from './use-translated'
+import { SUGGEST_CATEGORY } from './suggestions'
 
 /** What the editor is pointed at. Null is a phrase being written from nothing. */
 interface Target {
@@ -60,7 +61,7 @@ export interface Draft {
    * that says what the strip is for — and all three said "message" before there
    * was a second record to come off.
    */
-  kept: 'message' | 'translation' | null
+  kept: 'message' | 'translation' | 'answer' | null
   isNew: boolean
   canSave: boolean
   /**
@@ -138,13 +139,20 @@ export function useEditor({
       text,
       category,
       voice: edits.voice ?? (phrase ? (voiceFor(phrase.id) ?? '') : (recent.voice ?? '')),
-      keeping: phrase?.category === SENT_CATEGORY || phrase?.category === TRANSLATED_CATEGORY,
+      // None of the three is a category on the board, so what Save does with one
+      // is keep it as a new phrase rather than edit the record it came off.
+      keeping:
+        phrase?.category === SENT_CATEGORY ||
+        phrase?.category === TRANSLATED_CATEGORY ||
+        phrase?.category === SUGGEST_CATEGORY,
       kept:
         phrase?.category === TRANSLATED_CATEGORY
           ? 'translation'
-          : phrase?.category === SENT_CATEGORY
-            ? 'message'
-            : null,
+          : phrase?.category === SUGGEST_CATEGORY
+            ? 'answer'
+            : phrase?.category === SENT_CATEGORY
+              ? 'message'
+              : null,
       isNew: phrase === null,
       duplicate,
       // A phrase has to be filed somewhere; the emergency bar is the somewhere

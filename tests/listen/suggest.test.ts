@@ -62,13 +62,61 @@ describe('whether it is set up at all', () => {
   })
 })
 
-describe('asking for a reply', () => {
-  it('hands back what came', async () => {
-    vi.stubGlobal('fetch', replies('Tea please'))
+describe('asking for answers', () => {
+  it('hands back what came, a line an answer', async () => {
+    vi.stubGlobal('fetch', replies('Tea please\nCoffee please\nNeither, thank you'))
     await expect(suggestReply('Do you want tea or coffee?', '')).resolves.toEqual({
       status: 'ok',
-      text: 'Tea please',
-      blankAt: -1,
+      replies: ['Tea please', 'Coffee please', 'Neither, thank you'],
+    })
+  })
+
+  /**
+   * **A format a model cannot half-follow.** No JSON to be truncated, no beta
+   * header, and a line that came back wearing a number costs its number rather
+   * than the whole list — a board saying "1." out loud is what this is for.
+   */
+  it('takes the numbering, the bullets and the quotation marks off', async () => {
+    vi.stubGlobal('fetch', replies('1. Tea please\n2) Coffee please\n- Neither\n• Water\n"Yes please"'))
+    const result = await suggestReply('Tea or coffee?', '')
+    expect(result).toEqual({
+      status: 'ok',
+      replies: ['Tea please', 'Coffee please', 'Neither', 'Water', 'Yes please'],
+    })
+  })
+
+  it('drops the blank lines a list comes with', async () => {
+    vi.stubGlobal('fetch', replies('Tea please\n\n   \nCoffee please\n'))
+    const result = await suggestReply('Tea or coffee?', '')
+    expect(result).toEqual({ status: 'ok', replies: ['Tea please', 'Coffee please'] })
+  })
+
+  // A second cell saying what the first says is a target spent for nothing.
+  it('draws the same answer once, whatever case it came in', async () => {
+    vi.stubGlobal('fetch', replies('Tea please\ntea please\nCoffee please'))
+    const result = await suggestReply('Tea or coffee?', '')
+    expect(result).toEqual({ status: 'ok', replies: ['Tea please', 'Coffee please'] })
+  })
+
+  /**
+   * Twenty cells is a screen somebody can read by gaze. The twenty-first is one
+   * nobody ever reaches, and the ones past it push the good answers off the
+   * fold — so the cap is here as well as on the brief, which is a request.
+   */
+  it('takes twenty at the outside, however many came', async () => {
+    vi.stubGlobal('fetch', replies([...Array(40)].map((_, i) => `Answer ${i}`).join('\n')))
+    const result = await suggestReply('What now?', '')
+    expect(result.status === 'ok' && result.replies).toHaveLength(20)
+    expect(result.status === 'ok' && result.replies[19]).toBe('Answer 19')
+  })
+
+  // One is a perfectly good answer to some questions, and it is a list either
+  // way — there is nothing else for the board to draw.
+  it('hands back one where one is all that came', async () => {
+    vi.stubGlobal('fetch', replies('Tea please'))
+    await expect(suggestReply('Do you want tea?', '')).resolves.toEqual({
+      status: 'ok',
+      replies: ['Tea please'],
     })
   })
 
@@ -110,7 +158,8 @@ describe('asking for a reply', () => {
     await suggestReply('Do you want tea?', '')
 
     expect(sent(fetcher).model).toBe(DEFAULT_REPLY_MODEL)
-    expect(sent(fetcher).max_tokens).toBeLessThanOrEqual(400)
+    // Twenty short answers and a search query, and no room for an essay.
+    expect(sent(fetcher).max_tokens).toBeLessThanOrEqual(1200)
   })
 
   it('asks the model that was chosen in Settings', async () => {
@@ -243,8 +292,7 @@ describe('asking for a reply', () => {
     )
     await expect(suggestReply('Who won last night?', '')).resolves.toEqual({
       status: 'ok',
-      text: 'City won, two one.',
-      blankAt: -1,
+      replies: ['City won, two one.'],
     })
   })
 
@@ -269,10 +317,10 @@ describe('asking for a reply', () => {
   })
 
   /**
-   * **Only the parts that are the reply.** A block of some other kind carrying a
-   * `text` field is the case this guards: a model's own working, put into an
-   * assistive board's message box for somebody to say out loud, would be the
-   * worst thing this feature could do.
+   * **Only the parts that are the answers.** A block of some other kind carrying
+   * a `text` field is the case this guards: a model's own working, drawn on an
+   * assistive board for somebody to say out loud, would be the worst thing this
+   * feature could do.
    */
   it('joins a reply that came back in pieces, and takes nothing that is not it', async () => {
     vi.stubGlobal(
@@ -293,8 +341,7 @@ describe('asking for a reply', () => {
     )
     await expect(suggestReply('Tea or coffee?', '')).resolves.toEqual({
       status: 'ok',
-      text: 'Tea please',
-      blankAt: -1,
+      replies: ['Tea please'],
     })
   })
 })
@@ -434,13 +481,13 @@ describe('what reaches the console', () => {
 /**
  * A gap, not a question back.
  *
- * What the model may not state about the person it leaves a hole in, and the
- * hole is the app's own blank — the caret lands in it and the words are typed
- * into the gap, exactly as a fill-in-the-blank phrase off the board works.
- * Asking "which tablets?" would be a machine interviewing somebody who is
- * already having to spell their answers out one letter at a time.
+ * What the model may not state about the person it leaves a hole in, which
+ * becomes a blank in the cell it is drawn on — see `tests/talk/suggestions`,
+ * where the hole is opened out and the caret goes into it. Asking "which
+ * tablets?" would be a machine interviewing somebody who is already having to
+ * spell their answers out one letter at a time.
  */
-describe('a reply with a gap in it', () => {
+describe('a gap where a fact would go', () => {
   beforeEach(() => saveReplyKey(KEY))
 
   it('asks the model for a gap rather than a question back', async () => {
@@ -453,45 +500,24 @@ describe('a reply with a gap in it', () => {
     expect(told).toMatch(/never ask them a question back/i)
   })
 
-  it('opens the gap out and says where it landed', async () => {
+  /**
+   * **Real answers beat a gap.** A question with a handful of answers is what
+   * twenty cells are for, and a single line with a hole in it asks somebody who
+   * spells at one letter a dwell to do the work the model could have done.
+   */
+  it('asks for the answers themselves where a question has them', async () => {
+    const fetcher = replies('Tea please')
+    vi.stubGlobal('fetch', fetcher)
+    await suggestReply('Tea or coffee?', '')
+    expect(brief(fetcher)).toMatch(/give each its own line rather than one line with a gap/i)
+  })
+
+  // Handed back as the model wrote it. Opening the gap out is the board's
+  // business, because the board is where the caret has to land in it.
+  it('hands the gap back as it came', async () => {
     vi.stubGlobal('fetch', replies('I took them at ___ this morning'))
-    await expect(suggestReply('When did you take them?', '')).resolves.toEqual({
-      status: 'ok',
-      // `BLANK` is the empty string, so the gap leaves the words either side of
-      // it spaced exactly as they were.
-      text: 'I took them at  this morning',
-      blankAt: 15,
-    })
-  })
-
-  // A model asked for `___` will sometimes write `__` or `____`, and a reply
-  // with visible underscores in it is worse than a gap a character too wide.
-  it('takes a gap however many underscores it came as', async () => {
-    for (const written of ['__', '___', '________']) {
-      vi.stubGlobal('fetch', replies(`I want ${written} please`))
-      const result = await suggestReply('What do you want?', '')
-      expect(result, written).toEqual({ status: 'ok', text: 'I want  please', blankAt: 7 })
-    }
-  })
-
-  it('points at the first gap where there are several', async () => {
-    vi.stubGlobal('fetch', replies('___ at ___'))
-    const result = await suggestReply('Who and when?', '')
-    expect(result).toEqual({ status: 'ok', text: ' at ', blankAt: 0 })
-  })
-
-  it('says there is none where the reply has none', async () => {
-    vi.stubGlobal('fetch', replies('Tea please'))
-    const result = await suggestReply('Tea or coffee?', '')
-    expect(result.status === 'ok' && result.blankAt).toBe(-1)
-  })
-
-  // A single underscore is a character somebody's name might have in it, and a
-  // reply is not a place to go looking for markup that was never asked for.
-  it('leaves a lone underscore alone', async () => {
-    vi.stubGlobal('fetch', replies('My handle is spero_k'))
-    const result = await suggestReply('What is your handle?', '')
-    expect(result).toEqual({ status: 'ok', text: 'My handle is spero_k', blankAt: -1 })
+    const result = await suggestReply('When did you take them?', '')
+    expect(result).toEqual({ status: 'ok', replies: ['I took them at ___ this morning'] })
   })
 })
 
@@ -564,10 +590,11 @@ describe('the phrases on the board', () => {
     expect(block?.text).toContain('\nTea please\nNo thank you\nI would like ___')
   })
 
-  it('tells it to reply with one, word for word, where one fits', async () => {
+  it('tells it to offer them first, word for word, wherever they answer', async () => {
     const told = brief(await ask())
     expect(told).toMatch(/exactly as it is written, gaps included/i)
-    expect(told).toMatch(/something new only when none of them fits/i)
+    expect(told, 'their own phrases are not put first').toMatch(/first, ahead of anything you write/i)
+    expect(told).toMatch(/write new ones to fill out the list/i)
   })
 
   /**
