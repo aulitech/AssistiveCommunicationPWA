@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import App from '../../src/App'
 import { saveReplyKey } from '../../src/core/store'
+import { PROSE_ICONS } from '../../src/ui/prose-icons'
 import { spoken } from '../setup'
 import { FakeRecognition, installRecognition, removeRecognition } from '../listen/fake-recognition'
 import { readFileSync } from 'node:fs'
@@ -114,6 +115,36 @@ describe('the control', () => {
     expect($('.topbar-listen .listen-toggle')).not.toBeNull()
     // The modes strip holds exactly three and nothing may be inserted into it.
     expect($$('.topbar-modes > *')).toHaveLength(3)
+  })
+
+  /**
+   * **A guide that names a button has to show it.** The control is a glyph and
+   * nothing else, and the guide draws the same glyph wherever it says `:listen:`
+   * — so a change to one that missed the other would leave somebody matching a
+   * picture in the guide against a different picture on the board.
+   */
+  it('draws the glyph the guide shows for it', () => {
+    renderApp()
+    const drawn = micBtn()!.querySelector('svg')!.outerHTML
+    const Guide = PROSE_ICONS.listen!
+    const inGuide = render(<Guide />).container.querySelector('svg')!.outerHTML
+    expect(drawn).toBe(inGuide)
+  })
+
+  // The box takes a question typed as readily as one heard, so while it waits
+  // it says both — "Listening…" told somebody who cannot speak to it nothing
+  // about the half of it they could use.
+  it('asks for a question, spoken or typed, while it listens', () => {
+    renderApp()
+    click(micBtn())
+    expect(heardBox()!.placeholder).toBe('Speak or type a question')
+
+    // And says so plainly once it has stopped: nothing is listening any more,
+    // so asking to be spoken to would be asking for something that will not
+    // be heard.
+    act(() => FakeRecognition.last!.finish())
+    settle()
+    expect(heardBox()!.placeholder).toBe('Nothing heard yet')
   })
 
   // A button that does nothing is worse than no button, and on a board aimed at

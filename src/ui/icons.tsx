@@ -447,10 +447,20 @@ export const KeyboardIcon = () => (
 )
 
 /**
- * Listen mode. A microphone, which is the one glyph everybody already reads as
- * "this is recording" — which is exactly what it has to say here.
+ * Listen mode: a question mark, for what the box above the message holds.
+ *
+ * It was a microphone, which says how the words arrive rather than what they
+ * are — and they do not only arrive that way: the box takes a question typed as
+ * readily as one heard, which is what its prompt says. A microphone also said
+ * *this is recording*, which a question mark does not; what the browser does
+ * with the audio is said where every disclosure here is made — Settings, the
+ * guide and the privacy policy — as it always was.
+ *
+ * Drawn in the family's stroke rather than as a font's glyph, so it sits at the
+ * weight of the modes beside it. The dot is filled: at 1.2rem a round cap alone
+ * reads as a speck rather than as half the mark.
  */
-export function MicIcon() {
+export function QuestionIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -460,9 +470,8 @@ export function MicIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <rect x="9" y="2" width="6" height="11" rx="3" />
-      <path d="M5 11a7 7 0 0 0 14 0" />
-      <path d="M12 18v3" />
+      <path d="M8 8.5a4 4 0 1 1 6.2 3.34c-1.3.86-2.2 1.66-2.2 3.16" />
+      <circle cx="12" cy="19.4" r="1.3" fill="currentColor" stroke="none" />
     </svg>
   )
 }
