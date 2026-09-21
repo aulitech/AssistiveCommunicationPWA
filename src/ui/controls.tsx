@@ -728,6 +728,72 @@ export function PanelButton({
 }
 
 /**
+ * A dwell button in front of a file input nobody aims at.
+ *
+ * **The picker only opens for a real click or tap**, and a dwell is a timer
+ * with no press in it — so for somebody working the board by gaze alone this
+ * is refused every time. It used to be refused in silence: a label wrapping a
+ * hidden input, so a dwell on it did nothing at all and looked like a broken
+ * control. Now it asks the way everything else here asks, and `onRefused` is
+ * told when the browser says no, so the caller can name the way that does work
+ * — every caller has one, pasting.
+ *
+ * `showPicker` rather than `click()` because it is the one of the two that
+ * *says* it was refused: `click()` without a press is dropped without a word.
+ * Where there is no `showPicker` at all `click()` is all there is.
+ *
+ * The input is where the browser's picker hands its answer back, and is hidden
+ * from pointer and keyboard alike so there is one target here and not two. A
+ * click still opens the picker, through the button, because a click carries
+ * the press the browser is waiting for. **The one bare input in the app**, and
+ * `tests/app/structure.test.ts` holds it to being here and being hidden.
+ */
+export function FileButton({
+  label,
+  accept,
+  onFile,
+  onRefused,
+}: {
+  label: string
+  /** What the picker offers, as the input's `accept` takes it. */
+  accept: string
+  onFile: (file: File) => void
+  onRefused: () => void
+}) {
+  const input = useRef<HTMLInputElement>(null)
+  const choose = useCallback(() => {
+    const field = input.current
+    if (!field) return
+    if (typeof field.showPicker !== 'function') return field.click()
+    try {
+      field.showPicker()
+    } catch {
+      onRefused()
+    }
+  }, [onRefused])
+  return (
+    <>
+      <input
+        ref={input}
+        type="file"
+        className="backup-file-input"
+        accept={accept}
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={e => {
+          const file = e.target.files?.[0]
+          // Chosen and then cleared, so picking the same file twice in a row
+          // still fires a change event.
+          e.target.value = ''
+          if (file) onFile(file)
+        }}
+      />
+      <PanelButton kind="plain" label={label} onActivate={choose} />
+    </>
+  )
+}
+
+/**
  * A grid of choices, full screen.
  *
  * Some lists in this app are too long for a control inside a panel — sixty

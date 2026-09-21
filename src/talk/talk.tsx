@@ -130,9 +130,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     speak: speakMessage,
   } = composer
 
-  // What a suggested reply prefers to be, the emergency bar included: those are
-  // the person's phrases as much as the grid's are.
-  const replyPhrases = useMemo(
+  // Every phrase on the board, the emergency bar included, in the board's own
+  // order: what a suggested reply prefers to be — those are the person's
+  // phrases as much as the grid's are — and what a spreadsheet of the board
+  // holds.
+  const boardPhrases = useMemo(
     () => [...board.mainPhrases, ...board.emergencyPhrases],
     [board.mainPhrases, board.emergencyPhrases],
   )
@@ -148,7 +150,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     language: settings.language,
     replyKey,
     replyModel: settings.replyModel,
-    phrases: replyPhrases,
+    phrases: boardPhrases,
     // Edit mode counts as not empty however little is in the draft: the box is
     // showing a phrase there, and a reply landing in the message behind it
     // would be one nobody could see and an exchange nobody asked to pay for.
@@ -986,6 +988,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             aliases={board.aliases}
             onAliasesChange={board.changeAliases}
             store={store}
+            phrases={boardPhrases}
             categories={backupCategories}
             categoryById={board.categoryById}
             onRestore={handleRestore}

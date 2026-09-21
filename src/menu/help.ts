@@ -566,6 +566,37 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Your phrases in a spreadsheet',
+    blocks: [
+      text(
+        'Backup & sharing can also give you every phrase on the board as a spreadsheet, one to a row — to read, print, or change in Excel or Google Sheets, then bring back. Writing a lot of phrases is much quicker there, for whoever helps you set the board up.',
+      ),
+      list(
+        'Save for Excel makes a workbook. It is the one to edit in Excel, because every cell in it stays as the words you wrote.',
+        'Save as CSV makes a file almost anything can open. Excel can turn a phrase like 1/2 into a date when it opens one, so use the Excel file there.',
+        'Copy for Sheets copies the whole board. In Google Sheets, open an empty sheet, put the cursor in the first cell, and paste.',
+      ),
+      text(
+        'Each row has three columns: Category, Phrase and ID. Change the first two as much as you like. Leave the ID alone — it is how Peri knows which phrase a row is. A row with no ID is a new phrase.',
+      ),
+      text(
+        'A phrase can keep its choices and its formatting in the sheet, written the way you would write them in Peri: {pronouns}, **bold**.',
+      ),
+      text(
+        'To bring it back, Choose a spreadsheet takes an Excel file or a CSV. From Google Sheets, select every cell including the top row, copy, and rest on Paste from Sheets. You can also use File, Download, Microsoft Excel in Sheets and choose that file.',
+      ),
+      text(
+        'Peri says what the sheet will change before it changes anything. Add and update puts in the new phrases and the changed ones and never takes a phrase away.',
+      ),
+      text(
+        'Replace all phrases makes the board match the sheet, so a row you deleted is a phrase deleted from the board. It says how many that is first, and it is only offered for a sheet with an ID column.',
+      ),
+      text(
+        'Nothing is sent anywhere. The file goes where your browser saves files, and a copy stays on the clipboard.',
+      ),
+    ],
+  },
+  {
     title: 'Keyboard and switch access',
     blocks: [
       text(
