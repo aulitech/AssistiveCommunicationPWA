@@ -740,6 +740,17 @@ body {
   border-color: var(--accent);
 }
 
+/* No key it can use, so the box holds what to do about that rather than a
+   question — see `KEY_NOTICE`. Muted and at the ordinary size rather than a
+   question's, because it is the box talking rather than anybody in the room —
+   and because at a question's size it ran past the box's cap on every screen,
+   and a notice somebody has to scroll by dwell to finish is one they do not. */
+.heard-text.is-notice {
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-weight: 400;
+}
+
 /* What the question says in the reader's own language, under the words that
    were said — the shape the Translations tab uses. */
 .heard-meaning {
@@ -803,13 +814,17 @@ body {
 
 /* The microphone is live — see `HeardBox`. At the right end of the row of tools,
    on the box's lower border as they are, on the same ground and at the same
-   size, so it reads as part of the same set; lit, in the accent the border turns
-   while it listens, with a glow no control on either border carries; and
-   **pulsing**, which is what says *live* from across a room. A pulse at the edge
-   of somebody's eye draws it, and the pointer is their gaze — so it pulses the
-   way the resting lozenge does, brightness and glow and nothing that moves, and
-   under reduced motion it stays lit and still. Not a target, so nothing a
-   pointer does here can arm anything. */
+   size, so it reads as part of the same set, and lit in the accent the border
+   turns while it listens.
+ *
+ * **Only the level inside the capsule moves** — it fills and empties as a meter
+ * does, which is what says *live* from across a room. It pulsed at first, the
+ * whole light brightening and dimming, and that did not work: the ground dimmed
+ * with it and the box's border showed through, and its glow lay on the border,
+ * so the border itself seemed to pulse. The ground is solid now and carries no
+ * glow, so nothing outside the glyph ever changes. Under reduced motion the
+ * level stands still, part full. Not a target, so nothing a pointer does here
+ * can arm anything. */
 .heard-live {
   margin-left: auto;
   flex: none;
@@ -821,16 +836,25 @@ body {
   border-radius: 999px;
   background: var(--border-ground);
   color: var(--accent);
-  box-shadow: 0 0 0.75rem color-mix(in srgb, var(--accent) 55%, transparent);
   pointer-events: none;
-  animation: micPulse 1.6s ease-in-out infinite;
 }
 
-@keyframes micPulse {
-  50% {
-    opacity: 0.5;
-    box-shadow: 0 0 0.2rem color-mix(in srgb, var(--accent) 25%, transparent);
-  }
+/* Scaled from the foot of the capsule, as a level rises from the bottom. The
+   steps are uneven on purpose: a level that rose and fell in one even beat would
+   read as a pulse again, and speech is not even. */
+.heard-live .mic-level {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: micLevel 1.2s ease-in-out infinite;
+}
+
+@keyframes micLevel {
+  0%,
+  100% { transform: scaleY(0.2); }
+  20% { transform: scaleY(0.7); }
+  40% { transform: scaleY(0.4); }
+  60% { transform: scaleY(0.95); }
+  80% { transform: scaleY(0.5); }
 }
 
 .heard-live svg {
@@ -3272,9 +3296,12 @@ body {
      dimmed behind it. */
   .rest-btn.is-resting { animation: none !important; }
 
-  /* The live microphone stops pulsing; it is still lit, and still there only
-     while it listens. */
-  .heard-live { animation: none !important; }
+  /* The live microphone's level stands still, part full; it is still lit, and
+     still there only while sound is coming in. */
+  .heard-live .mic-level {
+    animation: none !important;
+    transform: scaleY(0.6);
+  }
 
   .signin-spinner,
   .busy-spinner { animation-duration: 2s !important; }

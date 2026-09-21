@@ -480,10 +480,13 @@ export function QuestionIcon() {
  * The microphone is live. The glyph everybody already reads as *this is
  * recording*, which is exactly what it says here — and why it is not the
  * control that opens the question box, which takes a typed question as readily
- * as a heard one. It pulses while the recogniser is listening and is drawn at
- * no other time, so it cannot say anything else.
+ * as a heard one.
+ *
+ * `live` fills the capsule with a level the stylesheet moves, as a meter does —
+ * drawn only while sound is coming in, so it cannot say anything else. The
+ * guide and the policy draw it without, the same outline standing still.
  */
-export function MicIcon() {
+export function MicIcon({ live = false }: { live?: boolean } = {}) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -493,6 +496,9 @@ export function MicIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
+      {live && (
+        <rect className="mic-level" x="9" y="2" width="6" height="11" rx="3" fill="currentColor" stroke="none" />
+      )}
       <rect x="9" y="2" width="6" height="11" rx="3" />
       <path d="M5 11a7 7 0 0 0 14 0" />
       <path d="M12 18v3" />

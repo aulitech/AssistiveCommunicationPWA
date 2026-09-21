@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { boardForReply, hasReplyKey, suggestReply } from '../../src/listen/suggest'
+import { boardForReply, checkReplyKey, hasReplyKey, suggestReply } from '../../src/listen/suggest'
 import { DEFAULT_REPLY_MODEL, saveReplyKey } from '../../src/core/store'
 import { makePhrase } from '../../src/core/phrases'
 import { warnings } from '../setup'
@@ -423,10 +423,21 @@ describe('when it does not work', () => {
     expect(fetcher).not.toHaveBeenCalled()
   })
 
+  // `refused` is what closes the question box: nothing it does will work until
+  // the key changes. A service having trouble is not that, and does not close it.
   it('names a key that was not accepted, and where to fix it', async () => {
     vi.stubGlobal('fetch', refuses(401))
     const result = await suggestReply('Tea or coffee?', '')
-    expect(result).toEqual({ status: 'error', error: expect.stringMatching(/Settings/) })
+    expect(result).toEqual({ status: 'error', error: expect.stringMatching(/Settings/), refused: true })
+
+    vi.stubGlobal('fetch', refuses(403))
+    expect(await suggestReply('Tea or coffee?', '')).toMatchObject({ refused: true })
+    for (const status of [429, 500]) {
+      vi.stubGlobal('fetch', refuses(status))
+      expect(await suggestReply('Tea or coffee?', ''), `${status} closed the box`).not.toHaveProperty('refused')
+    }
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    expect(await suggestReply('Tea or coffee?', ''), 'offline closed the box').not.toHaveProperty('refused')
   })
 
   it('names the rest of what a service can say', async () => {
@@ -828,5 +839,60 @@ describe('the board as the model is given it', () => {
 
   it('puts a phrase written over several lines on one', () => {
     expect(lines('First this\nand then that')).toEqual(['First this and then that'])
+  })
+})
+
+/**
+ * **A key is checked before it is saved**, the way an ElevenLabs key is linked:
+ * one saved unchecked opens the question box to a key that has never worked,
+ * and the first anybody hears of it is with a person waiting for an answer.
+ * Listing the models costs nothing and needs a working key.
+ */
+describe('checking a key', () => {
+  const lists = () => vi.fn(async () => new Response(JSON.stringify({ data: [] }), { status: 200 }))
+
+  it('asks Anthropic for its models, with the key, from a browser on purpose', async () => {
+    const fetcher = lists()
+    vi.stubGlobal('fetch', fetcher)
+
+    expect(await checkReplyKey(`  ${KEY}  `)).toEqual({ ok: true })
+    const [url, init] = (fetcher.mock.calls as unknown as [string, RequestInit][])[0]!
+    expect(url).toBe('https://api.anthropic.com/v1/models?limit=1')
+    expect(init.method ?? 'GET', 'it spends something').toBe('GET')
+    expect(init.body).toBeUndefined()
+    expect(headers(fetcher)).toMatchObject({
+      'x-api-key': KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    })
+  })
+
+  it('refuses a key Anthropic turns away, and says what to check', async () => {
+    for (const status of [401, 403]) {
+      vi.stubGlobal('fetch', refuses(status))
+      expect(await checkReplyKey(KEY)).toEqual({ ok: false, error: expect.stringMatching(/did not accept/) })
+    }
+  })
+
+  it('refuses what it could not check, rather than saving it anyway', async () => {
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    expect(await checkReplyKey(KEY)).toEqual({ ok: false, error: expect.stringMatching(/Could not reach/) })
+    vi.stubGlobal('fetch', refuses(529))
+    expect(await checkReplyKey(KEY)).toEqual({ ok: false, error: expect.stringMatching(/529/) })
+  })
+
+  it('asks nothing about an empty key', async () => {
+    const fetcher = lists()
+    vi.stubGlobal('fetch', fetcher)
+    expect((await checkReplyKey('   ')).ok).toBe(false)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  // A key in a console is a key in a screenshot.
+  it('never puts the key in the console', async () => {
+    vi.stubGlobal('fetch', refuses(401))
+    await checkReplyKey(KEY)
+    expect(warnings.length, 'a refusal went unsaid').toBeGreaterThan(0)
+    expect(warnings.join(' ')).not.toContain(KEY)
   })
 })

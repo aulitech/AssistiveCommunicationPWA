@@ -92,6 +92,7 @@ export function HeardBox({
     canTranslate,
     canSuggest,
     messageEmpty,
+    notice,
   } = listener
 
   const write = useCallback((value: string) => correct(value), [correct])
@@ -106,7 +107,7 @@ export function HeardBox({
    * this box is opened in order to *correct* something, so a rest on it is
    * intent rather than somebody parking their gaze while they read.
    */
-  const caret = useCaretDwell(fieldRef, settings.actionDwellMs, { selectOnHold: true })
+  const caret = useCaretDwell(fieldRef, settings.actionDwellMs, { selectOnHold: true, disabled: notice !== '' })
 
   const nothingHeard = heard.said.trim() === ''
 
@@ -122,11 +123,17 @@ export function HeardBox({
             'heard-text',
             caret.active && 'dwelling',
             heard.listening && 'is-listening',
+            notice && 'is-notice',
             (edges.canUp || edges.canDown) && 'has-scroll',
           )}
           style={dwellVar(settings.actionDwellMs)}
           aria-label="Question heard"
-          value={heard.said}
+          // **Without a key it can use, the box says so and takes nothing.** As
+          // its words rather than as a placeholder, so it is measured like a
+          // question and the box grows to hold all of it; read-only, so neither
+          // a keyboard nor Peri's own can put a question in it.
+          value={notice || heard.said}
+          readOnly={notice !== ''}
           onChange={e => write(e.target.value)}
           placeholder={heard.listening ? 'Speak or type a question' : 'Nothing heard yet'}
           rows={1}
@@ -192,22 +199,24 @@ export function HeardBox({
           </HeardButton>
         )}
 
-        {/* **The microphone is live**, lit in the corner the tools leave free,
-            and drawn at no other time — so there is nothing to read it as but
-            *this is being heard now*. The box's own border turns solid as well,
-            but a border is easy to miss from across a room, and it is the
-            person being listened to who most needs to know.
+        {/* **The microphone is live**, in the corner the tools leave free, and
+            drawn only while sound is actually coming in — after the browser has
+            been given the microphone, not when it was asked for it — so there
+            is nothing to read it as but *this is being heard now*.
+
+            Its capsule fills and empties like a level meter, which is the whole
+            of the animation: nothing outside the glyph moves, and its ground
+            stays solid, so the box's border under it never shows through or
+            glows. Still under reduced motion.
 
             Not a control: there is nothing to do to it that the controls beside
             it do not already do, and a target that did nothing would be a dwell
-            spent for nothing. It pulses — brightness and glow, the way the
-            resting lozenge does, and still under reduced motion. In this row
-            rather than positioned over the corner, so a
-            box too narrow for all four pushes it along rather than laying it
-            over a control. */}
-        {heard.listening && (
+            spent for nothing. In this row rather than positioned over the
+            corner, so a box too narrow for all four pushes it along rather than
+            laying it over a control. */}
+        {heard.hearing && (
           <span className="heard-live" role="img" aria-label="The microphone is on">
-            <MicIcon />
+            <MicIcon live />
           </span>
         )}
       </div>

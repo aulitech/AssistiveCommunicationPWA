@@ -36,6 +36,8 @@ interface RecognitionLike {
   onresult: ((event: RecognitionEvent) => void) | null
   onerror: ((event: { error?: string }) => void) | null
   onend: (() => void) | null
+  onaudiostart: (() => void) | null
+  onaudioend: (() => void) | null
 }
 
 interface RecognitionEvent {
@@ -68,6 +70,15 @@ export interface Listening {
   onHeard: (text: string, final: boolean) => void
   /** Told once, whether it stopped on its own, was stopped, or failed. */
   onDone: (error?: string) => void
+  /**
+   * Told when sound starts coming in, and when it stops.
+   *
+   * **Not the same moment as being asked to listen.** The browser asks for
+   * permission first, and may take a moment to open the device after that — so
+   * what says the microphone is live has to wait for this rather than for the
+   * request, or it says so while nothing is being heard at all.
+   */
+  onSound?: (on: boolean) => void
 }
 
 /** Why listening ended, in words somebody can act on. */
@@ -94,7 +105,7 @@ function describe(error: string): string {
  * working: a box that stays empty for four seconds and then fills is
  * indistinguishable from a box that is broken.
  */
-export function listen(tag: string, { onHeard, onDone }: Listening): () => void {
+export function listen(tag: string, { onHeard, onDone, onSound }: Listening): () => void {
   let recognition: RecognitionLike
   try {
     // A browser with neither name reaches this as a `new null()`, which is the
@@ -143,6 +154,10 @@ export function listen(tag: string, { onHeard, onDone }: Listening): () => void 
   }
 
   recognition.onend = () => finish()
+  recognition.onaudiostart = () => {
+    if (!done) onSound?.(true)
+  }
+  recognition.onaudioend = () => onSound?.(false)
 
   try {
     recognition.start()

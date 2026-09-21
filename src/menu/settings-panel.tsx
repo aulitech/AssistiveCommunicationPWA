@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { linkAccount } from '../voice/elevenlabs'
+import { checkReplyKey } from '../listen/suggest'
 import { hasTranslateKey } from '../translate/client'
 import { needsTranslation } from '../core/translation'
 import type { SyncControl } from '../sync/use-sync'
@@ -736,17 +737,33 @@ function SuggestedRepliesRow({
 }) {
   const { settings, update } = useSettings()
   const [typed, setTyped] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [forgotten, setForgotten] = useState(false)
   // Marked on a rest, written on Done — see `usePendingChoice`.
   const chooseModel = useCallback((replyModel: string) => update({ replyModel }), [update])
   const model = usePendingChoice(settings.replyModel, chooseModel)
 
+  /**
+   * Saved only once Anthropic has taken it, the way an ElevenLabs key is linked
+   * — a key saved unchecked opens the question box to a key that has never
+   * worked, and the first anybody hears of it is with a person waiting.
+   */
   const save = useCallback(() => {
     const key = typed.trim()
-    if (!key) return
-    setTyped('')
-    onChange(key)
-  }, [typed, onChange])
+    if (!key || checking) return
+    setChecking(true)
+    setError(null)
+    void checkReplyKey(key).then(result => {
+      setChecking(false)
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      setTyped('')
+      onChange(key)
+    })
+  }, [typed, checking, onChange])
 
   return (
     <div className="setting-row eleven-row">
@@ -794,13 +811,23 @@ function SuggestedRepliesRow({
               onChange={setTyped}
               onEnter={save}
             />
-            <PanelButton kind="primary" label="Save" onActivate={save} disabled={typed.trim() === ''} />
+            <PanelButton
+              kind="primary"
+              label={checking ? 'Checking…' : 'Save'}
+              onActivate={save}
+              disabled={checking || typed.trim() === ''}
+            />
           </>
+        )}
+        {error && !value && (
+          <p className="eleven-error" role="alert">
+            {error}
+          </p>
         )}
         <p className="eleven-note">
           {value
             ? "Listen mode can offer up to twenty answers to a question it heard, on the board under a tab called Answers. The question is sent to Anthropic on your own account and your own credits, with the phrases on your board so the answers can be your own words, and where an answer needs looking up it is searched for on the web as well. Today's questions and the answers you chose are kept on this device so a conversation carries on making sense, and so are the last answers offered, so they are still there if Peri is reopened; only the ones you chose are ever sent. All of it is forgotten after a day. Resting on an answer puts it in the message box — Peri never speaks one for you."
-            : 'Optional. Lets listen mode offer answers to a question it heard, on the board to choose between, using your own Anthropic account. The question goes with the phrases on your board, so the answers can be your own words, and questions that need looking up are searched for on the web. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
+            : 'Optional. Lets listen mode offer answers to a question it heard, on the board to choose between, using your own Anthropic account. The question goes with the phrases on your board, so the answers can be your own words, and questions that need looking up are searched for on the web. Saving the key checks it with Anthropic first. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
         </p>
       </div>
 

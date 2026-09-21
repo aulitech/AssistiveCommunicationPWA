@@ -25,6 +25,8 @@ export class FakeRecognition {
   onresult: ((event: { resultIndex: number; results: unknown }) => void) | null = null
   onerror: ((event: { error?: string }) => void) | null = null
   onend: (() => void) | null = null
+  onaudiostart: (() => void) | null = null
+  onaudioend: (() => void) | null = null
 
   constructor() {
     FakeRecognition.last = this
@@ -49,6 +51,16 @@ export class FakeRecognition {
   say(...results: Result[]) {
     const list = results.map(r => Object.assign([{ transcript: r.transcript }], { isFinal: r.isFinal }))
     this.onresult?.({ resultIndex: 0, results: Object.assign(list, { length: list.length }) })
+  }
+
+  /** The browser has the microphone open and sound is coming in — after permission, not before. */
+  soundStarts() {
+    this.onaudiostart?.()
+  }
+
+  /** Sound has stopped coming in, which happens before the session itself ends. */
+  soundEnds() {
+    this.onaudioend?.()
   }
 
   /** Ends the session the way a recogniser that heard the end of a sentence does. */
