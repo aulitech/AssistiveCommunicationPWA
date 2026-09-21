@@ -424,6 +424,17 @@ describe('auto-speak', () => {
     expect(strip[2].getAttribute('aria-label')).toMatch(/auto-speak/i)
   })
 
+  // The empty box is where somebody looks to learn what a dwell on a phrase
+  // will do, so it says so in the words of the mode — and says something else
+  // the moment the mode is something else.
+  it('says in the empty box what choosing a phrase will do', () => {
+    renderApp({ autoSpeak: true })
+    expect(box().placeholder).toBe('Immediately speak selected phrase')
+
+    click(speakToggle())
+    expect(box().placeholder, 'composing still promised to speak').not.toMatch(/speak selected/i)
+  })
+
   // The board talks the moment it is opened. Somebody who wants to build a
   // sentence out of several phrases turns this off; somebody who wants a button
   // that says a thing has nothing to find first.

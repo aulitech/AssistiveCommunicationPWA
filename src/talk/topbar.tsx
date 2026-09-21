@@ -34,9 +34,9 @@ import {
   EditIcon,
   KeyboardIcon,
   MenuIcon,
-  MicIcon,
   PasteIcon,
   PlusIcon,
+  QuestionIcon,
   SpeakIcon,
   TrashIcon,
   UndoIcon,
@@ -582,7 +582,7 @@ export function Topbar({
               editMode
                 ? 'Write a phrase, or hold one on the board to edit it…'
                 : settings.autoSpeak
-                  ? 'Auto-speak is on — phrases are spoken, not collected here'
+                  ? 'Immediately speak selected phrase'
                   : 'Dwell on a phrase or type…'
             }
             rows={1}
@@ -794,7 +794,7 @@ export function Topbar({
               onToggle={onToggleListen}
               label={listener.open ? 'Stop listening' : 'Listen to a question'}
             >
-              <MicIcon />
+              <QuestionIcon />
             </ModeToggle>
           </div>
         )}

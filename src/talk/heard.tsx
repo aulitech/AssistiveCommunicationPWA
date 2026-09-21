@@ -128,7 +128,7 @@ export function HeardBox({
           aria-label="Question heard"
           value={heard.said}
           onChange={e => write(e.target.value)}
-          placeholder={heard.listening ? 'Listening…' : 'Nothing heard yet'}
+          placeholder={heard.listening ? 'Speak or type a question' : 'Nothing heard yet'}
           rows={1}
           spellCheck
           {...caret.props}
