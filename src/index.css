@@ -1356,13 +1356,49 @@ body {
   border-radius: 0;
 }
 
-/* User row */
+/* User row: who, the app and its version, and Back — three columns, so the
+   middle one is centred on the row rather than on whatever space the other two
+   leave it.
+
+   **Back's column is never narrower than Back.** The two outer columns share the
+   slack equally, which is what centres the title; when there is not enough of it
+   — a phone at a large text size — Back keeps its width and the name gives way,
+   ending in an ellipsis. Back is the only way out of the menu that does not need
+   a keyboard, and a title laid over it would take that away. */
 .panel-user-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
   align-items: center;
   gap: 14px;
   padding: 16px 18px 12px;
   border-bottom: 1px solid var(--border);
+}
+
+.panel-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.panel-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.panel-title-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.panel-version {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .panel-avatar {
@@ -1402,6 +1438,7 @@ body {
    doing — a target that moves with the content is one a gaze user has to find
    again each time. */
 .panel-back {
+  justify-self: end;
   position: relative;
   display: inline-flex;
   align-items: center;

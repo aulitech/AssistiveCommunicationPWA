@@ -8,9 +8,21 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
+
+/**
+ * The version, out of `package.json` — the one place it is written, and bumped
+ * with every merge to main (see AGENTS.md). Built into the bundle rather than
+ * fetched, so the menu can say which release is running on a device that is
+ * offline, which is when somebody is most likely to be asked.
+ */
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
+  version: string
+}
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: { __APP_VERSION__: JSON.stringify(version) },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

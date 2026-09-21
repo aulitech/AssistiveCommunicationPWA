@@ -7,6 +7,7 @@ import { type AliasStore, type Phrase } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { type PhraseStore, type User } from '../core/store'
 import { type AppState } from '../core/backup'
+import { APP_VERSION } from '../core/version'
 import { cx, dwellVar } from '../ui/style'
 import { NavItem, PanelButton } from '../ui/controls'
 import { SettingsPanel } from './settings-panel'
@@ -235,17 +236,25 @@ export function TopPanel({
         aria-label="Menu"
         aria-hidden={!open}
       >
-        {/* User row */}
+        {/* User row: who, then which app and which release of it, then the way
+            out. The name and the version are centred on the row, and stay put
+            whichever panel is below it. */}
         <div className="panel-user-row">
-          <div className="panel-avatar" aria-hidden="true">
-            {user.provider === 'google' && <span style={{ fontSize: '1.35rem' }}>G</span>}
-            {user.provider === 'apple' && <span style={{ fontSize: '1.35rem' }}></span>}
-            {user.provider === 'facebook' && <span style={{ fontSize: '1.35rem' }}>f</span>}
-            {user.provider === 'guest' && <span style={{ fontSize: '1.35rem' }}>👤</span>}
+          <div className="panel-user">
+            <div className="panel-avatar" aria-hidden="true">
+              {user.provider === 'google' && <span style={{ fontSize: '1.35rem' }}>G</span>}
+              {user.provider === 'apple' && <span style={{ fontSize: '1.35rem' }}></span>}
+              {user.provider === 'facebook' && <span style={{ fontSize: '1.35rem' }}>f</span>}
+              {user.provider === 'guest' && <span style={{ fontSize: '1.35rem' }}>👤</span>}
+            </div>
+            <div className="panel-user-info">
+              <span className="panel-user-name">{user.name}</span>
+              {user.email && <span className="panel-user-email">{user.email}</span>}
+            </div>
           </div>
-          <div className="panel-user-info">
-            <span className="panel-user-name">{user.name}</span>
-            {user.email && <span className="panel-user-email">{user.email}</span>}
+          <div className="panel-title">
+            <span className="panel-title-name">Peri</span>
+            <span className="panel-version">{APP_VERSION}</span>
           </div>
           <PanelBack onSelect={view === 'menu' ? onClose : backToMenu} />
         </div>

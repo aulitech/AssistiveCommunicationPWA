@@ -125,3 +125,13 @@ describe('indexing', () => {
     expect(robots).toMatch(/^(Allow|Disallow):/m)
   })
 })
+
+describe('the version', () => {
+  // Bumped with every merge to main and shown on the menu's top line — see
+  // AGENTS.md. Major, minor, patch, and nothing else: a pre-release tag or a
+  // leading zero is a version nobody can compare with the one they are on.
+  it('is a semantic version', () => {
+    const { version } = JSON.parse(read('package.json')) as { version: string }
+    expect(version).toMatch(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/)
+  })
+})

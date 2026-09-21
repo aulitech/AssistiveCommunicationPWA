@@ -2543,6 +2543,41 @@ describe('leaving a panel', () => {
     expect(row.lastElementChild).toBe(back())
   })
 
+  /**
+   * **Which app and which release, centred on the top line** — the first thing
+   * anybody helping with a board over the phone asks. The version is the one in
+   * `package.json`, put into the bundle at build time, so it cannot drift from
+   * the release it names. The same row on every screen the menu shows, between
+   * whoever is signed in and the way out.
+   */
+  it.each(SCREENS)('names the app and its version in the middle of the top line of %s', screen => {
+    const { version } = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')) as {
+      version: string
+    }
+    show(screen)
+
+    const row = [...$('.panel-user-row')!.children]
+    expect(row.map(el => el.className.split(' ')[0])).toEqual(['panel-user', 'panel-title', 'panel-back'])
+    expect($('.panel-title-name')!.textContent).toBe('Peri')
+    expect($('.panel-version')!.textContent).toBe(version)
+  })
+
+  // The sizes asked for, and the grid that centres them without ever laying the
+  // title over Back: the outer columns share the slack equally, and Back's is
+  // never narrower than Back. jsdom lays nothing out, so the stylesheet is what
+  // can be read.
+  it('sets the name at 1.3rem and the version at 0.8rem, centred without crowding Back', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const value = (selector: string, prop: string) => {
+      const rule = css.slice(css.indexOf(`${selector} {`))
+      return rule.slice(0, rule.indexOf('}')).match(new RegExp(`\\b${prop}: *([^;]+);`))?.[1]
+    }
+    expect(value('.panel-title-name', 'font-size')).toBe('1.3rem')
+    expect(value('.panel-version', 'font-size')).toBe('0.8rem')
+    expect(value('.panel-user-row', 'grid-template-columns')).toBe('minmax(0, 1fr) auto minmax(max-content, 1fr)')
+    expect(value('.panel-back', 'justify-self')).toBe('end')
+  })
+
   it.each(PANELS)('returns to the menu from %s', panel => {
     show(panel)
     click(back())
