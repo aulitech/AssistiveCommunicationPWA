@@ -40,8 +40,15 @@ export interface Heard {
   said: string
   /** What they say in the board's own language, once that is known. */
   meaning: string
-  /** Whether the microphone is open right now. */
+  /** Whether a listening session is open right now — asked for, and not yet over. */
   listening: boolean
+  /**
+   * Whether sound is actually coming in: from the browser opening the device to
+   * it letting go of it. **Later than `listening` and sooner over** — the browser
+   * asks for permission first, and stops taking sound before the session ends —
+   * so this, and not that, is what the live microphone is drawn for.
+   */
+  hearing: boolean
   /**
    * Which of the two is still out, and `''` for neither.
    *
@@ -55,7 +62,20 @@ export interface Heard {
   error: string
 }
 
-const EMPTY: Heard = { said: '', meaning: '', listening: false, asking: '', error: '' }
+const EMPTY: Heard = { said: '', meaning: '', listening: false, hearing: false, asking: '', error: '' }
+
+/**
+ * What the box says instead of a question, when there is no key it can use.
+ *
+ * **The box is for getting answers**, and the answers are the user's own
+ * Anthropic account — so without a key that works it takes no question, typed
+ * or heard, and says why and where to go, rather than listening to somebody and
+ * then failing them with a person waiting.
+ */
+export const KEY_NOTICE = {
+  missing: 'This needs your Anthropic API key. Add it in Settings, under Suggested answers.',
+  refused: 'Anthropic did not accept your API key. Check it in Settings, under Suggested answers.',
+} as const
 
 /** No answers, as one array: a fresh `[]` each render would re-run everything that watches them. */
 const NONE: Phrase[] = []
@@ -137,6 +157,17 @@ export function useListen({
 
   /** The way to stop whatever is listening now, or null when nothing is. */
   const stopRef = useRef<(() => void) | null>(null)
+
+  /**
+   * A key Anthropic turned away when it was asked with, which is a key that will
+   * not work until it is changed. Held against the key rather than as a flag, so
+   * that setting another one — here, or on another device and synchronized —
+   * lifts it without anything having to remember to.
+   */
+  const [refusedKey, setRefusedKey] = useState('')
+  const keyProblem: '' | keyof typeof KEY_NOTICE = !replyKey ? 'missing' : refusedKey === replyKey ? 'refused' : ''
+  /** No key it can use, so the box takes no question at all — see `KEY_NOTICE`. */
+  const locked = keyProblem !== ''
   /**
    * Bumped by anything that makes an answer stale — closing the box, listening
    * again, asking again. An answer that comes back for a question the user has
@@ -186,6 +217,16 @@ export function useListen({
       // never ask for a reply at all, and one that does asks once a question.
       const result = await suggestReply(asked, language, replyModel, loadReplyContext(), boardForReply(phrases))
       if (mine !== askedRef.current) return
+      if (result.status === 'error' && result.refused) {
+        // Nothing this box does will work until the key changes, so it stops
+        // taking questions and says why, in the box itself.
+        askedRef.current++
+        stopListening()
+        setHeard(EMPTY)
+        setCleared([])
+        setRefusedKey(replyKey)
+        return
+      }
       setHeard(h => ({ ...h, asking: '', error: result.status === 'ok' ? '' : result.error }))
       if (result.status !== 'ok') return
 
@@ -196,7 +237,7 @@ export function useListen({
       answeredAtRef.current = Date.now()
       setSuggestions(suggestionPhrases(result.replies, mine))
     },
-    [language, replyModel, phrases],
+    [language, replyModel, phrases, replyKey, stopListening],
   )
 
   /**
@@ -251,8 +292,21 @@ export function useListen({
   const [keyedFor, setKeyedFor] = useState(replyKey)
   if (keyedFor !== replyKey) {
     setKeyedFor(replyKey)
-    if (!replyKey) setSuggestions(NONE)
+    if (!replyKey) {
+      setSuggestions(NONE)
+      // And the box takes nothing more, so what it was holding goes with it.
+      setHeard(EMPTY)
+      setCleared([])
+    }
   }
+
+  // Whatever was listening stops the moment there is no key to answer with. An
+  // effect, since stopping a microphone is not something a render may do.
+  useEffect(() => {
+    if (!locked) return
+    askedRef.current++
+    stopListening()
+  }, [locked, stopListening])
 
   /**
    * The same asking, for a question nobody asked to have answered.
@@ -273,10 +327,10 @@ export function useListen({
    */
   const answer = useCallback(
     (asked: string) => {
-      if (!replyKey || !messageEmpty) return
+      if (locked || !messageEmpty) return
       void ask(asked)
     },
-    [ask, messageEmpty, replyKey],
+    [ask, messageEmpty, locked],
   )
   const answerRef = useRef(answer)
   useEffect(() => {
@@ -302,10 +356,14 @@ export function useListen({
         latest = said
         setHeard(h => ({ ...h, said }))
       },
+      onSound: on => {
+        if (mine !== askedRef.current) return
+        setHeard(h => ({ ...h, hearing: on }))
+      },
       onDone: error => {
         if (mine !== askedRef.current) return
         stopRef.current = null
-        setHeard(h => ({ ...h, listening: false, error: error ?? '' }))
+        setHeard(h => ({ ...h, listening: false, hearing: false, error: error ?? '' }))
         // **The question has settled.** The recogniser stops when somebody stops
         // talking, and that is the one moment the whole of what they asked is in
         // hand — a final result part-way through is half a question, and a reply
@@ -338,8 +396,9 @@ export function useListen({
       return
     }
     setOpen(true)
-    startListening()
-  }, [open, startListening, stopListening])
+    // Without a key it can use, the box opens to say so and listens to nothing.
+    if (!locked) startListening()
+  }, [open, locked, startListening, stopListening])
 
   /**
    * Corrections, typed or dwelled into the box. The meaning goes stale with
@@ -352,10 +411,20 @@ export function useListen({
    * board went on saying answers were coming that never would, and hid the
    * answers it had behind the promise.
    */
-  const correct = useCallback((said: string) => {
-    askedRef.current++
-    setHeard(h => ({ ...h, said, meaning: '', error: '', asking: '' }))
-  }, [])
+  const correct = useCallback(
+    (said: string) => {
+      if (locked) return
+      askedRef.current++
+      // **Typing stops the microphone.** Whoever is typing is saying what the
+      // question is, and a recogniser still running would write the next thing
+      // it heard over what they typed. Stopped rather than left to finish, and
+      // the bump above means it is not answered as it goes: a typed question
+      // is asked for when somebody asks for it.
+      stopListening()
+      setHeard(h => ({ ...h, said, meaning: '', error: '', asking: '', listening: false, hearing: false }))
+    },
+    [locked, stopListening],
+  )
 
   /**
    * Clear when there is something to clear; otherwise put the last one back.
@@ -374,6 +443,7 @@ export function useListen({
    * stale one under corrected words would be.
    */
   const clearOrUndo = useCallback(() => {
+    if (locked) return
     if (heard.said) {
       setCleared(c => [...c, heard.said])
       startListening()
@@ -385,12 +455,13 @@ export function useListen({
     setHeard(h => ({
       ...h,
       listening: false,
+      hearing: false,
       said: cleared[cleared.length - 1]!,
       meaning: '',
       error: '',
     }))
     setCleared(c => c.slice(0, -1))
-  }, [cleared, heard.said, startListening, stopListening])
+  }, [cleared, heard.said, locked, startListening, stopListening])
 
   /**
    * What the question says in the board's own language.
@@ -439,8 +510,14 @@ export function useListen({
     correct,
     clearOrUndo,
     /** Which of the two the one control is offering, exactly as the composer's does. */
-    showUndo: !heard.said && cleared.length > 0,
-    canClear: Boolean(heard.said) || cleared.length > 0,
+    showUndo: !locked && !heard.said && cleared.length > 0,
+    canClear: !locked && (Boolean(heard.said) || cleared.length > 0),
+    /**
+     * What the box says instead of a question when there is no key it can use,
+     * and `''` when it takes questions. The box shows it as its words, read-only,
+     * so it is measured like any question and grows to hold it.
+     */
+    notice: keyProblem ? KEY_NOTICE[keyProblem] : '',
     translate,
     suggest,
     /** Whether this browser can listen at all. The control is not drawn if not. */

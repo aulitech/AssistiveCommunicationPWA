@@ -362,7 +362,7 @@ export function Topbar({
    * the grid's windowing makes, for the same reason.
    */
   const value = editMode ? draft.text : text
-  const question = listener.open ? listener.heard.said : ''
+  const question = listener.open ? listener.notice || listener.heard.said : ''
 
   /**
    * A reply is out, and the box it is coming to says so.

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import App from '../../src/App'
 import { loadReplyContext, saveAnswers, saveReplyKey } from '../../src/core/store'
 import { PROSE_ICONS } from '../../src/ui/prose-icons'
+import { KEY_NOTICE } from '../../src/talk/use-listen'
 import { spoken } from '../setup'
 import { FakeRecognition, installRecognition, removeRecognition } from '../listen/fake-recognition'
 import { readFileSync } from 'node:fs'
@@ -35,7 +36,13 @@ function click(el: Element | null | undefined) {
 const STORE_KEY = 'dwellspeak_phrase_store_v2'
 const BOARD = [{ id: 'custom-a', text: 'Apple', category: 'Sorted' }]
 
-function renderApp(settings: Record<string, unknown> = {}) {
+/**
+ * The board, with an Anthropic key unless a test says otherwise: without one
+ * the question box takes nothing — see `KEY_NOTICE` — so almost every test here
+ * needs one to have a box that listens at all.
+ */
+function renderApp(settings: Record<string, unknown> = {}, { key = 'sk-ant-test' }: { key?: string } = {}) {
+  if (key) saveReplyKey(key)
   localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
   localStorage.setItem('dwellspeak_settings', JSON.stringify({ autoSpeak: false, ...settings }))
   localStorage.setItem(STORE_KEY, JSON.stringify({ custom: BOARD }))
@@ -49,6 +56,17 @@ function renderApp(settings: Record<string, unknown> = {}) {
     click($('.edit-toggle'))
   }
 }
+
+const openSettings = () => {
+  click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+}
+const answersRow = () => $$('.setting-row').find(r => r.textContent?.includes('Suggested answers'))!
+/** Types a key into the Suggested answers row, where there is none set. */
+const typeKey = (key: string) =>
+  fireEvent.change(answersRow().querySelector('input[aria-label="Suggested answers API key"]')!, {
+    target: { value: key },
+  })
 
 const micBtn = () => $('.listen-toggle')
 const editToggle = () => $('.edit-toggle')!
@@ -103,6 +121,13 @@ const translates = (text: string) => answers({ data: { translations: [{ translat
 beforeEach(() => {
   vi.useFakeTimers()
   installRecognition()
+  // Nothing here reaches Anthropic: a question answered by itself in a test
+  // that never meant to ask goes nowhere, rather than out over the network.
+  // Tests that are about the answers put their own in its place.
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))),
+  )
 })
 afterEach(() => {
   vi.useRealTimers()
@@ -153,31 +178,38 @@ describe('the control', () => {
   })
 
   /**
-   * **A lit microphone while the microphone is live, and at no other time** —
+   * **A microphone while sound is actually coming in, and at no other time** —
    * so there is nothing to read it as but *this is being heard now*. At the
-   * right end of the box's lower border, after the tools: the box being open is
-   * not the microphone being on, and the recogniser stops by itself when
-   * somebody stops talking.
+   * right end of the box's lower border, after the tools.
+   *
+   * **Not when listening is asked for.** The browser asks for permission first,
+   * and a light that came on then said the microphone was live while nothing was
+   * being heard; and it stops taking sound before the session ends.
    */
-  it('lights a microphone in the box’s lower right corner while it listens', () => {
+  it('shows a live microphone in the box’s lower right corner only while sound comes in', () => {
     const live = () => $('.heard-live')
     renderApp()
     click(micBtn())
-    expect(live(), 'no light while listening').not.toBeNull()
+    expect(live(), 'live before the browser had the microphone').toBeNull()
+
+    act(() => FakeRecognition.last!.soundStarts())
+    settle()
+    expect(live(), 'not shown while sound came in').not.toBeNull()
     expect($('.heard-tools > :last-child')).toBe(live())
     expect(live()!.getAttribute('aria-label')).toBe('The microphone is on')
 
-    act(() => FakeRecognition.last!.say({ transcript: 'Tea?', isFinal: true }))
+    act(() => FakeRecognition.last!.say({ transcript: 'Tea', isFinal: false }))
     settle()
-    expect(live(), 'the light went out while it was still listening').not.toBeNull()
+    expect(live(), 'went out while it was still hearing').not.toBeNull()
 
-    act(() => FakeRecognition.last!.finish())
+    act(() => FakeRecognition.last!.soundEnds())
     settle()
-    expect(heardBox(), 'the box closed with the microphone').not.toBeNull()
-    expect(live(), 'still lit with the microphone off').toBeNull()
+    expect(live(), 'still shown with no sound coming in').toBeNull()
+    expect(heardBox()!.placeholder, 'the session ended with the sound').toBe('Speak or type a question')
 
-    // Clearing listens again, and the light comes back with it.
-    click(clearHeard())
+    // And back with the sound, and gone with the session however it ends.
+    act(() => FakeRecognition.last!.soundStarts())
+    settle()
     expect(live()).not.toBeNull()
     click(micBtn())
     expect(live()).toBeNull()
@@ -188,6 +220,8 @@ describe('the control', () => {
   it('is a light and not a control', () => {
     renderApp()
     click(micBtn())
+    act(() => FakeRecognition.last!.soundStarts())
+    settle()
     const live = $('.heard-live')!
     expect(live.tagName).toBe('SPAN')
     expect(live.hasAttribute('tabindex')).toBe(false)
@@ -197,32 +231,50 @@ describe('the control', () => {
   })
 
   /**
-   * **It pulses while it listens**, which is what says *live* from across a
-   * room — brightness and glow and nothing that moves, since the pointer is
-   * somebody's gaze. And it stops for somebody whose device asks for less
-   * motion, staying lit.
+   * **Only the level inside the capsule moves**, rising and falling as a meter
+   * does. The light pulsed at first, and its ground dimmed with it so the box's
+   * border showed through, and its glow lay on the border — the border itself
+   * seemed to pulse. So the light's own box is solid and holds still: no
+   * animation, no glow, no fading. And the level stops for somebody whose device
+   * asks for less motion.
    */
-  it('pulses while it listens, and holds still for reduced motion', () => {
+  it('moves only a level inside the capsule, and holds it still for reduced motion', () => {
+    renderApp()
+    click(micBtn())
+    act(() => FakeRecognition.last!.soundStarts())
+    settle()
+    expect($('.heard-live .mic-level'), 'no level in the capsule').not.toBeNull()
+
     const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-    const rule = css.slice(css.indexOf('.heard-live {'))
-    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/animation: *micPulse [\d.]+s [\w-]+ infinite/)
-    const pulse = css.slice(css.indexOf('@keyframes micPulse'))
-    expect(pulse.slice(0, pulse.indexOf('}\n}')), 'the pulse moves the light').not.toMatch(
-      /transform|translate|scale/,
+    const block = (selector: string) => {
+      const rule = css.slice(css.indexOf(`${selector} {`))
+      return rule.slice(0, rule.indexOf('}'))
+    }
+    expect(block('.heard-live .mic-level')).toMatch(/animation: *micLevel [\d.]+s [\w-]+ infinite/)
+    const level = css.slice(css.indexOf('@keyframes micLevel'))
+    const frames = level.slice(0, level.indexOf('}\n}'))
+    expect(frames.match(/[\w-]+(?=:)/g), 'the level animates something besides its height').toEqual(
+      expect.arrayContaining(['transform']),
     )
+    expect(frames, 'the level animates something besides its height').not.toMatch(/opacity|shadow|color/)
+    expect(block('.heard-live'), 'the light itself moves').not.toMatch(/animation|transition|box-shadow|opacity/)
 
     const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
-    expect(reduced.slice(0, reduced.indexOf('\n}\n'))).toMatch(/\.heard-live *\{ *animation: *none/)
+    expect(reduced.slice(0, reduced.indexOf('\n}\n'))).toMatch(/\.heard-live \.mic-level *\{\s*animation: *none/)
   })
 
   // The guide and the privacy policy both say `:mic:`, and a light the guide
-  // draws differently is a light somebody cannot match to it.
+  // draws differently is a light somebody cannot match to it. The guide's stands
+  // still, so it is the same outline with no level in it.
   it('draws the glyph the guide and the policy show for it', () => {
     renderApp()
     click(micBtn())
-    const drawn = $('.heard-live svg')!.outerHTML
+    act(() => FakeRecognition.last!.soundStarts())
+    settle()
+    const drawn = $('.heard-live svg')!.cloneNode(true) as SVGElement
+    drawn.querySelector('.mic-level')!.remove()
     const Guide = PROSE_ICONS.mic!
-    expect(render(<Guide />).container.querySelector('svg')!.outerHTML).toBe(drawn)
+    expect(render(<Guide />).container.querySelector('svg')!.outerHTML).toBe(drawn.outerHTML)
   })
 
   // A button that does nothing is worse than no button, and on a board aimed at
@@ -575,6 +627,36 @@ describe('the question', () => {
     expect(heardBox()!.value).toBe('Do you want tea or toffee?')
   })
 
+  /**
+   * **Typing stops the microphone.** Whoever is typing is saying what the
+   * question is, and a recogniser left running would write the next thing it
+   * heard over what they typed. What it had heard is not answered on its way
+   * out either: a typed question is asked about when somebody asks.
+   */
+  it('stops listening the moment anything is typed, and answers nothing it had heard', async () => {
+    const fetch = suggests('Yes please')
+    vi.stubGlobal('fetch', fetch)
+    renderApp()
+    click(micBtn())
+    act(() => FakeRecognition.last!.soundStarts())
+    act(() => FakeRecognition.last!.say({ transcript: 'Do you want', isFinal: false }))
+    settle()
+
+    fireEvent.change(heardBox()!, { target: { value: 'Do you want toast?' } })
+    settle()
+    expect(FakeRecognition.last!.stopped, 'still listening after a letter was typed').toBe(true)
+    expect($('.heard-live'), 'still showing the microphone live').toBeNull()
+    expect(heardBox()!.classList.contains('is-listening')).toBe(false)
+    expect(heardBox()!.placeholder).toBe('Nothing heard yet')
+
+    // Anything it hears on its way out lands nowhere.
+    act(() => FakeRecognition.last!.say({ transcript: 'Do you want tea', isFinal: true }))
+    settle()
+    await act(async () => {})
+    expect(heardBox()!.value).toBe('Do you want toast?')
+    expect(fetch, 'what it had heard was answered without being asked').not.toHaveBeenCalled()
+  })
+
   it('can be listened for again, by emptying the box', () => {
     renderApp()
     hear('Do you want tea?')
@@ -655,10 +737,38 @@ describe('the suggested reply', () => {
     renderApp(settings)
   }
 
-  it('is not offered at all until a key is set up', () => {
-    renderApp()
-    hear('Do you want tea?')
+  /**
+   * **Without a key the box says so, and takes nothing.** It is for getting
+   * answers, and the answers are the user's own account — so it listens to
+   * nobody and takes no typing, rather than hearing a question and then failing
+   * somebody with a person waiting. What it says is where to go, as its words,
+   * so the box grows to hold all of it.
+   */
+  it('says in the box that a key is needed, and takes nothing, until one is set up', async () => {
+    renderApp({}, { key: '' })
+    click(micBtn())
+
+    expect(heardBox()!.value).toBe(KEY_NOTICE.missing)
+    expect(heardBox()!.readOnly, 'the box takes typing with no key').toBe(true)
+    expect(heardBox()!.classList.contains('is-notice')).toBe(true)
+    expect(FakeRecognition.made, 'something listened with no key').toBe(0)
     expect(suggestBtn()).toBeUndefined()
+    expect(clearHeard()?.getAttribute('aria-disabled'), 'clearing would listen').toBe('true')
+
+    // Typed at anyway, by a keyboard that does not check: nothing lands — not
+    // now, and not later either, once a key is set up and the box takes words.
+    fireEvent.change(heardBox()!, { target: { value: 'Tea?' } })
+    settle()
+    expect(heardBox()!.value).toBe(KEY_NOTICE.missing)
+
+    vi.stubGlobal('fetch', answers({ data: [] }))
+    openSettings()
+    typeKey('sk-ant-new')
+    click(answersRow().querySelector('[aria-label="Save"]'))
+    await act(async () => {})
+    settle()
+    expect(heardBox()!.value, 'what was typed at the notice came back').toBe('')
+    expect(heardBox()!.readOnly).toBe(false)
   })
 
   /**
@@ -1031,9 +1141,9 @@ describe('the suggested reply', () => {
   it('asks for nothing at all until a key is set up', async () => {
     const fetch = suggests('I am, thank you')
     vi.stubGlobal('fetch', fetch)
-    renderApp()
+    renderApp({}, { key: '' })
 
-    heardAndDone('Are you comfortable')
+    click(micBtn())
     act(() => void vi.advanceTimersByTime(300))
     await act(async () => {})
 
@@ -1359,15 +1469,90 @@ describe('the suggested reply', () => {
     expect(second.messages.map(m => m.content)).toEqual(['Someone just asked me: Milk?'])
   })
 
-  it('says so when the key is not accepted', async () => {
+  /**
+   * **A key Anthropic turns away closes the box the way a missing one does**:
+   * nothing the box does will work until the key changes, so it stops
+   * listening, lets go of the question, and says in the box what to check and
+   * where. Setting another key lifts it, without anything having to remember to.
+   */
+  it('says in the box when the key is not accepted, and takes nothing until it changes', async () => {
     vi.stubGlobal('fetch', answers({ error: {} }, 401))
     withKey()
     hear('Do you want tea?')
 
     click(suggestBtn())
     await act(async () => {})
+    settle()
 
-    expect($('.heard-error')?.textContent).toMatch(/Settings/)
+    expect(heardBox()!.value).toBe(KEY_NOTICE.refused)
+    expect(heardBox()!.readOnly).toBe(true)
+    expect(FakeRecognition.last!.stopped, 'still listening with a key that will not work').toBe(true)
+    expect($('.heard-error'), 'said twice, once in the box and once under it').toBeNull()
+    fireEvent.change(heardBox()!, { target: { value: 'Tea?' } })
+    settle()
+    expect(heardBox()!.value).toBe(KEY_NOTICE.refused)
+
+    // A new key, set in Settings, and the box takes questions again.
+    vi.stubGlobal('fetch', answers({ data: [] }))
+    openSettings()
+    click(answersRow().querySelector('[aria-label="Remove"]'))
+    expect(heardBox()!.value, 'no key is not a refused key').toBe(KEY_NOTICE.missing)
+    typeKey('sk-ant-another')
+    click(answersRow().querySelector('[aria-label="Save"]'))
+    await act(async () => {})
+    settle()
+    expect(heardBox()!.value).toBe('')
+    expect(heardBox()!.readOnly).toBe(false)
+  })
+
+  // The key taken away mid-question — in Settings here, or on another device
+  // and synchronized — and the box stops where it is.
+  it('stops listening and says so when the key is removed', () => {
+    renderApp()
+    click(micBtn())
+    act(() => FakeRecognition.last!.soundStarts())
+    act(() => FakeRecognition.last!.say({ transcript: 'Tea?', isFinal: false }))
+    settle()
+
+    openSettings()
+    click(answersRow().querySelector('[aria-label="Remove"]'))
+
+    expect(FakeRecognition.last!.stopped).toBe(true)
+    expect(heardBox()!.value).toBe(KEY_NOTICE.missing)
+    expect($('.heard-live')).toBeNull()
+  })
+
+  /**
+   * **A key is saved only once Anthropic has taken it**, the way an ElevenLabs
+   * key is linked — and one it could not check is not saved either, rather than
+   * opening the box to a key that may never have worked.
+   */
+  it('saves a key only once Anthropic has taken it', async () => {
+    renderApp({}, { key: '' })
+    openSettings()
+    typeKey('sk-ant-wrong')
+    const save = async () => {
+      click(answersRow().querySelector('[aria-label="Save"]'))
+      await act(async () => {})
+      settle()
+    }
+
+    vi.stubGlobal('fetch', answers({ error: {} }, 401))
+    await save()
+    expect(answersRow().querySelector('[role="alert"]')?.textContent).toMatch(/did not accept/)
+    expect(localStorage.getItem('peri_reply'), 'a refused key was saved').toBeNull()
+
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    await save()
+    expect(answersRow().querySelector('[role="alert"]')?.textContent).toMatch(/Could not reach/)
+    expect(localStorage.getItem('peri_reply'), 'an unchecked key was saved').toBeNull()
+
+    const lists = answers({ data: [] })
+    vi.stubGlobal('fetch', lists)
+    await save()
+    expect(localStorage.getItem('peri_reply')).toBe('sk-ant-wrong')
+    expect(String((lists.mock.calls[0] as unknown as [string])[0])).toContain('/v1/models')
+    expect(answersRow().querySelector('[role="alert"]')).toBeNull()
   })
 
   // Nothing to reply to, and a control that would ask about an empty question.
@@ -1444,11 +1629,6 @@ describe('the answers last offered, across a reload', () => {
     cleanup()
     renderApp()
   }
-  const openSettings = () => {
-    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
-    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
-  }
-  const answersRow = () => $$('.setting-row').find(r => r.textContent?.includes('Suggested answers'))!
   const answeredOnce = async () => {
     vi.stubGlobal('fetch', suggests('I am, thank you\nA bit cold'))
     withKey()
@@ -1515,7 +1695,7 @@ describe('the answers last offered, across a reload', () => {
   // Answers belong to the key that paid for them, and go with it.
   it('brings nothing back without a key', () => {
     saveAnswers({ at: Date.now(), question: 'Are you comfortable', replies: ['I am, thank you'] })
-    renderApp()
+    renderApp({}, { key: '' })
     expect(answerTab()).toBeUndefined()
   })
 

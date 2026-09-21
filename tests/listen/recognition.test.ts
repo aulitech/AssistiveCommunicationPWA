@@ -115,6 +115,24 @@ describe('listening', () => {
     expect(ended).toEqual([undefined])
   })
 
+  /**
+   * **Sound coming in is not the same moment as listening.** The browser asks
+   * for permission first and opens the device after, and it lets go of the
+   * sound before the session ends — so what says the microphone is live waits
+   * for this, and nothing is said about sound once the session is over.
+   */
+  it('says when sound starts and stops coming in, and not after it has ended', () => {
+    const sound: boolean[] = []
+    listen('', { ...handlers, onSound: on => void sound.push(on) })
+    expect(sound, 'sound before any came in').toEqual([])
+
+    FakeRecognition.last!.soundStarts()
+    FakeRecognition.last!.soundEnds()
+    FakeRecognition.last!.finish()
+    FakeRecognition.last!.soundStarts()
+    expect(sound).toEqual([true, false])
+  })
+
   it('says nothing more after it has been stopped', () => {
     const stop = listen('', handlers)
     stop()

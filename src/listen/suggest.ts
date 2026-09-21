@@ -31,6 +31,18 @@ import { soleLink, stripMarkdown } from '../core/markdown'
 import { loadReplyKey, readReplyModel, type ReplyTurn } from '../core/store'
 
 const ENDPOINT = 'https://api.anthropic.com/v1/messages'
+/** Listing the models costs nothing and needs a working key, which makes it the check. */
+const MODELS_ENDPOINT = 'https://api.anthropic.com/v1/models?limit=1'
+
+/** The headers every request to Anthropic carries. */
+const headersFor = (key: string) => ({
+  'x-api-key': key,
+  'anthropic-version': '2023-06-01',
+  // Anthropic refuses a browser request without it. The key is the user's own
+  // and never leaves their device except to Anthropic, which is the same shape
+  // the ElevenLabs key already travels in.
+  'anthropic-dangerous-direct-browser-access': 'true',
+})
 
 /**
  * Twenty answers of two sentences at the outside, and a search query with them,
@@ -82,7 +94,12 @@ const SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses:
 
 export type SuggestResult =
   /** The answers as the model wrote them, best first — gaps and all. */
-  { status: 'ok'; replies: string[] } | { status: 'error'; error: string }
+  | { status: 'ok'; replies: string[] }
+  /**
+   * `refused` where Anthropic turned the key itself away, which no retry will
+   * mend: the question box stops taking questions until the key changes.
+   */
+  | { status: 'error'; error: string; refused?: true }
 
 /**
  * A line's own numbering or bullet, which the brief asks for and does not get.
@@ -146,9 +163,44 @@ function mixed(replies: string[], board: string[]): string[] {
   return kept
 }
 
-function fail(error: string): SuggestResult {
+function fail(error: string, refused?: true): SuggestResult {
   reportFailure('suggest', error)
-  return { status: 'error', error }
+  return { status: 'error', error, ...(refused ? { refused } : {}) }
+}
+
+/** A key Anthropic will not take, rather than a request it could not answer. */
+const refusesKey = (status: number) => status === 401 || status === 403
+
+export type KeyCheck = { ok: true } | { ok: false; error: string }
+
+/**
+ * Whether Anthropic will take this key, asked before it is saved — the way an
+ * ElevenLabs key is checked by linking it. Listing the models costs nothing, and
+ * a key that cannot do that cannot answer a question either.
+ *
+ * **Nothing is saved that could not be checked.** A key saved unchecked would
+ * leave the question box open to a key that has never worked, and a failure it
+ * only finds out about with somebody waiting for an answer.
+ */
+export async function checkReplyKey(apiKey: string): Promise<KeyCheck> {
+  const key = apiKey.trim()
+  if (!key) return { ok: false, error: 'Paste your Anthropic API key first.' }
+  let response: Response
+  try {
+    response = await fetch(MODELS_ENDPOINT, { headers: headersFor(key) })
+  } catch {
+    return keyFailed('Could not reach Anthropic to check the key. Check the connection and try again.')
+  }
+  if (response.ok) return { ok: true }
+  if (refusesKey(response.status))
+    return keyFailed('Anthropic did not accept that key. Check you copied all of it.')
+  if (response.status === 429) return keyFailed('Anthropic is asking for fewer requests. Try again in a moment.')
+  return keyFailed(`Anthropic answered with an error (${response.status}). Try again in a moment.`)
+}
+
+function keyFailed(error: string): KeyCheck {
+  reportFailure('suggest/key', error)
+  return { ok: false, error }
 }
 
 /** Whether a key has been set up at all. Asked before the control is offered. */
@@ -360,15 +412,7 @@ export async function suggestReply(
   try {
     const response = await fetch(ENDPOINT, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        // Anthropic refuses a browser request without it. The key is the user's
-        // own and never leaves their device except to Anthropic, which is the
-        // same shape the ElevenLabs key already travels in.
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
+      headers: { 'content-type': 'application/json', ...headersFor(key) },
       body: JSON.stringify({
         model: readReplyModel(model),
         max_tokens: MAX_TOKENS,
@@ -419,7 +463,7 @@ export async function suggestReply(
         ],
       }),
     })
-    if (!response.ok) return fail(describe(response.status))
+    if (!response.ok) return fail(describe(response.status), refusesKey(response.status) || undefined)
 
     const body = (await response.json()) as { content?: { type?: string; text?: unknown }[] }
     const replies = mixed(readReply(body.content ?? []), board)
