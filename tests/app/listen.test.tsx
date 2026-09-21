@@ -93,6 +93,11 @@ const answers = (body: unknown, status = 200) =>
   )
 
 const suggests = (text: string) => answers({ content: [{ type: 'text', text }] })
+/** One answer from the service, for a fetch that says something different each time. */
+const answered = (text: string) =>
+  new Response(JSON.stringify({ content: [{ type: 'text', text }] }), {
+    headers: { 'content-type': 'application/json' },
+  })
 const translates = (text: string) => answers({ data: { translations: [{ translatedText: text }] } })
 
 beforeEach(() => {
@@ -655,10 +660,12 @@ describe('the suggested reply', () => {
   })
 
   /**
-   * **The board comes back afterwards.** Closing the box ends the question, and
-   * what they were looking at before is where they were working — All is not.
+   * **The board comes back afterwards, and the answers stay.** Closing the box
+   * ends the question, and what they were looking at before is where they were
+   * working — All is not. The answers are the most recent there are, and are
+   * kept for somebody to go back to until newer ones replace them.
    */
-  it('takes the answers away with the question, and goes back where it was', async () => {
+  it('keeps the answers once the box is closed, and goes back where it was', async () => {
     vi.stubGlobal('fetch', suggests('I am, thank you'))
     withKey()
     click($$('.filter-tab').find(t => t.textContent === 'Sorted'))
@@ -669,14 +676,38 @@ describe('the suggested reply', () => {
 
     // Closing listen mode, which is the end of that question altogether.
     click(micBtn())
-    expect(answerTab(), 'the answers outlived the question').toBeUndefined()
+    expect($('.filter-tab.active')?.textContent).toBe('Sorted')
+    expect(answerTab(), 'the answers went with the box').toBeDefined()
+    click(answerTab())
+    expect(answerCells()).toEqual(['I am, thank you'])
+  })
+
+  // Answers being kept says nothing about anybody being asked anything, so
+  // opening the box again leaves the board where it is. It goes to the answers
+  // when a question goes off to be answered, and not before.
+  it('does not take the board to the kept answers when the box opens again', async () => {
+    vi.stubGlobal('fetch', suggests('I am, thank you'))
+    withKey()
+    click($$('.filter-tab').find(t => t.textContent === 'Sorted'))
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+    click(micBtn())
+
+    click(micBtn())
     expect($('.filter-tab.active')?.textContent).toBe('Sorted')
   })
 
-  // Clearing the question listens again, and a board still offering answers to
-  // what was asked before is a board answering a question nobody asked.
-  it('takes them away when the box is emptied to listen again', async () => {
-    vi.stubGlobal('fetch', suggests('I am, thank you'))
+  // Clearing the question listens again, and the answers there were are still
+  // the most recent until the next question is answered — then they are
+  // replaced, whole.
+  it('keeps them while the box listens again, until the next answers replace them', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(answered('I am, thank you'))
+        .mockResolvedValueOnce(answered('Yes, quite warm')),
+    )
     withKey()
 
     heardAndDone('Are you comfortable')
@@ -684,7 +715,76 @@ describe('the suggested reply', () => {
     expect(answerCells()).toEqual(['I am, thank you'])
 
     click(clearHeard())
-    expect(answerTab(), 'the answers outlived the question they answered').toBeUndefined()
+    expect(answerCells(), 'listening again threw the answers away').toEqual(['I am, thank you'])
+
+    act(() => FakeRecognition.last!.say({ transcript: 'Are you warm enough', isFinal: true }))
+    act(() => FakeRecognition.last!.finish())
+    settle()
+    await act(async () => {})
+    expect(answerCells()).toEqual(['Yes, quite warm'])
+  })
+
+  /**
+   * **None of them while newer ones are being asked for.** Those seconds are the
+   * one moment answers to the last question could be taken for answers to this
+   * one, so the board says new ones are coming instead — and a request that
+   * fails puts the last ones straight back, being still the most recent there
+   * are.
+   */
+  it('hides them while newer ones are asked for, and puts them back if none come', async () => {
+    let refuse: () => void = () => {}
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(answered('I am, thank you\nA bit cold'))
+        .mockImplementationOnce(
+          () => new Promise((_, reject) => (refuse = () => reject(new TypeError('offline')))),
+        ),
+    )
+    withKey()
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+
+    fireEvent.change(heardBox()!, { target: { value: 'Are you warm enough' } })
+    settle()
+    click(suggestBtn())
+    expect(answerCells(), 'answers to the last question stood in for the new ones').toEqual([])
+    expect(waitingLine()).not.toBeNull()
+
+    await act(async () => refuse())
+    settle()
+    expect(answerCells(), 'a failed request cost the answers there were').toEqual([
+      'I am, thank you',
+      'A bit cold',
+    ])
+    expect(waitingLine()).toBeNull()
+  })
+
+  /**
+   * **A correction abandons whatever was being asked, and says so.** The result
+   * still on its way is dropped, and the line promising it has to go with it —
+   * left standing, it promised answers that never came and hid the ones there
+   * were behind the promise.
+   */
+  it('stops saying answers are coming once the question they were for is corrected', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(answered('I am, thank you'))
+        .mockImplementationOnce(() => new Promise(() => {})),
+    )
+    withKey()
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+    click(suggestBtn())
+    expect(waitingLine()).not.toBeNull()
+
+    fireEvent.change(heardBox()!, { target: { value: 'Are you comfortable there' } })
+    settle()
+    expect(waitingLine(), 'still promising answers to a question nobody is asking').toBeNull()
+    expect(answerCells()).toEqual(['I am, thank you'])
   })
 
   /**
@@ -694,11 +794,23 @@ describe('the suggested reply', () => {
    * nobody's instruction. Nothing may be chosen until the gaze moves.
    */
   it('refuses the answer that lands under a motionless pointer', async () => {
-    vi.stubGlobal('fetch', suggests('I am, thank you\nA bit cold'))
+    let answer: () => void = () => {}
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () => new Promise<Response>(resolve => (answer = () => resolve(answered('I am, thank you\nA bit cold')))),
+      ),
+    )
     withKey()
 
     heardAndDone('Are you comfortable')
-    await act(async () => {})
+    // The gaze wanders while the answers are on their way, and comes to rest.
+    // That clears the hold the tab's own arrival took, so what is left guarding
+    // the cell that lands is the answers' own — which a pointer kept still
+    // through the wait would never have tested.
+    fireEvent.pointerMove(document.body, { clientX: 900, clientY: 500 })
+    await act(async () => answer())
+    settle()
 
     // The browser's own doing: whatever arrives underneath gets a pointerenter.
     const landed = $$('.phrase-cell')[0]
@@ -712,22 +824,18 @@ describe('the suggested reply', () => {
     expect(messageBox().value).toBe('A bit cold')
   })
 
-  /**
-   * **A question being rewritten has no answers.** They were offered to the
-   * words that were there before, and one left on screen is one somebody might
-   * take for an answer to what they are typing now.
-   */
-  it('takes them away when the question is corrected', async () => {
+  // A correction is a question on its way to being asked, not an answer to
+  // anything, so the answers there were stay until the corrected one is asked.
+  it('keeps them when the question is corrected', async () => {
     vi.stubGlobal('fetch', suggests('I am, thank you'))
     withKey()
 
     heardAndDone('Are you comfortable')
     await act(async () => {})
-    expect(answerCells()).toHaveLength(1)
 
     fireEvent.change(heardBox()!, { target: { value: 'Are you comfortable in that chair' } })
     settle()
-    expect(answerTab()).toBeUndefined()
+    expect(answerCells()).toEqual(['I am, thank you'])
   })
 
   /**
@@ -994,6 +1102,7 @@ describe('the suggested reply', () => {
   it('says so when the service will not answer, and leaves the box alone', async () => {
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
     withKey()
+    click($$('.filter-tab').find(t => t.textContent === 'Sorted'))
     hear('Do you want tea?')
 
     click(suggestBtn())
@@ -1002,6 +1111,10 @@ describe('the suggested reply', () => {
     expect($('.heard-error')?.textContent).toMatch(/could not reach/i)
     expect(messageBox().value).toBe('')
     expect(answerTab(), 'a failure left a tab with nothing behind it').toBeUndefined()
+    // Nothing came of asking and nothing was kept, which is the question done
+    // with as surely as closing the box: the board goes back where it was
+    // rather than falling through to All.
+    expect($('.filter-tab.active')?.textContent).toBe('Sorted')
   })
 
   /**
@@ -1103,6 +1216,46 @@ describe('the suggested reply', () => {
       messages: { role: string; content: string }[]
     }
     expect(second.messages.map(m => m.content)).toEqual([
+      'Someone just asked me: Tea or coffee?',
+      'Coffee please',
+      'Someone just asked me: Milk?',
+    ])
+  })
+
+  /**
+   * **An answer kept is written down against the question it answered.** A
+   * request that fails leaves the last answers on the board while the box holds
+   * the question that failed, and a choice among them recorded against that one
+   * would put words in the conversation as the answer to something they never
+   * answered.
+   */
+  it('writes a kept answer down against the question it answered', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(answered('Tea please\nCoffee please'))
+      .mockRejectedValueOnce(new TypeError('offline'))
+      .mockResolvedValueOnce(answered('Yes please'))
+    vi.stubGlobal('fetch', fetcher)
+    withKey()
+
+    hear('Tea or coffee?')
+    click(suggestBtn())
+    await act(async () => {})
+
+    fireEvent.change(heardBox()!, { target: { value: 'Milk?' } })
+    settle()
+    click(suggestBtn())
+    await act(async () => {})
+    chooseAnswer('Coffee please')
+
+    click($$('.icon-btn').find(b => /clear/i.test(b.getAttribute('aria-label') ?? '')))
+    click(suggestBtn())
+    await act(async () => {})
+
+    const third = JSON.parse(String((fetcher.mock.calls as unknown as [string, RequestInit][])[2][1].body)) as {
+      messages: { role: string; content: string }[]
+    }
+    expect(third.messages.map(m => m.content)).toEqual([
       'Someone just asked me: Tea or coffee?',
       'Coffee please',
       'Someone just asked me: Milk?',

@@ -50,6 +50,9 @@ export interface Heard {
 
 const EMPTY: Heard = { said: '', meaning: '', listening: false, asking: '', error: '' }
 
+/** No answers, as one array: a fresh `[]` each render would re-run everything that watches them. */
+const NONE: Phrase[] = []
+
 export function useListen({
   language,
   replyKey,
@@ -103,11 +106,16 @@ export function useListen({
    */
   const [cleared, setCleared] = useState<string[]>([])
   /**
-   * The answers offered to whatever is in the box, as cells for the board.
+   * The most recent answers, as cells for the board.
    *
-   * They live here rather than in the screen because they belong to the
-   * question: every way the question changes is a way they go stale, and all of
-   * those are in this file.
+   * **Kept until newer ones replace them**, and nothing else takes them away —
+   * not listening again, not a correction, not closing the box. They were
+   * cleared on every one of those, on the grounds that answers to a question no
+   * longer on screen might be taken for answers to the one that is; what that
+   * cost was the answers themselves, gone the moment the next person spoke or
+   * the box was put away, when somebody may well have wanted to go back to one.
+   * The screen shows none of them while newer ones are being asked for, which
+   * is the moment that risk is real — see `offered` below.
    */
   const [suggestions, setSuggestions] = useState<Phrase[]>([])
 
@@ -150,11 +158,9 @@ export function useListen({
       if (!asked) return
       askedRef.current++
       const mine = askedRef.current
-      askedForRef.current = asked
-      // Emptied on the way out rather than when they come back, so the board
-      // does not go on offering answers to the question that was just replaced
-      // while the new ones are still out.
-      setSuggestions([])
+      // The answers already on the board stay put until these come back — see
+      // `offered` for why they are not shown in the meantime — so a request that
+      // fails leaves the most recent answers the most recent answers.
       setHeard(h => ({ ...h, asking: 'reply', error: '' }))
 
       // Read at the moment of asking rather than held in state: a reply can be
@@ -167,6 +173,10 @@ export function useListen({
       setHeard(h => ({ ...h, asking: '', error: result.status === 'ok' ? '' : result.error }))
       if (result.status !== 'ok') return
 
+      // Named only now, alongside the answers that belong to it: a failed
+      // request leaves the last answers on the board, and a choice among those
+      // has to be written down against the question they answered.
+      askedForRef.current = asked
       setSuggestions(suggestionPhrases(result.replies, mine))
     },
     [language, replyModel, phrases],
@@ -225,10 +235,6 @@ export function useListen({
   const startListening = useCallback(() => {
     askedRef.current++
     stopListening()
-    // The answers go with the question they answered. A board still offering
-    // them while a new question is being heard is a board offering answers to
-    // something nobody asked.
-    setSuggestions([])
     setHeard({ ...EMPTY, listening: true })
 
     const mine = askedRef.current
@@ -270,9 +276,9 @@ export function useListen({
       // the next time the box is opened. Nothing on screen can tell the two
       // apart and no test here can either — what differs is whether somebody's
       // question is still held in memory after they have put it away, and it is
-      // the sort of question this app should not need asking twice.
+      // the sort of question this app should not need asking twice. The answers
+      // are not: they are the person's to go back to, and they stay.
       setHeard(EMPTY)
-      setSuggestions([])
       // **Here and not on the way back in**, which would be the same guard
       // written twice: closing is the only way out of this box, so a box being
       // opened has already had its undo stack emptied. What it exists for is an
@@ -286,14 +292,18 @@ export function useListen({
 
   /**
    * Corrections, typed or dwelled into the box. The meaning goes stale with
-   * them, and so do the answers: both were about the words that were there
-   * before, and an answer to a question somebody is in the middle of rewriting
-   * is worse than no answer — it is one they might take for the new one.
+   * them — it is a translation of the words that were there before — and the
+   * answers stay, being the most recent there are until the corrected question
+   * is asked.
+   *
+   * **Whatever was being asked is abandoned, and says so.** The bump drops a
+   * result still on its way, and `asking` goes with it: left standing, the
+   * board went on saying answers were coming that never would, and hid the
+   * answers it had behind the promise.
    */
   const correct = useCallback((said: string) => {
     askedRef.current++
-    setSuggestions([])
-    setHeard(h => ({ ...h, said, meaning: '', error: '' }))
+    setHeard(h => ({ ...h, said, meaning: '', error: '', asking: '' }))
   }, [])
 
   /**
@@ -361,8 +371,15 @@ export function useListen({
     /** Whether the box above the message is shown at all. */
     open,
     heard,
-    /** The answers on offer, as cells for the board. Empty until some come. */
-    suggestions,
+    /**
+     * The answers on offer, as cells for the board: the most recent there are,
+     * and **none while newer ones are being asked for**. Those seconds are the
+     * one moment answers to the last question could be taken for answers to
+     * this one, and the board shows the line saying new ones are coming instead
+     * — which it could not do over twenty cells. Held back rather than thrown
+     * away, so a request that fails puts them straight back.
+     */
+    suggestions: heard.asking === 'reply' ? NONE : suggestions,
     chose,
     forgetSuggestion,
     toggle,
