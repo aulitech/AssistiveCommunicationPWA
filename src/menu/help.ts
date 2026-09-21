@@ -442,7 +442,8 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         'They are only ever suggestions. Resting on one puts it in the message box — it is never spoken for you, even with auto-speak on, and you say it by resting on :speak:.',
         'You can change every word of it first, rest on another answer to swap it, or :clear: it and say something else entirely.',
-        'They go when the question does. Correcting the question or closing the box takes them away, since they were answers to what was there before.',
+        'They stay until the next question is answered. Closing the box, correcting the question or listening again leaves them under the Answers tab, in case you want to go back to one.',
+        'While new ones are on their way the old ones are out of sight, so they cannot be mistaken for answers to the new question. If asking fails, they come back.',
         'It will not write over a message you have already started, and it does not ask for answers either — so a message half written is how you tell it to stay out of the way.',
         'While it is thinking, the Answers tab says so. They usually take a second or two, longer if it has to look something up.',
         'The answers come from three places: your own phrases, answers it writes itself, and anything it had to look up. Your phrases are up to a third of them, word for word, with any gap left open — the rest are words your board has not got, which is usually what you are short of when somebody asks you something.',

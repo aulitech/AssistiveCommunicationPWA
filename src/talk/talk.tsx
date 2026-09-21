@@ -155,16 +155,19 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     messageEmpty: !editMode && message.trim() === '',
   })
 
+  /** Whether answers to a question are on their way. */
+  const askingForAnswers = listener.heard.asking === 'reply'
   /**
    * Whether the board is holding answers, or about to be.
    *
    * It covers the wait as well as the answers themselves, so the tab appears
    * the moment a question goes off to be answered: the waiting line then stands
    * where the answers will, rather than in the message box, which is not where
-   * anything is going to arrive any more.
+   * anything is going to arrive any more. And it outlasts the question, the
+   * most recent answers being kept until newer ones replace them.
    */
-  const offering = listener.heard.asking === 'reply' || listener.suggestions.length > 0
-  /** The tab to go back to once the answers are gone. */
+  const offering = askingForAnswers || listener.suggestions.length > 0
+  /** The tab to go back to once the question is done with. */
   const beforeAnswers = useRef<string | null>(null)
 
   // Derived from the live phrase list so user-added categories get a tab and
@@ -178,10 +181,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // not in the language the rest of the board is written in.
       { id: SENT_FILTER, label: SENT_CATEGORY, fixed: true },
       { id: 'all', label: 'All', fixed: true },
-      // Third, and only while there is a question being answered. Sent and All
-      // keep the places they are found in without looking; what gives way is
-      // the first category, and only for as long as somebody is being asked
-      // something.
+      // Third, from the first question answered on: the most recent answers
+      // stay until newer ones replace them, and somebody may want to go back to
+      // one after the box is closed. Sent and All keep the places they are
+      // found in without looking; what gives way is the first category.
       ...(offering ? [{ id: SUGGEST_FILTER, label: SUGGEST_CATEGORY, fixed: true }] : []),
       ...allCategories.map(c => ({ id: c, label: c })),
       { id: TRANSLATED_FILTER, label: TRANSLATED_CATEGORY, fixed: true },
@@ -194,22 +197,29 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    *
    * Somebody has just been spoken to and has a person waiting in front of them;
    * a tab they have to find first spends the seconds this exists to give back.
-   * So the board shows them as they are asked for, and when the question is
-   * done with it goes back to the tab they were on rather than to All — a
-   * category they had chosen is where they were working.
+   * So the board goes to the answers as they are asked for, and when the
+   * question is done with — the box closed, or nothing came of asking — it goes
+   * back to the tab they were on rather than to All, a category they had chosen
+   * being where they were working.
+   *
+   * **On the asking, not on there being answers.** The most recent answers are
+   * kept after the question has gone, so there being some says nothing about
+   * whether anybody is being asked anything; opening the box again must not
+   * take the board to answers nobody is waiting for.
    *
    * **Every cell on the board changes underneath a pointer that has not moved**,
    * which is the hazard `holdDwellsUntilMoved` is for: nothing may be chosen
-   * until the gaze leaves whatever it is resting on. Twice, because the answers
-   * land in a second move a second or two after the tab does.
+   * until the gaze leaves whatever it is resting on. The answers landing are a
+   * second move, a second or two after the tab's — see the effect after
+   * `showingSuggestions`.
    */
   useEffect(() => {
-    if (offering) {
+    if (askingForAnswers) {
       setActiveFilter(current => {
         if (current !== SUGGEST_FILTER) beforeAnswers.current = current
         return SUGGEST_FILTER
       })
-    } else if (beforeAnswers.current !== null) {
+    } else if (beforeAnswers.current !== null && (!listener.open || !offering)) {
       const back = beforeAnswers.current
       beforeAnswers.current = null
       setActiveFilter(current => (current === SUGGEST_FILTER ? back : current))
@@ -219,7 +229,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       return
     }
     holdDwellsUntilMoved()
-  }, [offering, listener.suggestions])
+  }, [askingForAnswers, offering, listener.open])
 
   // Emergency has no tab of its own, so it would otherwise be the one set of
   // phrases that could not be exported on its own.
@@ -239,6 +249,12 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const showingSent = effectiveFilter === SENT_FILTER
   const showingTranslated = effectiveFilter === TRANSLATED_FILTER
   const showingSuggestions = effectiveFilter === SUGGEST_FILTER
+
+  // The answers landing, or coming back after a request that failed: twenty
+  // cells where the waiting line was, under a gaze that has not moved.
+  useEffect(() => {
+    if (showingSuggestions && listener.suggestions.length) holdDwellsUntilMoved()
+  }, [showingSuggestions, listener.suggestions])
 
   /**
    * Whether this tab is a category of its own: somewhere a hand arrangement can

@@ -18,9 +18,10 @@
 //     `SENT_FILTER` does, and for the same reason: names are trimmed before
 //     they are saved, so no category anybody makes can collide with it.
 //   * **They are never written down.** Not a backup, not a snapshot, not even
-//     `localStorage` — they belong to a question that is on screen, and a board
-//     that offered yesterday's answers to today's question would be worse than
-//     one that offered none.
+//     `localStorage`. The most recent are kept for as long as the board is open,
+//     to go back to after the question has gone, but a board that offered
+//     yesterday's answers to today's question would be worse than one that
+//     offered none.
 
 import { compose, type Phrase, type Segment } from '../core/phrases'
 
