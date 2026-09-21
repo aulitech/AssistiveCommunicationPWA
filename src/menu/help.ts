@@ -442,7 +442,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         'They are only ever suggestions. Resting on one puts it in the message box — it is never spoken for you, even with auto-speak on, and you say it by resting on :speak:.',
         'You can change every word of it first, rest on another answer to swap it, or :clear: it and say something else entirely.',
-        'They stay until the next question is answered. Closing the box, correcting the question or listening again leaves them under the Answers tab, in case you want to go back to one.',
+        'They stay until the next question is answered. Closing the box, correcting the question, listening again or even closing Peri leaves them under the Answers tab, in case you want to go back to one.',
         'While new ones are on their way the old ones are out of sight, so they cannot be mistaken for answers to the new question. If asking fails, they come back.',
         'It will not write over a message you have already started, and it does not ask for answers either — so a message half written is how you tell it to stay out of the way.',
         'While it is thinking, the Answers tab says so. They usually take a second or two, longer if it has to look something up.',
@@ -466,8 +466,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Questions from the last day are kept on this device with the answer you chose, and sent with the next question, so a conversation carries on making sense — asked "tea or coffee" and then "milk?", it knows what the second one is about.',
       ),
       text(
-        'An answer you did not take is not kept. They are forgotten after a day, and the same Settings row has a button to forget them now.',
+        'The last answers offered are kept too, so they are still under the Answers tab if Peri is closed and opened again — but only the ones you took are ever sent anywhere.',
       ),
+      text('All of it is forgotten after a day, and the same Settings row has a button to forget it now.'),
       text(
         'That row also lets you choose which model writes the answers. Quickest is the default, because somebody is waiting in front of you. Two of the others read a question more closely and take a little longer, and the last one writes more like a person and less like a form.',
       ),

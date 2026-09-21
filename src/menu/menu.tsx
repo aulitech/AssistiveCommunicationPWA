@@ -145,6 +145,7 @@ export function TopPanel({
   onAccountChange,
   replyKey,
   onReplyKeyChange,
+  onForgetConversation,
 }: {
   open: boolean
   user: User
@@ -164,6 +165,8 @@ export function TopPanel({
   /** The key behind a suggested reply, which the screen holds because sync sends it. */
   replyKey: string
   onReplyKeyChange: (next: string) => void
+  /** Today's questions and the answers on the board, which the screen holds too. */
+  onForgetConversation: () => void
 }) {
   const [confirmingSignOut, setConfirmingSignOut] = useState(false)
 
@@ -253,6 +256,7 @@ export function TopPanel({
                 onAccountChange={onAccountChange}
                 replyKey={replyKey}
                 onReplyKeyChange={onReplyKeyChange}
+                onForgetConversation={onForgetConversation}
               />
             )}
             {view === 'aliases' && <AliasesPanel aliases={aliases} onChange={onAliasesChange} />}

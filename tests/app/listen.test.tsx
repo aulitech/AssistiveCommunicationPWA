@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import App from '../../src/App'
-import { saveReplyKey } from '../../src/core/store'
+import { loadReplyContext, saveAnswers, saveReplyKey } from '../../src/core/store'
 import { PROSE_ICONS } from '../../src/ui/prose-icons'
 import { spoken } from '../setup'
 import { FakeRecognition, installRecognition, removeRecognition } from '../listen/fake-recognition'
@@ -1349,5 +1349,123 @@ describe('what listen mode does not touch', () => {
     click(micBtn())
     click(micBtn())
     expect(heardBox()!.value).toBe('')
+  })
+})
+
+/**
+ * The answers last offered, across Peri being closed and opened again.
+ *
+ * A board on a mounted device is reloaded by whoever charges it rather than by
+ * the person using it, so answers that went with every reload went at somebody
+ * else's say-so. They are kept by the day's rules instead: forgotten when the
+ * day's questions are, and with them.
+ */
+describe('the answers last offered, across a reload', () => {
+  const HOUR = 60 * 60 * 1000
+  const withKey = () => {
+    saveReplyKey('sk-ant-test')
+    renderApp()
+  }
+  /** Peri closed and opened again, with whatever it wrote down still there. */
+  const reopen = () => {
+    cleanup()
+    renderApp()
+  }
+  const openSettings = () => {
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+  }
+  const answersRow = () => $$('.setting-row').find(r => r.textContent?.includes('Suggested answers'))!
+  const answeredOnce = async () => {
+    vi.stubGlobal('fetch', suggests('I am, thank you\nA bit cold'))
+    withKey()
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+    expect(answerCells()).toEqual(['I am, thank you', 'A bit cold'])
+  }
+
+  // Kept, and not gone to: nobody is being asked anything on arrival, and a
+  // board that opened on answers would be opening on somebody else's question.
+  it('keeps them across Peri being closed and opened again', async () => {
+    await answeredOnce()
+    reopen()
+
+    expect($('.filter-tab.active')?.textContent).toBe('All')
+    click(answerTab())
+    expect(answerCells()).toEqual(['I am, thank you', 'A bit cold'])
+  })
+
+  it('writes one chosen after a reload down against the question it answered', async () => {
+    await answeredOnce()
+    reopen()
+    click(answerTab())
+    chooseAnswer('A bit cold')
+
+    expect(loadReplyContext().map(t => [t.question, t.reply])).toEqual([['Are you comfortable', 'A bit cold']])
+  })
+
+  /**
+   * **Forgotten after the day on the screen, not only in storage.** A tablet on
+   * a wheelchair mount can stay open for a week, and "forgotten after a day"
+   * has to be true of what somebody can see as well as of what is written down.
+   */
+  it('forgets them after a day, even on a board nobody reloads', async () => {
+    await answeredOnce()
+
+    act(() => void vi.advanceTimersByTime(24 * HOUR - 60_000))
+    expect(answerTab(), 'gone before their day was up').toBeDefined()
+
+    act(() => void vi.advanceTimersByTime(60_000))
+    expect(answerTab(), "yesterday's answers are still on the board").toBeUndefined()
+    expect(localStorage.getItem('peri_answers')).toBeNull()
+  })
+
+  // Their day is counted from when they arrived, not from the reload: a board
+  // reopened an hour before the day is up still forgets them in that hour.
+  it('counts their day from when they arrived, not from the reload', () => {
+    saveReplyKey('sk-ant-test')
+    saveAnswers({ at: Date.now() - 23 * HOUR, question: 'Are you comfortable', replies: ['I am, thank you'] })
+    renderApp()
+    expect(answerTab()).toBeDefined()
+
+    act(() => void vi.advanceTimersByTime(HOUR))
+    expect(answerTab(), 'a reload bought them another day').toBeUndefined()
+  })
+
+  it('brings nothing back that is a day old', () => {
+    saveReplyKey('sk-ant-test')
+    saveAnswers({ at: Date.now() - 25 * HOUR, question: 'Yesterday', replies: ['Long ago'] })
+    renderApp()
+    expect(answerTab()).toBeUndefined()
+  })
+
+  // Answers belong to the key that paid for them, and go with it.
+  it('brings nothing back without a key', () => {
+    saveAnswers({ at: Date.now(), question: 'Are you comfortable', replies: ['I am, thank you'] })
+    renderApp()
+    expect(answerTab()).toBeUndefined()
+  })
+
+  /**
+   * **Forgetting the conversation forgets the answers on the board too**, now
+   * rather than at the next reload — the row used to empty storage by itself,
+   * which would have left twenty answers standing after it said they were gone.
+   */
+  it("goes with today's conversation, from the Settings row", async () => {
+    await answeredOnce()
+    openSettings()
+    click(answersRow().querySelector('[aria-label="Forget today\'s conversation"]'))
+
+    expect(answerTab(), 'the answers outlived the conversation they were part of').toBeUndefined()
+    expect(localStorage.getItem('peri_answers')).toBeNull()
+  })
+
+  it('goes with the key', async () => {
+    await answeredOnce()
+    openSettings()
+    click(answersRow().querySelector('[aria-label="Remove"]'))
+
+    expect(answerTab(), 'the answers outlived the key that paid for them').toBeUndefined()
+    expect(localStorage.getItem('peri_answers')).toBeNull()
   })
 })

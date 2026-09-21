@@ -23,7 +23,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { canListen, listen } from '../listen/recognition'
 import { boardForReply, suggestReply } from '../listen/suggest'
 import { hasTranslateKey, translateHeard } from '../translate/client'
-import { addReplyTurn, loadReplyContext, saveReplyContext } from '../core/store'
+import {
+  addReplyTurn,
+  loadAnswers,
+  loadReplyContext,
+  REPLY_CONTEXT_MS,
+  saveAnswers,
+  saveReplyContext,
+} from '../core/store'
 import { type Phrase } from '../core/phrases'
 import { suggestionPhrases } from './suggestions'
 
@@ -116,8 +123,17 @@ export function useListen({
    * the box was put away, when somebody may well have wanted to go back to one.
    * The screen shows none of them while newer ones are being asked for, which
    * is the moment that risk is real — see `offered` below.
+   *
+   * **And kept across Peri being closed and opened again**, under the day's
+   * rules — see `loadAnswers`. Read once, here, as the screen opens, and only
+   * with a key: answers belong to the key that paid for them, and go with it.
    */
-  const [suggestions, setSuggestions] = useState<Phrase[]>([])
+  const [restored] = useState(() => (replyKey ? loadAnswers() : null))
+  const [suggestions, setSuggestions] = useState<Phrase[]>(() =>
+    restored ? suggestionPhrases(restored.replies, 0) : NONE,
+  )
+  /** When the answers on the board arrived, which is what their day is counted from. */
+  const answeredAtRef = useRef(restored?.at ?? 0)
 
   /** The way to stop whatever is listening now, or null when nothing is. */
   const stopRef = useRef<(() => void) | null>(null)
@@ -135,7 +151,7 @@ export function useListen({
    * with each question would re-render a couple of thousand of them for a value
    * none of them draws.
    */
-  const askedForRef = useRef('')
+  const askedForRef = useRef(restored?.question ?? '')
 
   const stopListening = useCallback(() => {
     stopRef.current?.()
@@ -177,6 +193,7 @@ export function useListen({
       // request leaves the last answers on the board, and a choice among those
       // has to be written down against the question they answered.
       askedForRef.current = asked
+      answeredAtRef.current = Date.now()
       setSuggestions(suggestionPhrases(result.replies, mine))
     },
     [language, replyModel, phrases],
@@ -202,6 +219,40 @@ export function useListen({
   const forgetSuggestion = useCallback((id: string) => {
     setSuggestions(list => list.filter(p => p.id !== id))
   }, [])
+
+  /** All of them, with the rest of the day's conversation — see `forgetReplyContext`. */
+  const forgetAnswers = useCallback(() => setSuggestions(NONE), [])
+
+  // Written down whenever they change — arriving, one binned, all forgotten —
+  // as the words they were written in, against the question they answered.
+  useEffect(() => {
+    saveAnswers(
+      suggestions.length
+        ? { at: answeredAtRef.current, question: askedForRef.current, replies: suggestions.map(p => p.source) }
+        : null,
+    )
+  }, [suggestions])
+
+  // **Forgotten after the day, even on a board nobody reloads.** Reading them
+  // back applies the day on the way in, but a tablet on a wheelchair mount can
+  // stay open for a week, and "forgotten after a day" has to be true of the
+  // screen as well as of what is stored.
+  useEffect(() => {
+    if (!suggestions.length) return
+    const timer = setTimeout(forgetAnswers, answeredAtRef.current + REPLY_CONTEXT_MS - Date.now())
+    return () => clearTimeout(timer)
+  }, [suggestions, forgetAnswers])
+
+  // And taken away with the key they belong to, however it went — removed in
+  // Settings, or on another device and synchronized here. Storage is emptied
+  // where the key is; this is the board catching up, during the render that
+  // sees the key gone rather than in an effect after it, so there is no frame
+  // in which answers stand on a board with no key behind them.
+  const [keyedFor, setKeyedFor] = useState(replyKey)
+  if (keyedFor !== replyKey) {
+    setKeyedFor(replyKey)
+    if (!replyKey) setSuggestions(NONE)
+  }
 
   /**
    * The same asking, for a question nobody asked to have answered.
@@ -382,6 +433,7 @@ export function useListen({
     suggestions: heard.asking === 'reply' ? NONE : suggestions,
     chose,
     forgetSuggestion,
+    forgetAnswers,
     toggle,
     stop: stopListening,
     correct,

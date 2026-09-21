@@ -58,7 +58,7 @@ export const PRIVACY: ProseDocument = {
       title: 'Listening',
       blocks: [
         text(
-          'The microphone button on the message box is off until you press it. While it is on, Peri asks your browser to turn what the microphone hears into words, and shows them in a box of its own beside the message.',
+          'The microphone is off until you press :listen: on the message box. While it is on, Peri asks your browser to turn what the microphone hears into words, and shows them in a box of its own beside the message.',
         ),
         text(
           "The listening is your browser's, not ours. Most browsers do it by sending the audio to a speech service of their own — the same one behind dictation elsewhere on your device — and what they do with it is governed by their privacy policy and your device maker's, not by this one. It does not pass through us and we never receive it. Your browser asks your permission the first time, and you can take it back in your browser at any point.",
@@ -67,7 +67,13 @@ export const PRIVACY: ProseDocument = {
           'What was heard is not kept. It lives in that box until you close it, and it is never in a backup file and never sent to your other devices.',
         ),
         text(
-          'Questions you asked for answers to, and the answer you chose from them, are kept on this device for a day so that a conversation carries on making sense. An answer you did not choose is not kept. They are forgotten after that, forgotten at once if you remove the key, and there is a button in the Settings row to forget them now. They are never in a backup file and never sent to your other devices.',
+          'Questions you asked for answers to, and the answer you chose from them, are kept on this device for a day so that a conversation carries on making sense.',
+        ),
+        text(
+          'So are the answers last offered, with the question they answered, so that they are still on the board if Peri is closed and opened again. Those are only ever shown to you: of the answers, only the ones you chose are ever sent anywhere.',
+        ),
+        text(
+          'All of it is forgotten after a day, forgotten at once if you remove the key, and there is a button in the Settings row to forget it now. None of it is ever in a backup file or sent to your other devices.',
         ),
         text(
           'Reading a heard question in your own language sends it to Google to be translated, exactly as the phrases you write yourself are sent — see Speech below. It is sent only when you ask for it.',
