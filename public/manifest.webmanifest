@@ -1,7 +1,7 @@
 {
-  "name": "Peri — Assistive Communication",
+  "name": "Peri",
   "short_name": "Peri",
-  "description": "Assistive communication driven entirely by gaze and dwell. Hover and hold to build a message and speak it aloud.",
+  "description": "Assistive communication driven entirely by pointing and dwell. Hover and hold to build a message and speak it aloud.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -82,7 +82,7 @@ export function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
           <p className="signin-tagline">
             Assistive communication,
             <br />
-            driven entirely by gaze and dwell.
+            driven entirely by pointing and dwell.
           </p>
         </div>
 
