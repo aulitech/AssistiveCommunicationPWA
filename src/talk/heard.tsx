@@ -33,7 +33,7 @@ import { useDwellControl } from '../ui/dwell'
 import { cx, dwellVar } from '../ui/style'
 import { BoxScroll } from '../ui/controls'
 import type { ScrollEdges } from '../ui/scroll-edges'
-import { ClearIcon, SuggestIcon, TranslateIcon, UndoIcon } from '../ui/icons'
+import { ClearIcon, MicIcon, SuggestIcon, TranslateIcon, UndoIcon } from '../ui/icons'
 import type { Listener } from './use-listen'
 
 function HeardButton({
@@ -190,6 +190,25 @@ export function HeardBox({
           >
             <SuggestIcon />
           </HeardButton>
+        )}
+
+        {/* **The microphone is live**, lit in the corner the tools leave free,
+            and drawn at no other time — so there is nothing to read it as but
+            *this is being heard now*. The box's own border turns solid as well,
+            but a border is easy to miss from across a room, and it is the
+            person being listened to who most needs to know.
+
+            Not a control: there is nothing to do to it that the controls beside
+            it do not already do, and a target that did nothing would be a dwell
+            spent for nothing. It pulses — brightness and glow, the way the
+            resting lozenge does, and still under reduced motion. In this row
+            rather than positioned over the corner, so a
+            box too narrow for all four pushes it along rather than laying it
+            over a control. */}
+        {heard.listening && (
+          <span className="heard-live" role="img" aria-label="The microphone is on">
+            <MicIcon />
+          </span>
         )}
       </div>
 

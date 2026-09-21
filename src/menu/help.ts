@@ -405,6 +405,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'Rest on :listen: to start, and again to stop and close the box.',
+        'While the microphone is on, a pulsing :mic: shows at the lower right of the box. It goes the moment the microphone is off.',
         'Starting it switches :auto-speak: on, so the phrase you choose next is spoken straight away — you have just been asked something, and the answer should not need another button first. Stopping leaves the board however you have set it.',
         'The box fills as the words arrive, so you can see it is working.',
         'It is the same kind of box as the message one, in the same size of writing, and it grows to match it. Rest on it to put the caret in, and rest longer to select a word or the lot — recognisers mis-hear names.',

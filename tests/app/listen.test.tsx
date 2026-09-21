@@ -152,6 +152,79 @@ describe('the control', () => {
     expect(heardBox()!.placeholder).toBe('Nothing heard yet')
   })
 
+  /**
+   * **A lit microphone while the microphone is live, and at no other time** —
+   * so there is nothing to read it as but *this is being heard now*. At the
+   * right end of the box's lower border, after the tools: the box being open is
+   * not the microphone being on, and the recogniser stops by itself when
+   * somebody stops talking.
+   */
+  it('lights a microphone in the box’s lower right corner while it listens', () => {
+    const live = () => $('.heard-live')
+    renderApp()
+    click(micBtn())
+    expect(live(), 'no light while listening').not.toBeNull()
+    expect($('.heard-tools > :last-child')).toBe(live())
+    expect(live()!.getAttribute('aria-label')).toBe('The microphone is on')
+
+    act(() => FakeRecognition.last!.say({ transcript: 'Tea?', isFinal: true }))
+    settle()
+    expect(live(), 'the light went out while it was still listening').not.toBeNull()
+
+    act(() => FakeRecognition.last!.finish())
+    settle()
+    expect(heardBox(), 'the box closed with the microphone').not.toBeNull()
+    expect(live(), 'still lit with the microphone off').toBeNull()
+
+    // Clearing listens again, and the light comes back with it.
+    click(clearHeard())
+    expect(live()).not.toBeNull()
+    click(micBtn())
+    expect(live()).toBeNull()
+  })
+
+  // Not a control: nothing to do to it that the tools beside it do not already
+  // do, and a target that did nothing would be a dwell spent for nothing.
+  it('is a light and not a control', () => {
+    renderApp()
+    click(micBtn())
+    const live = $('.heard-live')!
+    expect(live.tagName).toBe('SPAN')
+    expect(live.hasAttribute('tabindex')).toBe(false)
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = css.slice(css.indexOf('.heard-live {'))
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/pointer-events: *none/)
+  })
+
+  /**
+   * **It pulses while it listens**, which is what says *live* from across a
+   * room — brightness and glow and nothing that moves, since the pointer is
+   * somebody's gaze. And it stops for somebody whose device asks for less
+   * motion, staying lit.
+   */
+  it('pulses while it listens, and holds still for reduced motion', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = css.slice(css.indexOf('.heard-live {'))
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/animation: *micPulse [\d.]+s [\w-]+ infinite/)
+    const pulse = css.slice(css.indexOf('@keyframes micPulse'))
+    expect(pulse.slice(0, pulse.indexOf('}\n}')), 'the pulse moves the light').not.toMatch(
+      /transform|translate|scale/,
+    )
+
+    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+    expect(reduced.slice(0, reduced.indexOf('\n}\n'))).toMatch(/\.heard-live *\{ *animation: *none/)
+  })
+
+  // The guide and the privacy policy both say `:mic:`, and a light the guide
+  // draws differently is a light somebody cannot match to it.
+  it('draws the glyph the guide and the policy show for it', () => {
+    renderApp()
+    click(micBtn())
+    const drawn = $('.heard-live svg')!.outerHTML
+    const Guide = PROSE_ICONS.mic!
+    expect(render(<Guide />).container.querySelector('svg')!.outerHTML).toBe(drawn)
+  })
+
   // A button that does nothing is worse than no button, and on a board aimed at
   // by gaze it is a target spent for nothing.
   it('is not drawn at all where the browser cannot listen', () => {
