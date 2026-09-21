@@ -22,6 +22,7 @@ const USER_KEY = 'dwellspeak_user'
 const ELEVENLABS_KEY = 'peri_elevenlabs'
 const REPLY_KEY = 'peri_reply'
 const REPLY_CONTEXT_KEY = 'peri_reply_context'
+const ANSWERS_KEY = 'peri_answers'
 const TRANSLATIONS_KEY = 'peri_translations'
 const SENT_KEY = 'peri_sent'
 const TRANSLATED_KEY = 'peri_translated'
@@ -1094,9 +1095,58 @@ export function addReplyTurn(turns: ReplyTurn[], question: string, reply: string
   )
 }
 
-/** Forget the conversation. Its own control, beside the key it belongs to. */
+/**
+ * Forget the conversation. Its own control, beside the key it belongs to.
+ *
+ * **The answers last offered go with it.** They are part of the same day's
+ * exchange — twenty lines written in answer to something somebody was asked —
+ * and a control that forgot the questions and left the answers to them on the
+ * board would have forgotten half of what it says it did.
+ */
 export function forgetReplyContext() {
   localStorage.removeItem(REPLY_CONTEXT_KEY)
+  localStorage.removeItem(ANSWERS_KEY)
+}
+
+// ── The answers last offered ─────────────────────────────────────────────────
+// The most recent answers stay on the board until newer ones replace them, and
+// that includes Peri being closed and opened again: a board on a mounted device
+// is reloaded by whoever charges it, not by the person using it, and answers
+// that went with every reload were answers gone at somebody else's say-so.
+//
+// **The day's rules, because they are the day's conversation.** Forgotten after
+// the same day the questions are, forgotten with them, never in a backup and
+// never in a snapshot, and cleared by a factory reset. Kept as the words the
+// answers were written in rather than as phrases, so how a gap is drawn can
+// change between releases without a stored answer being drawn the old way.
+
+/** The answers last offered, and the question they answered. */
+export interface KeptAnswers {
+  /** When they arrived, which is what a day is counted from. */
+  at: number
+  question: string
+  replies: string[]
+}
+
+/** The answers last offered, or null when there are none or they are a day old. */
+export function loadAnswers(now = Date.now()): KeptAnswers | null {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(ANSWERS_KEY) ?? 'null')
+    if (typeof raw !== 'object' || raw === null) return null
+    const { at, question, replies } = raw as Partial<KeptAnswers>
+    if (typeof at !== 'number' || !Number.isFinite(at) || now - at >= REPLY_CONTEXT_MS) return null
+    if (typeof question !== 'string' || !Array.isArray(replies)) return null
+    const kept = replies.filter((r): r is string => typeof r === 'string' && r.trim() !== '')
+    return kept.length ? { at, question, replies: kept } : null
+  } catch {
+    return null
+  }
+}
+
+/** Keep these, or — given none — take the key away entirely. */
+export function saveAnswers(answers: KeptAnswers | null) {
+  if (!answers || answers.replies.length === 0) localStorage.removeItem(ANSWERS_KEY)
+  else localStorage.setItem(ANSWERS_KEY, JSON.stringify(answers))
 }
 
 // ── Who is signed in ─────────────────────────────────────────────────────────
@@ -1242,6 +1292,7 @@ const RESETTABLE_KEYS = [
   ELEVENLABS_KEY,
   REPLY_KEY,
   REPLY_CONTEXT_KEY,
+  ANSWERS_KEY,
   TRANSLATIONS_KEY,
   SENT_KEY,
   TRANSLATED_KEY,

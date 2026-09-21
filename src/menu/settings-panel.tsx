@@ -17,7 +17,6 @@ import {
   DEFAULT_SETTINGS,
   REPLY_MODELS,
   chooseLanguage,
-  forgetReplyContext,
   chooseVoice,
   factoryReset,
   replyModelName,
@@ -169,6 +168,7 @@ export function SettingsPanel({
   onAccountChange,
   replyKey,
   onReplyKeyChange,
+  onForgetConversation,
 }: {
   /** Only so the reset confirmation can offer a backup before it wipes them. */
   store: PhraseStore
@@ -185,6 +185,12 @@ export function SettingsPanel({
   /** The key behind a suggested reply, held by the screen because sync sends it. */
   replyKey: string
   onReplyKeyChange: (next: string) => void
+  /**
+   * Forget today's questions, the answers chosen, and the answers on the board.
+   * The screen's to do rather than this row's, since the answers on the board
+   * are held there and a row that emptied storage alone would leave them up.
+   */
+  onForgetConversation: () => void
 }) {
   const { settings, update } = useSettings()
   const [confirmingReset, setConfirmingReset] = useState(false)
@@ -293,7 +299,7 @@ export function SettingsPanel({
         <VoiceRow />
         <SyncRow sync={sync} />
         <ElevenLabsRow account={account} onChange={onAccountChange} />
-        <SuggestedRepliesRow value={replyKey} onChange={onReplyKeyChange} />
+        <SuggestedRepliesRow value={replyKey} onChange={onReplyKeyChange} onForget={onForgetConversation} />
 
         {/* Last, and away from the values it undoes. Every revert above puts one
             setting back; this puts the whole device back, and the two should not
@@ -719,7 +725,15 @@ function ElevenLabsRow({
  * the same one and this panel spans the viewport in rooms with other people in
  * them.
  */
-function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+function SuggestedRepliesRow({
+  value,
+  onChange,
+  onForget,
+}: {
+  value: string
+  onChange: (next: string) => void
+  onForget: () => void
+}) {
   const { settings, update } = useSettings()
   const [typed, setTyped] = useState('')
   const [forgotten, setForgotten] = useState(false)
@@ -764,7 +778,7 @@ function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (ne
               kind="plain"
               label={forgotten ? 'Conversation forgotten' : "Forget today's conversation"}
               onActivate={() => {
-                forgetReplyContext()
+                onForget()
                 setForgotten(true)
               }}
               disabled={forgotten}
@@ -785,7 +799,7 @@ function SuggestedRepliesRow({ value, onChange }: { value: string; onChange: (ne
         )}
         <p className="eleven-note">
           {value
-            ? "Listen mode can offer up to twenty answers to a question it heard, on the board under a tab called Answers. The question is sent to Anthropic on your own account and your own credits, with the phrases on your board so the answers can be your own words, and where an answer needs looking up it is searched for on the web as well. Today's questions and the answers you chose are kept on this device so a conversation carries on making sense, and forgotten after a day. Resting on an answer puts it in the message box — Peri never speaks one for you."
+            ? "Listen mode can offer up to twenty answers to a question it heard, on the board under a tab called Answers. The question is sent to Anthropic on your own account and your own credits, with the phrases on your board so the answers can be your own words, and where an answer needs looking up it is searched for on the web as well. Today's questions and the answers you chose are kept on this device so a conversation carries on making sense, and so are the last answers offered, so they are still there if Peri is reopened; only the ones you chose are ever sent. All of it is forgotten after a day. Resting on an answer puts it in the message box — Peri never speaks one for you."
             : 'Optional. Lets listen mode offer answers to a question it heard, on the board to choose between, using your own Anthropic account. The question goes with the phrases on your board, so the answers can be your own words, and questions that need looking up are searched for on the web. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices.'}
         </p>
       </div>

@@ -19,6 +19,8 @@ import {
   readReplyModel,
   replyModelName,
   saveReplyContext,
+  saveAnswers,
+  loadAnswers,
   saveReplyKey,
   saveSent,
   saveSettings,
@@ -415,5 +417,81 @@ describe('what was asked and answered today', () => {
     saveReplyContext([{ at: NOW, question: 'Tea?', reply: 'Please' }])
     factoryReset()
     expect(loadReplyContext(NOW)).toEqual([])
+  })
+})
+
+/**
+ * The answers last offered, which stay on the board across a reload — by the
+ * day's rules, because they are the day's conversation.
+ */
+describe('the answers last offered', () => {
+  const HOUR = 60 * 60 * 1000
+  const NOW = 1_800_000_000_000
+  const kept = { at: NOW, question: 'Are you comfortable', replies: ['I am, thank you', 'Could you move my ___?'] }
+
+  it('round-trips what is still current, gaps and all', () => {
+    saveAnswers(kept)
+    expect(loadAnswers(NOW + HOUR)).toEqual(kept)
+  })
+
+  // The same day the questions are kept for, to the millisecond: a record that
+  // outlived the questions would be answers to something nothing remembers.
+  it('is gone once its day is up, and not a moment before', () => {
+    saveAnswers(kept)
+    expect(loadAnswers(NOW + 24 * HOUR - 1)).toEqual(kept)
+    expect(loadAnswers(NOW + 24 * HOUR)).toBeNull()
+  })
+
+  it('reads nothing out of damage', () => {
+    for (const raw of [
+      'not json',
+      'null',
+      '7',
+      '[]',
+      '{}',
+      JSON.stringify({ ...kept, at: 'soon' }),
+      JSON.stringify({ ...kept, at: null }),
+      JSON.stringify({ ...kept, question: 7 }),
+      JSON.stringify({ ...kept, replies: 'I am' }),
+    ]) {
+      localStorage.setItem('peri_answers', raw)
+      expect(loadAnswers(NOW), raw).toBeNull()
+    }
+  })
+
+  // One malformed line costs its own line and not the rest, the rule reading
+  // the answers off the service follows too.
+  it('drops the answers it cannot use and keeps the rest', () => {
+    localStorage.setItem(
+      'peri_answers',
+      JSON.stringify({ ...kept, replies: ['Tea please', 7, '', '   ', null, 'Coffee'] }),
+    )
+    expect(loadAnswers(NOW)?.replies).toEqual(['Tea please', 'Coffee'])
+
+    localStorage.setItem('peri_answers', JSON.stringify({ ...kept, replies: ['', 7] }))
+    expect(loadAnswers(NOW), 'a record of nothing was read as a record').toBeNull()
+  })
+
+  it('takes the key away entirely when there is nothing to keep', () => {
+    saveAnswers(kept)
+    saveAnswers(null)
+    expect(localStorage.getItem('peri_answers')).toBeNull()
+
+    saveAnswers(kept)
+    saveAnswers({ ...kept, replies: [] })
+    expect(localStorage.getItem('peri_answers')).toBeNull()
+  })
+
+  // Forgetting the conversation forgets the answers to it: a control that took
+  // the questions and left twenty answers to them would have done half of what
+  // it says.
+  it('is forgotten with the conversation, and by a factory reset', () => {
+    saveAnswers(kept)
+    forgetReplyContext()
+    expect(loadAnswers(NOW)).toBeNull()
+
+    saveAnswers(kept)
+    factoryReset()
+    expect(loadAnswers(NOW)).toBeNull()
   })
 })

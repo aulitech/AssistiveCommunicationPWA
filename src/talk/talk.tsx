@@ -292,7 +292,19 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // And these two, which reach them from the answers side. Both are stable
   // across a question changing, which is why they are callbacks on the hook
   // rather than anything read off `heard`.
-  const { chose: listenerChose, forgetSuggestion } = listener
+  const { chose: listenerChose, forgetSuggestion, forgetAnswers } = listener
+
+  /**
+   * Today's questions, the answers chosen, and the answers still on the board —
+   * the control in the Settings row for somebody who wants the conversation
+   * gone now rather than in the morning. Storage and the board both, because
+   * the answers on the board are held here and would otherwise stay up until
+   * the next reload.
+   */
+  const forgetConversation = useCallback(() => {
+    forgetReplyContext()
+    forgetAnswers()
+  }, [forgetAnswers])
 
   // Arranged before it is searched, never after. Filtering to a category keeps
   // the order it is given and so does the ranking, so this decides ties within a
@@ -982,6 +994,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             onAccountChange={setAccount}
             replyKey={replyKey}
             onReplyKeyChange={setReplyKey}
+            onForgetConversation={forgetConversation}
           />
 
           {/* Portalled and fixed, so it is above a panel as well as above the

@@ -17,11 +17,12 @@
 //   * **They are not a category.** `SUGGEST_FILTER` begins with a space, as
 //     `SENT_FILTER` does, and for the same reason: names are trimmed before
 //     they are saved, so no category anybody makes can collide with it.
-//   * **They are never written down.** Not a backup, not a snapshot, not even
-//     `localStorage`. The most recent are kept for as long as the board is open,
-//     to go back to after the question has gone, but a board that offered
-//     yesterday's answers to today's question would be worse than one that
-//     offered none.
+//   * **They are kept by the day's rules.** The most recent set is written down
+//     on this device — as the words, not as these phrases — so it is still there
+//     to go back to after the question has gone or Peri has been reopened; but
+//     never in a backup or a snapshot, and forgotten after a day, since a board
+//     that offered yesterday's answers to today's question would be worse than
+//     one that offered none. See `loadAnswers`.
 
 import { compose, type Phrase, type Segment } from '../core/phrases'
 

@@ -19,6 +19,7 @@ import { EMPTY_ALIASES, type AliasStore } from '../../src/core/phrases'
 import {
   saveElevenLabs,
   saveReplyContext,
+  saveAnswers,
   saveReplyKey,
   saveSent,
   saveTranslated,
@@ -663,6 +664,16 @@ describe('what a backup must never carry', () => {
 
     expect(file).not.toContain('chest pain')
     expect(file).not.toContain('this morning')
+  })
+
+  // Nor the answers last offered to it, which are the same conversation.
+  it('leaves the answers last offered out of the file', () => {
+    saveAnswers({ at: Date.now(), question: 'Did the chest pain come back?', replies: ['Only once, last night'] })
+    const { state, categoryById } = fixture()
+    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+
+    expect(file).not.toContain('chest pain')
+    expect(file).not.toContain('last night')
   })
 
   // The chosen voice does travel, and on a device with no account of its own it
