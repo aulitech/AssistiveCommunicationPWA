@@ -1340,10 +1340,11 @@ body {
   transform: translateY(0);
 }
 
-/* Settings and the guide fill the screen; the menu and the shorter panels hang
-   down only as far as they need to. Both of those two are long enough to be
-   scrolled whatever height they get, and a taller pane is fewer dwells on the
-   scroll arrows — which is the whole cost of reading anything here.
+/* Settings, the guide and Backup & sharing fill the screen; the menu and
+   Aliases hang down only as far as they need to. All three of those are long
+   enough to be scrolled whatever height they get, and a taller pane is fewer
+   dwells on the scroll arrows — which is the whole cost of reading anything
+   here.
 
    `dvh` rather than `vh`: on a phone `vh` is the viewport with the browser's
    chrome *hidden*, so a panel sized in it runs under the address bar and the
@@ -3667,14 +3668,15 @@ body {
 }
 
 /* ── Backup & sharing ── */
-/* Same shape as the help guide: a bounded, dwell-scrollable pane, because the
-   category list grows with the user's own categories and would otherwise push
-   the Back button off the bottom of the panel. */
+/* Same shape as the help guide: the whole viewport — see `.top-panel.is-tall` —
+   in a dwell-scrollable pane. It was held to half the screen, which with the
+   spreadsheet under the backup put most of the screen's controls a dozen dwells
+   on an arrow away, below a panel that stopped halfway down an empty screen. */
 .backup-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  max-height: 52vh;
+  flex: 1;
 }
 
 .backup-scroller,

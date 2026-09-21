@@ -25,9 +25,12 @@ import { type AliasStore, type Phrase } from '../core/phrases'
 import { type PhraseStore } from '../core/store'
 import { type AppState } from '../core/backup'
 import {
+  applyLists,
   applySheet,
   boardRows,
   describePlan,
+  describeRemovals,
+  listRows,
   parseDelimited,
   planChanges,
   readRows,
@@ -36,6 +39,8 @@ import {
   textOf,
   toCsv,
   toTsv,
+  type ListPlan,
+  type SheetLists,
   type SheetMode,
   type SheetPlan,
   type SheetRow,
@@ -57,11 +62,21 @@ const ACCEPT = [
 
 interface Incoming {
   rows: SheetRow[]
+  lists: SheetLists
   /** Where it came from, for the line that says what it holds. */
   from: string
-  merge: SheetPlan
+  merge: { phrases: SheetPlan; lists: ListPlan }
   /** Null where the sheet carries no IDs, and so can only add. */
-  replace: SheetPlan | null
+  replace: { phrases: SheetPlan; lists: ListPlan } | null
+}
+
+/** `2,455 phrases and 18 word lists`, leaving out whichever there are none of. */
+function holds({ rows, lists }: Incoming): string {
+  const parts = [
+    rows.length > 0 && `${rows.length.toLocaleString()} ${rows.length === 1 ? 'phrase' : 'phrases'}`,
+    lists.size > 0 && `${lists.size.toLocaleString()} word ${lists.size === 1 ? 'list' : 'lists'}`,
+  ].filter(Boolean)
+  return parts.join(' and ')
 }
 
 export function SheetSection({
@@ -93,10 +108,14 @@ export function SheetSection({
     setError(message)
   }, [])
 
-  /** The board as the table every one of the three ways out writes. */
+  /**
+   * The board as the table every one of the three ways out writes: the phrases,
+   * and then the word lists, so a phrase's `{contacts}` and the contacts it
+   * offers go and come back together.
+   */
   const table = useCallback(
-    () => rowsToTable(boardRows(phrases, categories, store.phraseOrder)),
-    [phrases, categories, store.phraseOrder],
+    () => rowsToTable([...boardRows(phrases, categories, store.phraseOrder), ...listRows(aliases)]),
+    [phrases, categories, store.phraseOrder, aliases],
   )
 
   const saveExcel = useCallback(() => {
@@ -130,16 +149,21 @@ export function SheetSection({
         return
       }
       const board = { store, phrases, categories }
+      const plan = (mode: SheetMode) => ({
+        phrases: applySheet(read.rows, board, mode).plan,
+        lists: applyLists(read.lists, aliases, mode).plan,
+      })
       setError(null)
       setStatus(null)
       setIncoming({
         rows: read.rows,
+        lists: read.lists,
         from,
-        merge: applySheet(read.rows, board, 'merge').plan,
-        replace: read.hasIds ? applySheet(read.rows, board, 'replace').plan : null,
+        merge: plan('merge'),
+        replace: read.hasIds ? plan('replace') : null,
       })
     },
-    [store, phrases, categories, complain],
+    [store, aliases, phrases, categories, complain],
   )
 
   /**
@@ -199,13 +223,18 @@ export function SheetSection({
     (mode: SheetMode) => {
       if (!incoming) return
       const { store: next, plan } = applySheet(incoming.rows, { store, phrases, categories }, mode)
+      const lists = applyLists(incoming.lists, aliases, mode)
       setIncoming(null)
-      onRestore({ store: next, aliases, settings }, `Spreadsheet brought in — ${describePlan(plan, mode)}`)
+      onRestore(
+        { store: next, aliases: lists.aliases, settings },
+        `Spreadsheet brought in — ${describePlan(plan, mode, lists.plan)}`,
+      )
     },
     [incoming, store, phrases, categories, aliases, settings, onRestore],
   )
 
-  const unchanged = incoming?.merge.unchanged ?? 0
+  const unchanged = incoming ? incoming.merge.phrases.unchanged + incoming.merge.lists.unchanged : 0
+  const removals = incoming?.replace ? describeRemovals(incoming.replace.phrases, incoming.replace.lists) : null
 
   return (
     <>
@@ -213,7 +242,8 @@ export function SheetSection({
       <p className="backup-note">
         Every phrase on the board, one to a row, to read or change in Excel, Google Sheets or anything else that
         opens a spreadsheet — then bring the sheet back. Leave the ID column as it is: it is how Peri knows which
-        phrase each row is.
+        phrase each row is. Your word lists from Aliases come after the phrases, one word to a row, each under its
+        name in curly brackets.
       </p>
       <div className="backup-actions">
         <PanelButton kind="primary" label="Save for Excel" onActivate={saveExcel} />
@@ -225,8 +255,8 @@ export function SheetSection({
       {incoming ? (
         <div className="backup-incoming sheet-incoming" role="group" aria-label="Bring this spreadsheet in">
           <p className="backup-summary">
-            {incoming.rows.length.toLocaleString()} {incoming.rows.length === 1 ? 'phrase' : 'phrases'} from{' '}
-            {incoming.from}: {describePlan(incoming.merge, 'merge')}
+            {holds(incoming)} from {incoming.from}:{' '}
+            {describePlan(incoming.merge.phrases, 'merge', incoming.merge.lists)}
             {unchanged > 0 && `, and ${unchanged.toLocaleString()} already on the board as they are`}.
           </p>
           <div className="backup-actions">
@@ -234,18 +264,24 @@ export function SheetSection({
               kind="primary"
               label="Add and update"
               onActivate={() => bringIn('merge')}
-              disabled={!planChanges(incoming.merge, 'merge')}
+              disabled={!planChanges(incoming.merge.phrases, 'merge', incoming.merge.lists)}
             />
-            {incoming.replace && incoming.replace.removed > 0 && (
-              <PanelButton kind="danger" label="Replace all phrases" onActivate={() => bringIn('replace')} />
+            {removals && (
+              <PanelButton
+                kind="danger"
+                // Named for what it replaces: a sheet with no lists in it leaves
+                // them as they are, and a button saying otherwise would be wrong.
+                label={incoming.lists.size > 0 ? 'Replace phrases and lists' : 'Replace all phrases'}
+                onActivate={() => bringIn('replace')}
+              />
             )}
             <PanelButton kind="plain" label="Cancel" onActivate={() => setIncoming(null)} />
           </div>
           <p className="backup-note">
-            Adding and updating never takes a phrase away.{' '}
+            Adding and updating never takes anything away.{' '}
             {incoming.replace
-              ? incoming.replace.removed > 0
-                ? `Replacing makes the board match the sheet, which also removes the ${incoming.replace.removed.toLocaleString()} ${incoming.replace.removed === 1 ? 'phrase' : 'phrases'} on it that the sheet does not have.`
+              ? removals
+                ? `Replacing makes the board match the sheet, which also removes the ${removals} on it that the sheet does not have.`
                 : 'Everything on the board is in the sheet, so there is nothing for replacing to remove.'
               : 'This sheet has no ID column, so it can only add.'}
           </p>

@@ -1,11 +1,23 @@
 import { describe, it, expect } from 'vitest'
-import { EMERGENCY_PHRASES, PHRASES, plainPhrase, type Phrase } from '../../src/core/phrases'
+import {
+  aliasWords,
+  EMERGENCY_PHRASES,
+  PHRASES,
+  plainPhrase,
+  type Aliases,
+  type AliasStore,
+  type Phrase,
+} from '../../src/core/phrases'
 import { displayCategory, emptyStore, type PhraseStore } from '../../src/core/store'
 import { IMPORTED_CATEGORY } from '../../src/core/backup'
 import {
+  applyLists,
   applySheet,
   boardRows,
   describePlan,
+  describeRemovals,
+  listNameOf,
+  listRows,
   parseDelimited,
   planChanges,
   readRows,
@@ -538,5 +550,220 @@ describe('what an import will do, in a line', () => {
     const nothing = { added: 0, changed: 0, restored: 0, unchanged: 10, removed: 3 }
     expect(planChanges(nothing, 'merge')).toBe(false)
     expect(planChanges(nothing, 'replace')).toBe(true)
+  })
+})
+
+// ── The word lists ────────────────────────────────────────────────────────────
+//
+// Against a small set of shipped lists rather than the table's eighteen, so a
+// test can say exactly what every list holds.
+
+const SHIPPED: Aliases = { bodyparts: ['head', 'arm'], contacts: [], pronouns: ['he', 'she'] }
+const lists = (store: Partial<AliasStore> = {}): AliasStore => ({ lists: {}, hidden: [], ...store })
+const sheetOf = (entries: Record<string, string[]>) => new Map(Object.entries(entries))
+const words = (aliases: AliasStore, name: string) => aliasWords(aliases, name, SHIPPED)
+
+describe('the word lists as rows', () => {
+  /**
+   * **In the order the Aliases panel lists them**, each list's words as they
+   * are kept — and a list with no words as a row with none, or the lists Peri
+   * ships empty would be missing from the sheet, and replacing the board with
+   * it would take them away.
+   */
+  it('writes every list as the panel shows it, an empty one as a row with no word', () => {
+    const aliases = lists({ lists: { bodyparts: ['arm', 'head', 'leg'], 'my-list': ['x'] }, hidden: ['pronouns'] })
+    expect(listRows(aliases, SHIPPED)).toEqual([
+      { category: '{bodyparts}', phrase: 'arm', id: '' },
+      { category: '{bodyparts}', phrase: 'head', id: '' },
+      { category: '{bodyparts}', phrase: 'leg', id: '' },
+      { category: '{contacts}', phrase: '', id: '' },
+      { category: '{my-list}', phrase: 'x', id: '' },
+    ])
+  })
+
+  it('reads back exactly the lists it wrote', () => {
+    const aliases = lists({ lists: { contacts: ['Mum', 'Dr Patel'] } })
+    const table = parseDelimited(toCsv(rowsToTable(listRows(aliases, SHIPPED))))
+    const read = readRows(table)
+    expect(read.ok && read.lists).toEqual(
+      sheetOf({ bodyparts: ['head', 'arm'], contacts: ['Mum', 'Dr Patel'], pronouns: ['he', 'she'] }),
+    )
+    expect(read.ok && read.rows).toEqual([])
+  })
+
+  it('knows a list by its name in curly brackets, and nothing else', () => {
+    expect(listNameOf('{contacts}')).toBe('contacts')
+    expect(listNameOf('  { Name.Given }  ')).toBe('name.given')
+    expect(listNameOf('Contacts')).toBeNull()
+    expect(listNameOf('{}')).toBeNull()
+    // A choice written into the phrase itself, not the name of a list.
+    expect(listNameOf("{['tea', 'coffee']}")).toBeNull()
+    expect(listNameOf('{a{b}')).toBeNull()
+  })
+})
+
+describe('reading word lists', () => {
+  it('reads a row filed under a name in brackets as a word on that list', () => {
+    const read = readRows([
+      ['Category', 'Phrase', 'ID'],
+      ['Drinks', 'Tea', '#a1'],
+      ['{Contacts}', 'Mum', ''],
+      ['{contacts}', '  Dr \n Patel ', ''],
+      ['{contacts}', 'mum', ''],
+      ['{name}', '', ''],
+    ])
+    expect(read.ok && read.rows).toEqual([{ category: 'Drinks', phrase: 'Tea', id: 'a1' }])
+    expect(read.ok && read.lists).toEqual(sheetOf({ contacts: ['Mum', 'Dr Patel'], name: [] }))
+  })
+
+  // Every phrase row Peri writes carries an ID, so a category somebody named
+  // in brackets comes back as a category.
+  it('reads a row with an ID as a phrase, whatever its category says', () => {
+    const read = readRows([
+      ['Category', 'Phrase', 'ID'],
+      ['{odd}', 'Hello', '#x1'],
+    ])
+    expect(read.ok && read.rows).toEqual([{ category: '{odd}', phrase: 'Hello', id: 'x1' }])
+    expect(read.ok && read.lists.size).toBe(0)
+  })
+
+  it('takes a sheet of nothing but word lists', () => {
+    const read = readRows([
+      ['Category', 'Phrase', 'ID'],
+      ['{contacts}', 'Mum', ''],
+    ])
+    expect(read.ok).toBe(true)
+    expect(read.ok && read.rows).toEqual([])
+    expect(read.ok && read.hasIds).toBe(false)
+  })
+})
+
+describe('putting word lists onto the board', () => {
+  it('adds words to a list and never takes one away', () => {
+    const { aliases, plan } = applyLists(
+      sheetOf({ contacts: ['Mum'], bodyparts: ['arm', 'leg'] }),
+      lists(),
+      'merge',
+      SHIPPED,
+    )
+    expect(words(aliases, 'contacts')).toEqual(['Mum'])
+    expect(words(aliases, 'bodyparts')).toEqual(['head', 'arm', 'leg'])
+    expect(plan).toEqual({ added: 0, changed: 2, unchanged: 0, removed: 0, wordsRemoved: 0 })
+  })
+
+  /**
+   * **A list the sheet leaves as it is stays the table's**: nothing is written
+   * for it, so it follows the table into the next release rather than being
+   * pinned to this one by a copy of its words. Rows in another order are not
+   * a change: the order of a sheet's rows is not read.
+   */
+  it('writes nothing for a list the sheet does not change', () => {
+    const { aliases, plan } = applyLists(sheetOf({ pronouns: ['she', 'he'] }), lists(), 'merge', SHIPPED)
+    expect(aliases.lists).toEqual({})
+    expect(plan.unchanged).toBe(1)
+  })
+
+  it("takes a word already there, in any case, as that word — in the sheet's spelling", () => {
+    const { aliases, plan } = applyLists(sheetOf({ bodyparts: ['Head'] }), lists(), 'merge', SHIPPED)
+    expect(words(aliases, 'bodyparts')).toEqual(['Head', 'arm'])
+    expect(plan.changed).toBe(1)
+  })
+
+  // `{contact}` in a phrase gets the `contacts` list, so a sheet saying
+  // `{contact}` means that list too.
+  it('finds a list by the name a phrase would find it by', () => {
+    const { aliases, plan } = applyLists(
+      sheetOf({ contact: ['Mum'], contacts: ['Dad'], bodypart: ['leg'] }),
+      lists(),
+      'merge',
+      SHIPPED,
+    )
+    expect(aliases.lists).toEqual({ contacts: ['Mum', 'Dad'], bodyparts: ['head', 'arm', 'leg'] })
+    expect(plan.changed).toBe(2)
+  })
+
+  it('makes a list new to the board', () => {
+    const { aliases, plan } = applyLists(sheetOf({ 'my-list': ['x', 'y'] }), lists(), 'merge', SHIPPED)
+    expect(aliases.lists).toEqual({ 'my-list': ['x', 'y'] })
+    expect(plan.added).toBe(1)
+  })
+
+  it('brings back a list taken off, as the sheet has it', () => {
+    const hidden = lists({ hidden: ['pronouns', 'bodyparts'] })
+    const { aliases, plan } = applyLists(
+      sheetOf({ pronouns: ['he', 'she'], bodyparts: ['leg'] }),
+      hidden,
+      'merge',
+      SHIPPED,
+    )
+    expect(aliases.hidden).toEqual([])
+    // Exactly the table's, so it follows the table again.
+    expect(aliases.lists).toEqual({ bodyparts: ['leg'] })
+    expect(plan.added).toBe(2)
+  })
+
+  it("makes each list hold the sheet's words when replacing, and takes away the ones it leaves out", () => {
+    const { aliases, plan } = applyLists(
+      sheetOf({ bodyparts: ['leg', 'arm'], contacts: [] }),
+      lists({ lists: { mine: ['a'] } }),
+      'replace',
+      SHIPPED,
+    )
+    // Its own arrangement kept, and the sheet's new word on the end.
+    expect(words(aliases, 'bodyparts')).toEqual(['arm', 'leg'])
+    expect(aliases.lists).not.toHaveProperty('mine')
+    expect(aliases.hidden).toEqual(['pronouns'])
+    expect(plan).toEqual({ added: 0, changed: 1, unchanged: 1, removed: 2, wordsRemoved: 1 })
+  })
+
+  it('leaves every list alone when replacing with a sheet that has none', () => {
+    const before = lists({ lists: { mine: ['a'] } })
+    const { aliases, plan } = applyLists(new Map(), before, 'replace', SHIPPED)
+    expect(aliases).toEqual(before)
+    expect(plan).toEqual({ added: 0, changed: 0, unchanged: 0, removed: 0, wordsRemoved: 0 })
+  })
+
+  it('does in merge exactly what it does in replace, bar the taking away', () => {
+    const sheet = sheetOf({ bodyparts: ['arm', 'leg'], 'my-list': ['x'] })
+    const merged = applyLists(sheet, lists(), 'merge', SHIPPED)
+    const replaced = applyLists(sheet, lists(), 'replace', SHIPPED)
+    expect(merged.plan).toEqual({ ...replaced.plan, removed: 0, wordsRemoved: 0 })
+    expect(words(merged.aliases, 'bodyparts')).toEqual(['head', 'arm', 'leg'])
+  })
+
+  // A list name comes from a spreadsheet now, and every plain object has a
+  // `constructor` it did not put there.
+  it('does not mistake a name for something every object has', () => {
+    expect(aliasWords(lists(), 'constructor', {})).toEqual([])
+    const { aliases, plan } = applyLists(sheetOf({ constructor: ['x'] }), lists(), 'merge', SHIPPED)
+    expect(words(aliases, 'constructor')).toEqual(['x'])
+    expect(plan.added).toBe(1)
+  })
+})
+
+describe('what an import does to the word lists, in a line', () => {
+  const phrases = { added: 0, changed: 0, restored: 0, unchanged: 10, removed: 0 }
+  const listPlan = { added: 1, changed: 2, unchanged: 5, removed: 3, wordsRemoved: 4 }
+
+  it('counts the lists beside the phrases', () => {
+    expect(describePlan({ ...phrases, added: 2 }, 'merge', listPlan)).toBe('2 new, 1 new list, 2 lists changed')
+    expect(describePlan(phrases, 'replace', { ...listPlan, added: 0, changed: 1 })).toBe(
+      '1 list changed, 3 lists removed',
+    )
+  })
+
+  it('knows a sheet that changes only a list changes something', () => {
+    expect(planChanges(phrases, 'merge', { ...listPlan, added: 0, removed: 0, wordsRemoved: 0 })).toBe(true)
+    expect(planChanges(phrases, 'merge', { ...listPlan, added: 0, changed: 0 })).toBe(false)
+    // Only words to take off, which only replacing does.
+    const wordsOnly = { added: 0, changed: 0, unchanged: 5, removed: 0, wordsRemoved: 2 }
+    expect(planChanges(phrases, 'replace', wordsOnly)).toBe(true)
+  })
+
+  it('says what replacing takes away, or that it takes nothing', () => {
+    expect(describeRemovals({ ...phrases, removed: 2 })).toBe('2 phrases')
+    expect(describeRemovals({ ...phrases, removed: 1 }, listPlan)).toBe('1 phrase, 3 lists and 4 words')
+    expect(describeRemovals(phrases, { ...listPlan, removed: 1, wordsRemoved: 0 })).toBe('1 list')
+    expect(describeRemovals(phrases, { ...listPlan, removed: 0, wordsRemoved: 0 })).toBeNull()
   })
 })

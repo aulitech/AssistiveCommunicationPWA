@@ -137,6 +137,30 @@ export function tableAliases(): Aliases {
 }
 
 /**
+ * The name of every list there is, as the Aliases panel lists them: the
+ * table's, less the ones taken away, and the user's own — A to Z. The panel and
+ * the spreadsheet both ask, so they cannot disagree about which lists exist.
+ */
+export function aliasNames({ lists, hidden }: AliasStore, shipped: Aliases = tableAliases()): string[] {
+  return [...new Set([...Object.keys(shipped).filter(n => !hidden.includes(n)), ...Object.keys(lists)])].sort(
+    (a, b) => a.localeCompare(b),
+  )
+}
+
+/**
+ * What a list holds: the user's words where they have them, the table's
+ * otherwise. **Own properties only** — a list name can come from a spreadsheet
+ * now, and `lists.constructor` on a plain object is a function, not a list.
+ */
+export function aliasWords({ lists }: AliasStore, name: string, shipped: Aliases = tableAliases()): string[] {
+  if (hasList(lists, name)) return lists[name]!
+  return hasList(shipped, name) ? shipped[name]! : []
+}
+
+/** Whether a record of lists holds this name itself, rather than by inheritance. */
+export const hasList = (lists: Aliases, name: string) => Object.prototype.hasOwnProperty.call(lists, name)
+
+/**
  * The user's lists, in the shape `lookupAlias` reads. Exported because
  * `parseSegments` takes one, and parsing a single phrase against a set of lists
  * is how the rules above are tested.
