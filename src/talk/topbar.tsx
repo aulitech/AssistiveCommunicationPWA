@@ -242,6 +242,7 @@ export function Topbar({
   onCopy,
   onPasted,
   listener,
+  onToggleListen,
 }: {
   composer: Composer
   /** The phrase being written, which in edit mode is what the box holds. */
@@ -271,6 +272,12 @@ export function Topbar({
   onPasted: (result: PasteResult) => void
   /** Listen mode: the microphone, and the box above the message — see `use-listen.ts`. */
   listener: Listener
+  /**
+   * The microphone control, which is `listener.toggle` with the board's mode
+   * hung on it — opening it puts the board in auto-speak, and that decision
+   * belongs beside `setMode` in `talk.tsx` rather than here.
+   */
+  onToggleListen: () => void
 }) {
   const { settings, update } = useSettings()
   const wide = useWideScreen()
@@ -784,7 +791,7 @@ export function Topbar({
             <ModeToggle
               className="listen-toggle"
               on={listener.open}
-              onToggle={listener.toggle}
+              onToggle={onToggleListen}
               label={listener.open ? 'Stop listening' : 'Listen to a question'}
             >
               <MicIcon />

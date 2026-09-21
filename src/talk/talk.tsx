@@ -602,11 +602,17 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    *    built out of several.
    *  * **edit** — it comes into the box to be reworded.
    *
-   * The two toggles move between them, and each is a toggle rather than a
-   * choice: switching auto-speak *off* is a request to change the phrases, so
-   * it lands in edit mode, and switching edit off comes back to composing. The
-   * three sit in a ring, which is what makes two controls enough for three
-   * states without either of them ever doing nothing.
+   * **Switching one on switches the other off; switching one off leaves the
+   * other alone.** Speaking and rewording ask opposite things of the same
+   * dwell, so the board cannot be in both at once — but *not speaking* is not a
+   * request to start rewording. Auto-speak off used to land in edit mode, which
+   * put somebody who only wanted to build a sentence out of several phrases
+   * into the one mode where a dwell changes the board.
+   *
+   * Neither control ever does nothing, and every state is now one dwell from
+   * the other two rather than two dwells from the one across the ring —
+   * auto-speak to composing was the pair somebody uses most and the pair that
+   * was furthest apart.
    *
    * Entering edit mode carries whatever is in the message box in with it, so a
    * message worth keeping becomes a phrase without being typed again.
@@ -637,9 +643,36 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const toggleEditMode = useCallback(() => setMode(editMode ? 'compose' : 'edit'), [editMode, setMode])
 
   const toggleAutoSpeak = useCallback(
-    () => setMode(settings.autoSpeak ? 'edit' : 'speak'),
+    () => setMode(settings.autoSpeak ? 'compose' : 'speak'),
     [settings.autoSpeak, setMode],
   )
+
+  /**
+   * The microphone, and the one thing it does to the board besides opening the
+   * box above the message.
+   *
+   * **Opening it puts the board in auto-speak.** Somebody has just been spoken
+   * to and is about to answer, with a person waiting in front of them — which
+   * is the whole of what auto-speak is for, and the alternative is a board that
+   * hears a question and then wants a second dwell somewhere else before it can
+   * say anything back. It is the same bargain the automatic asking strikes: the
+   * dwell it saves is the point.
+   *
+   * **Only on the way in.** Closing the box leaves the mode exactly as it is,
+   * because a conversation that has ended is not a reason to stop talking — and
+   * because a control that undid itself on the way out would take away a mode
+   * somebody had chosen in the middle of one.
+   *
+   * It takes the board out of edit mode as a consequence, those two never being
+   * on together. That is right rather than incidental: a question in the room
+   * is not a moment to be rewriting phrases, and what it costs is the blank
+   * draft that dwelling on auto-speak itself would have cost.
+   */
+  const { open: listening, toggle: toggleMic } = listener
+  const toggleListen = useCallback(() => {
+    if (!listening && !settings.autoSpeak) setMode('speak')
+    toggleMic()
+  }, [listening, settings.autoSpeak, setMode, toggleMic])
 
   // Anything part-way through when rest begins would otherwise complete after
   // it, which is the one thing resting is supposed to prevent.
@@ -842,6 +875,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             onCopy={handleCopy}
             onPasted={reportPaste}
             listener={listener}
+            onToggleListen={toggleListen}
             categories={allCategories}
             countFor={countFor}
             onCreateCategory={openCategoryForDraft}

@@ -457,27 +457,21 @@ describe('auto-speak', () => {
     expect(message()).toBe('')
   })
 
-  // Two controls, three states, in a ring. Switching auto-speak off is a
-  // request to change the phrases, so it lands in edit mode; switching edit off
-  // in turn comes back to composing. That is what lets two toggles reach three
-  // states without either of them ever doing nothing.
-  it('lands in edit mode when it is switched off', () => {
+  // **Switching one off says nothing about the other.** This landed in edit
+  // mode for most of the app's life, on the grounds that somebody who does not
+  // want a phrase spoken must want to change it — so the one toggle a person
+  // building a sentence reaches for put them in the one mode where a dwell
+  // rewrites the board, and composing, which is what they were after, took a
+  // second dwell on the other control to reach.
+  it('goes to composing when it is switched off, never to edit mode', () => {
     renderApp({ autoSpeak: true })
     click(speakToggle())
 
     expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
-    expect(editToggle().getAttribute('aria-pressed')).toBe('true')
-    expect($('.app')?.classList.contains('edit-mode')).toBe(true)
-  })
-
-  it('comes back to composing once edit mode is switched off in turn', () => {
-    renderApp({ autoSpeak: true })
-    click(speakToggle()) // to edit
-    click(editToggle()) // to composing
-
-    expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
     expect(editToggle().getAttribute('aria-pressed')).toBe('false')
+    expect($('.app')?.classList.contains('edit-mode')).toBe(false)
 
+    // The board is collecting rather than saying or opening, in one dwell.
     const cell = plainCell()
     click(cell)
     expect(spoken).toEqual([])

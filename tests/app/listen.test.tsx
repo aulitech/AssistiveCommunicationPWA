@@ -50,6 +50,9 @@ function renderApp(settings: Record<string, unknown> = {}) {
 }
 
 const micBtn = () => $('.listen-toggle')
+const editToggle = () => $('.edit-toggle')!
+const speakToggle = () => $('.autospeak-toggle')!
+const speaking = () => speakToggle().getAttribute('aria-pressed') === 'true'
 const heardBox = () => $<HTMLTextAreaElement>('.heard-text')
 const messageBox = () => $<HTMLTextAreaElement>('.text-display')!
 const tool = (label: RegExp) => $$('.heard-btn').find(b => label.test(b.getAttribute('aria-label') ?? ''))
@@ -197,6 +200,67 @@ describe('the control', () => {
     click(undoHeard())
     expect(FakeRecognition.last!.stopped, 'undo left the microphone open').toBe(true)
     expect(heardBox()!.value).toBe('Do you want tea')
+  })
+
+  /**
+   * **Opening the microphone puts the board in auto-speak.**
+   *
+   * Somebody has just been spoken to and is about to answer, with a person
+   * waiting in front of them — which is the whole of what auto-speak is for.
+   * The alternative is a board that hears a question and then wants a second
+   * dwell somewhere else before it can say anything back, which is the same
+   * cost the automatic asking exists to save.
+   */
+  it('puts the board in auto-speak on the way in', () => {
+    renderApp()
+    expect(speaking(), 'the board was already talking, so this proves nothing').toBe(false)
+
+    click(micBtn())
+    expect(speaking()).toBe(true)
+  })
+
+  /**
+   * And it says nothing where the board was already talking, which is where it
+   * usually is: the toast is the app saying what mode it is now in, and the
+   * pointer here is somebody's gaze — a line appearing about a change nobody
+   * made does not merely distract, it aims.
+   */
+  it('says nothing when the board is already talking', () => {
+    renderApp({ autoSpeak: true })
+    click(micBtn())
+
+    expect(speaking()).toBe(true)
+    expect($('.toast')?.textContent ?? '').toBe('')
+  })
+
+  // Only on the way in. A conversation that has ended is not a reason to stop
+  // talking, and a control that undid itself on the way out would take away a
+  // mode somebody had chosen in the middle of one.
+  it('leaves the mode alone on the way out', () => {
+    renderApp()
+    click(micBtn())
+    click(speakToggle()) // back to composing, mid-conversation
+    click(micBtn()) // and out
+
+    expect(speaking(), 'closing the box put auto-speak back on').toBe(false)
+  })
+
+  /**
+   * It takes the board out of edit mode as a consequence, those two never being
+   * on together.
+   *
+   * Right rather than incidental: a question in the room is not a moment to be
+   * rewriting phrases. What it costs is the blank draft that dwelling on
+   * auto-speak itself would have cost.
+   */
+  it('takes the board out of edit mode', () => {
+    renderApp()
+    click(editToggle())
+    expect($('.app')?.classList.contains('edit-mode')).toBe(true)
+
+    click(micBtn())
+    expect($('.app')?.classList.contains('edit-mode')).toBe(false)
+    expect(speaking()).toBe(true)
   })
 
   // Opening the box is a box with nothing behind it. An undo reaching past the
@@ -420,8 +484,12 @@ describe('the question', () => {
     settle()
 
     expect($('.heard-error')?.textContent).toMatch(/allow it for Peri/i)
-    click($$('.phrase-cell')[0])
-    expect(messageBox().value).not.toBe('')
+    // A refused microphone costs the microphone and nothing else: the board is
+    // in auto-speak, because opening it asked for that, and a phrase chosen on
+    // it is still said.
+    const cell = $$('.phrase-cell')[0]!
+    click(cell)
+    expect(spoken).toEqual([cell.textContent])
   })
 })
 
@@ -656,14 +724,13 @@ describe('the suggested reply', () => {
     expect(first.split('\n'), 'the user’s own phrase is not there').toContain('Apple')
     expect(first.split('\n'), 'the emergency bar is not there').toContain("I'm in pain")
 
-    // Used, which puts it at the head of a grid in Most used order.
-    fireEvent.change(messageBox(), { target: { value: '' } })
-    settle()
+    // Used, which puts it at the head of a grid in Most used order. Said rather
+    // than composed, the board being in auto-speak while the microphone is
+    // open — a use is counted wherever a phrase is chosen, whichever of the two
+    // it then does.
     click($$('.filter-tab').find(t => t.textContent === 'Sorted'))
     click($$('.phrase-cell').find(c => c.textContent === 'Apple'))
-    expect(messageBox().value, 'the phrase was never used').toMatch(/Apple/)
-    fireEvent.change(messageBox(), { target: { value: '' } })
-    settle()
+    expect(spoken, 'the phrase was never used').toContain('Apple')
 
     // Emptying the question listens again, and the next one answers itself.
     click(clearHeard())
@@ -775,10 +842,16 @@ describe('the suggested reply', () => {
     const fetch = suggests('I am, thank you')
     vi.stubGlobal('fetch', fetch)
     withKey()
-    click($('.edit-toggle'))
+    // Edit mode *after* the microphone, which takes the board out of it on the
+    // way in — so this is somebody who opened the box and then went to change a
+    // phrase, which is the only way the two are ever on together.
+    click(micBtn())
+    click(editToggle())
     expect(messageBox().value, 'the draft is not empty, so this proves nothing').toBe('')
 
-    heardAndDone('Are you comfortable')
+    act(() => FakeRecognition.last!.say({ transcript: 'Are you comfortable', isFinal: true }))
+    act(() => FakeRecognition.last!.finish())
+    settle()
     await act(async () => {})
 
     expect(fetch).not.toHaveBeenCalled()
@@ -1053,9 +1126,13 @@ describe('what listen mode does not touch', () => {
     renderApp()
     click(micBtn())
 
-    click($$('.phrase-cell')[0])
+    const cell = $$('.phrase-cell')[0]!
+    click(cell)
 
-    expect(messageBox().value).not.toBe('')
+    // Said rather than collected, the microphone having put the board in
+    // auto-speak on the way in — which is the whole point of that rule: the
+    // board is answering somebody.
+    expect(spoken).toEqual([cell.textContent])
   })
 
   // The box above is somebody else's words. The grid narrows to what is being

@@ -206,7 +206,10 @@ export const HELP_SECTIONS: ProseSection[] = [
         ':edit: Edit — a phrase you choose opens in the box to be reworded.',
         'Neither one on — a phrase you choose goes into the box, to be part of a longer sentence.',
       ),
-      text('Turning :auto-speak: off goes to edit mode. Turning :edit: off comes back to building a message.'),
+      text(
+        'Each button means its own way of working and nothing else. Turning :auto-speak: off comes back to building a message, and turning :edit: off does the same — neither one takes you to the other.',
+      ),
+      text('Turning either one on turns the other off, so any of the three is one rest away from any other.'),
     ],
   },
   {
@@ -402,6 +405,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'Rest on :listen: to start, and again to stop and close the box.',
+        'Starting it switches :auto-speak: on, so the phrase you choose next is spoken straight away — you have just been asked something, and the answer should not need another button first. Stopping leaves the board however you have set it.',
         'The box fills as the words arrive, so you can see it is working.',
         'It is the same kind of box as the message one, in the same size of writing, and it grows to match it. Rest on it to put the caret in, and rest longer to select a word or the lot — recognisers mis-hear names.',
       ),
@@ -410,7 +414,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         ':clear: empties it **and starts listening again**, which is what you want when what came back was wrong. There is no separate button for the microphone.',
         ':undo: puts the words back and stops listening, if you cleared it by mistake.',
         ':translate: reads the question in your own language, underneath the words that were said.',
-        ':suggest: offers a reply, and puts it in the message box.',
+        ':suggest: offers answers to the question, as cells on the board to choose between.',
       ),
       text(
         'Your browser does the listening, not Peri. Most browsers send what the microphone picks up to a speech service of their own to turn it into words — the same one behind dictation elsewhere on your device. That is between you and your browser, and it does not pass through us.',
