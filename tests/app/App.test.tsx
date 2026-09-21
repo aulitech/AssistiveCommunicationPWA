@@ -3828,6 +3828,7 @@ describe('the slot that empties the box', () => {
       '.topbar-actions',
       '.edit-bar',
       '.heard-btn',
+      '.heard-live',
       '.choice-btn',
     ]) {
       expect(value(strip, 'background'), `${strip} stands on a ground of its own`).toBe('var(--border-ground)')
@@ -3838,6 +3839,8 @@ describe('the slot that empties the box', () => {
     expect(value('.icon-btn.on-border', 'height')).toBe(mic.box)
     expect(value('.icon-btn.on-border svg', 'height')).toBe(mic.glyph)
     expect(value('.heard-btn svg', 'height'), 'the heard box draws its glyphs at another size').toBe(mic.glyph)
+    expect(value('.heard-live', 'height'), 'the live light is not the tools’ size').toBe('var(--heard-tool)')
+    expect(value('.heard-live svg', 'height'), 'the live light draws its glyph at another size').toBe(mic.glyph)
     expect(block('.icon-btn.on-border.is-primary'), 'speak is sized apart from the rest again').not.toMatch(
       /(width|height):/,
     )

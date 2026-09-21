@@ -801,6 +801,44 @@ body {
   cursor: default;
 }
 
+/* The microphone is live — see `HeardBox`. At the right end of the row of tools,
+   on the box's lower border as they are, on the same ground and at the same
+   size, so it reads as part of the same set; lit, in the accent the border turns
+   while it listens, with a glow no control on either border carries; and
+   **pulsing**, which is what says *live* from across a room. A pulse at the edge
+   of somebody's eye draws it, and the pointer is their gaze — so it pulses the
+   way the resting lozenge does, brightness and glow and nothing that moves, and
+   under reduced motion it stays lit and still. Not a target, so nothing a
+   pointer does here can arm anything. */
+.heard-live {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--heard-tool);
+  height: var(--heard-tool);
+  border-radius: 999px;
+  background: var(--border-ground);
+  color: var(--accent);
+  box-shadow: 0 0 0.75rem color-mix(in srgb, var(--accent) 55%, transparent);
+  pointer-events: none;
+  animation: micPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes micPulse {
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 0.2rem color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+}
+
+.heard-live svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  filter: drop-shadow(0 0 0.2rem var(--accent));
+}
+
 /* ── Listen mode on a wide screen ── */
 /* The question beside the answer rather than above it, taking 35% of the box's
    width to the message's 65%, with the wrapper's 2rem gutter between them.
@@ -3233,6 +3271,10 @@ body {
   /* The resting lozenge stops pulsing; it stays lit, and the app is still
      dimmed behind it. */
   .rest-btn.is-resting { animation: none !important; }
+
+  /* The live microphone stops pulsing; it is still lit, and still there only
+     while it listens. */
+  .heard-live { animation: none !important; }
 
   .signin-spinner,
   .busy-spinner { animation-duration: 2s !important; }

@@ -58,7 +58,7 @@ export const PRIVACY: ProseDocument = {
       title: 'Listening',
       blocks: [
         text(
-          'The microphone is off until you press :listen: on the message box. While it is on, Peri asks your browser to turn what the microphone hears into words, and shows them in a box of its own beside the message.',
+          "The microphone is off until you press :listen: on the message box. While it is on, Peri asks your browser to turn what the microphone hears into words, and shows them in a box of its own beside the message, with a pulsing :mic: in that box's lower right corner for as long as it is listening.",
         ),
         text(
           "The listening is your browser's, not ours. Most browsers do it by sending the audio to a speech service of their own — the same one behind dictation elsewhere on your device — and what they do with it is governed by their privacy policy and your device maker's, not by this one. It does not pass through us and we never receive it. Your browser asks your permission the first time, and you can take it back in your browser at any point.",
