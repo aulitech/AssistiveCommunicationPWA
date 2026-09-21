@@ -392,7 +392,13 @@ export function Topbar({
       // the pair would only ever grow.
       for (const el of boxes) el.style.height = ''
       const tallest = Math.max(...boxes.map(el => el.scrollHeight))
-      if (tallest) for (const el of boxes) el.style.height = `${tallest}px`
+      // **Plus the box's own border.** The height is `border-box`, and
+      // `scrollHeight` is the text and its padding without the border — so a box
+      // set to exactly that was two pixels short of holding what was in it. That
+      // is enough for the scroll arrows to appear on everything longer than a
+      // line, and the room they take rewraps the text into a box that really
+      // does overflow. The border is read while the height is still cleared.
+      if (tallest) for (const el of boxes) el.style.height = `${tallest + el.offsetHeight - el.clientHeight}px`
       // Whatever the heights did, whether there is more than shows is a fresh
       // question — the cap is where a box stops growing and starts scrolling.
       remeasureMessage()

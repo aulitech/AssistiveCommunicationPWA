@@ -2908,10 +2908,14 @@ describe('rendering only part of a long grid', () => {
   const tabNamed = (name: string) => $$('.filter-tab[role="tab"]').find(el => el.textContent === name)
   const rendered = () => cells().length
 
+  // jsdom's own, put back after each test rather than deleted: deleting it left
+  // every element in every later test with no `offsetHeight` at all, which
+  // nothing noticed until the message box began reading it for its border.
+  const jsdomOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!
   afterEach(() => {
     // On the prototype, so without this every element in every test after this
     // block reports a height it does not have.
-    Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight')
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', jsdomOffsetHeight)
   })
 
   const setGeometry = (el: Element, props: Record<string, number>) => {
@@ -3613,6 +3617,22 @@ describe('the message box growing', () => {
     expect(box().style.height).toBe('112px')
     writePhrase('')
     expect(box().style.height, 'the box kept the room it no longer needs').toBe('56px')
+  })
+
+  /**
+   * **Room for its own border too.** The height is `border-box`, so a box set to
+   * exactly what its text measures is two pixels short of holding it — enough
+   * for the scroll arrows to appear on every message longer than a line, and
+   * the room they take to rewrap it into one that really does overflow.
+   */
+  it('makes room for its own border', () => {
+    renderApp()
+    measures(56, 112)
+    Object.defineProperty(box(), 'offsetHeight', { configurable: true, get: () => 58 })
+    Object.defineProperty(box(), 'clientHeight', { configurable: true, get: () => 56 })
+
+    writePhrase('two lines of message')
+    expect(box().style.height).toBe('114px')
   })
 
   // The same fallback the grid's windowing makes: what cannot be measured is
