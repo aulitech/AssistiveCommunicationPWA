@@ -2070,15 +2070,15 @@ describe('help', () => {
     })
   })
 
-  // Settings and the guide take the whole screen; the menu and the shorter
-  // panels hang down only as far as their content. jsdom lays nothing out, so
-  // the class is what can be checked — the height it carries is the preview's
-  // question.
+  // Settings, the guide and Backup & sharing take the whole screen; the menu
+  // and Aliases hang down only as far as their content. jsdom lays nothing out,
+  // so the class is what can be checked — the height it carries is the
+  // preview's question.
   it.each([
     ['Settings', true],
     ['Help', true],
+    ['Backup & sharing', true],
     ['Aliases', false],
-    ['Backup & sharing', false],
   ])('gives %s the full viewport: %s', (panel, tall) => {
     renderApp()
     openMenu()

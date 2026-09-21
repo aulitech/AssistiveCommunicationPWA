@@ -61,6 +61,7 @@ describe('the user guide', () => {
     ['formatting being seen and not heard', /spoken and searched exactly as they read/i],
     ['the board as a spreadsheet', /Save for Excel/],
     ['bringing a spreadsheet back', /Paste from Sheets/],
+    ['the word lists in a spreadsheet', /one word to a row/],
   ])('covers %s', (_feature, pattern) => {
     expect(allText.some(line => pattern.test(line))).toBe(true)
   })

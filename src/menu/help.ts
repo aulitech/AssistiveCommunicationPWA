@@ -569,7 +569,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Your phrases in a spreadsheet',
     blocks: [
       text(
-        'Backup & sharing can also give you every phrase on the board as a spreadsheet, one to a row — to read, print, or change in Excel or Google Sheets, then bring back. Writing a lot of phrases is much quicker there, for whoever helps you set the board up.',
+        'Backup & sharing can also give you every phrase on the board as a spreadsheet, one to a row, with your word lists from Aliases after them — to read, print, or change in Excel or Google Sheets, then bring back. Writing a lot of phrases is much quicker there, for whoever helps you set the board up.',
       ),
       list(
         'Save for Excel makes a workbook. It is the one to edit in Excel, because every cell in it stays as the words you wrote.',
@@ -583,13 +583,19 @@ export const HELP_SECTIONS: ProseSection[] = [
         'A phrase can keep its choices and its formatting in the sheet, written the way you would write them in Peri: {pronouns}, **bold**.',
       ),
       text(
+        'The word lists come after the phrases, one word to a row, with the name of the list in curly brackets as the category — {contacts} — and no ID. Add a row like that to put a word on a list, or to start a new list. A list with nothing on it is a single row with the phrase left empty.',
+      ),
+      text(
         'To bring it back, Choose a spreadsheet takes an Excel file or a CSV. From Google Sheets, select every cell including the top row, copy, and rest on Paste from Sheets. You can also use File, Download, Microsoft Excel in Sheets and choose that file.',
       ),
       text(
-        'Peri says what the sheet will change before it changes anything. Add and update puts in the new phrases and the changed ones and never takes a phrase away.',
+        'Peri says what the sheet will change before it changes anything. Add and update puts in the new phrases, the changed ones and the new words on each list, and never takes anything away.',
       ),
       text(
-        'Replace all phrases makes the board match the sheet, so a row you deleted is a phrase deleted from the board. It says how many that is first, and it is only offered for a sheet with an ID column.',
+        'Replace phrases and lists makes the board match the sheet, so a row you deleted is a phrase, or a word on a list, deleted from the board — and a list with no rows left is taken away. It says how many that is first, and it is only offered for a sheet with an ID column.',
+      ),
+      text(
+        'A sheet with no word lists in it leaves your lists as they are, and the button says Replace all phrases instead.',
       ),
       text(
         'Nothing is sent anywhere. The file goes where your browser saves files, and a copy stays on the clipboard.',

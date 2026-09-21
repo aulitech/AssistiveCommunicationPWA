@@ -116,6 +116,9 @@ function ConfirmSignOut({
 
 type PanelView = 'menu' | 'settings' | 'aliases' | 'backup' | 'help'
 
+/** The panels that fill the screen rather than hanging from the top of it. */
+const TALL_VIEWS: PanelView[] = ['settings', 'backup', 'help']
+
 /**
  * How long the menu is deaf to a dwell after one of its items closes.
  *
@@ -222,12 +225,12 @@ export function TopPanel({
           which is in the same corner of every panel including this one. */}
       <div className={cx('panel-scrim', open && 'open')} />
 
-      {/* Settings and the guide take the whole screen; the menu itself and the
-          shorter panels hang down only as far as their content. Both of those two
-          are scrolled whatever height they get, and a taller pane is fewer dwells
-          on the scroll arrows. */}
+      {/* Settings, the guide and Backup & sharing take the whole screen; the
+          menu itself and Aliases hang down only as far as their content. All
+          three of those are scrolled whatever height they get, and a taller pane
+          is fewer dwells on the scroll arrows. */}
       <div
-        className={cx('top-panel', open && 'open', (view === 'settings' || view === 'help') && 'is-tall')}
+        className={cx('top-panel', open && 'open', TALL_VIEWS.includes(view) && 'is-tall')}
         role="dialog"
         aria-label="Menu"
         aria-hidden={!open}

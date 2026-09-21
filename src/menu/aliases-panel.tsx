@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
-import { tableAliases, type AliasStore, type Aliases } from '../core/phrases'
+import { aliasNames, aliasWords, tableAliases, type AliasStore, type Aliases } from '../core/phrases'
 import { moveInOrder, loadAliasSort, saveAliasSort } from '../core/store'
 import { CustomOrderIcon, EditIcon, PlusIcon, ReorderIcon, SortAlphaIcon, UndoIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
@@ -298,15 +298,9 @@ export function AliasesPanel({
   // are the seed; a key the user has touched wins outright, empty included.
   const shipped = useMemo(() => tableAliases(), [])
   const { lists, hidden } = aliases
-  const names = useMemo(
-    () =>
-      [...new Set([...Object.keys(shipped).filter(n => !hidden.includes(n)), ...Object.keys(lists)])].sort(
-        (a, b) => a.localeCompare(b),
-      ),
-    [shipped, lists, hidden],
-  )
+  const names = useMemo(() => aliasNames(aliases, shipped), [aliases, shipped])
   /** What a list holds: the user's words where they have them, the table's otherwise. */
-  const wordsOf = useCallback((name: string) => lists[name] ?? shipped[name] ?? [], [lists, shipped])
+  const wordsOf = useCallback((name: string) => aliasWords(aliases, name, shipped), [aliases, shipped])
 
   // One open at a time, and **all of them closed on arrival**. Folded, the panel
   // is a list of what it can offer, which is how somebody finds the one list

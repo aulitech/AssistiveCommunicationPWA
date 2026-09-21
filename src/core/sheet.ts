@@ -7,7 +7,9 @@
 // whoever helps somebody set their board up, and a spreadsheet is where that
 // person already knows how to work.
 //
-// One row a phrase: **Category, Phrase, ID**.
+// One row a phrase: **Category, Phrase, ID** — and after the phrases, one row
+// a word for the word lists the Aliases panel keeps, filed under the list's
+// name in curly brackets.
 //
 //  * **The phrase is its source**, slots and markup and all — `{pronouns}`,
 //    `**Help**` — so a row read back is the phrase it was, not the words one
@@ -27,7 +29,17 @@
 // `core/backup.ts` does it, so an import that is refused leaves nothing
 // half-written and the whole of it can be tested without a browser.
 
-import { EMERGENCY_PHRASES, PHRASES, type Phrase } from './phrases'
+import {
+  aliasNames,
+  aliasWords,
+  EMERGENCY_PHRASES,
+  hasList,
+  PHRASES,
+  tableAliases,
+  type Aliases,
+  type AliasStore,
+  type Phrase,
+} from './phrases'
 import { IMPORTED_CATEGORY } from './backup'
 import { displayCategory, newPhraseId, orderByIds, phraseKey, type PhraseStore } from './store'
 
@@ -78,6 +90,38 @@ export function boardRows(
       id: p.id,
     })),
   )
+}
+
+/**
+ * A word on a list is filed under the list's name **in curly brackets**, the
+ * way a phrase names it — `{contacts}` — with no ID. The brackets are what tell
+ * it from a phrase, and the missing ID is what makes that safe: every phrase
+ * row Peri writes carries one, so a category somebody did name in brackets
+ * still comes back as a category.
+ */
+const LIST_CATEGORY = /^\{\s*([^{}()'"[\]]+?)\s*\}$/
+
+/** The list a Category cell files a word under, or null where it names a category. */
+export function listNameOf(category: string): string | null {
+  const name = LIST_CATEGORY.exec(category.trim())?.[1]
+  // Folded, because a list's name is the key a slot looks up — the Aliases
+  // panel folds it the same way.
+  return name ? name.toLowerCase() : null
+}
+
+/**
+ * Every word list, for after the phrases: in the order the Aliases panel lists
+ * them, each list's words in the order they are kept. **A list with no words is
+ * a row with no word in it**, or a list somebody emptied — and the two Peri
+ * ships empty, for contacts and a name — would not be in the sheet at all, and
+ * replacing the board with it would take them away.
+ */
+export function listRows(aliases: AliasStore, shipped: Aliases = tableAliases()): SheetRow[] {
+  return aliasNames(aliases, shipped).flatMap(name => {
+    const category = `{${name}}`
+    const words = aliasWords(aliases, name, shipped)
+    return words.length ? words.map(phrase => ({ category, phrase, id: '' })) : [{ category, phrase: '', id: '' }]
+  })
 }
 
 const ID_MARK = '#'
@@ -259,7 +303,15 @@ function readId(cell: string): string {
   return /^[\w-]+$/.test(id) ? id : ''
 }
 
-export type ReadRows = { ok: true; rows: SheetRow[]; hasIds: boolean } | { ok: false; error: string }
+/**
+ * The word lists a sheet holds, by the name it gives each, and the words in the
+ * order it has them. A list named with no words in it is here with none.
+ */
+export type SheetLists = Map<string, string[]>
+
+export type ReadRows =
+  | { ok: true; rows: SheetRow[]; lists: SheetLists; hasIds: boolean }
+  | { ok: false; error: string }
 
 /**
  * The rows out of a table.
@@ -298,15 +350,24 @@ export function readRows(table: string[][]): ReadRows {
     }
 
   const cell = (r: string[], i: number) => (i >= 0 ? unguard(r[i] ?? '') : '')
-  const rows = body
-    .map(r => ({
-      category: cell(r, col.category).trim(),
-      phrase: cell(r, col.phrase).replace(/\r\n?/g, '\n').trim(),
-      id: readId(cell(r, col.id)),
-    }))
-    .filter(r => r.phrase !== '')
-  if (rows.length === 0) return { ok: false, error: 'That sheet has no phrases in it.' }
-  return { ok: true, rows, hasIds: rows.some(r => r.id !== '') }
+  const rows: SheetRow[] = []
+  const lists: SheetLists = new Map()
+  for (const r of body) {
+    const category = cell(r, col.category).trim()
+    const id = readId(cell(r, col.id))
+    const list = id ? null : listNameOf(category)
+    if (list !== null) {
+      // One line, and once: a list offers each word as a choice, and the same
+      // word twice is a choice between two identical things.
+      const word = cell(r, col.phrase).replace(/\s+/g, ' ').trim()
+      lists.set(list, withWords(lists.get(list) ?? [], word ? [word] : []))
+      continue
+    }
+    const phrase = cell(r, col.phrase).replace(/\r\n?/g, '\n').trim()
+    if (phrase !== '') rows.push({ category, phrase, id })
+  }
+  if (rows.length === 0 && lists.size === 0) return { ok: false, error: 'That sheet has no phrases in it.' }
+  return { ok: true, rows, lists, hasIds: rows.some(r => r.id !== '') }
 }
 
 // ── Putting a sheet onto the board ────────────────────────────────────────────
@@ -497,19 +558,155 @@ export function applySheet(
   }
 }
 
+// ── Putting a sheet's word lists onto the board ───────────────────────────────
+
+/** What a sheet does to the word lists, counted the way `SheetPlan` counts phrases. */
+export interface ListPlan {
+  /** Lists the sheet makes, or brings back after they were taken off. */
+  added: number
+  /** Lists that gain words or have one respelled — or, replacing, lose some. */
+  changed: number
+  unchanged: number
+  /** Replace only: lists the sheet leaves out, which are taken off. */
+  removed: number
+  /** Replace only: words taken off the lists the sheet keeps. */
+  wordsRemoved: number
+}
+
+const fold = (word: string) => word.toLowerCase()
+
+/** `words` with `more` on the end, less any already there in whatever case. */
+function withWords(words: string[], more: string[]): string[] {
+  const seen = new Set(words.map(fold))
+  const out = [...words]
+  for (const word of more) {
+    if (seen.has(fold(word))) continue
+    seen.add(fold(word))
+    out.push(word)
+  }
+  return out
+}
+
+const same = (a: string[], b: string[]) => a.length === b.length && a.every((w, i) => w === b[i])
+
+/**
+ * The lists after putting a sheet's onto them, and what that did.
+ *
+ *  * **A list is found by the name a phrase would find it by**: its own, then
+ *    with an `s` on or off, so `{contact}` typed into a sheet is the `contacts`
+ *    list — which is what a phrase writing `{contact}` gets.
+ *  * **A word already on a list, in any case, is that word**, and takes the
+ *    sheet's spelling of it: a list has no IDs, so the word is its own.
+ *  * **Adding gains words and never loses one**, the rule a backup's merge
+ *    follows for lists, and a list new to the board is made.
+ *  * **A list taken off the board comes back as the sheet has it** — and where
+ *    that is exactly the table's, it follows the table again, rather than being
+ *    pinned to this release by a copy of its words.
+ *  * **Replacing makes each list the sheet names hold its words and no
+ *    others, and takes away the lists it does not name** — deleted if
+ *    somebody made them, hidden if Peri shipped them, as the panel does. Only
+ *    where the sheet names any list at all: one with none in it says nothing
+ *    about them, and they are left as they are.
+ *  * **The order of the rows is not read**, as it is not for phrases. A list
+ *    keeps its own arrangement, and what the sheet adds goes on the end.
+ */
+export function applyLists(
+  sheet: SheetLists,
+  aliases: AliasStore,
+  mode: SheetMode,
+  shipped: Aliases = tableAliases(),
+): { aliases: AliasStore; plan: ListPlan } {
+  const names = new Set(aliasNames(aliases, shipped))
+  const hidden = new Set(aliases.hidden)
+  const lists = new Map(Object.entries(aliases.lists))
+  const plan: ListPlan = { added: 0, changed: 0, unchanged: 0, removed: 0, wordsRemoved: 0 }
+
+  const find = (name: string) => {
+    const forms = [name, `${name}s`, name.replace(/s$/, '')]
+    return forms.find(n => names.has(n)) ?? forms.find(n => hidden.has(n) && hasList(shipped, n)) ?? name
+  }
+  // Two names in the sheet can be one list — `{contact}` and `{contacts}` —
+  // and are gathered before anything is counted, or it would be counted twice.
+  const incoming = new Map<string, string[]>()
+  for (const [name, words] of sheet) {
+    const list = find(name)
+    incoming.set(list, withWords(incoming.get(list) ?? [], words))
+  }
+
+  for (const [name, words] of incoming) {
+    if (!names.has(name)) {
+      hidden.delete(name)
+      if (hasList(shipped, name) && same(shipped[name]!, words)) lists.delete(name)
+      else lists.set(name, words)
+      plan.added++
+      continue
+    }
+    const current = aliasWords(aliases, name, shipped)
+    const spelled = new Map(words.map(w => [fold(w), w]))
+    const kept = mode === 'merge' ? current : current.filter(w => spelled.has(fold(w)))
+    plan.wordsRemoved += current.length - kept.length
+    const next = withWords(
+      kept.map(w => spelled.get(fold(w)) ?? w),
+      words,
+    )
+    if (same(next, current)) plan.unchanged++
+    else {
+      lists.set(name, next)
+      plan.changed++
+    }
+  }
+
+  if (mode === 'replace' && incoming.size > 0) {
+    for (const name of names) {
+      if (incoming.has(name)) continue
+      lists.delete(name)
+      if (hasList(shipped, name)) hidden.add(name)
+      plan.removed++
+    }
+  }
+
+  return { aliases: { lists: Object.fromEntries(lists), hidden: [...hidden] }, plan }
+}
+
+// ── Saying what an import will do ─────────────────────────────────────────────
+
+const count = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`
+
 /** What an import will do, in a line. */
-export function describePlan(plan: SheetPlan, mode: SheetMode): string {
+export function describePlan(plan: SheetPlan, mode: SheetMode, lists?: ListPlan): string {
   const parts: string[] = []
   if (plan.added) parts.push(`${plan.added.toLocaleString()} new`)
   if (plan.changed) parts.push(`${plan.changed.toLocaleString()} changed`)
   if (plan.restored) parts.push(`${plan.restored.toLocaleString()} brought back`)
   if (mode === 'replace' && plan.removed) parts.push(`${plan.removed.toLocaleString()} removed`)
+  if (lists?.added) parts.push(count(lists.added, 'new list', 'new lists'))
+  if (lists?.changed) parts.push(`${count(lists.changed, 'list', 'lists')} changed`)
+  if (mode === 'replace' && lists?.removed) parts.push(`${count(lists.removed, 'list', 'lists')} removed`)
   return parts.length ? parts.join(', ') : 'nothing to change'
 }
 
 /** Whether an import would change anything at all. */
-export const planChanges = (plan: SheetPlan, mode: SheetMode) =>
-  plan.added + plan.changed + plan.restored + (mode === 'replace' ? plan.removed : 0) > 0
+export const planChanges = (plan: SheetPlan, mode: SheetMode, lists?: ListPlan) =>
+  plan.added +
+    plan.changed +
+    plan.restored +
+    (lists ? lists.added + lists.changed : 0) +
+    (mode === 'replace' ? plan.removed + (lists ? lists.removed + lists.wordsRemoved : 0) : 0) >
+  0
+
+/**
+ * What replacing takes away that adding would not — `2 phrases, 1 list and 4
+ * words` — or null where it takes nothing, and there is no reason to offer it.
+ */
+export function describeRemovals(plan: SheetPlan, lists?: ListPlan): string | null {
+  const parts = [
+    plan.removed && count(plan.removed, 'phrase', 'phrases'),
+    lists?.removed && count(lists.removed, 'list', 'lists'),
+    lists?.wordsRemoved && count(lists.wordsRemoved, 'word', 'words'),
+  ].filter((part): part is string => !!part)
+  if (parts.length < 2) return parts[0] ?? null
+  return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)!}`
+}
 
 /** `peri-phrases-2026-09-21.csv`, for the day it was saved. */
 export function sheetFilename(extension: 'csv' | 'xlsx', now = new Date()): string {

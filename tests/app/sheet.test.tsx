@@ -72,6 +72,10 @@ function savedCsv() {
   return { ...file, table: parseDelimited(file.text) }
 }
 
+/** A table as a CSV, quoted where it has to be. */
+const csvOf = (table: string[][]) =>
+  table.map(r => r.map(c => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(',')).join('\n')
+
 async function choose(name: string, contents: BlobPart, type = 'text/csv') {
   fireEvent.change(sheetInput(), { target: { files: [new File([contents], name, { type })] } })
   await flush()
@@ -113,8 +117,34 @@ describe('the board as a spreadsheet', () => {
     expect(text.startsWith('\uFEFF')).toBe(true)
     expect(table[0]).toEqual(['Category', 'Phrase', 'ID'])
     expect(table[1]).toEqual(['Emergency', 'Help me!', '#em-0'])
-    expect(table.slice(1)).toHaveLength(onBoard)
+    expect(table.slice(1).filter(r => r[2])).toHaveLength(onBoard)
     expect(table).toContainEqual(['Kitchen', 'Put the kettle on', '#custom-mine'])
+  })
+
+  /**
+   * **The word lists go with the phrases**, after them, one word to a row under
+   * the list's name in curly brackets — so a phrase's `{contacts}` and the
+   * contacts it offers leave together. A list with nothing on it is still a
+   * row, or the sheet would not know it was there.
+   */
+  it('saves the word lists after the phrases, an empty one included', () => {
+    localStorage.setItem('peri_aliases', JSON.stringify({ lists: { contacts: ['Mum'] }, hidden: [] }))
+    renderApp()
+    openBackup()
+    const rows = savedCsv().table.slice(1)
+    const first = rows.findIndex(r => r[0]!.startsWith('{'))
+
+    expect(
+      rows.slice(0, first).every(r => r[2]!.startsWith('#')),
+      'a phrase among the lists',
+    ).toBe(true)
+    expect(
+      rows.slice(first).every(r => /^\{.+\}$/.test(r[0]!) && r[2] === ''),
+      'a list among the phrases',
+    ).toBe(true)
+    expect(rows).toContainEqual(['{contacts}', 'Mum', ''])
+    expect(rows).toContainEqual(['{name.given}', '', ''])
+    expect(rows.filter(r => r[0] === '{pronouns}').length).toBeGreaterThan(1)
   })
 
   // The Excel file holds the same board as the CSV, every cell of it text.
@@ -237,13 +267,66 @@ describe('bringing a spreadsheet back', () => {
 
     await choose('trimmed.csv', csv)
     expect(note()).toMatch(/removes the 2 phrases on it that the sheet does not have/)
-    click(btn('Replace all phrases'))
+    click(btn('Replace phrases and lists'))
     await flush()
 
     expect(toast()).toMatch(/2 removed/)
     expect($$('.emergency-btn').map(b => b.textContent)).not.toContain('Call 911')
     click($$('.filter-tab').find(t => t.textContent === 'Kitchen'))
     expect(cellTexts()).toEqual(['Open the window'])
+  })
+
+  /**
+   * **A word added to a list in the sheet is on the list**, and a phrase that
+   * names the list offers it — the contacts somebody types into a spreadsheet
+   * for them are the contacts their board calls.
+   */
+  it('brings word lists back in with the phrases, and the board uses them', async () => {
+    renderApp()
+    openBackup()
+    const table = savedCsv().table.map(r => (r[0] === '{contacts}' ? ['{contacts}', 'Dr Patel', ''] : r))
+    await choose('lists.csv', csvOf(table))
+    expect(summary()).toMatch(/phrases and \d+ word lists from lists\.csv: 1 list changed/)
+    click(btn('Add and update'))
+    await flush()
+
+    expect(JSON.parse(localStorage.getItem('peri_aliases')!).lists.contacts).toEqual(['Dr Patel'])
+    expect(cellTexts()).toContain("I'm going to call Dr Patel")
+  })
+
+  /**
+   * **Replacing takes a list away too**, where the sheet no longer has it, and
+   * says so first. A list Peri ships is hidden rather than deleted, as the
+   * Aliases panel does it.
+   */
+  it('replaces the lists with the sheet, taking away the one it lost', async () => {
+    renderApp()
+    openBackup()
+    const table = savedCsv().table.filter(r => r[0] !== '{pronouns}')
+    await choose('no-pronouns.csv', csvOf(table))
+    expect(note()).toMatch(/removes the 1 list on it that the sheet does not have/)
+    click(btn('Replace phrases and lists'))
+    await flush()
+
+    expect(toast()).toMatch(/1 list removed/)
+    expect(JSON.parse(localStorage.getItem('peri_aliases')!).hidden).toEqual(['pronouns'])
+  })
+
+  // A sheet with no lists in it says nothing about them: replacing leaves them
+  // alone, and the button says it replaces phrases and no more.
+  it('leaves the lists alone when the sheet has none', async () => {
+    const mine = { lists: { contacts: ['Mum'], 'my-list': ['x'] }, hidden: ['pronouns'] }
+    localStorage.setItem('peri_aliases', JSON.stringify(mine))
+    renderApp()
+    openBackup()
+    const table = savedCsv().table.filter(r => !r[0]!.startsWith('{') && r[2] !== '#custom-mine')
+    await choose('phrases-only.csv', csvOf(table))
+    expect(btn('Replace phrases and lists')).toBeUndefined()
+    click(btn('Replace all phrases'))
+    await flush()
+
+    expect(toast()).toMatch(/— 1 removed$/)
+    expect(JSON.parse(localStorage.getItem('peri_aliases')!)).toEqual(mine)
   })
 
   it('goes back to the two ways in on Cancel, having changed nothing', async () => {
