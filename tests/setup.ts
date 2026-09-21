@@ -36,7 +36,7 @@ class FakeUtterance {
 export const voices: SpeechSynthesisVoice[] = []
 
 /** Files the app has offered to download, in order. */
-export const downloads: { filename: string; text: string }[] = []
+export const downloads: { filename: string; text: string; blob?: Blob }[] = []
 
 /** Audio the app has started playing, in order. */
 export const played: { volume: number; rate: number }[] = []
@@ -62,6 +62,8 @@ export const setClipboardText = (text: string) => {
 // went into one on the way in.
 const contents = new WeakMap<Blob, string>()
 const blobText = new Map<string, string>()
+/** The blob itself too, for a file that is bytes rather than text — a workbook. */
+const blobs = new Map<string, Blob>()
 let blobCount = 0
 
 class RecordingBlob extends Blob {
@@ -74,6 +76,7 @@ class RecordingBlob extends Blob {
 function createObjectURL(blob: Blob) {
   const url = `blob:peri/${blobCount++}`
   blobText.set(url, contents.get(blob) ?? '')
+  blobs.set(url, blob)
   return url
 }
 
@@ -158,13 +161,15 @@ beforeEach(() => {
   downloads.length = 0
   scrolledIntoView.length = 0
   blobText.clear()
+  blobs.clear()
   // jsdom has no object URLs and no downloads. Recording what a download would
   // have carried is the only way to assert on the file the app hands out.
   vi.stubGlobal('Blob', RecordingBlob)
   URL.createObjectURL = createObjectURL
   URL.revokeObjectURL = () => {}
   HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
-    if (this.download) downloads.push({ filename: this.download, text: blobText.get(this.href) ?? '' })
+    if (this.download)
+      downloads.push({ filename: this.download, text: blobText.get(this.href) ?? '', blob: blobs.get(this.href) })
   }
 
   // jsdom has the element but none of the playback behind it.

@@ -34,12 +34,10 @@ import {
   savePhraseStore,
   setVoiceOverride,
   voiceOverrideFor,
+  newPhraseId,
+  phraseKey,
   type PhraseStore,
 } from '../core/store'
-
-/** How a phrase is recognised as one already on the board — see `phraseKeys`. */
-const phraseKey = (text: string, category: string) =>
-  `${category.trim().toLowerCase()}\u0000${text.trim().toLowerCase().replace(/\s+/g, ' ')}`
 
 /** Every category's arrangement with one phrase taken out, dropping any left empty. */
 function withoutPhrase(order: Record<string, string[]>, id: string): Record<string, string[]> {
@@ -50,9 +48,6 @@ function withoutPhrase(order: Record<string, string[]>, id: string): Record<stri
   }
   return next
 }
-
-/** Phrases the user wrote carry this prefix, which is how a delete tells them apart. */
-const newPhraseId = () => `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
 export function useBoard() {
   // A phrase's voice is kept per language, so the board has to know which one

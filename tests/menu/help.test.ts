@@ -59,6 +59,8 @@ describe('the user guide', () => {
     ['a line through', /~~two tildes~~/],
     ['headings and bullets in a phrase', /at the start of a line/i],
     ['formatting being seen and not heard', /spoken and searched exactly as they read/i],
+    ['the board as a spreadsheet', /Save for Excel/],
+    ['bringing a spreadsheet back', /Paste from Sheets/],
   ])('covers %s', (_feature, pattern) => {
     expect(allText.some(line => pattern.test(line))).toBe(true)
   })

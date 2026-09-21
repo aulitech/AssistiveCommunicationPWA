@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDwellControl, holdDwells } from '../ui/dwell'
-import { type AliasStore } from '../core/phrases'
+import { type AliasStore, type Phrase } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { type PhraseStore, type User } from '../core/store'
 import { type AppState } from '../core/backup'
@@ -137,6 +137,7 @@ export function TopPanel({
   aliases,
   onAliasesChange,
   store,
+  phrases,
   categories,
   categoryById,
   onRestore,
@@ -154,6 +155,8 @@ export function TopPanel({
   aliases: AliasStore
   onAliasesChange: (next: AliasStore) => void
   store: PhraseStore
+  /** Every phrase on the board, for a spreadsheet of it. */
+  phrases: Phrase[]
   categories: string[]
   categoryById: Map<string, string>
   onRestore: (next: AppState, message: string) => void
@@ -264,6 +267,7 @@ export function TopPanel({
               <BackupPanel
                 store={store}
                 aliases={aliases}
+                phrases={phrases}
                 categories={categories}
                 categoryById={categoryById}
                 onRestore={onRestore}

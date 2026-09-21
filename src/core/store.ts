@@ -1330,6 +1330,18 @@ export const factoryState = () => ({
 // order the tabs and the emergency bar come in.
 
 /** The name a category is shown under, after any rename. */
+/**
+ * How a phrase is recognised as one already on the board: its wording and its
+ * category, folded to lower case with the spaces collapsed. The editor asks it
+ * before a phrase is saved, and a spreadsheet import before a row is added, so
+ * the two agree about what "already there" means.
+ */
+export const phraseKey = (text: string, category: string) =>
+  `${category.trim().toLowerCase()}\u0000${text.trim().toLowerCase().replace(/\s+/g, ' ')}`
+
+/** Phrases the user wrote carry this prefix, which is how a delete tells them apart. */
+export const newPhraseId = () => `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
 export function displayCategory(source: string, renames: Record<string, string>): string {
   return renames[source] ?? source
 }

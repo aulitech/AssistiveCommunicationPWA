@@ -360,13 +360,19 @@ describe('the shape of the source tree', () => {
 
     expect(found('select', '>'), 'a native list is drawn where nothing can be hovered').toEqual([])
 
+    // Two inputs in the whole tree, both in the shared controls: `DwellInput`,
+    // which every field is, and `FileButton`'s picker, which every file chooser
+    // is — the backup's and the spreadsheet's — so the rule about hiding it is
+    // kept in one place rather than once per chooser.
     const inputs = found('input')
-    expect(inputs.map(f => f.file).sort(), 'a field outside DwellInput takes the caret only on a click').toEqual([
-      'menu/backup-panel.tsx',
-      'ui/controls.tsx',
-    ])
-    const picker = inputs.find(f => f.file === 'menu/backup-panel.tsx')!.tag
-    expect(picker, 'the bare input left is the file picker').toMatch(/type="file"/)
+    expect(
+      [...new Set(inputs.map(f => f.file))],
+      'a field outside DwellInput takes the caret only on a click',
+    ).toEqual(['ui/controls.tsx'])
+    expect(inputs).toHaveLength(2)
+    const pickers = inputs.filter(f => /type="file"/.test(f.tag))
+    expect(pickers, 'the bare input left is the file picker').toHaveLength(1)
+    const picker = pickers[0]!.tag
     expect(picker, 'the file input is a second target beside its button').toMatch(/aria-hidden="true"/)
     expect(picker).toMatch(/tabIndex=\{-1\}/)
 
