@@ -163,7 +163,7 @@ The site is **indexed**: `public/robots.txt` allows everything and `index.html` 
 
 Run `pnpm check` before handing work back — it runs `format:check`, `typecheck`, `lint`, and `test` in sequence. `pnpm test:watch` while iterating. **GitHub Actions runs the same command** on every pull request and on main, and main will not take a change until it passes — see *Checks, releases and publishing*. Running it here first is still the point: a red check five minutes after a push is five minutes lost.
 
-**A test's timeout is for one that has hung, not one that is slow.** It is 30 seconds here rather than Vitest's five. The whole-app tests render every cell on the board — jsdom lays nothing out, so the window cannot be measured — and one that loads the board a few times takes a second or two alone. Under the whole suite in parallel on a CI runner, several of them passed five seconds, and a red run over work that was fine is worse than a hung test taking half a minute to say so.
+**A test's timeout is for one that has hung, not one that is slow.** It is 30 seconds here rather than Vitest's five: a whole-app test that loads the board a few times is seconds of work, and under the suite in parallel on a CI runner several of them passed five seconds. A red run over work that was fine is worse than a hung test taking half a minute to say so.
 
 **The format check is first because it is the cheapest.** It answers in about 20ms and names the file, so an unformatted tree fails in under a second rather than after three minutes of tests. `pnpm format` fixes whatever it reports. It takes its paths from the `format` script rather than restating them — `pnpm format --check` — so the two cannot drift apart about which directories are formatted.
 
@@ -205,7 +205,16 @@ Paths below are relative to `tests/`.
 - `sync/client.test.ts` - The answers a server can give that the function never would: the app's own HTML at 200, a truncated body, a 500
 - `sync/use-sync.test.tsx` - Two devices and the box between them, driven through **the real Netlify function** with only the blob store replaced. A second device is this device with its memory wiped and the server left standing
 - `functions/sync.test.ts` - The handler itself: revisions, the 409 and what comes back with it, and every way a body can be refused
-- `app/App.test.tsx` - Whole-app flows driven through the real DOM
+- `app/harness.tsx` - What every test that drives the whole app needs before it can say anything: the app on screen, a pointer that travels to what it clicks, and the twenty things all of them reach for. **Importing it installs the fake timers**, dwell being timer-driven. It was the top of `App.test.tsx`, which is what made that file hard to leave — a test about linking a voice sat four thousand lines from one about the menu because they shared these twenty
+- `app/signin.test.tsx` - Getting in: the sign-in page, what can be worked before anybody has signed in, and the two documents it links to
+- `app/board.test.tsx` - The board: choosing a phrase off it, the slots that ask first, what it speaks as it is chosen, **how much of it is rendered**, and the guards against a pointer that has not moved
+- `app/editing.test.tsx` - Writing a phrase and rewording one, which happens in the message box rather than in a dialog
+- `app/message.test.tsx` - The message being built: the caret, the keys, the box that grows, the controls on its borders, and the Sent list
+- `app/aliases.test.tsx` - The Aliases panel, and every way of changing a list
+- `app/menu.test.tsx` - The menu and the panels it opens, what it does on the way out, and signing out
+- `app/backup.test.tsx` - Writing the board out as a file and reading one back
+- `app/settings.test.tsx` - The values somebody sets, putting them back, and the row that synchronizes two devices
+- `app/voices.test.tsx` - How the board sounds: which voice, a phrase with one of its own, a linked account, and the language it is spoken in
 - `app/accounts.test.tsx` - Two accounts and a guest on one device, through the screens: each opens only its own board, signing out reloads, the sign-in page reads nobody's and is left worked the way the last board was, and a sign-in or sign-out in another tab starts this one again
 - `app/categories.test.tsx` - Adding, renaming, deleting and ordering category tabs, and paging the bar — the page arithmetic, the order the arrows sit in, and that a page repeats while held. **Paging tests have to supply the geometry** (`clientWidth`, `clientHeight`), since jsdom lays nothing out and a page measured from nothing is a page of nothing. The portrait rule is asserted against the text of `index.css`, which is all jsdom allows — whether it *takes effect* is a question for the deploy preview
 - `app/emergency.test.tsx` - Arranging the emergency bar, and the two things that must not follow from it: a phrase moved out of reach of the order it was stored under, and a bar left in reorder mode when somebody needs to speak
@@ -227,7 +236,7 @@ Paths below are relative to `tests/`.
 Two things worth knowing when adding to them:
 
 - The app grid renders every phrase in the table, so query it with `container.querySelector` rather than Testing Library's `getByRole` — building an accessibility tree over a couple of thousand cells for each lookup is slow enough to matter.
-- **The grid renders every cell under jsdom**, because windowing needs a measured viewport and jsdom lays nothing out. That is the documented fallback, not an accident — a test that wants the window has to supply the geometry, as `rendering only part of a long grid` does in `tests/app/App.test.tsx`.
+- **The grid is given a viewport by `tests/setup.ts`**, and windows as it does in a browser. jsdom lays nothing out, so without one the grid falls back to rendering every cell — two and a half thousand of them for each test that opened the board, which was most of what this suite spent its time on. The stubs are keyed on the grid's own classes, because what jsdom reports about everything else is load-bearing: the message box grows by what it can measure and has to find nothing. **`unmeasuredGrid()` puts the absence back**, for the tests about that fallback and for the few that need the whole board on screen to find one phrase among thousands.
 - **`performance.now()` is faked by `vi.useFakeTimers()`.** A benchmark that reads it measures the fake clock and reports whatever `advanceTimersByTime` was given. Capture the real one at module load.
 - Dwell is timer-driven. Use `vi.useFakeTimers()` and advance inside `act()`; the app also uses a zero-delay timer to place the cursor after inserting a phrase, so advance the clock after any interaction before asserting.
 
@@ -739,7 +748,8 @@ The window **grows from the top and is never repositioned by arithmetic**. Rows 
 
 Two properties hold it together, and both have mutation-tested guards:
 
-- **Unmeasured means all of them.** Before the first paint, and under jsdom, there is no viewport to measure and the grid renders everything — which is exactly what it did before any of this existed.
+- **The first render is a screenful, not the table.** Measuring needs something rendered to measure, so `FIRST_WINDOW` is what goes in before anything has been measured; the effect measures on the next tick and takes it from there. It mounted all two and a half thousand cells on the way to windowing them down until this existed — on every load, and in every test that opened the board.
+- **Unmeasured still means all of them.** Where nothing can be measured at all — a grid that has not been laid out — it renders everything, which is exactly what it did before any of this existed. A phrase out of reach is worse than a slow grid.
 - **It cannot strand a phrase.** `needsMore` asks for more within a screen's height of the bottom, and content shorter than the viewport is always within a screen of its own end. So a window too small keeps growing until the grid is scrollable, however far off the measurement was. `rendered >= total` is the only thing stopping that being an infinite loop — removing it hangs the test suite rather than failing it.
 
 ## Ordering the grid
