@@ -582,7 +582,7 @@ export function PhraseGrid({
   /** Cells one measured windowful holds. Null until something has been laid out. */
   const [step, setStep] = useState<number | null>(null)
   /** How many to render. Null renders the lot, which is the unmeasured answer. */
-  const [shown, setShown] = useState<number | null>(null)
+  const [shown, setShown] = useState<number | null>(FIRST_WINDOW)
 
   // A different list starts again from one windowful. Adjusting during render
   // rather than in an effect avoids a pass showing the old window over the new
@@ -610,10 +610,18 @@ export function PhraseGrid({
     const grid = innerRef.current
     if (!wrapper || !grid) return
     const measured = measure(wrapper, grid)
-    if (measured === null) return
-    if (measured !== step) setStep(measured)
-    if (shown === null) setShown(measured)
-    else if (needsMore(wrapper, shown, phrases.length)) setShown(shown + measured)
+    if (measured !== null && measured !== step) setStep(measured)
+    // Nothing to measure from is the case this has always had an answer for:
+    // render the lot, a phrase out of reach being worse than a slow grid.
+    const next =
+      measured === null
+        ? null
+        : shown === null
+          ? measured
+          : needsMore(wrapper, shown, phrases.length)
+            ? shown + measured
+            : shown
+    if (next !== shown) setShown(next)
   }, [phrases, shown, step])
 
   // Scrolling towards the end asks for more. The same growth, on the one trigger
@@ -688,6 +696,21 @@ export function PhraseGrid({
  * nothing until something has been laid out, which `windowSize` turns into
  * "render everything".
  */
+/**
+ * How much to render before anything has been measured — a screenful and more
+ * on any screen this app is used on.
+ *
+ * **Measuring needs something rendered to measure**, so the alternative to a
+ * guess is mounting all two and a half thousand cells once on the way to
+ * windowing them down, which is the most expensive thing the board does and it
+ * did it every time it opened.
+ *
+ * Nothing rests on the number: the effect above measures on the next tick and
+ * grows the window until the grid is scrollable, and where nothing can be
+ * measured at all it renders everything, exactly as it did before this existed.
+ */
+const FIRST_WINDOW = 120
+
 function measure(wrapper: HTMLElement | null, grid: HTMLElement | null): number | null {
   if (!wrapper || !grid) return null
   const columns = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length
