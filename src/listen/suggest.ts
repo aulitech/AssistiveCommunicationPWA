@@ -35,7 +35,7 @@ const ENDPOINT = 'https://api.anthropic.com/v1/messages'
 const MODELS_ENDPOINT = 'https://api.anthropic.com/v1/models?limit=1'
 
 /** The headers every request to Anthropic carries. */
-const headersFor = (key: string) => ({
+export const headersFor = (key: string) => ({
   'x-api-key': key,
   'anthropic-version': '2023-06-01',
   // Anthropic refuses a browser request without it. The key is the user's own
@@ -126,7 +126,7 @@ const QUOTED = /^["'“”‘’](.*)["'“”‘’]$/
  * How many are kept is not decided here — see `mixed`, which has the board to
  * compare them against.
  */
-function readReplies(said: string): string[] {
+export function readReplies(said: string): string[] {
   const seen = new Set<string>()
   const replies: string[] = []
   for (const raw of said.split('\n')) {

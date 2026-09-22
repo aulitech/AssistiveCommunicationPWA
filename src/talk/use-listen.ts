@@ -21,6 +21,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { canListen, listen } from '../listen/recognition'
+import { WAITING_MS } from '../listen/apology'
 import { boardForReply, suggestReply } from '../listen/suggest'
 import { hasTranslateKey, translateHeard } from '../translate/client'
 import {
@@ -86,6 +87,7 @@ export function useListen({
   replyModel,
   phrases,
   messageEmpty,
+  onWaiting,
 }: {
   /** What the board is spoken as, which is also what the microphone listens for. */
   language: string
@@ -119,6 +121,16 @@ export function useListen({
    * be one nobody could see and an exchange nobody asked to pay for.
    */
   messageEmpty: boolean
+  /**
+   * A reply has been three seconds coming, which is a long silence with
+   * somebody standing in front of you — see `listen/apology.ts`. Called once a
+   * question, and only where the question is still the one being answered.
+   *
+   * **The screen says it rather than this hook**, which is the same division
+   * every other sound in this app follows: nothing under `listen/` reaches the
+   * synthesiser, and what is said aloud is the screen's business.
+   */
+  onWaiting?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [heard, setHeard] = useState<Heard>(EMPTY)
@@ -215,7 +227,13 @@ export function useListen({
       // when the question goes rather than when the box was opened.
       // The board is written out here rather than kept written out: most boards
       // never ask for a reply at all, and one that does asks once a question.
+      // The board fills the silence while this is out — once, and only while
+      // this is still the question being answered.
+      const waited = setTimeout(() => {
+        if (mine === askedRef.current) onWaiting?.()
+      }, WAITING_MS)
       const result = await suggestReply(asked, language, replyModel, loadReplyContext(), boardForReply(phrases))
+      clearTimeout(waited)
       if (mine !== askedRef.current) return
       if (result.status === 'error' && result.refused) {
         // Nothing this box does will work until the key changes, so it stops
@@ -237,7 +255,7 @@ export function useListen({
       answeredAtRef.current = Date.now()
       setSuggestions(suggestionPhrases(result.replies, mine))
     },
-    [language, replyModel, phrases, replyKey, stopListening],
+    [language, replyModel, phrases, replyKey, stopListening, onWaiting],
   )
 
   /**

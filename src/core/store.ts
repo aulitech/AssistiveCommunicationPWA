@@ -26,6 +26,7 @@ const ELEVENLABS_KEY = 'peri_elevenlabs'
 const REPLY_KEY = 'peri_reply'
 const REPLY_CONTEXT_KEY = 'peri_reply_context'
 const ANSWERS_KEY = 'peri_answers'
+const APOLOGIES_KEY = 'peri_apologies'
 const TRANSLATIONS_KEY = 'peri_translations'
 const SENT_KEY = 'peri_sent'
 const TRANSLATED_KEY = 'peri_translated'
@@ -1152,6 +1153,57 @@ export function saveAnswers(answers: KeptAnswers | null) {
   else localStorage.setItem(storageKey(ANSWERS_KEY), JSON.stringify(answers))
 }
 
+// ── What the board says while a reply is being written ───────────────────────
+
+/**
+ * The apologies the board has ready, and the ones it has already said.
+ *
+ * **Kept rather than asked for at the moment of waiting**, which is the whole
+ * point of them: somebody is already waiting, and a request to fill the silence
+ * would be a second thing to wait for.
+ */
+export interface Apologies {
+  /** Ready to be said, each of them once. */
+  ready: string[]
+  /** What has been said, and when, so that none of it is said twice in an hour. */
+  said: { text: string; at: number }[]
+}
+
+/** How long an apology rests before it can be said again. */
+export const APOLOGY_REST_MS = 60 * 60_000
+
+export const NO_APOLOGIES: Apologies = { ready: [], said: [] }
+
+/**
+ * **Forgotten an hour after it was said**, pruned on the way out as well as on
+ * the way in: a board left open all afternoon should not keep a record of what
+ * it said this morning, and a board opened once a week has nothing to remember.
+ */
+export function loadApologies(now = Date.now()): Apologies {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(storageKey(APOLOGIES_KEY)) ?? 'null')
+    if (!raw || typeof raw !== 'object') return NO_APOLOGIES
+    const { ready, said } = raw as Partial<Apologies>
+    return {
+      ready: Array.isArray(ready) ? ready.filter(t => typeof t === 'string' && t) : [],
+      said: Array.isArray(said)
+        ? said.filter(
+            (s): s is { text: string; at: number } =>
+              typeof s?.text === 'string' && typeof s?.at === 'number' && now - s.at < APOLOGY_REST_MS,
+          )
+        : [],
+    }
+  } catch {
+    return NO_APOLOGIES
+  }
+}
+
+export function saveApologies(apologies: Apologies, now = Date.now()) {
+  const said = apologies.said.filter(s => now - s.at < APOLOGY_REST_MS)
+  if (apologies.ready.length === 0 && said.length === 0) localStorage.removeItem(storageKey(APOLOGIES_KEY))
+  else localStorage.setItem(storageKey(APOLOGIES_KEY), JSON.stringify({ ready: apologies.ready, said }))
+}
+
 // ── Who is signed in ─────────────────────────────────────────────────────────
 // Deliberately not part of a backup: a file that could sign you in as someone
 // else is a file that could sign someone else in as you.
@@ -1426,6 +1478,7 @@ const RESETTABLE_KEYS = [
   REPLY_KEY,
   REPLY_CONTEXT_KEY,
   ANSWERS_KEY,
+  APOLOGIES_KEY,
   TRANSLATIONS_KEY,
   SENT_KEY,
   TRANSLATED_KEY,
