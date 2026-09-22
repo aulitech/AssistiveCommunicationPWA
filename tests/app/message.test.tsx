@@ -795,6 +795,12 @@ describe('pasting by dwell', () => {
  */
 describe('the keyboard Peri draws', () => {
   const keyboard = () => document.querySelector('.keyboard')
+  const openSettings = () => {
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+  }
+  const panelBtn = (label: string) =>
+    [...document.body.querySelectorAll('.panel-btn')].find(b => b.getAttribute('aria-label') === label)
   const keyNamed = (name: string) =>
     [...document.querySelectorAll('.key')].find(k => k.getAttribute('aria-label') === name)!
   const toggleKeyboard = () => click(iconBtn('Show the keyboard') ?? iconBtn('Hide the keyboard'))
@@ -802,6 +808,19 @@ describe('the keyboard Peri draws', () => {
   it('is not there until it is asked for', () => {
     renderApp({ keyboard: true })
     expect(keyboard()).toBeNull()
+  })
+
+  // Four rows of keys and no way to put them down is what taking the setting
+  // away would otherwise leave on the screen.
+  it('goes away with the setting that offered it', () => {
+    renderApp({ keyboard: true })
+    toggleKeyboard()
+    expect(keyboard()).not.toBeNull()
+
+    openSettings()
+    click(panelBtn('Take it away'))
+
+    expect(keyboard(), 'the keys are still up with nothing to close them').toBeNull()
   })
 
   // The setting is what puts the toggle in the rail at all.

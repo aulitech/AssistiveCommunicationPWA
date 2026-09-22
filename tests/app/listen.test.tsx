@@ -463,6 +463,15 @@ describe('the control', () => {
     // the two that are always there are named.
     const tools = $$('.heard-tools .heard-btn').map(b => b.getAttribute('aria-label') ?? '')
     expect(tools[0], 'the control that empties the box is not first').toMatch(/^clear/i)
+    // Two, and no more: emptying the box and asking for answers. Reading the
+    // question in the board's own language was a third of them and has been
+    // taken away — it is somebody else's words, and the box holds them so they
+    // can be answered.
+    expect(tools).toHaveLength(2)
+    expect(
+      tools.some(l => /language|translat/i.test(l)),
+      'something still offers to translate',
+    ).toBe(false)
     // And nothing aims at the microphone: clearing starts it, undo stops it.
     expect(
       tools.filter(l => /^listen/i.test(l)),
