@@ -12,6 +12,7 @@
     "probe": "open tools/pointer-probe.html",
     "mic-probe": "open tools/mic-probe.html",
     "translate": "tsx tools/translate-table.ts",
+    "release": "tsx tools/release.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",

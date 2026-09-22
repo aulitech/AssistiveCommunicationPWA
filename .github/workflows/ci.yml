@@ -1,10 +1,10 @@
 # The gate every change passes before it reaches main, and the release that
 # follows it there. See *Checks, releases and publishing* in AGENTS.md.
 #
-# `check` is what main requires of a pull request. It ran as Netlify's build
-# command until this existed, which made every deploy preview take eight to ten
-# minutes and ran the whole suite a second time for each merge, for a commit
-# that changed nothing but the version.
+# `check` is what main requires of a pull request, and of itself once something
+# has merged. It ran as Netlify's build command until this existed, which made
+# every deploy preview take eight to ten minutes and was the only thing standing
+# between a change and main.
 
 name: CI
 
@@ -17,8 +17,9 @@ permissions:
   contents: read
 
 concurrency:
-  # A pull request's newer push replaces its older run; main's runs are never
-  # replaced, because each one may be the one that releases.
+  # A pull request's newer push replaces its older run. Main's are left alone:
+  # each says whether what is on main now is sound, and the answer for one
+  # commit is not the answer for the next.
   group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -38,33 +39,3 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-
-  # Only on main, only after it has passed, and one at a time.
-  release:
-    name: release
-    if: github.event_name == 'push'
-    needs: check
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    concurrency:
-      group: release
-      cancel-in-progress: false
-    permissions:
-      contents: write # the one job that pushes to main — see the ruleset in AGENTS.md
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0 # back to the last release
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          version: 11.20.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec tsx tools/release.ts
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TESTED_SHA: ${{ github.sha }}
