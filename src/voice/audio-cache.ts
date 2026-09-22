@@ -20,6 +20,13 @@
 //
 // Where IndexedDB is missing — an old browser, a private window that refuses it,
 // jsdom — everything still works and simply forgets between sessions.
+//
+// **The stored layer is kept per board**, in a database named the way the
+// board's own keys are. A clip is keyed by the words it says, so a shared
+// database would hold one person's phrases where the next could reach them, and
+// a factory reset would take away audio somebody else had paid for.
+
+import { storageKey } from '../core/store'
 
 const DB_NAME = 'peri-audio'
 const STORE = 'clips'
@@ -57,7 +64,7 @@ function openDb(): Promise<IDBDatabase | null> {
   return new Promise(resolve => {
     let request: IDBOpenDBRequest
     try {
-      request = indexedDB.open(DB_NAME, 1)
+      request = indexedDB.open(storageKey(DB_NAME), 1)
     } catch {
       resolve(null)
       return
@@ -153,8 +160,8 @@ export function setRemoteClips(clips: RemoteClips | null) {
 export const remoteClips = () => remote
 
 /**
- * Forgets everything this device holds. Called when an account is unlinked, and
- * on a factory reset.
+ * Forgets everything this device holds for this board. Called when an account
+ * is unlinked, and on a factory reset.
  *
  * **The remote layer is not touched**, and that is deliberate: those clips are
  * the user's other devices' too, and unlinking an account here is not a decision

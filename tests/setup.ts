@@ -4,6 +4,7 @@ import { afterEach, beforeEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { clearAudioCache, setRemoteClips } from '../src/voice/audio-cache'
 import { forgetPointerStream, releaseDwells } from '../src/ui/dwell'
+import { forgetWhoseBoard } from '../src/core/store'
 
 /** Everything spoken during a test, in order. */
 export const spoken: string[] = []
@@ -112,6 +113,9 @@ beforeEach(() => {
   forgetPointerStream()
   warnings.length = 0
   localStorage.clear()
+  // Module state, and the first thing any storage is read through: a test that
+  // opened a second account's board must not leave the next one reading it.
+  forgetWhoseBoard()
 
   // **Tests run with no translation key unless one is stubbed in.** Vitest
   // loads `.env.local`, so without this a machine that has a real key runs

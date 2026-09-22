@@ -5,11 +5,13 @@ import {
   cachedAudio,
   cachedCount,
   clearAudioCache,
+  rememberAudio,
   setRemoteClips,
+  storedAudio,
   warmAudio,
 } from '../../src/voice/audio-cache'
-import { clips, installFakeIdb, removeFakeIdb, seedClip } from './fake-idb'
-import { type ElevenLabsAccount } from '../../src/core/store'
+import { clips, databases, installFakeIdb, removeFakeIdb, seedClip } from './fake-idb'
+import { openBoardFor, type ElevenLabsAccount, type User } from '../../src/core/store'
 
 const ACCOUNT: ElevenLabsAccount = { apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }
 
@@ -339,5 +341,50 @@ describe('everywhere a clip may already be', () => {
 
     await expect(synthesize(ACCOUNT, 'v1', 'Hello')).resolves.toBeInstanceOf(Blob)
     expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * A clip is keyed by the words it says, so the audio made for a board is a list
+ * of that board's phrases. Each board keeps its own, in a database of its own —
+ * `clips` is the first owner's, which keeps the name every release before this
+ * used — and a factory reset reaches only the board being reset.
+ */
+describe('whose audio it is', () => {
+  const KEY = audioKey('v1', 'Hello')
+  const ada: User = { name: 'Ada', email: '', provider: 'google', sub: '1' }
+  const bob: User = { name: 'Bob', email: '', provider: 'google', sub: '2' }
+  /** The fake answers on microtasks; a macrotask is past all of them. */
+  const written = () => new Promise(resolve => setTimeout(resolve, 0))
+
+  beforeEach(() => installFakeIdb())
+  afterEach(() => removeFakeIdb())
+
+  it('is found only on the board it was made for', async () => {
+    openBoardFor(ada)
+    seedClip(KEY, new Blob(['Ada']))
+    openBoardFor(bob)
+    expect(await storedAudio(KEY), 'a second account found the first one’s audio').toBeUndefined()
+
+    rememberAudio(KEY, new Blob(['Bob']))
+    await written()
+    expect(await clips.get(KEY)?.text(), 'the second account’s clip went into the first one’s database').toBe(
+      'Ada',
+    )
+    expect(databases.size).toBe(2)
+  })
+
+  it('is cleared only on the board being reset', async () => {
+    openBoardFor(ada)
+    seedClip(KEY, new Blob(['Ada']))
+    openBoardFor(bob)
+    rememberAudio(KEY, new Blob(['Bob']))
+    await written()
+
+    clearAudioCache()
+    await written()
+    expect(await storedAudio(KEY)).toBeUndefined()
+    openBoardFor(ada)
+    expect(await (await storedAudio(KEY))?.text(), 'resetting one board took another’s audio').toBe('Ada')
   })
 })

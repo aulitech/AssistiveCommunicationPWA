@@ -57,6 +57,19 @@ describe('SignInCancelled', () => {
   })
 })
 
+// jsdom does not run scripts, so resolve the loader by firing load ourselves.
+const autoLoadScripts = () => {
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node instanceof HTMLScriptElement) node.dispatchEvent(new Event('load'))
+      }
+    }
+  })
+  observer.observe(document.head, { childList: true })
+  return () => observer.disconnect()
+}
+
 describe('Google', () => {
   const stubGis = (behaviour: 'ok' | 'cancel' | 'error') => {
     vi.stubGlobal('google', {
@@ -75,19 +88,6 @@ describe('Google', () => {
         },
       },
     })
-  }
-
-  // jsdom does not run scripts, so resolve the loader by firing load ourselves.
-  const autoLoadScripts = () => {
-    const observer = new MutationObserver(records => {
-      for (const record of records) {
-        for (const node of record.addedNodes) {
-          if (node instanceof HTMLScriptElement) node.dispatchEvent(new Event('load'))
-        }
-      }
-    })
-    observer.observe(document.head, { childList: true })
-    return () => observer.disconnect()
   }
 
   it('returns a profile from the token flow', async () => {
@@ -155,5 +155,49 @@ describe('script loading', () => {
     document.getElementById('gsi-client')!.dispatchEvent(new Event('load'))
     await expect(first).rejects.toThrow()
     await expect(second).rejects.toThrow()
+  })
+})
+
+describe('Apple', () => {
+  const token = (claims: object) => `header.${btoa(JSON.stringify(claims)).replace(/=+$/, '')}.signature`
+  /** Apple's script, answering as this account — with a name only if this is its first time. */
+  const stubApple = (sub: string, name?: { firstName: string; lastName: string }) =>
+    vi.stubGlobal('AppleID', {
+      auth: {
+        init: () => {},
+        signIn: async () => ({
+          authorization: { id_token: token({ sub, email: `${sub}@icloud.com` }) },
+          user: name ? { name } : undefined,
+        }),
+      },
+    })
+
+  // Apple sends a name only on an account's very first sign-in, so it is kept.
+  // Kept under one name for everybody, it was the name the next Apple account
+  // signed in on the device was greeted by.
+  it('keeps a name for the account it belongs to, and only that one', async () => {
+    const stop = autoLoadScripts()
+    const auth = await loadAuth({ VITE_APPLE_CLIENT_ID: 'com.example.peri' })
+
+    stubApple('a1', { firstName: 'Ada', lastName: 'Lovelace' })
+    expect((await auth.signInWithApple()).name).toBe('Ada Lovelace')
+    stubApple('b2')
+    expect((await auth.signInWithApple()).name, 'a second account was greeted as the first').toBe('b2@icloud.com')
+    stubApple('a1')
+    expect((await auth.signInWithApple()).name).toBe('Ada Lovelace')
+    stop()
+  })
+
+  // Whose it was is not known, so it goes rather than being handed to whoever
+  // signs in with Apple next.
+  it('hands nobody the name an earlier release kept', async () => {
+    localStorage.setItem('apple_user_name', 'Somebody Else')
+    const stop = autoLoadScripts()
+    const auth = await loadAuth({ VITE_APPLE_CLIENT_ID: 'com.example.peri' })
+
+    stubApple('c3')
+    expect((await auth.signInWithApple()).name).toBe('c3@icloud.com')
+    expect(localStorage.getItem('apple_user_name')).toBeNull()
+    stop()
   })
 })

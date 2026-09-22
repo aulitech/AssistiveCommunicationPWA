@@ -524,6 +524,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'A tablet by the bed and a phone in a wheelchair can hold the same board. Sign in with the same account on both, open Settings, and press Start on the Synchronize row. Anything you change on one appears on the other within a minute or so.',
       ),
       text(
+        'Signing in opens that account’s own board, not the guest’s. If you have been using Peri as a guest, save a backup under Backup and sharing first, and bring it in once you have signed in.',
+      ),
+      text(
         'It asks for a passphrase, and this is not a password to an account. It is the key your board is locked with before it leaves the device, and it is what the other device needs to unlock it. Choose the same one on every device, and write it down somewhere safe.',
       ),
       text(
@@ -625,6 +628,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'Your phrases, your details and your settings are stored on this device only. Nothing is uploaded, and signing in does not change that.',
+      ),
+      text(
+        'Each account signed in on a device keeps a board of its own there, and nobody signed in with a different account can open it. Signing out leaves yours where it is, for when you sign back in. Everyone who continues as a guest shares one guest board.',
       ),
       text(
         'The one exception is a linked ElevenLabs account: choosing one of its voices sends the words you speak to ElevenLabs to be spoken back. Everything else still works with no connection, including the emergency bar.',
