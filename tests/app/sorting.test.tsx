@@ -42,6 +42,17 @@ const BOARD = [
   { id: 'custom-b', text: 'Banana', category: 'Sorted' },
 ]
 
+/**
+ * For the tests about the board moving under a gaze. They share a word, so
+ * choosing one narrows the grid to all three rather than to itself — which is
+ * the board moving under somebody who has not moved.
+ */
+const SHARE_A_WORD = [
+  { id: 'custom-j1', text: 'Apple juice', category: 'Sorted' },
+  { id: 'custom-j2', text: 'Orange juice', category: 'Sorted' },
+  { id: 'custom-j3', text: 'More juice', category: 'Sorted' },
+]
+
 /** For the tests about one tab's order not being another's. */
 const TWO_CATEGORIES = [
   ...BOARD,
@@ -64,6 +75,16 @@ const cellFor = (text: string) => cells().find(c => c.textContent === text)
 
 const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
 const showSorted = () => click(tab('Sorted'))
+
+/**
+ * Looks at another tab and back, which is when an order that goes by use is
+ * taken again — see *Ordering the grid*. The board holds still while somebody
+ * is reading it.
+ */
+const lookAway = () => {
+  click(tab('All'))
+  showSorted()
+}
 
 const sortBtn = () => $('.grid-scrollbar .sort-btn')!
 const tiles = () => inBody('.picker-tile')
@@ -335,6 +356,7 @@ describe('what each order does', () => {
 
     click(cellFor('Apple'))
     click(cellFor('Banana'))
+    lookAway()
 
     expect(onBoard()).toEqual(['Banana', 'Apple', 'Cherry'])
   })
@@ -347,6 +369,7 @@ describe('what each order does', () => {
     click(cellFor('Banana'))
     click(cellFor('Apple'))
     click(cellFor('Apple'))
+    lookAway()
 
     // Apple twice, Banana once, and Cherry — which nobody has used — after both,
     // where the board already had it.
@@ -387,19 +410,60 @@ describe('a typed word ranks over the order', () => {
 })
 
 /**
- * The board follows use **on the dwell that used it**, which is what the order
- * says on the tin. What it costs is the thing this app has to be careful about,
- * and the next block is the answer to it.
+ * **The board holds still while somebody is reading it.** An order that goes by
+ * use used to be applied on the very dwell that chose a phrase: the cell just
+ * used slid to the front and everything else moved around it, so the next thing
+ * somebody looked for was not where they had left it. The counting still
+ * happens then; the rearranging waits until they look somewhere else.
  */
-describe('the board follows use as it happens', () => {
-  it('rearranges on the very dwell that counted', () => {
+describe('when the board takes a new order', () => {
+  it('holds still on the dwell that counted', () => {
     renderApp()
     showSorted()
     chooseOrder('Recently used')
 
     click(cellFor('Banana'))
 
+    expect(onBoard(), 'the board rearranged under the phrase just chosen').toEqual(['Cherry', 'Apple', 'Banana'])
+  })
+
+  it('counts it all the same, and shows the order at the next tab', () => {
+    renderApp()
+    showSorted()
+    chooseOrder('Recently used')
+
+    click(cellFor('Banana'))
+    lookAway()
+
     expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
+  })
+
+  // Every dwell counts, however many of them there are before anybody looks
+  // away: what the next tab shows is the record, not the last thing chosen.
+  it('takes everything used while the board held still', () => {
+    renderApp()
+    showSorted()
+    chooseOrder('Most used')
+
+    click(cellFor('Cherry'))
+    click(cellFor('Cherry'))
+    click(cellFor('Apple'))
+    lookAway()
+
+    expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
+  })
+
+  // Choosing the order is somebody asking for it, so it is applied there and
+  // then — they are looking at the picker rather than at the board.
+  it('takes it the moment the order itself is chosen', () => {
+    renderApp()
+    showSorted()
+    chooseOrder('Recently used')
+    click(cellFor('Banana'))
+
+    chooseOrder('A to Z')
+
+    expect(onBoard()).toEqual(['Apple', 'Banana', 'Cherry'])
   })
 
   it('leaves the board alone under an order that is not about use', () => {
@@ -408,6 +472,7 @@ describe('the board follows use as it happens', () => {
     chooseOrder('A to Z')
 
     click(cellFor('Cherry'))
+    lookAway()
 
     expect(onBoard()).toEqual(['Apple', 'Banana', 'Cherry'])
   })
@@ -416,14 +481,13 @@ describe('the board follows use as it happens', () => {
 /**
  * The window the grid renders starts again when the *list* changes — a new tab,
  * a new word — and not when the same phrases arrive in a new order. It used to
- * key off the array's own identity, which under an order that follows use meant
- * the grid shrank back to one screenful on every phrase spoken, and the view
- * went with it.
+ * key off the array's own identity, which meant the grid shrank back to one
+ * screenful whenever the order was taken again, and the view went with it.
  *
  * jsdom lays nothing out, so a test about the window has to supply the viewport
  * the window is measured from — see `rendering only part of a long grid`.
  */
-describe('the rendered window under a live order', () => {
+describe('the rendered window when the order changes', () => {
   const MANY = Array.from({ length: 80 }, (_, i) => ({
     id: `custom-${String(i).padStart(2, '0')}`,
     text: `Phrase ${String(i).padStart(2, '0')}`,
@@ -466,10 +530,11 @@ describe('the rendered window under a live order', () => {
     expect(cells()).toHaveLength(80)
     layOut(0)
 
-    click(cellFor('Phrase 07'))
+    // The same phrases in a different order, which is what choosing one does.
+    chooseOrder('A to Z')
 
-    expect(onBoard()[0]).toBe('Phrase 07')
-    expect(cells()).toHaveLength(80)
+    expect(onBoard()[0]).toBe('Phrase 00')
+    expect(cells(), 'the window started again for a list it already had').toHaveLength(80)
   })
 
   // The other half of the same rule: a genuinely different list does start again.
@@ -489,108 +554,140 @@ describe('the rendered window under a live order', () => {
 })
 
 /**
- * **The pointer is somebody's gaze, and it rests where it last fired.** So the
- * board rearranging itself on that very dwell slides a different phrase under a
- * gaze that has not moved — and the browser gives whatever lands there a
- * `pointerenter` of its own, which is an instruction nobody gave.
+ * **The pointer is somebody's gaze, and it rests where it last fired.** The
+ * board no longer rearranges on the dwell that chose a phrase — see *when the
+ * board takes a new order* — but composing still moves it: the phrase goes into
+ * the message box, the grid narrows to the word at the caret, and the browser
+ * gives whatever lands under the gaze a `pointerenter` of its own, which is an
+ * instruction nobody gave.
  *
  * Nothing may be chosen until the gaze is aimed somewhere else. A second of
  * deafness is the wrong shape for this one: too long for somebody who has
  * already looked away, and too short for a gaze that stays put.
  */
-describe('the board rearranging under a resting gaze', () => {
+describe('the board moving under a resting gaze', () => {
+  const message = () => $<HTMLTextAreaElement>('.text-display')!.value
+
   /** What the browser does by itself when a cell lands under a motionless pointer. */
   const arrivesUnderThePointer = (index: number) => {
     fireEvent.pointerEnter(cells()[index])
     act(() => void vi.advanceTimersByTime(1500))
+    settle()
   }
 
+  /**
+   * A gaze arriving and staying. The settle afterwards is the caret: it lands a
+   * tick after the phrase does, and the board narrows to the word under it —
+   * which is the move this block is about.
+   */
   const dwellOn = (text: string) => {
     fireEvent.pointerEnter(cellFor(text)!)
     act(() => void vi.advanceTimersByTime(1500))
+    settle()
   }
 
-  /** The picker's own guard, which is a timed one, has to lapse first. */
-  const readyOn = (order: string) => {
-    renderApp()
+  /**
+   * Composing, where a phrase chosen goes into the box and the board narrows
+   * under the pointer. Two dwells on the mode toggle: auto-speak → edit →
+   * composing.
+   */
+  const composing = () => {
+    renderApp(SHARE_A_WORD)
     showSorted()
-    chooseOrder(order)
-    spoken.length = 0
+    click($('.edit-toggle'))
+    click($('.edit-toggle'))
   }
 
-  it('says nothing for the cell that arrives under a pointer that has not moved', () => {
-    readyOn('Recently used')
+  it('takes nothing from the cell that arrives under a pointer that has not moved', () => {
+    composing()
+    dwellOn('Apple juice')
+    expect(message()).toBe('Apple juice')
+    // The board narrowed to the word at the caret, so what is under the gaze
+    // now is a different phrase from the one it chose.
+    expect(onBoard()).toEqual(['Apple juice', 'Orange juice', 'More juice'])
 
-    dwellOn('Banana')
-    expect(spoken).toEqual(['Banana'])
-    expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
+    arrivesUnderThePointer(1)
 
-    arrivesUnderThePointer(2)
-
-    expect(spoken).toEqual(['Banana'])
+    expect(message()).toBe('Apple juice')
   })
 
-  it('answers again once the gaze is aimed somewhere else', () => {
-    readyOn('Recently used')
-    dwellOn('Banana')
+  it('takes it once the gaze is aimed somewhere else', () => {
+    composing()
+    dwellOn('Apple juice')
 
     fireEvent.pointerMove(document.body, { clientX: 400, clientY: 400 })
-    arrivesUnderThePointer(2)
+    arrivesUnderThePointer(1)
 
-    expect(spoken).toEqual(['Banana', 'Apple'])
+    // The word at the caret is what a phrase chosen while composing replaces.
+    expect(message()).toBe('Apple Orange juice')
   })
 
   // A gaze drifts a pixel or two while somebody holds as still as they can, and
   // that is not aiming somewhere else.
   it('is not let go of by jitter', () => {
-    readyOn('Recently used')
+    composing()
     // Where the gaze is resting when the board moves under it — the distance is
     // measured from here, so the test has to say where "here" is.
     fireEvent.pointerMove(document.body, { clientX: 300, clientY: 200 })
-    dwellOn('Banana')
+    dwellOn('Apple juice')
 
     fireEvent.pointerMove(document.body, { clientX: 303, clientY: 204 })
-    arrivesUnderThePointer(2)
+    arrivesUnderThePointer(1)
 
-    expect(spoken).toEqual(['Banana'])
+    expect(message()).toBe('Apple juice')
   })
 
   /**
    * What a gaze rig set to send real left clicks actually produces, and the
-   * report that sent us looking for a bug that was not there: the board
-   * rearranges, the gaze has not moved, and the tracker clicks again where it is
-   * resting. A click is guarded exactly as a dwell is, or the platform walks
-   * straight around every guard in the app.
+   * report that sent us looking for a bug that was not there: the board moves,
+   * the gaze has not, and the tracker clicks again where it is resting. A click
+   * is guarded exactly as a dwell is, or the platform walks straight around
+   * every guard in the app.
    */
-  it('says nothing for a click that lands where the pointer already was', () => {
-    readyOn('Recently used')
+  it('takes nothing from a click that lands where the pointer already was', () => {
+    composing()
     fireEvent.pointerMove(document.body, { clientX: 300, clientY: 200 })
-    dwellOn('Banana')
-    expect(spoken).toEqual(['Banana'])
-    expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
+    dwellOn('Apple juice')
+    expect(message()).toBe('Apple juice')
 
     // No movement in between — the click is the tracker's, not a hand's.
-    fireEvent.click(cells()[2])
+    fireEvent.click(cells()[1])
     settle()
 
-    expect(spoken).toEqual(['Banana'])
+    expect(message()).toBe('Apple juice')
   })
 
   it('takes the click once the gaze has gone somewhere else', () => {
-    readyOn('Recently used')
+    composing()
     fireEvent.pointerMove(document.body, { clientX: 300, clientY: 200 })
-    dwellOn('Banana')
+    dwellOn('Apple juice')
 
     fireEvent.pointerMove(document.body, { clientX: 700, clientY: 500 })
-    fireEvent.click(cells()[2])
+    fireEvent.click(cells()[1])
     settle()
+
+    expect(message()).toBe('Apple Orange juice')
+  })
+
+  // Nothing moved, so nothing is held back: the board is still under auto-speak
+  // now that an order is taken at the tab rather than at the phrase.
+  it('holds nothing back where the board did not move', () => {
+    renderApp()
+    showSorted()
+    chooseOrder('Recently used')
+    spoken.length = 0
+
+    dwellOn('Banana')
+    arrivesUnderThePointer(1)
 
     expect(spoken).toEqual(['Banana', 'Apple'])
   })
 
-  // Nothing rearranged, so nothing is held back.
   it('leaves an order that is not about use alone', () => {
-    readyOn('A to Z')
+    renderApp()
+    showSorted()
+    chooseOrder('A to Z')
+    spoken.length = 0
 
     dwellOn('Apple')
     fireEvent.pointerLeave(cellFor('Apple')!)
@@ -685,16 +782,18 @@ describe('the mark on the last phrase said', () => {
     expect(marked()).toEqual([])
   })
 
-  // Under an order that follows use the cell moves as it is marked, which is the
-  // whole reason the mark has to outlast the move.
-  it('goes with the phrase when the board rearranges under it', () => {
+  // Composing narrows the board to the word at the caret as the phrase is
+  // marked, so the cell moves under the mark — which is the whole reason the
+  // mark is on the cell rather than on a place in the grid.
+  it('stays on the phrase when the board moves under it', () => {
     renderApp()
     showSorted()
-    chooseOrder('Recently used')
+    click($('.edit-toggle'))
+    click($('.edit-toggle'))
 
     click(cellFor('Banana'))
 
-    expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
+    expect(onBoard(), 'the board did not move, so nothing was proved').toEqual(['Banana'])
     expect(marked()).toEqual(['Banana'])
   })
 
