@@ -79,6 +79,7 @@ function PanelBack({ onSelect }: { onSelect: () => void }) {
  *
  * It also says what signing out does not do. Somebody whose board is how they
  * speak has every reason to think a button called Sign out might take it away.
+ * And what it does not protect: a guest's board is open to the next guest.
  */
 function ConfirmSignOut({
   user,
@@ -102,8 +103,9 @@ function ConfirmSignOut({
       <div className="confirm-modal" role="alertdialog" aria-modal="true" aria-label="Sign out">
         <span className="confirm-title">Sign out{user.email ? ` of ${user.email}` : ''}?</span>
         <p className="confirm-note">
-          Your phrases, your details and your settings stay on this device. Signing back in brings you straight
-          back to them.
+          {user.provider === 'guest'
+            ? 'Your phrases, your details and your settings stay on this device, for whoever continues as a guest. An account you sign in with has a board of its own.'
+            : 'Your phrases, your details and your settings stay on this device, where only this account can open them. Signing back in brings you straight back to them.'}
         </p>
         <div className="confirm-actions">
           <PanelButton kind="plain" label="Stay signed in" onActivate={onCancel} />

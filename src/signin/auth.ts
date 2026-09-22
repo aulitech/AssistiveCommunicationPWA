@@ -207,12 +207,17 @@ export async function signInWithApple(): Promise<OAuthUser> {
 
   const claims = decodeJwt(response.authorization.id_token)
 
-  // Apple sends the name only on the very first authorisation, so keep it.
+  // Apple sends the name only on the very first authorisation, so keep it —
+  // against the account it belongs to. Kept under one name for everybody, it
+  // was the name the next Apple account on this device was greeted by. That one
+  // could be anybody's, so it goes rather than being handed to whoever is next.
   const first = response.user?.name?.firstName ?? ''
   const last = response.user?.name?.lastName ?? ''
   const fresh = `${first} ${last}`.trim()
-  if (fresh) localStorage.setItem(APPLE_NAME_KEY, fresh)
-  const name = fresh || localStorage.getItem(APPLE_NAME_KEY) || claims.email || 'Apple user'
+  const nameKey = `${APPLE_NAME_KEY}:${claims.sub}`
+  localStorage.removeItem(APPLE_NAME_KEY)
+  if (fresh) localStorage.setItem(nameKey, fresh)
+  const name = fresh || localStorage.getItem(nameKey) || claims.email || 'Apple user'
 
   return {
     provider: 'apple',

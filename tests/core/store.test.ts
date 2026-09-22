@@ -24,7 +24,33 @@ import {
   saveReplyKey,
   saveSent,
   saveSettings,
+  changesWhoIsSignedIn,
+  emptySync,
+  loadAliasSort,
+  loadAliases,
+  loadElevenLabs,
+  loadPhraseSorts,
+  loadPhraseStore,
+  loadRecent,
+  loadSync,
+  loadTranslated,
+  loadUsage,
+  openBoardFor,
+  ownerOf,
+  saveAliasSort,
+  saveAliases,
+  saveElevenLabs,
+  savePhraseSorts,
+  savePhraseStore,
+  saveRecent,
+  saveSync,
+  saveTranslated,
+  saveUsage,
+  saveUser,
+  leaveForSignIn,
+  settingsOnArrival,
   type ReplyTurn,
+  type User,
 } from '../../src/core/store'
 
 // The arithmetic behind arranging things by hand. The two bars that use it are
@@ -493,5 +519,270 @@ describe('the answers last offered', () => {
     saveAnswers(kept)
     factoryReset()
     expect(loadAnswers(NOW)).toBeNull()
+  })
+})
+
+// ── Whose board ──────────────────────────────────────────────────────────────
+// A board is the signed-in person's and nobody else's. These drive every piece
+// of one through storage under two accounts and a guest; that the screens keep
+// them apart is `app/accounts.test.tsx`.
+describe('whose board', () => {
+  const ada: User = { name: 'Ada', email: 'ada@example.com', provider: 'google', sub: '1' }
+  const bob: User = { name: 'Bob', email: 'bob@example.com', provider: 'google', sub: '2' }
+  const guest: User = { name: 'Guest', email: '', provider: 'guest' }
+  /** Signed in before the provider's id was kept, so there is none to keep a board under. */
+  const early: User = { name: 'Eve', email: 'eve@example.com', provider: 'google' }
+
+  const PERSONAL = /^(dwellspeak_(settings|phrase_store_v2|profile)|peri_[a-z_]+)$/
+
+  /** Every piece of a board, written once through the store's own savers. */
+  function writeEverything(dwell: number) {
+    saveSettings({ ...DEFAULT_SETTINGS, phraseDwellMs: dwell })
+    savePhraseStore({ ...emptyStore(), hidden: [`hidden-${dwell}`] })
+    saveAliases({ lists: { contacts: [`Mum ${dwell}`] }, hidden: [] })
+    saveAliasSort('alpha')
+    saveSent([{ id: `s${dwell}`, text: `said ${dwell}` }])
+    saveTranslated([{ id: `t${dwell}`, text: `dit ${dwell}`, source: `said ${dwell}`, tag: 'fr' }])
+    saveRecent({ category: `Cat ${dwell}` })
+    saveUsage({ [`p${dwell}`]: { count: 1, at: 1 } })
+    savePhraseSorts({ all: 'alpha' })
+    saveElevenLabs({ apiKey: `eleven-${dwell}`, voices: [] })
+    saveReplyKey(`sk-ant-${dwell}`)
+    saveReplyContext([{ question: `asked ${dwell}`, reply: 'yes', at: Date.now() }])
+    saveAnswers({ at: Date.now(), question: `asked ${dwell}`, replies: ['yes'] })
+    saveSync({ ...emptySync(), passphrase: `words ${dwell}` })
+  }
+
+  /** What of a board can be read back, as the values `writeEverything` wrote. */
+  const readEverything = () => ({
+    dwell: loadSettings().phraseDwellMs,
+    hidden: loadPhraseStore().hidden,
+    contacts: loadAliases().lists.contacts,
+    aliasSort: loadAliasSort(),
+    sent: loadSent().map(m => m.text),
+    translated: loadTranslated().map(t => t.text),
+    recent: loadRecent().category,
+    usage: Object.keys(loadUsage()),
+    sorts: loadPhraseSorts(),
+    eleven: loadElevenLabs()?.apiKey,
+    reply: loadReplyKey(),
+    context: loadReplyContext().map(t => t.question),
+    answers: loadAnswers()?.question,
+    passphrase: loadSync().passphrase,
+  })
+
+  it('is an account, the guest, or nobody', () => {
+    expect(ownerOf(ada)).toBe('google:1')
+    expect(ownerOf(guest)).toBe('guest')
+    expect(ownerOf(early), 'a board kept under an id nobody can sign in as again').toBeNull()
+    expect(ownerOf(null)).toBeNull()
+  })
+
+  it('keeps every piece of one away from every other account', () => {
+    openBoardFor(ada)
+    writeEverything(2000)
+    const adas = readEverything()
+    // Every piece really was written, or a board that leaked would look like
+    // one that was never there.
+    expect(adas).toEqual({
+      dwell: 2000,
+      hidden: ['hidden-2000'],
+      contacts: ['Mum 2000'],
+      aliasSort: 'alpha',
+      sent: ['said 2000'],
+      translated: ['dit 2000'],
+      recent: 'Cat 2000',
+      usage: ['p2000'],
+      sorts: { all: 'alpha' },
+      eleven: 'eleven-2000',
+      reply: 'sk-ant-2000',
+      context: ['asked 2000'],
+      answers: 'asked 2000',
+      passphrase: 'words 2000',
+    })
+
+    openBoardFor(bob)
+    expect(readEverything(), 'the second account opened the first one’s board').toEqual({
+      dwell: DEFAULT_SETTINGS.phraseDwellMs,
+      hidden: [],
+      contacts: undefined,
+      aliasSort: 'custom',
+      sent: [],
+      translated: [],
+      recent: undefined,
+      usage: [],
+      sorts: {},
+      eleven: undefined,
+      reply: '',
+      context: [],
+      answers: undefined,
+      passphrase: '',
+    })
+    writeEverything(3000)
+
+    openBoardFor(ada)
+    expect(readEverything(), 'the second account wrote over the first').toEqual(adas)
+  })
+
+  it('writes nothing of a later account under a name somebody else reads', () => {
+    openBoardFor(ada)
+    openBoardFor(bob)
+    writeEverything(3000)
+
+    const written = Object.keys(localStorage).filter(k => k !== 'peri_first_owner')
+    expect(written.length).toBeGreaterThanOrEqual(14)
+    for (const key of written) expect(key, 'written under a name another board reads').toMatch(/@google:2$/)
+  })
+
+  it('keeps the guest’s apart from an account’s, both ways', () => {
+    openBoardFor(guest)
+    writeEverything(2000)
+    openBoardFor(ada)
+    expect(loadSent()).toEqual([])
+    writeEverything(3000)
+    openBoardFor(guest)
+    expect(loadSent().map(m => m.text)).toEqual(['said 2000'])
+  })
+
+  // The board from before boards were kept apart is under the bare names, and
+  // goes to whoever opens a board first — without a byte of it being moved.
+  describe('the first owner', () => {
+    const board = () => ({ sent: 'said before', key: 'sk-ant-before' })
+    const leaveOneBehind = () => {
+      localStorage.setItem('peri_sent', JSON.stringify([{ id: 's0', text: board().sent }]))
+      localStorage.setItem('peri_reply', board().key)
+    }
+
+    it('inherits the board already on the device', () => {
+      leaveOneBehind()
+      openBoardFor(ada)
+      expect(loadSent().map(m => m.text)).toEqual([board().sent])
+      expect(loadReplyKey()).toBe(board().key)
+    })
+
+    it('is the only one who does', () => {
+      leaveOneBehind()
+      openBoardFor(ada)
+      for (const other of [bob, guest]) {
+        openBoardFor(other)
+        expect(loadSent(), `${other.name} opened the board that was on the device`).toEqual([])
+        expect(loadReplyKey()).toBe('')
+      }
+    })
+
+    it('is decided once, and not by whoever opens a board next', () => {
+      openBoardFor(ada)
+      openBoardFor(bob)
+      openBoardFor(ada)
+      saveSent([{ id: 's1', text: 'Ada again' }])
+      expect(localStorage.getItem('peri_sent'), 'the first owner lost the bare names').not.toBeNull()
+      openBoardFor(bob)
+      expect(loadSent()).toEqual([])
+    })
+
+    // Somebody signed in before accounts had ids is still on the board they
+    // had, and has not claimed it: whoever signs in next, once they have signed
+    // out, is the one it goes to — which on their own device is them.
+    it('is not somebody signed in with no id, who keeps the board they had', () => {
+      leaveOneBehind()
+      openBoardFor(early)
+      expect(loadSent().map(m => m.text)).toEqual([board().sent])
+      expect(localStorage.getItem('peri_first_owner')).toBeNull()
+
+      openBoardFor(bob)
+      expect(
+        loadSent().map(m => m.text),
+        'the next to sign in did not inherit it',
+      ).toEqual([board().sent])
+    })
+  })
+
+  it('resets only the board that is open', () => {
+    openBoardFor(ada)
+    writeEverything(2000)
+    const adas = readEverything()
+    openBoardFor(bob)
+    writeEverything(3000)
+
+    factoryReset()
+    expect(Object.keys(localStorage).filter(k => k.endsWith('@google:2'))).toEqual([])
+    openBoardFor(ada)
+    expect(readEverything(), 'resetting one account took another’s board').toEqual(adas)
+  })
+
+  it('leaves who is signed in, and who owned the board first, to the device', () => {
+    saveUser(ada)
+    openBoardFor(ada)
+    openBoardFor(bob)
+    factoryReset()
+    expect(localStorage.getItem('dwellspeak_user')).not.toBeNull()
+    expect(localStorage.getItem('peri_first_owner')).toBe('google:1')
+    expect(Object.keys(localStorage).filter(k => PERSONAL.test(k) && k !== 'peri_first_owner')).toEqual([])
+  })
+
+  // Signed out is nobody's board: the sign-in page, and a legal page opened
+  // with nobody signed in, read nothing of anybody's.
+  it('opens nobody’s while nobody is signed in', () => {
+    openBoardFor(ada)
+    writeEverything(2000)
+    openBoardFor(bob)
+    writeEverything(3000)
+
+    openBoardFor(null)
+    expect(readEverything().dwell).toBe(DEFAULT_SETTINGS.phraseDwellMs)
+    expect(readEverything().sent).toEqual([])
+    expect(readEverything().reply).toBe('')
+    expect(readEverything().passphrase).toBe('')
+  })
+
+  describe('how the sign-in page is worked', () => {
+    const worked = {
+      ...DEFAULT_SETTINGS,
+      zoom: 1.5,
+      phraseDwellMs: 2500,
+      actionDwellMs: 1600,
+      repeatDelayMs: 700,
+      language: 'fr',
+      voiceURI: 'Amélie',
+      volume: 0.3,
+      replyModel: REPLY_MODELS[2].id,
+    }
+    const REACHING = { zoom: 1.5, phraseDwellMs: 2500, actionDwellMs: 1600, repeatDelayMs: 700 }
+
+    // Whoever is at the sign-in page next is most often whoever just left it,
+    // and somebody who needs a slow dwell cannot sign back in at a quick one.
+    it('is left the way the board was worked, and nothing else of it', () => {
+      openBoardFor(ada)
+      leaveForSignIn(worked)
+      openBoardFor(null)
+      expect(loadSettings()).toEqual({ ...DEFAULT_SETTINGS, ...REACHING })
+    })
+
+    it('is where a board opened here for the first time starts, and stays', () => {
+      openBoardFor(null)
+      const signedOut = { ...loadSettings(), ...REACHING, language: 'fr' }
+      openBoardFor(bob)
+      expect(settingsOnArrival(signedOut)).toEqual({ ...DEFAULT_SETTINGS, ...REACHING })
+      expect(loadSettings(), 'not written down, so gone on the next load').toEqual({
+        ...DEFAULT_SETTINGS,
+        ...REACHING,
+      })
+    })
+
+    it('is not where a board with settings of its own starts', () => {
+      openBoardFor(ada)
+      saveSettings(worked)
+      expect(settingsOnArrival({ ...DEFAULT_SETTINGS, actionDwellMs: 300 })).toEqual({
+        ...worked,
+        autoSpeak: DEFAULT_SETTINGS.autoSpeak,
+      })
+    })
+  })
+
+  it('names another tab signing somebody in or out, and nothing else', () => {
+    expect(changesWhoIsSignedIn('dwellspeak_user')).toBe(true)
+    expect(changesWhoIsSignedIn(null), 'storage cleared signs everybody out').toBe(true)
+    expect(changesWhoIsSignedIn('dwellspeak_settings')).toBe(false)
+    expect(changesWhoIsSignedIn('dwellspeak_user@google:1')).toBe(false)
   })
 })

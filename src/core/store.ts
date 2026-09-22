@@ -13,6 +13,9 @@ import { newDeviceId } from './sync'
 // their edits, their dwell times — lives under these keys and nowhere else, and
 // renaming them without a migration would silently empty the app for everyone
 // already using it. The name is cosmetic; the data is not.
+//
+// Each is somebody's, and is read and written through `storageKey`, which puts
+// whose after the name — see *Whose board*. `USER_KEY` is the one exception.
 const SETTINGS_KEY = 'dwellspeak_settings'
 const PHRASE_STORE_KEY = 'dwellspeak_phrase_store_v2'
 const PROFILE_KEY = 'dwellspeak_profile' // read once, to carry an old profile forward
@@ -199,7 +202,7 @@ export const SETTING_LIMITS = {
  */
 export function loadSettings(): Settings {
   try {
-    const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}')
+    const raw = JSON.parse(localStorage.getItem(storageKey(SETTINGS_KEY)) ?? '{}')
     return {
       ...DEFAULT_SETTINGS,
       ...raw,
@@ -223,7 +226,7 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(s: Settings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))
+  localStorage.setItem(storageKey(SETTINGS_KEY), JSON.stringify(s))
 }
 
 /** Enough of a voice to say what language it is in. */
@@ -463,7 +466,7 @@ export function readPhraseOrder(raw: unknown): Record<string, string[]> | null {
 
 export function loadPhraseStore(): PhraseStore {
   try {
-    const raw = JSON.parse(localStorage.getItem(PHRASE_STORE_KEY) ?? '{}')
+    const raw = JSON.parse(localStorage.getItem(storageKey(PHRASE_STORE_KEY)) ?? '{}')
     const base = emptyStore()
     const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null)
     const categoryOrder = strings(raw.categoryOrder) ?? base.categoryOrder
@@ -500,7 +503,7 @@ export function loadPhraseStore(): PhraseStore {
 }
 
 export function savePhraseStore(s: PhraseStore) {
-  localStorage.setItem(PHRASE_STORE_KEY, JSON.stringify(s))
+  localStorage.setItem(storageKey(PHRASE_STORE_KEY), JSON.stringify(s))
 }
 
 // ── Aliases ──────────────────────────────────────────────────────────────────
@@ -579,10 +582,10 @@ export function aliasesFromProfile(raw: unknown): AliasStore {
 
 export function loadAliases(): AliasStore {
   try {
-    const stored = localStorage.getItem(ALIASES_KEY)
+    const stored = localStorage.getItem(storageKey(ALIASES_KEY))
     if (stored !== null) return readAliases(JSON.parse(stored))
     // Nothing here yet: carry over whatever the old details panel held, once.
-    const profile = localStorage.getItem(PROFILE_KEY)
+    const profile = localStorage.getItem(storageKey(PROFILE_KEY))
     if (profile === null) return EMPTY_ALIASES
     const carried = aliasesFromProfile(JSON.parse(profile))
     saveAliases(carried)
@@ -593,7 +596,7 @@ export function loadAliases(): AliasStore {
 }
 
 export function saveAliases(a: AliasStore) {
-  localStorage.setItem(ALIASES_KEY, JSON.stringify(a))
+  localStorage.setItem(storageKey(ALIASES_KEY), JSON.stringify(a))
 }
 
 /**
@@ -605,11 +608,11 @@ export function saveAliases(a: AliasStore) {
  * each list; which of the two is being looked at does not.
  */
 export function loadAliasSort(): 'custom' | 'alpha' {
-  return localStorage.getItem(ALIAS_SORT_KEY) === 'alpha' ? 'alpha' : 'custom'
+  return localStorage.getItem(storageKey(ALIAS_SORT_KEY)) === 'alpha' ? 'alpha' : 'custom'
 }
 
 export function saveAliasSort(sort: 'custom' | 'alpha') {
-  localStorage.setItem(ALIAS_SORT_KEY, sort)
+  localStorage.setItem(storageKey(ALIAS_SORT_KEY), sort)
 }
 
 // ── Messages already said ─────────────────────────────────────────────────────
@@ -632,7 +635,7 @@ const SENT_LIMIT = 200
 
 export function loadSent(): SentMessage[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(SENT_KEY) ?? '[]')
+    const raw = JSON.parse(localStorage.getItem(storageKey(SENT_KEY)) ?? '[]')
     if (!Array.isArray(raw)) return []
     return raw
       .filter(
@@ -647,7 +650,7 @@ export function loadSent(): SentMessage[] {
 }
 
 export function saveSent(messages: SentMessage[]) {
-  localStorage.setItem(SENT_KEY, JSON.stringify(messages))
+  localStorage.setItem(storageKey(SENT_KEY), JSON.stringify(messages))
 }
 
 // ── What was said in another language ─────────────────────────────────────────
@@ -682,7 +685,7 @@ const TRANSLATED_LIMIT = 200
 
 export function loadTranslated(): Translated[] {
   try {
-    const raw: unknown = JSON.parse(localStorage.getItem(TRANSLATED_KEY) ?? '[]')
+    const raw: unknown = JSON.parse(localStorage.getItem(storageKey(TRANSLATED_KEY)) ?? '[]')
     if (!Array.isArray(raw)) return []
     return (raw as Translated[])
       .filter(
@@ -705,7 +708,7 @@ export function loadTranslated(): Translated[] {
 }
 
 export function saveTranslated(list: Translated[]) {
-  localStorage.setItem(TRANSLATED_KEY, JSON.stringify(list))
+  localStorage.setItem(storageKey(TRANSLATED_KEY), JSON.stringify(list))
 }
 
 /**
@@ -765,7 +768,7 @@ export interface RecentChoices {
 
 export function loadRecent(): RecentChoices {
   try {
-    const raw = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '{}')
+    const raw = JSON.parse(localStorage.getItem(storageKey(RECENT_KEY)) ?? '{}')
     const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
     return { category: str(raw?.category), voice: str(raw?.voice) }
   } catch {
@@ -774,7 +777,7 @@ export function loadRecent(): RecentChoices {
 }
 
 export function saveRecent(recent: RecentChoices) {
-  localStorage.setItem(RECENT_KEY, JSON.stringify(recent))
+  localStorage.setItem(storageKey(RECENT_KEY), JSON.stringify(recent))
 }
 
 // ── How much each phrase is used ──────────────────────────────────────────────
@@ -806,7 +809,7 @@ const PHRASE_SORTS_STORED: readonly PhraseSort[] = ['custom', 'alpha', 'recent',
 
 export function loadUsage(): PhraseUsage {
   try {
-    const raw = JSON.parse(localStorage.getItem(USAGE_KEY) ?? '{}')
+    const raw = JSON.parse(localStorage.getItem(storageKey(USAGE_KEY)) ?? '{}')
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
     const usage: PhraseUsage = {}
     for (const [id, entry] of Object.entries(raw as Record<string, unknown>)) {
@@ -825,7 +828,7 @@ export function loadUsage(): PhraseUsage {
 }
 
 export function saveUsage(usage: PhraseUsage) {
-  localStorage.setItem(USAGE_KEY, JSON.stringify(usage))
+  localStorage.setItem(storageKey(USAGE_KEY), JSON.stringify(usage))
 }
 
 /** The usage after `id` is used once more. */
@@ -877,7 +880,7 @@ export const DEFAULT_SORT: PhraseSort = 'frequent'
 const readSort = (raw: unknown): PhraseSort | undefined => PHRASE_SORTS_STORED.find(s => s === raw)
 
 export function loadPhraseSorts(): PhraseSorts {
-  const stored = localStorage.getItem(PHRASE_SORT_KEY)
+  const stored = localStorage.getItem(storageKey(PHRASE_SORT_KEY))
   if (!stored) return {}
   // Written before there was one per tab, when the whole board shared a single
   // order. It was chosen while looking at some tab, and All is the one the
@@ -902,7 +905,7 @@ export function loadPhraseSorts(): PhraseSorts {
 }
 
 export function savePhraseSorts(sorts: PhraseSorts) {
-  localStorage.setItem(PHRASE_SORT_KEY, JSON.stringify(sorts))
+  localStorage.setItem(storageKey(PHRASE_SORT_KEY), JSON.stringify(sorts))
 }
 
 /**
@@ -972,7 +975,7 @@ export function sameAccount(a: ElevenLabsAccount | null, b: ElevenLabsAccount | 
 
 export function loadElevenLabs(): ElevenLabsAccount | null {
   try {
-    const raw = JSON.parse(localStorage.getItem(ELEVENLABS_KEY) ?? 'null')
+    const raw = JSON.parse(localStorage.getItem(storageKey(ELEVENLABS_KEY)) ?? 'null')
     if (!raw || typeof raw.apiKey !== 'string' || !raw.apiKey) return null
     const voices: RemoteVoice[] = Array.isArray(raw.voices)
       ? raw.voices
@@ -993,8 +996,8 @@ export function loadElevenLabs(): ElevenLabsAccount | null {
 }
 
 export function saveElevenLabs(account: ElevenLabsAccount | null) {
-  if (account) localStorage.setItem(ELEVENLABS_KEY, JSON.stringify(account))
-  else localStorage.removeItem(ELEVENLABS_KEY)
+  if (account) localStorage.setItem(storageKey(ELEVENLABS_KEY), JSON.stringify(account))
+  else localStorage.removeItem(storageKey(ELEVENLABS_KEY))
 }
 
 // ── The key behind a suggested reply ──────────────────────────────────────────
@@ -1011,7 +1014,7 @@ export function saveElevenLabs(account: ElevenLabsAccount | null) {
 /** The key, or empty for a board that has not been given one. */
 export function loadReplyKey(): string {
   try {
-    const raw: unknown = localStorage.getItem(REPLY_KEY)
+    const raw: unknown = localStorage.getItem(storageKey(REPLY_KEY))
     return typeof raw === 'string' ? raw.trim() : ''
   } catch {
     return ''
@@ -1020,8 +1023,8 @@ export function loadReplyKey(): string {
 
 export function saveReplyKey(key: string) {
   const trimmed = key.trim()
-  if (trimmed) localStorage.setItem(REPLY_KEY, trimmed)
-  else localStorage.removeItem(REPLY_KEY)
+  if (trimmed) localStorage.setItem(storageKey(REPLY_KEY), trimmed)
+  else localStorage.removeItem(storageKey(REPLY_KEY))
 }
 
 // ── What has been asked and answered today ────────────────────────────────────
@@ -1061,7 +1064,7 @@ const REPLY_CONTEXT_LIMIT = 20
 /** Today's exchanges, oldest first, with anything older than a day already gone. */
 export function loadReplyContext(now = Date.now()): ReplyTurn[] {
   try {
-    const raw: unknown = JSON.parse(localStorage.getItem(REPLY_CONTEXT_KEY) ?? '[]')
+    const raw: unknown = JSON.parse(localStorage.getItem(storageKey(REPLY_CONTEXT_KEY)) ?? '[]')
     if (!Array.isArray(raw)) return []
     return (raw as ReplyTurn[])
       .filter(
@@ -1081,8 +1084,8 @@ export function loadReplyContext(now = Date.now()): ReplyTurn[] {
 }
 
 export function saveReplyContext(turns: ReplyTurn[]) {
-  if (turns.length === 0) localStorage.removeItem(REPLY_CONTEXT_KEY)
-  else localStorage.setItem(REPLY_CONTEXT_KEY, JSON.stringify(turns))
+  if (turns.length === 0) localStorage.removeItem(storageKey(REPLY_CONTEXT_KEY))
+  else localStorage.setItem(storageKey(REPLY_CONTEXT_KEY), JSON.stringify(turns))
 }
 
 /** The exchanges after this one, with the day's window applied. */
@@ -1104,8 +1107,8 @@ export function addReplyTurn(turns: ReplyTurn[], question: string, reply: string
  * board would have forgotten half of what it says it did.
  */
 export function forgetReplyContext() {
-  localStorage.removeItem(REPLY_CONTEXT_KEY)
-  localStorage.removeItem(ANSWERS_KEY)
+  localStorage.removeItem(storageKey(REPLY_CONTEXT_KEY))
+  localStorage.removeItem(storageKey(ANSWERS_KEY))
 }
 
 // ── The answers last offered ─────────────────────────────────────────────────
@@ -1131,7 +1134,7 @@ export interface KeptAnswers {
 /** The answers last offered, or null when there are none or they are a day old. */
 export function loadAnswers(now = Date.now()): KeptAnswers | null {
   try {
-    const raw: unknown = JSON.parse(localStorage.getItem(ANSWERS_KEY) ?? 'null')
+    const raw: unknown = JSON.parse(localStorage.getItem(storageKey(ANSWERS_KEY)) ?? 'null')
     if (typeof raw !== 'object' || raw === null) return null
     const { at, question, replies } = raw as Partial<KeptAnswers>
     if (typeof at !== 'number' || !Number.isFinite(at) || now - at >= REPLY_CONTEXT_MS) return null
@@ -1145,8 +1148,8 @@ export function loadAnswers(now = Date.now()): KeptAnswers | null {
 
 /** Keep these, or — given none — take the key away entirely. */
 export function saveAnswers(answers: KeptAnswers | null) {
-  if (!answers || answers.replies.length === 0) localStorage.removeItem(ANSWERS_KEY)
-  else localStorage.setItem(ANSWERS_KEY, JSON.stringify(answers))
+  if (!answers || answers.replies.length === 0) localStorage.removeItem(storageKey(ANSWERS_KEY))
+  else localStorage.setItem(storageKey(ANSWERS_KEY), JSON.stringify(answers))
 }
 
 // ── Who is signed in ─────────────────────────────────────────────────────────
@@ -1192,6 +1195,135 @@ export function saveUser(u: User) {
 
 export function clearUser() {
   localStorage.removeItem(USER_KEY)
+}
+
+/**
+ * Whether a change to storage made in another tab signs somebody in or out. A
+ * `null` key is the whole of storage being cleared, which signs everybody out.
+ */
+export const changesWhoIsSignedIn = (key: string | null) => key === null || key === USER_KEY
+
+// ── Whose board ──────────────────────────────────────────────────────────────
+// **A board belongs to whoever signed in to it**, and nobody else who signs in
+// on this device can open it. Everything under the keys above is somebody's:
+// their phrases, their lists, their settings, their keys, what they said. Only
+// who is signed in, and who owned the board before there was more than one, are
+// the device's own.
+
+/**
+ * Who a board belongs to: an account, the device's guest, or null.
+ *
+ * **Every guest is one guest.** Guests prove nothing about who they are, so the
+ * board they share is open to anybody who continues as one, and never to an
+ * account. **Null is somebody signed in before accounts were told apart**, who
+ * has no id to keep a board under. They go on with the board they had until
+ * they sign in again, and nobody signs in as them in the meantime, because
+ * signing in as anyone replaces them.
+ */
+export function ownerOf(user: User | null): string | null {
+  if (user?.provider === 'guest') return 'guest'
+  return accountId(user)
+}
+
+/**
+ * Who opened a board here first. They inherit the one on the device from
+ * before boards were kept apart, and keep the storage names it had.
+ */
+const FIRST_OWNER_KEY = 'peri_first_owner'
+
+/**
+ * Whose board is open while nobody is signed in, which is nobody's. It holds
+ * the one thing the sign-in page keeps — how it is worked — and nothing of any
+ * board, so nothing of anybody's is on screen before they have signed in.
+ */
+const NOBODY = '@nobody'
+
+/** What this page's storage names carry after them: nothing, or `@owner`. */
+let suffix = ''
+
+/**
+ * Point every read and write at this person's board. Called once as the page
+ * opens, and again at sign-in.
+ *
+ * **The first owner keeps the names the board already had**, which is how the
+ * board from before boards were kept apart goes to them without being moved: a
+ * move is several writes and could stop halfway, leaving somebody half a board.
+ * They inherit it because they were using it, or else because theirs is the
+ * next sign-in. Every later owner has `@owner` after every name, which the first
+ * owner can never hold, so nothing they write can land on somebody else's.
+ *
+ * **Opening a different board needs a fresh page.** What a screen has already
+ * read stays in memory, and a request still on its way writes under whichever
+ * name is current when it lands. So signing out reloads, and signing in happens
+ * on a page nobody's board was ever opened in.
+ */
+export function openBoardFor(user: User | null) {
+  if (!user) {
+    suffix = NOBODY
+    return
+  }
+  const owner = ownerOf(user)
+  if (!owner) {
+    suffix = ''
+    return
+  }
+  let first = localStorage.getItem(FIRST_OWNER_KEY)
+  if (first === null) {
+    first = owner
+    localStorage.setItem(FIRST_OWNER_KEY, owner)
+  }
+  suffix = owner === first ? '' : `@${owner}`
+}
+
+/**
+ * The name one piece of this person's board is kept under. Anything else that
+ * keeps something of theirs asks here as well — the translations they have
+ * made, and the database their audio is in.
+ */
+export function storageKey(name: string): string {
+  return name + suffix
+}
+
+/**
+ * Test seam: the bare names, which is where a page is before it has opened a
+ * board. The app never is — the shell opens one before anything reads — but
+ * every test that is not about whose board is open reads storage from there.
+ */
+export function forgetWhoseBoard() {
+  suffix = ''
+}
+
+/**
+ * What the sign-in page needs of somebody's settings to be worked at all: how
+ * long a dwell takes, and how big the text is.
+ */
+const reaching = ({ zoom, phraseDwellMs, actionDwellMs, repeatDelayMs }: Settings) => ({
+  zoom,
+  phraseDwellMs,
+  actionDwellMs,
+  repeatDelayMs,
+})
+
+/**
+ * Leave the sign-in page worked the way this person worked their board — and
+ * none of the rest of it. Whoever is at it next is most often the one who just
+ * left, and somebody who needs a slow dwell cannot sign back in at a quick one.
+ */
+export function leaveForSignIn(settings: Settings) {
+  localStorage.setItem(SETTINGS_KEY + NOBODY, JSON.stringify({ ...DEFAULT_SETTINGS, ...reaching(settings) }))
+}
+
+/**
+ * The settings a board arrives with at sign-in: its own, or — opened on this
+ * device for the first time — the dwell times and text size somebody just
+ * signed in with, written down as its own. Needing a slow dwell to reach the
+ * board is needing one on it.
+ */
+export function settingsOnArrival(signedOut: Settings): Settings {
+  if (localStorage.getItem(storageKey(SETTINGS_KEY)) !== null) return loadSettings()
+  const start = { ...DEFAULT_SETTINGS, ...reaching(signedOut) }
+  saveSettings(start)
+  return start
 }
 
 // ── Synchronizing ────────────────────────────────────────────────────────────
@@ -1247,7 +1379,7 @@ export const emptySync = (): SyncConfig => ({
 
 export function loadSync(): SyncConfig {
   try {
-    const stored = JSON.parse(localStorage.getItem(SYNC_KEY) ?? 'null')
+    const stored = JSON.parse(localStorage.getItem(storageKey(SYNC_KEY)) ?? 'null')
     if (!stored || typeof stored !== 'object') return emptySync()
     // Field by field over the defaults: a half-written record must not leave the
     // app with a passphrase and no device, which would write a board to an
@@ -1269,13 +1401,14 @@ export function loadSync(): SyncConfig {
 }
 
 export function saveSync(config: SyncConfig) {
-  localStorage.setItem(SYNC_KEY, JSON.stringify(config))
+  localStorage.setItem(storageKey(SYNC_KEY), JSON.stringify(config))
 }
 
 // ── Factory reset ────────────────────────────────────────────────────────────
 
 /**
- * Everything this app has ever written down, except who is signed in.
+ * Everything this app has ever written down, except who is signed in and who
+ * owned the board first — which is to say every piece of somebody's board.
  *
  * Listed rather than reached for with `localStorage.clear()`: this app is served
  * from an origin that may hold something it did not put there, and a reset is no
@@ -1303,7 +1436,11 @@ const RESETTABLE_KEYS = [
 ] as const
 
 /**
- * Put the device back to what it shipped with.
+ * Put this person's board back to what it shipped with.
+ *
+ * **Only theirs.** Anybody else who signs in on this device keeps their board,
+ * which is not this person's to take away — and their audio, which the caller
+ * clears, is in a database of its own for the same reason.
  *
  * **The signed-in user stays.** Signing out is its own item with its own
  * confirmation, and dropping somebody at the sign-in page is not what they asked
@@ -1315,7 +1452,7 @@ const RESETTABLE_KEYS = [
  * read the empty shelf rather than most of them.
  */
 export function factoryReset() {
-  for (const key of RESETTABLE_KEYS) localStorage.removeItem(key)
+  for (const key of RESETTABLE_KEYS) localStorage.removeItem(storageKey(key))
 }
 
 /** What the app holds immediately after one, for anything that wants to assert it. */

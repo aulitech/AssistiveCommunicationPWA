@@ -564,6 +564,35 @@ describe('the shape of the source tree', () => {
    * somebody's money. It checks the cheaper claim underneath both failures: that
    * the binary a script reaches for is one this project actually installs.
    */
+  // A board is somebody's, and all that keeps it theirs is that every read and
+  // write names whose — see *Whose board* in `core/store.ts`. A key read under
+  // its bare name is one every account on the device shares, which is what
+  // every key here was until that existed.
+  it('stores everything under the name of whose it is', () => {
+    const code = (path: string) =>
+      readFileSync(path, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+    /** The device's own: who is signed in, who owned it first, the sign-in page, and Apple's names. */
+    const DEVICE_WIDE: Record<string, string[]> = {
+      'core/store.ts': ['USER_KEY', 'FIRST_OWNER_KEY', 'SETTINGS_KEY + NOBODY'],
+      'signin/auth.ts': ['APPLE_NAME_KEY', 'nameKey'],
+    }
+    const STORED = /(?:localStorage\.(?:get|set|remove)Item|indexedDB\.open)\(\s*([^,)]+?)\s*[,)]/g
+
+    const found = sources().flatMap(path => {
+      const file = relative(SRC, path)
+      return [...code(path).matchAll(STORED)].map(m => ({ file, name: m[1] }))
+    })
+    expect(found.length, 'the pattern stopped finding anything').toBeGreaterThan(30)
+    expect(
+      found
+        .filter(({ file, name }) => !name.startsWith('storageKey(') && !DEVICE_WIDE[file]?.includes(name))
+        .map(({ file, name }) => `${file}: ${name}`),
+      'stored under a name every account on this device shares',
+    ).toEqual([])
+  })
+
   it('offers no script whose command it has not installed', () => {
     const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')) as {
       scripts: Record<string, string>

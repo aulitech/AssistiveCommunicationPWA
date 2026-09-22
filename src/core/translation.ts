@@ -28,6 +28,7 @@ const CACHE_LIMIT = 2000
 
 const KEY = 'peri_translations'
 import { reportFailure } from './report'
+import { storageKey } from './store'
 
 /** A language's translations, keyed by the exact words that would be spoken. */
 export interface TranslationTable {
@@ -126,11 +127,19 @@ export const varietyLabel = (tag: string): string | undefined => varietyFor(tag)
  */
 const shipped = new Map<string, Record<string, string>>()
 let remembered: Record<string, Record<string, string>> | null = null
+/**
+ * Whose translations those are. What somebody has translated is a record of
+ * what they said, so it is kept with their board — and read again, rather than
+ * carried over, the moment a different board is open.
+ */
+let rememberedFrom = ''
 
 function cache(): Record<string, Record<string, string>> {
-  if (remembered) return remembered
+  const key = storageKey(KEY)
+  if (remembered && rememberedFrom === key) return remembered
+  rememberedFrom = key
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as unknown
+    const raw = JSON.parse(localStorage.getItem(storageKey(KEY)) ?? '{}') as unknown
     remembered = isTable(raw) ? raw : {}
   } catch {
     remembered = {}
@@ -200,7 +209,7 @@ export function rememberTranslation(text: string, tag: string, translated: strin
 
   all[table] = forLanguage
   try {
-    localStorage.setItem(KEY, JSON.stringify(all))
+    localStorage.setItem(storageKey(KEY), JSON.stringify(all))
   } catch {
     // A full or unavailable store costs speed, never speech — but it means
     // every phrase is paid for again on the next reload, which is worth knowing.
@@ -213,7 +222,7 @@ export function forgetTranslations() {
   shipped.clear()
   remembered = null
   try {
-    localStorage.removeItem(KEY)
+    localStorage.removeItem(storageKey(KEY))
   } catch {
     // Nothing to do, and nothing that matters.
   }

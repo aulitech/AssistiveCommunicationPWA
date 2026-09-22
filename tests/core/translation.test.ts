@@ -5,6 +5,7 @@
 // promise there is a phrase that arrives after somebody needed it.
 
 import { describe, it, expect, beforeEach } from 'vitest'
+import { openBoardFor, type User } from '../../src/core/store'
 import { readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
@@ -106,6 +107,26 @@ describe('what has been translated before', () => {
     rememberTranslation('Good morning', 'fr', 'Bonjour')
     const stored = JSON.parse(localStorage.getItem('peri_translations') ?? '{}')
     expect(stored.fr['Good morning']).toBe('Bonjour')
+  })
+
+  // What somebody has had translated is what they said, so it is theirs: an
+  // account signing in after them finds none of it, in storage or in memory.
+  it('belongs to the board it was said on', () => {
+    const ada: User = { name: 'Ada', email: '', provider: 'google', sub: '1' }
+    const bob: User = { name: 'Bob', email: '', provider: 'google', sub: '2' }
+    openBoardFor(ada)
+    rememberTranslation('Good morning', 'fr', 'Bonjour')
+
+    openBoardFor(bob)
+    expect(translationFor('Good morning', 'fr'), 'a second account read the first one’s').toBeUndefined()
+    rememberTranslation('Good night', 'fr', 'Bonne nuit')
+
+    openBoardFor(ada)
+    expect(translationFor('Good morning', 'fr')).toBe('Bonjour')
+    expect(
+      translationFor('Good night', 'fr'),
+      'the second account’s went onto the first one’s board',
+    ).toBeUndefined()
   })
 
   it('keeps each language apart', () => {

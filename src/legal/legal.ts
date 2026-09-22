@@ -15,13 +15,16 @@
 
 import { type ProseDocument, list, text } from '../core/prose'
 
-const UPDATED = '20 August 2026'
+// One date each: the policy says its date changes whenever it does, and the
+// terms have not changed with it.
+const PRIVACY_UPDATED = '22 September 2026'
+const TERMS_UPDATED = '20 August 2026'
 const CONTACT = 'spero@auli.tech'
 const ENTITY = 'Autonomous Living Technologies, Inc.'
 
 export const PRIVACY: ProseDocument = {
   title: 'Privacy Policy',
-  updated: UPDATED,
+  updated: PRIVACY_UPDATED,
   intro:
     'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device. Five things are exceptions, and each is yours to switch on. Linking an ElevenLabs account sends the words you speak to ElevenLabs to be turned into audio. Setting a spoken language sends the phrases you wrote yourself to Google to be translated. Turning on Synchronize puts an encrypted copy of your board on our server so your other devices can fetch it, and we cannot read that copy. Using the microphone lets your browser send what it hears to a speech service of its own. And asking for suggested answers sends that question, with the phrases on your board, to Anthropic on your own account.',
   sections: [
@@ -45,6 +48,12 @@ export const PRIVACY: ProseDocument = {
           'The messages you have spoken or copied, under the Sent tab.',
           'What you have said in another language, and which language, under the Translations tab.',
           'Questions you asked for a suggested reply to, and the replies, for a day.',
+        ),
+        text(
+          'Everything on that list but the account you signed in with belongs to that account. Somebody who signs in on the same device with a different account gets a board of their own, and cannot open yours. Every guest on a device shares one guest board, so anything kept while you are a guest can be seen by whoever continues as a guest next.',
+        ),
+        text(
+          'That keeps boards apart inside the app. It does not lock them: your browser keeps every board on the device unencrypted, where anybody who can open its developer tools can read them.',
         ),
         text(
           'None of this leaves your device unless you turn on Synchronize, and what leaves then is encrypted — see the Synchronizing section. No API key and no Synchronize passphrase is ever included in a backup file, so sharing a backup does not share your account or your other devices. The passphrase never leaves your device at all; the keys travel between your own devices, inside the encryption, so what you pay for works on all of them.',
@@ -117,13 +126,13 @@ export const PRIVACY: ProseDocument = {
       title: 'Signing in',
       blocks: [
         text(
-          'Signing in with Google, Apple or Facebook is optional — the app works fully as a guest, and does exactly the same things either way.',
+          'Signing in with Google, Apple or Facebook is optional — the app works fully as a guest, and does exactly the same things either way. What differs is whose board it is: an account’s board opens for that account and no other, while every guest on a device shares one.',
         ),
         text(
-          'If you do sign in, that provider gives us your name, email address, profile picture and the account number they use for you. We store them on your device to show in the menu, and we discard the access token immediately. We do not send any of it anywhere.',
+          'If you do sign in, that provider gives us your name, email address, profile picture and the account number they use for you. We store them on your device to show in the menu and to know whose board to open, and we discard the access token immediately. We do not send any of it anywhere.',
         ),
         text(
-          'The account number is used for one thing: with Synchronize on, it is mixed into your passphrase to work out the address your encrypted board is stored under. It is never sent to us and never leaves your device — what leaves is the address, which cannot be turned back into it.',
+          'The account number is used for two things. On your device, your board is kept under it, so that it opens for your account and nobody else’s. With Synchronize on, it is mixed into your passphrase to work out the address your encrypted board is stored under. It is never sent to us and never leaves your device — what leaves is the address, which cannot be turned back into it.',
         ),
         text(
           'Using a sign-in button means that provider knows you signed in to this app. What they do with that is governed by their own privacy policy, not this one.',
@@ -182,7 +191,7 @@ export const PRIVACY: ProseDocument = {
           'If you turned on Synchronize, there is one thing that is not on your device: the encrypted copy. Erase it with "Stop and erase the copy" in the Settings row, which is instant and needs no request to us. There is nothing else on our side to delete — and because we cannot connect an address to a person, a request to us could not find it either.',
         ),
         text(
-          'Signing out removes the account details from the device but leaves your phrases and settings in place.',
+          'Signing out removes the account details from the device but leaves your board in place, for when you sign back in, and nobody else who signs in can open it. To take it off the device as well, use Reset to Factory Defaults in Settings before you sign out. That clears your board and nobody else’s.',
         ),
       ],
     },
@@ -211,7 +220,7 @@ export const PRIVACY: ProseDocument = {
 
 export const TERMS: ProseDocument = {
   title: 'Terms of Service',
-  updated: UPDATED,
+  updated: TERMS_UPDATED,
   intro: 'Plain terms for a free, open-source app. Please read the section on emergencies.',
   sections: [
     {
