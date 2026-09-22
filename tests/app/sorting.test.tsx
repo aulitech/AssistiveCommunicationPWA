@@ -454,16 +454,30 @@ describe('when the board takes a new order', () => {
   })
 
   // Choosing the order is somebody asking for it, so it is applied there and
-  // then — they are looking at the picker rather than at the board.
+  // then — they are looking at the picker rather than at the board. Asked of an
+  // order that reads the record, or it would answer the same either way.
   it('takes it the moment the order itself is chosen', () => {
     renderApp()
     showSorted()
-    chooseOrder('Recently used')
+    chooseOrder('A to Z')
     click(cellFor('Banana'))
 
-    chooseOrder('A to Z')
+    chooseOrder('Recently used')
 
-    expect(onBoard()).toEqual(['Apple', 'Banana', 'Cherry'])
+    expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
+  })
+
+  // The tab is what changed, not the order: both of these are on Most used, so
+  // a board that only noticed a new order would hold the stale one for ever.
+  it('takes it at a tab that is in the same order', () => {
+    renderApp(TWO_CATEGORIES)
+    showSorted()
+
+    click(cellFor('Banana'))
+    click(tab('Other'))
+    showSorted()
+
+    expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
   })
 
   it('leaves the board alone under an order that is not about use', () => {
