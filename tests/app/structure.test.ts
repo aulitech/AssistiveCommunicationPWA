@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, normalize, relative, resolve } from 'node:path'
 
 // The source tree is layered, and the layering is the only thing keeping this
@@ -591,6 +591,40 @@ describe('the shape of the source tree', () => {
         .map(({ file, name }) => `${file}: ${name}`),
       'stored under a name every account on this device shares',
     ).toEqual([])
+  })
+
+  /**
+   * **The documents that tell somebody how to run this project, held to what it
+   * can run and to what it has.** A README goes stale quietly: a script is
+   * renamed, a file moves, and the instructions keep looking right. Both of
+   * these are the first thing a newcomer reads, so what they name has to exist.
+   */
+  it('names no command or file the documents do not have', () => {
+    const scripts = new Set(
+      Object.keys(
+        (
+          JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')) as {
+            scripts: Record<string, string>
+          }
+        ).scripts,
+      ),
+    )
+    // pnpm's own, which are not this project's to declare.
+    const own = new Set(['install', 'exec', 'dlx', 'add', 'run', 'why'])
+
+    for (const doc of ['README.md', 'CONTRIBUTING.md']) {
+      const text = readFileSync(resolve(process.cwd(), doc), 'utf8')
+
+      for (const [, script] of text.matchAll(/`pnpm ([a-z][\w:-]*)/g)) {
+        expect(scripts.has(script!) || own.has(script!), `${doc} tells somebody to run \`pnpm ${script}\``).toBe(
+          true,
+        )
+      }
+
+      for (const [, link] of text.matchAll(/]\((?!https?:|#)([^)]+)\)/g)) {
+        expect(existsSync(resolve(process.cwd(), link!)), `${doc} links to ${link}, which is not there`).toBe(true)
+      }
+    }
   })
 
   it('offers no script whose command it has not installed', () => {
