@@ -163,6 +163,8 @@ The site is **indexed**: `public/robots.txt` allows everything and `index.html` 
 
 Run `pnpm check` before handing work back — it runs `format:check`, `typecheck`, `lint`, and `test` in sequence. `pnpm test:watch` while iterating. **GitHub Actions runs the same command** on every pull request and on main, and main will not take a change until it passes — see *Checks, releases and publishing*. Running it here first is still the point: a red check five minutes after a push is five minutes lost.
 
+**A test's timeout is for one that has hung, not one that is slow.** It is 30 seconds here rather than Vitest's five. The whole-app tests render every cell on the board — jsdom lays nothing out, so the window cannot be measured — and one that loads the board a few times takes a second or two alone. Under the whole suite in parallel on a CI runner, several of them passed five seconds, and a red run over work that was fine is worse than a hung test taking half a minute to say so.
+
 **The format check is first because it is the cheapest.** It answers in about 20ms and names the file, so an unformatted tree fails in under a second rather than after three minutes of tests. `pnpm format` fixes whatever it reports. It takes its paths from the `format` script rather than restating them — `pnpm format --check` — so the two cannot drift apart about which directories are formatted.
 
 **Every test lives under `tests/`, mirroring the tree it covers** — `tests/core/`, `tests/ui/`, `tests/sync/`, `tests/functions/`, and `tests/app/` for the ones that drive the whole app through `App`. `tests/setup.ts` is the shared setup file.

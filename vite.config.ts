@@ -35,6 +35,17 @@ export default defineConfig({
     // covered was published as one and took the deploy down with it. Keeping
     // them all in one place is the rule that has no exception to forget.
     include: ['tests/**/*.test.{ts,tsx}'],
+    /**
+     * **A timeout here is for a test that has hung, not one that is slow.** The
+     * whole-app tests render every cell on the board — jsdom lays nothing out,
+     * so the window cannot be measured and all two and a half thousand are
+     * built — and one that loads the board a few times takes a second or two on
+     * a laptop with nothing else running. Under the whole suite in parallel, on
+     * a CI runner with fewer and slower cores, several of them passed five
+     * seconds and the run went red on work that was fine.
+     */
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     restoreMocks: true,
     // Vite loads .env.local during tests too, so without this the suite would
     // depend on whether the developer happens to have configured OAuth — green
