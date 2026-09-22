@@ -7,16 +7,23 @@
 // Vite fingerprints its build output, so the asset names are not known here at
 // author time. Instead of a precache manifest, the strategy is:
 //
-//   * navigations  — network first, fall back to the cached shell
-//   * everything else (same-origin) — cache first, refill from the network
+//   * navigations — network first, fall back to the cached shell
+//   * the build's own output, under /assets/ — cache first, refill from the
+//     network. Vite writes a hash of each file's contents into its name, so
+//     nothing at one of those addresses ever changes
+//   * everything else (same-origin) — network first, fall back to the cache
 //
-// Bump CACHE to force clients onto a new generation.
+// **Cache first is only for an address whose contents cannot change.** The
+// manifest, the icons and robots.txt keep one address from release to release,
+// and they were served cache first until the app was renamed: an installed copy
+// went on calling itself by its old name, because Chrome's check for a new
+// manifest was answered out of this cache with the one stored the day the worker
+// installed. Nothing short of a new worker would ever have replaced it.
 
-// Renamed from `dwellspeak-v1`, which doubles as the generation bump the icon
-// change needs: assets are served cache-first, so an installed copy would
-// otherwise keep the old mark indefinitely. Activate deletes every cache that
-// is not this one.
-const CACHE = 'peri-v1'
+// A new generation, which puts every installed copy on a worker that asks the
+// network for the manifest, and takes the cache holding the old one with it.
+// Activate deletes every cache that is not this one.
+const CACHE = 'peri-v2'
 const SHELL = '/index.html'
 const PRECACHE = ['/', SHELL, '/manifest.webmanifest', '/icon.svg', '/icon-maskable.svg']
 
@@ -41,8 +48,31 @@ self.addEventListener('activate', event => {
   )
 })
 
+/** Vite's output, whose names carry a hash of what is in them. */
+const FINGERPRINTED = '/assets/'
+
 function isCacheable(response) {
   return response && response.status === 200 && response.type === 'basic'
+}
+
+/** From the network, kept under `keepAs` for when there is none. */
+async function fromNetwork(request, keepAs) {
+  const fresh = await fetch(request)
+  if (isCacheable(fresh)) {
+    const cache = await caches.open(CACHE)
+    cache.put(keepAs, fresh.clone())
+  }
+  return fresh
+}
+
+/** The first of these the cache holds, or an error. */
+async function fromCache(...keys) {
+  const cache = await caches.open(CACHE)
+  for (const key of keys) {
+    const hit = await cache.match(key)
+    if (hit) return hit
+  }
+  return Response.error()
 }
 
 self.addEventListener('fetch', event => {
@@ -53,46 +83,31 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return
 
   // Synchronizing is never cached and never answered from a cache. Everything
-  // else served from this origin is a build artefact — it changes only when the
-  // app does, which is what makes cache-first safe — but this one answers with
-  // whatever another device wrote a minute ago. Cached once, a device would be
-  // told for ever that its board is what it was this morning, and the failure
+  // else served from this origin changes only when the app does, so a copy of
+  // it is a fair answer when the network is not there — but this one answers
+  // with whatever another device wrote a minute ago. Cached once, a device would
+  // be told for ever that its board is what it was this morning, and the failure
   // would look exactly like the feature not working.
   if (url.pathname.startsWith('/api/')) return
 
   if (request.mode === 'navigate') {
+    event.respondWith(fromNetwork(request, SHELL).catch(() => fromCache(SHELL, '/')))
+    return
+  }
+
+  if (url.pathname.startsWith(FINGERPRINTED)) {
     event.respondWith(
       (async () => {
-        try {
-          const fresh = await fetch(request)
-          if (isCacheable(fresh)) {
-            const cache = await caches.open(CACHE)
-            cache.put(SHELL, fresh.clone())
-          }
-          return fresh
-        } catch {
-          const cache = await caches.open(CACHE)
-          return (await cache.match(SHELL)) ?? (await cache.match('/')) ?? Response.error()
-        }
+        const cache = await caches.open(CACHE)
+        const hit = await cache.match(request)
+        if (hit) return hit
+        return fromNetwork(request, request).catch(() => Response.error())
       })(),
     )
     return
   }
 
-  event.respondWith(
-    (async () => {
-      const cache = await caches.open(CACHE)
-      const hit = await cache.match(request)
-      if (hit) return hit
-      try {
-        const fresh = await fetch(request)
-        if (isCacheable(fresh)) cache.put(request, fresh.clone())
-        return fresh
-      } catch {
-        return Response.error()
-      }
-    })(),
-  )
+  event.respondWith(fromNetwork(request, request).catch(() => fromCache(request)))
 })
 
 // Lets the page trigger an immediate update instead of waiting for a reload.
