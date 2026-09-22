@@ -50,6 +50,7 @@ function renderApp(custom = [MARKED, LISTED, EMERGENCY], settings: Record<string
     click($('.edit-toggle'))
     click($('.edit-toggle'))
   }
+  showMarked()
 }
 
 const box = () => $<HTMLTextAreaElement>('.text-display')!
@@ -59,12 +60,20 @@ const cellFor = (id: string) => cells().find(c => c.getAttribute('aria-label')?.
 const marked = () => cellFor('Help me up')!
 
 /**
- * Narrows the grid to the seeded category. The board also holds the two and a
- * half thousand phrases Peri ships, several of which begin with "Help" — so
- * anything about what is on screen, or in what order, has to be asked of a grid
- * holding only the phrases the test put there.
+ * Narrows the grid to the seeded category, which every test here starts from.
+ * The board also holds the two and a half thousand phrases Peri ships, several
+ * of which begin with "Help" — so anything about what is on screen, or in what
+ * order, has to be asked of a grid holding only the phrases the test put there.
+ * And the grid renders a windowful rather than the table, so a phrase filed
+ * among thousands is not on screen to be found at all.
  */
-const showMarked = () => click($$('.filter-tab[role="tab"]').find(t => t.textContent === 'Marked'))
+const markedTab = () => $$('.filter-tab[role="tab"]').find(t => t.textContent === 'Marked')
+const showMarked = () => {
+  // Not every test seeds a phrase under it — the ones about pasting a link seed
+  // nothing at all.
+  const tab = markedTab()
+  if (tab) click(tab)
+}
 const typeInBox = (value: string) => {
   fireEvent.change($('.text-display')!, { target: { value } })
   settle()

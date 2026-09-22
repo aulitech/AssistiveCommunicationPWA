@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import App from '../../src/App'
 import { parseDelimited } from '../../src/core/sheet'
 import { readXlsx } from '../../src/core/xlsx'
-import { downloads, setClipboardText } from '../setup'
+import { downloads, setClipboardText, unmeasuredGrid } from '../setup'
 
 // The board as a spreadsheet, through the real board: out as a CSV, an Excel
 // workbook and a paste for Google Sheets, and back in by a file or a paste.
@@ -108,6 +108,9 @@ describe('the board as a spreadsheet', () => {
    * see is missing from the file, and nothing they cannot see is in it.
    */
   it('saves every phrase on the board as a CSV, the emergency bar first', () => {
+    // Counted off the board itself, so the grid has to be holding all of it
+    // rather than the windowful it renders when it knows how big it is.
+    unmeasuredGrid()
     renderApp()
     const onBoard = cellTexts().length + $$('.emergency-btn').length
     openBackup()
@@ -282,6 +285,9 @@ describe('bringing a spreadsheet back', () => {
    * for them are the contacts their board calls.
    */
   it('brings word lists back in with the phrases, and the board uses them', async () => {
+    // The phrase that calls the list is one of thousands, so it is only on
+    // screen to be found with the whole board rendered.
+    unmeasuredGrid()
     renderApp()
     openBackup()
     const table = savedCsv().table.map(r => (r[0] === '{contacts}' ? ['{contacts}', 'Dr Patel', ''] : r))

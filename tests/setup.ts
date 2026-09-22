@@ -54,6 +54,92 @@ export const setAudioPlays = (ok: boolean) => {
 }
 
 /** What `navigator.clipboard.readText()` will hand back. */
+/**
+ * **The layout jsdom will not do, for the phrase grid and nothing else.**
+ *
+ * `core/virtual.ts` renders every cell in the table where it cannot measure a
+ * viewport, which is the right answer in a browser that has not laid out and
+ * was the answer here for every test: two and a half thousand cells mounted for
+ * each one, half a second each, and most of the suite's running time.
+ *
+ * So the grid is given a viewport — four columns of 80px rows in 400px of
+ * height, which windows it to about eighty cells. It is keyed on the grid's own
+ * classes rather than applied to every element, because what jsdom reports
+ * about everything else is load-bearing: the message box grows by what it can
+ * measure and must find nothing, and the tests that supply geometry of their
+ * own supply exactly what they mean to.
+ */
+const GRID_VIEWPORT = { columns: 4, rowHeight: 80, clientHeight: 400 }
+let gridIsLaidOut = true
+
+/** For the tests about what the grid does with nothing to measure. */
+export const unmeasuredGrid = () => {
+  gridIsLaidOut = false
+}
+
+const has = (node: unknown, className: string) => node instanceof Element && node.classList.contains(className)
+
+/**
+ * jsdom's own, taken once as this file loads. A test that supplies geometry of
+ * its own puts these back by deleting what it defined — and one of them deletes
+ * the property outright — so what is reinstalled before each test has to come
+ * from here rather than from whatever is on the prototype by then.
+ */
+const JSDOM_GEOMETRY = {
+  offsetHeight: Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!,
+  clientHeight: Object.getOwnPropertyDescriptor(Element.prototype, 'clientHeight')!,
+  scrollHeight: Object.getOwnPropertyDescriptor(Element.prototype, 'scrollHeight')!,
+}
+
+const jsdomAnswer = (of: keyof typeof JSDOM_GEOMETRY, node: unknown) =>
+  JSDOM_GEOMETRY[of].get?.call(node) as number
+
+function installGridViewport() {
+  gridIsLaidOut = true
+
+  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+    configurable: true,
+    get() {
+      if (!gridIsLaidOut || !has(this, 'phrase-cell')) return jsdomAnswer('offsetHeight', this)
+      return GRID_VIEWPORT.rowHeight
+    },
+  })
+
+  Object.defineProperty(Element.prototype, 'clientHeight', {
+    configurable: true,
+    get() {
+      if (!gridIsLaidOut || !has(this, 'grid-wrapper')) return jsdomAnswer('clientHeight', this)
+      return GRID_VIEWPORT.clientHeight
+    },
+  })
+
+  // As tall as what is in it, so that `needsMore` keeps its meaning: a window
+  // too short for the viewport asks for more, and stops once it is scrollable.
+  Object.defineProperty(Element.prototype, 'scrollHeight', {
+    configurable: true,
+    get() {
+      if (!gridIsLaidOut || !has(this, 'grid-wrapper')) return jsdomAnswer('scrollHeight', this)
+      const cells = (this as Element).querySelectorAll('.phrase-cell').length
+      return Math.ceil(cells / GRID_VIEWPORT.columns) * GRID_VIEWPORT.rowHeight
+    },
+  })
+
+  // Only the grid's own columns, and only that one property: everything else a
+  // test asks the browser about its styles is the browser's own answer.
+  const realComputedStyle = window.getComputedStyle.bind(window)
+  vi.stubGlobal('getComputedStyle', (node: Element, pseudo?: string | null) => {
+    const style = realComputedStyle(node, pseudo)
+    if (!gridIsLaidOut || !has(node, 'phrase-grid')) return style
+    return new Proxy(style, {
+      get: (target, property) => {
+        if (property === 'gridTemplateColumns') return '1fr '.repeat(GRID_VIEWPORT.columns).trim()
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? (value as () => void).bind(target) : value
+      },
+    })
+  })
+}
+
 export let clipboardText = ''
 export const setClipboardText = (text: string) => {
   clipboardText = text
@@ -136,6 +222,7 @@ beforeEach(() => {
   })
 
   installSpeechSynthesis()
+  installGridViewport()
 
   vi.stubGlobal(
     'ResizeObserver',

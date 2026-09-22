@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import App from '../../src/App'
-import { spoken } from '../setup'
+import { spoken, unmeasuredGrid } from '../setup'
 
 // The four orders the grid can be in, driven through the real board.
 //
@@ -430,6 +430,9 @@ describe('the rendered window under a live order', () => {
     category: 'Sorted',
   }))
 
+  // This block supplies the grid's geometry itself, so the viewport the setup
+  // gives every other test would be a second answer to the same question.
+  beforeEach(() => unmeasuredGrid())
   afterEach(() => Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight'))
 
   const setGeometry = (el: Element, props: Record<string, number>) => {
