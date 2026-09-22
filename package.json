@@ -2,7 +2,7 @@
   "name": "peri",
   "description": "Assistive communication driven entirely by pointing and dwell.",
   "private": true,
-  "version": "1.5.0",
+  "version": "2.0.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
