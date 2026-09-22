@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { PHRASE_SORTS, sortName, sortPhrases, sortsFor } from '../../src/core/sort'
+import { PHRASE_SORTS, heldOrder, sortName, sortPhrases, sortsFor } from '../../src/core/sort'
 import {
   DEFAULT_SORT,
   forgetUse,
@@ -392,5 +392,38 @@ describe('the four on offer', () => {
 
   it('names something for an order it has never heard of', () => {
     expect(sortName('sideways' as PhraseSort)).toBe('Custom order')
+  })
+})
+
+/**
+ * The order a record newest-first was in when somebody last looked at it. Saying
+ * a message again moves it to the front of the record; what is on screen holds
+ * until they look somewhere else — see *Ordering the grid*.
+ */
+describe('a held order', () => {
+  const list = (...ids: string[]) => ids.map(id => ({ id, text: id }))
+
+  it('is the order it was in, whatever the record has done since', () => {
+    const held = ['a', 'b', 'c']
+    expect(heldOrder(list('c', 'a', 'b'), held).map(p => p.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('puts what has arrived since at the front, in the order it came', () => {
+    expect(heldOrder(list('e', 'd', 'a', 'b'), ['a', 'b']).map(p => p.id)).toEqual(['e', 'd', 'a', 'b'])
+  })
+
+  it('drops what has gone', () => {
+    expect(heldOrder(list('a', 'c'), ['a', 'b', 'c']).map(p => p.id)).toEqual(['a', 'c'])
+  })
+
+  // Nothing held yet — the first look at a list — is the list as it stands.
+  it('holds nothing of an order it does not have', () => {
+    const phrases = list('a', 'b')
+    expect(heldOrder(phrases, [])).toBe(phrases)
+  })
+
+  // Both halves at once, which is what a record does between two looks at it.
+  it('takes what arrived, what moved and what went, together', () => {
+    expect(heldOrder(list('d', 'c', 'a'), ['a', 'b', 'c']).map(p => p.id)).toEqual(['d', 'a', 'c'])
   })
 })

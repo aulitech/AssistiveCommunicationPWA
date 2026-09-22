@@ -328,7 +328,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Saying something again',
     blocks: [
       text(
-        'The Sent tab, first in the row above the grid, keeps every message you speak or copy. The newest is first.',
+        'The Sent tab, first in the row above the grid, keeps every message you speak or copy. The newest is first. Saying one again moves it to the top of the list — but not while you are looking at it: the tab holds the order you found it in until you go somewhere else and come back.',
       ),
       list(
         'Rest on one to put it back in the message box, ready to say again.',

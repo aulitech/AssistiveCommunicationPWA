@@ -73,6 +73,7 @@ const cells = () => $$('.phrase-cell')
 const onBoard = () => cells().map(c => c.textContent)
 const cellFor = (text: string) => cells().find(c => c.textContent === text)
 
+const iconBtn = (label: string) => $$('.icon-btn').find(b => b.getAttribute('aria-label') === label)
 const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
 const showSorted = () => click(tab('Sorted'))
 
@@ -825,6 +826,54 @@ describe('the mark on the last phrase said', () => {
 
 describe('the Sent tab', () => {
   const showSent = () => click(tab('Sent'))
+
+  /** Says all three, so the record has something to hold an order of. */
+  const sayEverything = () => {
+    renderApp()
+    showSorted()
+    click(cellFor('Cherry'))
+    click(cellFor('Apple'))
+    click(cellFor('Banana'))
+  }
+
+  // The record keeps itself newest first, so saying a message again moves it to
+  // the front — which, on the tab it was said from, is the cell just used
+  // sliding out from under the gaze that used it.
+  it('holds the order it was in while somebody is looking at it', () => {
+    sayEverything()
+    showSent()
+    expect(onBoard()).toEqual(['Banana', 'Apple', 'Cherry'])
+
+    click(cellFor('Cherry'))
+
+    expect(onBoard(), 'the message just said moved under the pointer').toEqual(['Banana', 'Apple', 'Cherry'])
+  })
+
+  it('takes the record’s own order again at the next tab', () => {
+    sayEverything()
+    showSent()
+    click(cellFor('Cherry'))
+
+    showSorted()
+    showSent()
+
+    expect(onBoard()).toEqual(['Cherry', 'Banana', 'Apple'])
+  })
+
+  // Something said while the tab is open is new rather than moved, and it is
+  // what somebody is most likely to be looking for. The box is emptied first
+  // because what is being composed narrows this list as it narrows the board.
+  it('puts a message said since at the front', () => {
+    sayEverything()
+    showSent()
+
+    fireEvent.change($('.text-display')!, { target: { value: 'Something new' } })
+    settle()
+    click(iconBtn('Speak'))
+    click(iconBtn('Clear'))
+
+    expect(onBoard()).toEqual(['Something new', 'Banana', 'Apple', 'Cherry'])
+  })
 
   // Sent is not a category. It is a record in the order it happened, newest
   // first, and that is the whole of what it is for.

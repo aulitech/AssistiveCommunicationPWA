@@ -15,7 +15,7 @@ import { compose, composeWithBlank, hasChoices, parseSegments, type Phrase } fro
 import { soleLink } from '../core/markdown'
 import { openLink } from '../core/links'
 import { search } from '../core/search'
-import { sortPhrases } from '../core/sort'
+import { heldOrder, sortPhrases } from '../core/sort'
 import {
   loadElevenLabs,
   forgetReplyContext,
@@ -340,11 +340,19 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * state that follows a prop — an effect would draw the old order once first.
    */
   const [ranking, setRanking] = useState(usage.counts)
+  /**
+   * And the order the Sent list is shown in, held the same way and for the same
+   * reason: saying a message again moves it to the front of the record, which
+   * on the tab it was said from is the cell just used sliding out from under
+   * the gaze that used it. The record still moves; the screen holds.
+   */
+  const [sentOrder, setSentOrder] = useState(() => sent.phrases.map(p => p.id))
   const showing = `${effectiveFilter}\u0000${phraseSort}`
   const [rankedFor, setRankedFor] = useState(showing)
   if (rankedFor !== showing) {
     setRankedFor(showing)
     setRanking(usage.counts)
+    setSentOrder(sent.phrases.map(p => p.id))
   }
 
   const arrangedPhrases = useMemo(
@@ -358,7 +366,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const visiblePhrases = useMemo(
     () =>
       showingSent
-        ? search(sent.phrases, SENT_CATEGORY, filterWord)
+        ? search(heldOrder(sent.phrases, sentOrder), SENT_CATEGORY, filterWord)
         : showingTranslated
           ? search(translated.phrases, TRANSLATED_CATEGORY, filterWord)
           : showingSuggestions
@@ -369,6 +377,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       showingTranslated,
       showingSuggestions,
       sent.phrases,
+      sentOrder,
       translated.phrases,
       listener.suggestions,
       arrangedPhrases,

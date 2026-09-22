@@ -89,3 +89,27 @@ export function sortPhrases(
   used.sort((a, b) => by(usage[a.id], usage[b.id]))
   return [...used, ...unused]
 }
+
+/**
+ * A list in the order it was in when somebody last looked at it, with anything
+ * that has arrived since at the front.
+ *
+ * **For the records that keep themselves newest first** — the Sent list above
+ * all. Saying a message again moves it to the front of the record, and on the
+ * tab somebody said it from that means the cell they just used sliding out from
+ * under their gaze and everything else moving with it, which is the same thing
+ * an order that follows use did to the board. The record still moves; what is
+ * on screen holds until they look somewhere else.
+ *
+ * At the front rather than at the end, unlike `orderByIds`, because these lists
+ * are newest first and something arriving is new — and because it is something
+ * that has just been said, which somebody is more likely to be looking for than
+ * reading past. Anything the order has never heard of is in the order it came.
+ */
+export function heldOrder<T extends { id: string }>(phrases: T[], order: readonly string[]): T[] {
+  if (order.length === 0) return phrases
+  const rank = new Map(order.map((id, i) => [id, i]))
+  const held = phrases.filter(p => rank.has(p.id)).sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
+  const since = phrases.filter(p => !rank.has(p.id))
+  return [...since, ...held]
+}
