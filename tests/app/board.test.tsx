@@ -478,6 +478,14 @@ describe('the first window, before anything has been measured', () => {
     expect(onFirstPaint, 'too little to fill a screen with').toBeGreaterThan(50)
   })
 
+  // What every test here runs against, and the reason they are quick: the setup
+  // gives the grid a viewport, so the board windows as it does in a browser.
+  it('windows to what the viewport measures, once it has', () => {
+    renderApp()
+    expect(cells().length, 'the board is holding the whole table').toBeLessThan(300)
+    expect(cells().length).toBeGreaterThan(50)
+  })
+
   // The fallback still has the last word where there is nothing to measure: a
   // phrase out of reach is worse than a slow grid.
   it('grows to the whole table when there is nothing to measure', () => {
