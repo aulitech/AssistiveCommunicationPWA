@@ -283,7 +283,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    */
   const filterWord = editMode || showingSuggestions ? '' : currentWord
 
-  // How often each phrase is used. The board follows it live — see `use-usage.ts`.
+  // How often each phrase is used — see `use-usage.ts`. The record follows every
+  // phrase chosen; what the board is *ordered* by does not, which is the next
+  // thing down.
   const usage = useUsage()
   // Pulled out for the reason `insertPhrase` is: `handleSelectPhrase` reaches
   // every one of a couple of thousand memoised cells, and a callback depending
@@ -319,9 +321,35 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // leaves ids it does not know where they were, so the other categories' cells
   // are untouched either way.
   const handArrangement = store.phraseOrder[effectiveFilter] ?? EMPTY_ARRANGEMENT
+
+  /**
+   * **The record the board is ordered by, taken when they last changed what
+   * they are looking at** — a tab, or an order. Not the live record.
+   *
+   * An order that goes by use used to rearrange the board on the very dwell
+   * that chose a phrase: the cell just used slid to the front, everything else
+   * moved around it, and the next thing somebody looked for was not where they
+   * had left it. The order is not wrong — it is what "most used" means — but it
+   * cannot be applied to the board somebody is in the middle of reading.
+   *
+   * So the ranking is held while a tab is on screen and taken again when they
+   * look somewhere else. Nothing is lost: every phrase chosen is still counted,
+   * and the next tab shows the order those counts make.
+   *
+   * Adjusted during render rather than in an effect, which is the rule for
+   * state that follows a prop — an effect would draw the old order once first.
+   */
+  const [ranking, setRanking] = useState(usage.counts)
+  const showing = `${effectiveFilter}\u0000${phraseSort}`
+  const [rankedFor, setRankedFor] = useState(showing)
+  if (rankedFor !== showing) {
+    setRankedFor(showing)
+    setRanking(usage.counts)
+  }
+
   const arrangedPhrases = useMemo(
-    () => sortPhrases(board.mainPhrases, phraseSort, usage.counts, handArrangement),
-    [board.mainPhrases, phraseSort, usage.counts, handArrangement],
+    () => sortPhrases(board.mainPhrases, phraseSort, ranking, handArrangement),
+    [board.mainPhrases, phraseSort, ranking, handArrangement],
   )
 
   // Both records keep the order they happened in, newest first, and neither is
@@ -449,13 +477,13 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // a translation or something a model offered a minute ago rather than a
       // phrase on the board, so counting them would fill the record with ids
       // that can never match anything and never fall out.
-      if (!showingSent && !showingTranslated && !showingSuggestions) {
-        recordUsed(phrase.id)
-        // Under an order that follows use, the board rearranges on this very
-        // dwell, and the pointer is resting on the cell that did it. Nothing may
-        // be chosen until the gaze leaves whatever lands underneath.
-        if (phraseSort === 'recent' || phraseSort === 'frequent') holdDwellsUntilMoved()
-      }
+      if (!showingSent && !showingTranslated && !showingSuggestions) recordUsed(phrase.id)
+      // **Composing moves the board**: the phrase goes into the box, and the
+      // grid narrows to the word at the caret, under a pointer resting on the
+      // cell that did it. Nothing may be chosen until the gaze is aimed
+      // somewhere else. Auto-speak moves nothing, and neither does the order
+      // any more — see `ranking` above.
+      if (!settings.autoSpeak) holdDwellsUntilMoved()
       // A phrase that is nothing but a link is a button for going somewhere, so
       // it goes there instead of saying its own label out loud. A phrase with
       // words around a link is still a sentence and still speaks — see
@@ -499,7 +527,6 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       proposeMessage,
       listenerChose,
       recordUsed,
-      phraseSort,
       settings,
     ],
   )

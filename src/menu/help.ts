@@ -94,7 +94,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Every tab starts on Most used. Nothing is lost by that: a phrase you have never said keeps the place the board gave it, so a board you have only just opened looks exactly as it always did and sorts itself out as you talk.',
       ),
       text(
-        'The two that go by use rearrange the board as you use it, so the phrase you just said moves to the front straight away. Nothing can be chosen for a moment afterwards, until you look somewhere else — otherwise whatever slid under the pointer would be chosen by the move itself.',
+        'The two that go by use count every phrase you choose, but the board you are looking at holds still: it takes the new order when you go to another tab and come back, or when you choose an order. A board that rearranged itself as you used it moved the next thing you wanted while you were looking for it.',
       ),
       text('Phrases you have never used sit after the ones you have, in the order the board already had them.'),
       text(
