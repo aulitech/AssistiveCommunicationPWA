@@ -85,14 +85,7 @@ function signOut() {
   click(panelBtn('Sign out'))
 }
 
-/**
- * Every test here loads the whole board more than once — two thousand cells a
- * time, which is a second each on a machine running the rest of the suite
- * beside it.
- */
-const SEVERAL_PAGES = { timeout: 20_000 }
-
-describe('two people on one device', SEVERAL_PAGES, () => {
+describe('two people on one device', () => {
   it('each open their own board, and never the other’s', () => {
     loadAs(ada)
     const adaSaid = sayOne(0)
@@ -133,7 +126,7 @@ describe('two people on one device', SEVERAL_PAGES, () => {
   })
 })
 
-describe('signing out', SEVERAL_PAGES, () => {
+describe('signing out', () => {
   // A board is held in memory as well as in storage, and a request still on
   // its way writes wherever storage points when it lands.
   it('reloads, so nothing of the board is left in memory for whoever is next', () => {
@@ -172,7 +165,7 @@ describe('signing out', SEVERAL_PAGES, () => {
 })
 
 // The sign-in page is nobody's board, and has to be worked by whoever is at it.
-describe('how the sign-in page is worked', SEVERAL_PAGES, () => {
+describe('how the sign-in page is worked', () => {
   const fontSize = () => document.documentElement.style.fontSize
   const dwellValue = () => $<HTMLInputElement>('.signin-dwell [aria-label="dwell time value"]')!.value
   const more = () => $$('.signin-dwell .step-btn').find(b => b.getAttribute('aria-label') === 'Increase')
