@@ -416,7 +416,6 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         ':clear: empties it **and starts listening again**, which is what you want when what came back was wrong. There is no separate button for the microphone.',
         ':undo: puts the words back and stops listening, if you cleared it by mistake.',
-        ':translate: reads the question in your own language, underneath the words that were said.',
         ':suggest: offers answers to the question, as cells on the board to choose between.',
       ),
       text(

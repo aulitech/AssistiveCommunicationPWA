@@ -506,27 +506,6 @@ export function MicIcon({ live = false }: { live?: boolean } = {}) {
   )
 }
 
-/** Turning a heard question into words the board's owner reads. */
-export function TranslateIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 6h9" />
-      <path d="M7.5 4v2" />
-      <path d="M10 6a9 9 0 0 1-6 8.5" />
-      <path d="M5.5 10.5A7 7 0 0 0 10 14" />
-      <path d="M13 20l4-10 4 10" />
-      <path d="M14.4 17h5.2" />
-    </svg>
-  )
-}
-
 /** A reply offered rather than chosen. Deliberately not a speech bubble: nothing here speaks. */
 export function SuggestIcon() {
   return (

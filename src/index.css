@@ -753,12 +753,6 @@ body {
 
 /* What the question says in the reader's own language, under the words that
    were said — the shape the Translations tab uses. */
-.heard-meaning {
-  margin: 0;
-  padding: 0 0.7rem;
-  font-size: 0.95rem;
-  color: var(--text-muted);
-}
 
 .heard-error {
   margin: 0;

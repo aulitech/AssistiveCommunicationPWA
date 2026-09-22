@@ -524,10 +524,17 @@ describe('the slot that empties the box', () => {
    * act on the message, and on a wide screen with listen mode open the pair's
    * corners belong to the question.
    */
-  it('leaves nothing in the rail but the menu and the keyboard', () => {
+  // The keyboard is offered only where it has been asked for — see *Peri's own
+  // keyboard* — so on a board that has not asked, the menu is the whole rail.
+  it('leaves nothing in the rail but the menu, and the keyboard where it is offered', () => {
     renderApp()
-    const rail = $$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))
-    expect(rail).toEqual(['Open menu', 'Show the keyboard'])
+    expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual(['Open menu'])
+
+    renderApp({ keyboard: true })
+    expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual([
+      'Open menu',
+      'Show the keyboard',
+    ])
 
     for (const strip of ['.topbar-actions', '.topbar-clear']) {
       expect($(`.message-wrap > ${strip}`), `${strip} is not on the message box`).not.toBeNull()
@@ -781,6 +788,11 @@ describe('pasting by dwell', () => {
  * the board. The fields in Aliases need it as much as the message does, and the
  * control that opens it is behind that panel.
  */
+/**
+ * **Offered only where it has been asked for**, which is what `keyboard: true`
+ * is doing in every render here: it is the one way to type at all on iOS, and a
+ * target in the way on a device with a real keyboard.
+ */
 describe('the keyboard Peri draws', () => {
   const keyboard = () => document.querySelector('.keyboard')
   const keyNamed = (name: string) =>
@@ -788,12 +800,19 @@ describe('the keyboard Peri draws', () => {
   const toggleKeyboard = () => click(iconBtn('Show the keyboard') ?? iconBtn('Hide the keyboard'))
 
   it('is not there until it is asked for', () => {
+    renderApp({ keyboard: true })
+    expect(keyboard()).toBeNull()
+  })
+
+  // The setting is what puts the toggle in the rail at all.
+  it('is not offered at all on a board that has not asked for it', () => {
     renderApp()
+    expect(iconBtn('Show the keyboard'), 'the toggle is there on a board that never asked').toBeUndefined()
     expect(keyboard()).toBeNull()
   })
 
   it('comes up on the toggle beside the menu, and goes away again', () => {
-    renderApp()
+    renderApp({ keyboard: true })
     toggleKeyboard()
     expect(keyboard()).not.toBeNull()
 
@@ -807,7 +826,7 @@ describe('the keyboard Peri draws', () => {
    * which can only say what the composer's own state holds.
    */
   it('types into the message box, and the app hears it', () => {
-    renderApp()
+    renderApp({ keyboard: true })
     act(() => box().focus())
     toggleKeyboard()
 
@@ -820,7 +839,7 @@ describe('the keyboard Peri draws', () => {
   })
 
   it('closes from its own key', () => {
-    renderApp()
+    renderApp({ keyboard: true })
     toggleKeyboard()
     click(keyNamed('Close the keyboard'))
     expect(keyboard()).toBeNull()
@@ -832,7 +851,7 @@ describe('the keyboard Peri draws', () => {
    * where half the app's text fields are.
    */
   it('stays up when a panel opens over the board', () => {
-    renderApp()
+    renderApp({ keyboard: true })
     toggleKeyboard()
     click(iconBtn('Open menu'))
     expect(keyboard(), 'the keyboard went away with the board behind it').not.toBeNull()
@@ -847,7 +866,7 @@ describe('the keyboard Peri draws', () => {
    * narrow.
    */
   it('narrows the board to what is being typed', () => {
-    renderApp()
+    renderApp({ keyboard: true })
     act(() => box().focus())
     toggleKeyboard()
     const before = cells().length
@@ -863,7 +882,7 @@ describe('the keyboard Peri draws', () => {
   // Auto-speak is where the board ships, so this is what somebody opening Peri
   // for the first time and typing actually gets.
   it('narrows in auto-speak too, which is where the board opens', () => {
-    renderApp({ autoSpeak: true })
+    renderApp({ autoSpeak: true, keyboard: true })
     act(() => box().focus())
     toggleKeyboard()
     const before = cells().length
@@ -880,7 +899,7 @@ describe('the keyboard Peri draws', () => {
    * board to edit, letter by letter as they typed.
    */
   it('leaves the board alone while a phrase is being written', () => {
-    renderApp()
+    renderApp({ keyboard: true })
     click(editToggle())
     act(() => box().focus())
     toggleKeyboard()
@@ -895,7 +914,7 @@ describe('the keyboard Peri draws', () => {
   // The bar somebody reaches for without reading it must not be the one the
   // keyboard covers, so the app gives up the height rather than overlapping.
   it('makes room for itself rather than covering the emergency bar', () => {
-    renderApp()
+    renderApp({ keyboard: true })
     toggleKeyboard()
     expect($('.app')?.classList.contains('has-keyboard')).toBe(true)
     expect($('.emergency-bar')).not.toBeNull()

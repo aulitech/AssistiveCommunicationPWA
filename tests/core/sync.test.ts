@@ -300,8 +300,11 @@ describe('the settings that do not travel', () => {
   const mine = { ...DEFAULT_SETTINGS, zoom: 1.8, volume: 0.2, phraseDwellMs: 2500, voiceURI: 'mine' }
   const theirs = { ...DEFAULT_SETTINGS, zoom: 0.6, volume: 1, phraseDwellMs: 900, voiceURI: 'theirs' }
 
-  it('names text size and volume, and nothing else', () => {
-    expect([...DEVICE_LOCAL_SETTINGS]).toEqual(['zoom', 'volume'])
+  // Each of them is about the device in front of somebody rather than about
+  // them: the screen, the speaker, and whether this device can raise a keyboard
+  // of its own at all.
+  it('names text size, volume and the drawn keyboard, and nothing else', () => {
+    expect([...DEVICE_LOCAL_SETTINGS]).toEqual(['zoom', 'volume', 'keyboard'])
   })
 
   describe('on the way out', () => {

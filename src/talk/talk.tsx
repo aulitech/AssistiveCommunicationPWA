@@ -175,7 +175,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   })
 
   /** Whether answers to a question are on their way. */
-  const askingForAnswers = listener.heard.asking === 'reply'
+  const askingForAnswers = listener.heard.asking
 
   /**
    * Whether the board is holding answers, or about to be.
@@ -904,6 +904,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * as the message does, and the control that opens it is behind that panel.
    */
   const [keyboardOpen, setKeyboardOpen] = useState(false)
+  // Taking the keyboard away in Settings takes away whatever it had open, or a
+  // board would be left with four rows of keys and no way to put them down.
+  if (keyboardOpen && !settings.keyboard) setKeyboardOpen(false)
 
   const sync = useSync({
     accountId: accountId(user),
@@ -995,14 +998,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
                 : showingTranslated
                   ? 'Nothing translated yet. Set a spoken language in Settings, and what you say in it is kept here.'
                   : showingSuggestions
-                    ? listener.heard.asking === 'reply'
+                    ? listener.heard.asking
                       ? 'Thinking of some answers…'
                       : 'No answers came back. Try asking again.'
                     : undefined
             }
             // The wait stands where the answers will, which is the whole reason
             // the tab appears before they do.
-            busy={showingSuggestions && listener.heard.asking === 'reply'}
+            busy={showingSuggestions && listener.heard.asking}
             sort={phraseSort}
             // Neither of these is a category. Both are a record in the order it
             // happened, newest first, and that is the whole of what they are

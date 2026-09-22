@@ -85,9 +85,6 @@ export const PRIVACY: ProseDocument = {
           'All of it is forgotten after a day, forgotten at once if you remove the key, and there is a button in the Settings row to forget it now. None of it is ever in a backup file or sent to your other devices.',
         ),
         text(
-          'Reading a heard question in your own language sends it to Google to be translated, exactly as the phrases you write yourself are sent — see Speech below. It is sent only when you ask for it.',
-        ),
-        text(
           'Suggested answers send the question to Anthropic, using an API key of your own that you set up under Settings. **With a key set up, this happens on its own**: when the person talking to you stops and your message box is empty, the question goes to be answered without your asking. Leave anything in the message box and it does not. The phrases on your board go with it — the ones Peri comes with and any you wrote yourself, with a name filled in where a phrase has only one to choose from — so that the answers can be your own words; how often you use each one does not. So do the day’s earlier questions and the answers you chose, described above. Nothing else about you goes with it, and nothing is sent by listening alone. What Anthropic does with it is governed by their policy, not this one. Saving the key sends it to Anthropic once, with nothing else, to check that it works. Once an answer has taken more than three seconds, Peri says a short apology out loud so that whoever is waiting is not left in silence; those are asked of Anthropic a few at a time, in a request that carries nothing of yours at all, and the apology itself is not kept as something you said. Remove the key, and nothing is ever sent there. The answers are only ever drawn on the board for you to read, choose between or ignore, and the one you choose goes into the message box to read, change or discard — Peri never speaks one for you.',
         ),
         text(
