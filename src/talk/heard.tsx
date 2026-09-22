@@ -33,7 +33,7 @@ import { useDwellControl } from '../ui/dwell'
 import { cx, dwellVar } from '../ui/style'
 import { BoxScroll } from '../ui/controls'
 import type { ScrollEdges } from '../ui/scroll-edges'
-import { ClearIcon, MicIcon, SuggestIcon, TranslateIcon, UndoIcon } from '../ui/icons'
+import { ClearIcon, MicIcon, SuggestIcon, UndoIcon } from '../ui/icons'
 import type { Listener } from './use-listen'
 
 function HeardButton({
@@ -81,19 +81,7 @@ export function HeardBox({
   edges: ScrollEdges
 }) {
   const { settings } = useSettings()
-  const {
-    heard,
-    correct,
-    translate,
-    suggest,
-    clearOrUndo,
-    showUndo,
-    canClear,
-    canTranslate,
-    canSuggest,
-    messageEmpty,
-    notice,
-  } = listener
+  const { heard, correct, suggest, clearOrUndo, showUndo, canClear, canSuggest, messageEmpty, notice } = listener
 
   const write = useCallback((value: string) => correct(value), [correct])
 
@@ -171,16 +159,6 @@ export function HeardBox({
           {showUndo ? <UndoIcon /> : <ClearIcon />}
         </HeardButton>
 
-        {canTranslate && (
-          <HeardButton
-            onSelect={() => void translate()}
-            label="Read this in your own language"
-            disabled={nothingHeard || heard.asking !== ''}
-          >
-            <TranslateIcon />
-          </HeardButton>
-        )}
-
         {canSuggest && (
           <HeardButton
             onSelect={() => void suggest()}
@@ -193,7 +171,7 @@ export function HeardBox({
                 ? 'Suggest answers, onto the board'
                 : 'Suggest answers. Clear the message first — a message half written is how you say you are already answering'
             }
-            disabled={nothingHeard || heard.asking !== '' || !messageEmpty}
+            disabled={nothingHeard || heard.asking || !messageEmpty}
           >
             <SuggestIcon />
           </HeardButton>
@@ -224,7 +202,6 @@ export function HeardBox({
       {/* What it says in the board's own language, under the words that were
           said — the shape the Translations tab uses, and for the same reason:
           the person reading this cannot necessarily read the line above it. */}
-      {heard.meaning && <p className="heard-meaning">{heard.meaning}</p>}
 
       {/* A failure says what it was and nothing happens. A refused microphone
           is the one worth naming exactly, since nothing in the app can fix it

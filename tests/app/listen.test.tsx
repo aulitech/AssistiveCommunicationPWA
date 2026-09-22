@@ -78,7 +78,6 @@ const messageBox = () => $<HTMLTextAreaElement>('.text-display')!
 const tool = (label: RegExp) => $$('.heard-btn').find(b => label.test(b.getAttribute('aria-label') ?? ''))
 const clearHeard = () => tool(/^clear/i)
 const undoHeard = () => tool(/^undo/i)
-const translateBtn = () => tool(/own language/i)
 const suggestBtn = () => tool(/suggest answers/i)
 
 /** The answers on the board, which is where they land — never the message box. */
@@ -117,7 +116,6 @@ const answered = (text: string) =>
   new Response(JSON.stringify({ content: [{ type: 'text', text }] }), {
     headers: { 'content-type': 'application/json' },
   })
-const translates = (text: string) => answers({ data: { translations: [{ translatedText: text }] } })
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -452,17 +450,12 @@ describe('the control', () => {
    * they land *on* the line is a question for the deploy preview, jsdom laying
    * nothing out.
    */
-  it('rides the box lower border, between it and what is written under it', async () => {
-    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
-    vi.stubGlobal('fetch', translates('Do you want tea?'))
-    renderApp({ language: 'es' })
-    hear('¿Quieres té?')
-
-    click(translateBtn())
-    await act(async () => {})
+  it('rides the box lower border, under the box itself', () => {
+    renderApp()
+    hear('Do you want tea?')
 
     const inOrder = [...$('.heard-wrap')!.children].map(el => el.className.split(' ')[0])
-    expect(inOrder).toEqual(['heard-field', 'heard-tools', 'heard-meaning'])
+    expect(inOrder).toEqual(['heard-field', 'heard-tools'])
     expect($('.heard-field > .heard-text'), 'the box is not the first thing in its field').not.toBeNull()
 
     // Empty first, then the ones that do something with what is in the box. The
@@ -682,53 +675,6 @@ describe('the question', () => {
     const cell = $$('.phrase-cell')[0]!
     click(cell)
     expect(spoken).toEqual([cell.textContent])
-  })
-})
-
-describe('reading it in your own language', () => {
-  it('puts the meaning under the words that were said', async () => {
-    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
-    vi.stubGlobal('fetch', translates('Do you want tea?'))
-    renderApp({ language: 'es' })
-    hear('¿Quieres té?')
-
-    click(translateBtn())
-    await act(async () => {})
-
-    expect($('.heard-meaning')?.textContent).toBe('Do you want tea?')
-    // The words that were said stay where they are. A carer can point at what
-    // they actually asked.
-    expect(heardBox()!.value).toBe('¿Quieres té?')
-  })
-
-  // A correction makes the meaning stale, and a stale translation under a
-  // changed question is worse than none.
-  it('drops the meaning when the question is corrected', async () => {
-    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
-    vi.stubGlobal('fetch', translates('Do you want tea?'))
-    renderApp({ language: 'es' })
-    hear('¿Quieres té?')
-    click(translateBtn())
-    await act(async () => {})
-    expect($('.heard-meaning')).not.toBeNull()
-
-    fireEvent.change(heardBox()!, { target: { value: '¿Quieres café?' } })
-    settle()
-
-    expect($('.heard-meaning')).toBeNull()
-  })
-
-  it('says so when the service will not answer, and leaves the words alone', async () => {
-    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
-    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
-    renderApp({ language: 'es' })
-    hear('¿Quieres té?')
-
-    click(translateBtn())
-    await act(async () => {})
-
-    expect($('.heard-error')).not.toBeNull()
-    expect(heardBox()!.value).toBe('¿Quieres té?')
   })
 })
 

@@ -142,22 +142,3 @@ export async function translate(text: string, tag: string): Promise<TranslateRes
   // than letting three words be guessed at.
   return ask(text, target, SOURCE_LANGUAGE)
 }
-
-/**
- * A heard question, into the language the board is written in.
- *
- * **The other direction, and the only place this app goes that way.** Everything
- * else here translates *out* of the board so a listener can follow it; listen
- * mode translates *in*, so the person using the board can read what was asked.
- *
- * The source is deliberately not named. What the setting holds is what the board
- * is *spoken* as, and a question in the room may not be in it at all — a nurse
- * switching to English mid-sentence is the ordinary case, not an edge one — so
- * the service is left to work it out from the words themselves. Naming it wrongly
- * is worse than not naming it: the service would translate as though it had been
- * told the truth.
- */
-export async function translateHeard(text: string): Promise<TranslateResult> {
-  if (!text.trim()) return fail('Nothing to translate')
-  return ask(text, SOURCE_LANGUAGE, '')
-}

@@ -96,11 +96,17 @@ export interface Snapshot {
  * the way it was, usually the same device or its replacement — a different
  * question from keeping two devices that are in use at once alike.
  */
-export const DEVICE_LOCAL_SETTINGS = ['zoom', 'volume'] as const
+export const DEVICE_LOCAL_SETTINGS = ['zoom', 'volume', 'keyboard'] as const
 
 /**
- * The settings as they travel: this device's own text size and volume replaced
- * by the defaults, so that changing either is not a change to the board at all.
+ * The settings as they travel: this device's own text size, volume and drawn
+ * keyboard replaced by the defaults, so that changing any of them is not a
+ * change to the board at all.
+ *
+ * The keyboard is here for the same reason the other two are: which keyboard a
+ * device can raise is about the device in front of somebody. A tablet that can
+ * raise none needs Peri's own; the laptop beside it has a real one, and the
+ * same person owns both.
  *
  * Blanked on the way *out* as well as ignored on the way in, and the reason is
  * the round trip: left in, turning the text size up on the tablet would count as
@@ -109,14 +115,17 @@ export const DEVICE_LOCAL_SETTINGS = ['zoom', 'volume'] as const
  */
 export function portableSettings(settings: Settings): Settings {
   const portable = { ...settings }
-  for (const key of DEVICE_LOCAL_SETTINGS) portable[key] = DEFAULT_SETTINGS[key]
+  // One field at a time through `Object.assign`, which is what it takes for
+  // these to be a list rather than three lines: the names are a union, and
+  // their values are not all the same type since the keyboard joined them.
+  for (const key of DEVICE_LOCAL_SETTINGS) Object.assign(portable, { [key]: DEFAULT_SETTINGS[key] })
   return portable
 }
 
-/** Settings that arrived, with this device's own text size and volume kept. */
+/** Settings that arrived, with this device's own text size, volume and keyboard kept. */
 export function keepDeviceSettings(incoming: Settings, mine: Settings): Settings {
   const kept = { ...incoming }
-  for (const key of DEVICE_LOCAL_SETTINGS) kept[key] = mine[key]
+  for (const key of DEVICE_LOCAL_SETTINGS) Object.assign(kept, { [key]: mine[key] })
   return kept
 }
 

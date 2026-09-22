@@ -33,7 +33,6 @@ import {
   SortAlphaIcon,
   SpeakIcon,
   SuggestIcon,
-  TranslateIcon,
   TrashIcon,
   UndoIcon,
 } from './icons'
@@ -54,7 +53,6 @@ export const PROSE_ICONS: Record<string, () => React.ReactElement> = {
   'auto-speak': AutoSpeakIcon,
   listen: QuestionIcon,
   mic: MicIcon,
-  translate: TranslateIcon,
   suggest: SuggestIcon,
   arrange: ReorderIcon,
   alphabetical: SortAlphaIcon,

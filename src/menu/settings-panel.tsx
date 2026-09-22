@@ -296,6 +296,23 @@ export function SettingsPanel({
             onValue={v => update({ rate: v / 10 })}
           />
         </SettingRow>
+        {/* Off until somebody asks for it: it is the only way to type at all on
+            iOS, where a dwell raises no system keyboard, and it is a target in
+            the way on a device that has a real one. */}
+        <SettingRow
+          label="Peri's keyboard"
+          note={
+            settings.keyboard
+              ? 'A keyboard button sits beside the menu, and opens four rows of keys that type into whatever has the caret.'
+              : 'Adds a keyboard button beside the menu. Turn it on where nothing else can type — on an iPad or iPhone a dwell raises no keyboard of its own, and this is the only way to write a phrase, a name or a key.'
+          }
+        >
+          <PanelButton
+            kind={settings.keyboard ? 'plain' : 'primary'}
+            label={settings.keyboard ? 'Take it away' : 'Offer it'}
+            onActivate={() => update({ keyboard: !settings.keyboard })}
+          />
+        </SettingRow>
         <LanguageRow />
         <VoiceRow />
         <SyncRow sync={sync} />

@@ -23,7 +23,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { canListen, listen } from '../listen/recognition'
 import { WAITING_MS } from '../listen/apology'
 import { boardForReply, suggestReply } from '../listen/suggest'
-import { hasTranslateKey, translateHeard } from '../translate/client'
 import {
   addReplyTurn,
   loadAnswers,
@@ -40,7 +39,6 @@ export interface Heard {
   /** The words as they were said, in whatever language they were said in. */
   said: string
   /** What they say in the board's own language, once that is known. */
-  meaning: string
   /** Whether a listening session is open right now — asked for, and not yet over. */
   listening: boolean
   /**
@@ -58,12 +56,12 @@ export interface Heard {
    * translation does not. Two booleans would be two things to keep agreeing
    * that only one of them can ever be true.
    */
-  asking: '' | 'meaning' | 'reply'
+  asking: boolean
   /** The last thing that went wrong, for the line under the box. */
   error: string
 }
 
-const EMPTY: Heard = { said: '', meaning: '', listening: false, hearing: false, asking: '', error: '' }
+const EMPTY: Heard = { said: '', listening: false, hearing: false, asking: false, error: '' }
 
 /**
  * What the box says instead of a question, when there is no key it can use.
@@ -220,7 +218,7 @@ export function useListen({
       // The answers already on the board stay put until these come back — see
       // `offered` for why they are not shown in the meantime — so a request that
       // fails leaves the most recent answers the most recent answers.
-      setHeard(h => ({ ...h, asking: 'reply', error: '' }))
+      setHeard(h => ({ ...h, asking: true, error: '' }))
 
       // Read at the moment of asking rather than held in state: a reply can be
       // several seconds out, and the day's window has to be the one that is true
@@ -245,7 +243,7 @@ export function useListen({
         setRefusedKey(replyKey)
         return
       }
-      setHeard(h => ({ ...h, asking: '', error: result.status === 'ok' ? '' : result.error }))
+      setHeard(h => ({ ...h, asking: false, error: result.status === 'ok' ? '' : result.error }))
       if (result.status !== 'ok') return
 
       // Named only now, alongside the answers that belong to it: a failed
@@ -439,7 +437,7 @@ export function useListen({
       // the bump above means it is not answered as it goes: a typed question
       // is asked for when somebody asks for it.
       stopListening()
-      setHeard(h => ({ ...h, said, meaning: '', error: '', asking: '', listening: false, hearing: false }))
+      setHeard(h => ({ ...h, said, error: '', asking: false, listening: false, hearing: false }))
     },
     [locked, stopListening],
   )
@@ -475,37 +473,13 @@ export function useListen({
       listening: false,
       hearing: false,
       said: cleared[cleared.length - 1]!,
-      meaning: '',
       error: '',
     }))
     setCleared(c => c.slice(0, -1))
   }, [cleared, heard.said, locked, startListening, stopListening])
 
-  /**
-   * What the question says in the board's own language.
-   *
-   * The other direction from everything else here — see `translateHeard`, which
-   * deliberately does not tell the service what language the question was in.
-   */
-  const translate = useCallback(async () => {
-    const asked = heard.said.trim()
-    if (!asked) return
-    askedRef.current++
-    const mine = askedRef.current
-    setHeard(h => ({ ...h, asking: 'meaning', error: '' }))
-
-    const result = await translateHeard(asked)
-    if (mine !== askedRef.current) return
-    setHeard(h => ({
-      ...h,
-      asking: '',
-      meaning: result.status === 'ok' ? result.text : '',
-      error: result.status === 'ok' ? '' : result.error,
-    }))
-  }, [heard.said])
-
   /** Asked for by a dwell on the control under the box. */
-  const suggest = useCallback(() => ask((heard.meaning || heard.said).trim()), [ask, heard.meaning, heard.said])
+  const suggest = useCallback(() => ask(heard.said.trim()), [ask, heard.said])
 
   return {
     /** Whether the box above the message is shown at all. */
@@ -519,7 +493,7 @@ export function useListen({
      * — which it could not do over twenty cells. Held back rather than thrown
      * away, so a request that fails puts them straight back.
      */
-    suggestions: heard.asking === 'reply' ? NONE : suggestions,
+    suggestions: heard.asking ? NONE : suggestions,
     chose,
     forgetSuggestion,
     forgetAnswers,
@@ -536,7 +510,6 @@ export function useListen({
      * so it is measured like any question and grows to hold it.
      */
     notice: keyProblem ? KEY_NOTICE[keyProblem] : '',
-    translate,
     suggest,
     /** Whether this browser can listen at all. The control is not drawn if not. */
     available: canListen(),
@@ -549,7 +522,6 @@ export function useListen({
      * ordinary case — and Peri cannot know it without asking. So the control is
      * offered whenever there is anything behind it.
      */
-    canTranslate: hasTranslateKey(),
     /** Whether a key has been set up for suggested replies. */
     canSuggest: Boolean(replyKey),
     /**

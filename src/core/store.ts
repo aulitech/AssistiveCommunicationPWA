@@ -85,6 +85,21 @@ export interface Settings {
   /** Speak each selected phrase immediately instead of composing a message. */
   autoSpeak: boolean
   /**
+   * Whether Peri offers its own keyboard — the toggle beside the menu, and the
+   * four rows it opens.
+   *
+   * **Off until somebody asks for it.** It is the only way to type at all on
+   * iOS, where a dwell raises no system keyboard, and it is a control in the
+   * way on a device that has a real one. A board is somebody's own screen, and
+   * a control they will never use is a target their gaze passes over on the way
+   * to the ones they do.
+   *
+   * **It does not travel**, for the reason the text size does not: which
+   * keyboard a device can raise is about the device in front of somebody, and
+   * the same person's tablet and laptop do not answer the same way.
+   */
+  keyboard: boolean
+  /**
    * How big the text is, as a multiple of the browser's own default. 1 is
    * normal.
    *
@@ -162,6 +177,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // a sentence out of several phrases turns it off; somebody who wants a button
   // to say a thing has nothing to find first.
   autoSpeak: true,
+  keyboard: false,
   zoom: 1,
   replyModel: DEFAULT_REPLY_MODEL,
 }

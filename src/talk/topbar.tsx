@@ -527,14 +527,20 @@ export function Topbar({
       {/* Beside the menu because it is the same kind of thing: a surface the
           whole app shares, rather than anything about the message in the box.
           It stays put in both modes — on a device that cannot type without it,
-          a control that moved would be the worst one to have to hunt for. */}
-      <ActionButton
-        label={keyboardOpen ? 'Hide the keyboard' : 'Show the keyboard'}
-        onSelect={onToggleKeyboard}
-        className={cx('keyboard-btn', keyboardOpen && 'is-on')}
-      >
-        <KeyboardIcon />
-      </ActionButton>
+          a control that moved would be the worst one to have to hunt for.
+
+          **Only where it has been asked for.** It is the one way to type at all
+          on iOS and a target in the way on a device with a real keyboard, so it
+          is a setting rather than something every board carries. */}
+      {settings.keyboard && (
+        <ActionButton
+          label={keyboardOpen ? 'Hide the keyboard' : 'Show the keyboard'}
+          onSelect={onToggleKeyboard}
+          className={cx('keyboard-btn', keyboardOpen && 'is-on')}
+        >
+          <KeyboardIcon />
+        </ActionButton>
+      )}
 
       {/* The box and whatever rides its border. A wrapper only so the strip
           below can be positioned against **the box**: everything else on this

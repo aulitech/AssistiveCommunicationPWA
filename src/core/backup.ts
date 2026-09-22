@@ -330,6 +330,7 @@ function readSettings(v: unknown): Settings | undefined {
     // a file that says nothing about a setting is a file that says nothing, and
     // the default is on.
     autoSpeak: typeof v.autoSpeak === 'boolean' ? v.autoSpeak : DEFAULT_SETTINGS.autoSpeak,
+    keyboard: typeof v.keyboard === 'boolean' ? v.keyboard : DEFAULT_SETTINGS.keyboard,
     zoom: num(v.zoom, SETTING_LIMITS.zoom, DEFAULT_SETTINGS.zoom),
     // Held to the list this build knows, exactly as `loadSettings` holds it. A
     // file is the more likely of the two to name a model from a later release.
