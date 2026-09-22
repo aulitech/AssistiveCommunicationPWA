@@ -5,16 +5,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import {
-  LEVELS,
-  RELEASE_SUBJECT,
-  bump,
-  highest,
-  levelOf,
-  unreleased,
-  withVersion,
-  type Level,
-} from '../../tools/release'
+import { LEVELS, RELEASE_SUBJECT, bump, highest, levelOf, withVersion, type Level } from '../../tools/release'
 import { buildOf, saysVersion, scriptIn, type Deploy } from '../../tools/publish'
 
 describe('what a pull request asks for', () => {
@@ -88,35 +79,14 @@ describe('the number itself', () => {
   })
 })
 
-describe('which commits a release covers', () => {
-  const log = (...lines: string[]) => lines.join('\n')
-  const commit = (sha: string, subject: string) => `${sha}\t${subject}`
-
-  it('is everything back to the last release, and not the release itself', () => {
-    expect(
-      unreleased(
-        log(
-          commit('aaa', 'Keep each board to its account'),
-          commit('bbb', 'Fix the microphone'),
-          commit('ccc', 'Version 1.3.1'),
-          commit('ddd', 'Something older'),
-        ),
-      ),
-    ).toEqual(['aaa', 'bbb'])
-  })
-
-  it('is nothing when the last thing on main is a release', () => {
-    expect(unreleased(log(commit('ccc', 'Version 1.3.1'), commit('aaa', 'Older')))).toEqual([])
-  })
-
-  // The subject and the whole of it: a commit that merely mentions a version is
-  // not a release, and a release commit says nothing else.
-  it('is not stopped by a commit that only talks about a version', () => {
-    expect(
-      unreleased(log(commit('aaa', 'Version 1.3.1 broke the icons'), commit('bbb', 'Version the app'))),
-    ).toEqual(['aaa', 'bbb'])
+// What publishing looks for on main: the last commit is a release and says
+// nothing else.
+describe('a release commit', () => {
+  it('is a version and the whole subject', () => {
     expect(RELEASE_SUBJECT.test('Version 1.3.1')).toBe(true)
+    expect(RELEASE_SUBJECT.test('Version 1.3.1 broke the icons')).toBe(false)
     expect(RELEASE_SUBJECT.test('Version 01.3.1')).toBe(false)
+    expect(RELEASE_SUBJECT.test('Keep each board to its account')).toBe(false)
   })
 })
 
