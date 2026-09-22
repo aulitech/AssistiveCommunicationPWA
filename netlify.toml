@@ -4,15 +4,15 @@
 # it is the single reviewable place the deploy is described.
 
 [build]
-  # Gate the deploy on the test suite. `vite build` succeeds on plenty of broken
-  # states — every defect fixed in this repo's history compiled cleanly — so a
-  # green build alone is not evidence the app works.
+  # Build and nothing else. `vite build` succeeds on plenty of broken states —
+  # every defect fixed in this repo's history compiled cleanly — so the gate is
+  # `pnpm check`, run by GitHub Actions and required by main before anything
+  # merges (`.github/workflows/ci.yml`). It ran here until then, which made each
+  # deploy preview take eight to ten minutes and ran the suite twice a merge.
   #
-  # `pnpm check` now leads with the formatter, so **an unformatted commit fails
-  # the deploy**. That is deliberate — it is what keeps the tree from drifting —
-  # but it means the fix for a red build here can be `pnpm format`, which is not
-  # where anybody looks first.
-  command = "pnpm check && pnpm build"
+  # Nothing built here goes live by itself: auto-publishing is off, and the
+  # Publish workflow is what puts a release in front of people.
+  command = "pnpm build"
   publish = "dist"
 
 [build.environment]

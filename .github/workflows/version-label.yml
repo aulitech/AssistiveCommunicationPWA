@@ -1,0 +1,28 @@
+# Every pull request says what it does to the version, as exactly one of the
+# labels major, minor or patch, and main will not take one that does not. The
+# release after it is bumped by the highest label it covers — see
+# `tools/release.ts` and *Versioning* in AGENTS.md.
+
+name: Version label
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+permissions: {}
+
+jobs:
+  label:
+    name: version label
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Exactly one of major, minor or patch
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          count=$(jq '[.[] | select(. == "major" or . == "minor" or . == "patch")] | length' <<< "$LABELS")
+          if [ "$count" != 1 ]; then
+            echo "::error::Label this pull request with exactly one of major, minor or patch (it has $count)."
+            exit 1
+          fi
