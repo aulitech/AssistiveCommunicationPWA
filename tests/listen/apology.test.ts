@@ -73,6 +73,18 @@ describe('which apology gets said', () => {
     expect(text).toBe('Oldest')
   })
 
+  // The hour is a window, not a ban: one said this morning is as good as new.
+  it('takes one up again once its hour has passed', () => {
+    const { text } = nextApology(
+      cache({
+        ready: ['Sorry, one moment'],
+        said: [{ text: 'Sorry, one moment', at: NOW - 2 * APOLOGY_REST_MS }],
+      }),
+      NOW,
+    )
+    expect(text).toBe('Sorry, one moment')
+  })
+
   it('writes down what it said, and when', () => {
     const { cache: after } = nextApology(cache({ ready: ['Sorry, one moment'] }), NOW)
     expect(after.said).toEqual([{ text: 'Sorry, one moment', at: NOW }])

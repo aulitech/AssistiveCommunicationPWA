@@ -831,6 +831,21 @@ describe('what the board says while a reply is being written', () => {
     expect(body.messages[0].content).toMatch(/apolog/i)
   })
 
+  /**
+   * A question that has been corrected, or cleared, is one nobody is waiting on
+   * an answer to — and an apology for it would be the board talking to itself.
+   */
+  it('says nothing for a question that is no longer the one being answered', () => {
+    heldReply()
+    heardAndDone('Are you comfortable')
+
+    fireEvent.change(heardBox()!, { target: { value: 'Are you comfortable in that chair?' } })
+    settle()
+    waitOut(WAITING_MS + 100)
+
+    expect(spoken).toEqual([])
+  })
+
   it('writes down what it said, so the next wait is different words', () => {
     heldReply()
     heardAndDone('Are you comfortable')
