@@ -440,6 +440,12 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Saving the key sends it to Anthropic once, on its own, to check that it works, so a key with a typo in it is caught there rather than when somebody is waiting for an answer.',
       ),
       text(
+        'If an answer takes more than about three seconds, Peri says a short apology out loud — the sort of thing you would say yourself while you thought — so that whoever asked is not left in silence.',
+      ),
+      text(
+        'It is never the same one twice in an hour, and it is not kept as something you said: it does not go into the Sent tab, and it is not part of the conversation the next answer is written against.',
+      ),
+      text(
         'It asks on its own as soon as the person talking to you stops, so long as the message box is empty — you do not have to ask for it. The board goes to the answers as they come, and back to where you were when the question is done with.',
       ),
       text(

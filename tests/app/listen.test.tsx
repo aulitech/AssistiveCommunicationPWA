@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import App from '../../src/App'
 import { loadReplyContext, saveAnswers, saveReplyKey } from '../../src/core/store'
+import { SHIPPED_APOLOGIES, WAITING_MS } from '../../src/listen/apology'
 import { PROSE_ICONS } from '../../src/ui/prose-icons'
 import { KEY_NOTICE } from '../../src/talk/use-listen'
 import { spoken } from '../setup'
@@ -728,6 +729,117 @@ describe('reading it in your own language', () => {
 
     expect($('.heard-error')).not.toBeNull()
     expect(heardBox()!.value).toBe('¿Quieres té?')
+  })
+})
+
+/**
+ * **Three seconds is a long silence with somebody standing in front of you.**
+ * The person using the board cannot fill it — filling it is what they came here
+ * for — so the board fills it for them, once, while the answers are still on
+ * their way. See `listen/apology.ts`.
+ */
+describe('what the board says while a reply is being written', () => {
+  /** A reply that does not come back until it is let go of. */
+  const heldReply = () => {
+    let answer!: (text: string) => void
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>(resolve => {
+            answer = text =>
+              resolve(
+                new Response(JSON.stringify({ content: [{ type: 'text', text }] }), {
+                  headers: { 'content-type': 'application/json' },
+                }),
+              )
+          }),
+      ),
+    )
+    saveReplyKey('sk-ant-test')
+    renderApp()
+    return { answer: () => answer('I am, thank you') }
+  }
+
+  const waitOut = (ms: number) => act(() => void vi.advanceTimersByTime(ms))
+
+  it('apologises out loud once the wait is longer than three seconds', () => {
+    heldReply()
+    heardAndDone('Are you comfortable')
+    expect(spoken, 'it spoke before anybody had waited for anything').toEqual([])
+
+    waitOut(WAITING_MS + 100)
+
+    expect(spoken).toHaveLength(1)
+    expect(SHIPPED_APOLOGIES).toContain(spoken[0])
+  })
+
+  it('says it once, however long the wait goes on', () => {
+    heldReply()
+    heardAndDone('Are you comfortable')
+
+    waitOut(WAITING_MS * 5)
+
+    expect(spoken).toHaveLength(1)
+  })
+
+  // The answers are what somebody was waiting for, and they are never spoken.
+  it('says nothing at all when the answers come back in time', async () => {
+    const held = heldReply()
+    heardAndDone('Are you comfortable')
+
+    waitOut(WAITING_MS - 500)
+    await act(async () => held.answer())
+    waitOut(WAITING_MS * 2)
+
+    expect(spoken).toEqual([])
+    expect(answerCells()).toEqual(['I am, thank you'])
+  })
+
+  /**
+   * **It is the board's sentence, not theirs.** It goes nowhere near the record
+   * of what they said, counts towards no phrase, and is not in the conversation
+   * the next reply is written against.
+   */
+  it('is not treated as something the person said', () => {
+    heldReply()
+    heardAndDone('Are you comfortable')
+    waitOut(WAITING_MS + 100)
+
+    expect(spoken).toHaveLength(1)
+    expect(JSON.parse(localStorage.getItem('peri_sent') ?? '[]'), 'the apology is in the Sent list').toEqual([])
+    expect(JSON.parse(localStorage.getItem('peri_usage') ?? '{}')).toEqual({})
+    expect(JSON.parse(localStorage.getItem('peri_reply_context') ?? '[]')).toEqual([])
+  })
+
+  /**
+   * **Topped up after one is said, and at no other time.** A board that never
+   * waits on an answer never asks for any; from the first apology on, what it
+   * says next was written for this board minutes before anybody needed it.
+   */
+  it('asks for more of them once it has said one', () => {
+    heldReply()
+    heardAndDone('Are you comfortable')
+    const asked = () => (fetch as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls
+    expect(asked(), 'it asked for apologies before one had ever been needed').toHaveLength(1)
+
+    waitOut(WAITING_MS + 100)
+
+    expect(asked()).toHaveLength(2)
+    const body = JSON.parse(String(asked()[1][1].body)) as { system?: unknown; messages: { content: string }[] }
+    expect(body.system, 'the fill went out as though it were a question').toBeUndefined()
+    expect(body.messages[0].content).toMatch(/apolog/i)
+  })
+
+  it('writes down what it said, so the next wait is different words', () => {
+    heldReply()
+    heardAndDone('Are you comfortable')
+    waitOut(WAITING_MS + 100)
+
+    const said = JSON.parse(localStorage.getItem('peri_apologies') ?? '{}') as {
+      said: { text: string }[]
+    }
+    expect(said.said.map(s => s.text)).toEqual(spoken)
   })
 })
 

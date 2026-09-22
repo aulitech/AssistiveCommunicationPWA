@@ -58,6 +58,7 @@ import { SENT_CATEGORY, SENT_FILTER, useSent } from './use-sent'
 import { useListen } from './use-listen'
 import { TRANSLATED_CATEGORY, TRANSLATED_FILTER, useTranslated, voiceForTranslated } from './use-translated'
 import { SUGGEST_CATEGORY, SUGGEST_FILTER } from './suggestions'
+import { useApologies } from './use-apologies'
 import { useUsage } from './use-usage'
 import { useToast } from './use-toast'
 
@@ -146,6 +147,21 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * one chosen is `propose`d rather than set, so whatever was in the box is one
    * dwell on Undo away. **Nothing here speaks**, whatever mode the board is in.
    */
+  /**
+   * The board apologising for itself while a reply is being written — see
+   * `listen/apology.ts`.
+   *
+   * **Said, and not otherwise treated as anything.** It goes nowhere near the
+   * Sent list, counts towards no phrase, and is not in the conversation the
+   * next reply is written against: it is the board's sentence, not theirs.
+   * `instant` for the reason the emergency bar has it — this fills a wait, so
+   * it cannot start one of its own.
+   */
+  const nextApology = useApologies(settings.language)
+  const apologise = useCallback(() => {
+    speak(nextApology(), settings, { instant: true })
+  }, [nextApology, settings])
+
   const listener = useListen({
     language: settings.language,
     replyKey,
@@ -155,10 +171,12 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     // showing a phrase there, and a reply landing in the message behind it
     // would be one nobody could see and an exchange nobody asked to pay for.
     messageEmpty: !editMode && message.trim() === '',
+    onWaiting: apologise,
   })
 
   /** Whether answers to a question are on their way. */
   const askingForAnswers = listener.heard.asking === 'reply'
+
   /**
    * Whether the board is holding answers, or about to be.
    *
