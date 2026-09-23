@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, fireEvent, act } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { unmeasuredGrid } from '../setup'
+import { scrolledIntoView, unmeasuredGrid } from '../setup'
 import {
   $$,
   $,
@@ -544,6 +544,17 @@ const addPhrase = (text: string, category?: string) => {
   if (category) chooseCategory(category)
   savePhrase()
 }
+/** In edit mode, on a category tab, with somewhere else to file things. */
+const standingOn = () => {
+  renderApp()
+  enterEditMode()
+  const here = shownCategory()!
+  const elsewhere = categoryChoices().find(name => name !== here)!
+  leaveEditMode()
+  click(tab(here))
+  enterEditMode()
+  return { here, elsewhere }
+}
 
 describe('starting from the last choice made', () => {
   const voiceTrigger = phraseVoice
@@ -763,18 +774,6 @@ describe('starting from the last choice made', () => {
 // tab in front of them lands among a couple of thousand cells, and all they
 // have to show for writing one is a line of text that fades.
 describe('following a new phrase to where it was filed', () => {
-  /** In edit mode, on a category tab, with somewhere else to file things. */
-  const standingOn = () => {
-    renderApp()
-    enterEditMode()
-    const here = shownCategory()!
-    const elsewhere = categoryChoices().find(name => name !== here)!
-    leaveEditMode()
-    click(tab(here))
-    enterEditMode()
-    return { here, elsewhere }
-  }
-
   it('takes the board to the category it was filed under', () => {
     const { here, elsewhere } = standingOn()
 
@@ -881,5 +880,89 @@ describe('following a new phrase to where it was filed', () => {
 
     expect(filedUnder).not.toBe('Sent')
     expect(activeTab()).toBe(filedUnder)
+  })
+})
+
+// A save that leaves nothing on screen but a toast is a save with nothing to
+// show for it. Two halves: which cell it is, and where on the board to find it.
+describe('showing where the new phrase went', () => {
+  const marked = () => $('.phrase-cell[aria-current="true"]')?.textContent
+  const cellFor = (text: string) => $$('.phrase-cell').find(c => c.textContent === text)
+  const tabsBroughtIntoView = () =>
+    scrolledIntoView.filter(el => el.classList.contains('filter-tab')).map(el => el.textContent)
+
+  it('marks the phrase it has just made', () => {
+    const { elsewhere } = standingOn()
+
+    addPhrase('One for over there', elsewhere)
+
+    expect(marked()).toBe('One for over there')
+  })
+
+  it('brings it into view', () => {
+    const { elsewhere } = standingOn()
+
+    addPhrase('One for over there', elsewhere)
+
+    expect(scrolledIntoView).toContain(cellFor('One for over there'))
+  })
+
+  // The window starts again at a screenful on arriving at a tab, and a category
+  // runs to a hundred and eighty phrases — so the new one is past the end of
+  // what is rendered, and a cell that does not exist is nothing to scroll to.
+  it('reaches a phrase past the end of what is rendered', () => {
+    renderApp()
+    // One of the longest categories the board ships with.
+    click(tab('Information'))
+    enterEditMode()
+
+    addPhrase('One at the very end')
+
+    const cell = cellFor('One at the very end')
+    expect(cell, 'the new cell was never rendered at all').toBeDefined()
+    expect(scrolledIntoView).toContain(cell)
+  })
+
+  // Forty-two categories is several screens of tabs, so a board that changed
+  // tabs by itself would otherwise be showing one whose tab is off the end.
+  it('brings the tab it moved to into the middle of the bar', () => {
+    const { elsewhere } = standingOn()
+
+    addPhrase('One for over there', elsewhere)
+
+    expect(tabsBroughtIntoView()).toContain(elsewhere)
+  })
+
+  // A tab somebody dwelled on is one they were already looking at, and sliding
+  // it out from under a gaze that has not moved is how the next dwell lands on
+  // its neighbour. So only where the board moved by itself.
+  it('leaves the bar where it is when the board did not move', () => {
+    standingOn()
+
+    addPhrase('One for right here')
+
+    expect(tabsBroughtIntoView()).toEqual([])
+  })
+
+  // Rewording one puts no new cell anywhere, so there is nothing to point at.
+  it('marks nothing for a phrase being reworded', () => {
+    standingOn()
+    click(cells()[0])
+
+    writePhrase('Reworded, and nowhere new')
+    savePhrase()
+
+    expect(marked()).toBeUndefined()
+  })
+
+  // What the mark claims — this is the last thing you did — stops being true
+  // the moment anything else happens.
+  it('lets the mark go on the next dwell', () => {
+    const { elsewhere } = standingOn()
+    addPhrase('One for over there', elsewhere)
+
+    click(cells().find(c => c.textContent !== 'One for over there')!)
+
+    expect(marked()).toBeUndefined()
   })
 })

@@ -106,6 +106,15 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // which files the phrase under it as well as creating it.
   const [editingCategory, setEditingCategory] = useState<{ name: string | null; forDraft?: boolean } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
+  /**
+   * The phrase just put on the board, and the tab the board moved to for it.
+   *
+   * Both halves are about the same thing: a save that leaves nothing on screen
+   * but a toast. The grid marks the cell and brings it into view; the bar
+   * brings the tab to its middle, but only where the board moved by itself —
+   * see `FilterBar.centreOn`.
+   */
+  const [landed, setLanded] = useState<{ id: string; movedTo: string | null } | null>(null)
   const [recent, setRecent] = useState(loadRecent)
   // Which of the four orders each tab is in. One per tab rather than one for
   // the board: the categories are not alike, and a single setting makes the
@@ -601,37 +610,47 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       return next
     })
 
-    // Saving a sent message keeps it: it becomes a phrase of the user's own, in
-    // a category they pick, rather than editing the record of having said it.
-    // The record is left exactly as it was.
-    if (phrase === null || keeping) {
+    /**
+     * Whether this is a phrase somebody is making, as against one they are
+     * rewording — which is what everything below turns on. Keeping a message
+     * is making one: the record it came off is left exactly as it was.
+     */
+    const making = phrase === null || keeping
+    /**
+     * **A phrase somebody has just made is on screen.** Filed anywhere but the
+     * tab in front of them it lands among a couple of thousand cells, and what
+     * they get for having written one is a line of text that fades.
+     *
+     * Three cases do not move, and none of them is an exception to that: on
+     * **All** the phrase is already there, the **emergency bar** is on screen
+     * under every tab, and a phrase being **reworded** is one somebody is
+     * moving out of where they are — refiling several out of one category is a
+     * run they would be thrown out of after the first.
+     */
+    const movesTo =
+      making && !isEmergency && effectiveFilter !== 'all' && effectiveFilter !== category ? category : null
+
+    if (making) {
       // The id comes back so a brand-new phrase can be given the voice chosen
       // for it — there is no id to hang one on until the phrase exists.
       const id = board.addPhrase(text, category, isEmergency)
       if (voice) board.setVoice(id, voice)
+      // Which cell it is, for the board to mark and scroll to — see `landed`.
+      // Nothing for the emergency bar, whose phrases are never in the grid and
+      // are on screen under every tab anyway.
+      setLanded(isEmergency ? null : { id, movedTo: movesTo })
     } else {
       // Fetched and stored the moment it is assigned, so the phrase can be said
       // in that voice without waiting — including on the emergency bar, which
       // never waits.
       board.setVoice(phrase.id, voice)
       board.editPhrase(phrase, text, category, isEmergency)
+      // Rewording one puts no new cell anywhere, so there is nothing to point
+      // at — and what the mark claims is the last thing somebody did.
+      setLanded(null)
     }
-    // **A phrase somebody has just made is on screen.** Filed anywhere but the
-    // tab in front of them it lands among a couple of thousand cells, and what
-    // they get for having written one is a line of text that fades.
-    //
-    // Three cases do not move, and none of them is an exception to that: on
-    // **All** the phrase is already there, the **emergency bar** is on screen
-    // under every tab, and a phrase being **reworded** is one somebody is
-    // moving out of where they are — refiling several out of one category is a
-    // run they would be thrown out of after the first.
-    if (
-      (phrase === null || keeping) &&
-      !isEmergency &&
-      effectiveFilter !== 'all' &&
-      effectiveFilter !== category
-    ) {
-      setActiveFilter(category)
+    if (movesTo) {
+      setActiveFilter(movesTo)
       // Every cell has just moved under a pointer that has not, and in edit
       // mode the one that lands underneath would open for rewording.
       holdDwellsUntilMoved()
@@ -1033,6 +1052,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
               onToggleSort={editMode ? handleToggleSort : undefined}
               onReorder={editMode ? board.reorderCategories : undefined}
               onLift={name => flashToast(`Holding ${name} — dwell where it should go`)}
+              centreOn={landed?.movedTo ?? null}
             />
           )}
 
@@ -1041,6 +1061,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             // A new tab or a new word is a different list; the same phrases in
             // a new order is not.
             listKey={`${effectiveFilter}\u0000${filterWord}`}
+            landed={landed?.id ?? null}
             emptyMessage={
               showingSent
                 ? 'Nothing said yet. Messages you speak or copy are kept here.'
