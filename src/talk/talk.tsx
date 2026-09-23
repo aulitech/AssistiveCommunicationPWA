@@ -616,6 +616,26 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       board.setVoice(phrase.id, voice)
       board.editPhrase(phrase, text, category, isEmergency)
     }
+    // **A phrase somebody has just made is on screen.** Filed anywhere but the
+    // tab in front of them it lands among a couple of thousand cells, and what
+    // they get for having written one is a line of text that fades.
+    //
+    // Three cases do not move, and none of them is an exception to that: on
+    // **All** the phrase is already there, the **emergency bar** is on screen
+    // under every tab, and a phrase being **reworded** is one somebody is
+    // moving out of where they are — refiling several out of one category is a
+    // run they would be thrown out of after the first.
+    if (
+      (phrase === null || keeping) &&
+      !isEmergency &&
+      effectiveFilter !== 'all' &&
+      effectiveFilter !== category
+    ) {
+      setActiveFilter(category)
+      // Every cell has just moved under a pointer that has not, and in edit
+      // mode the one that lands underneath would open for rewording.
+      holdDwellsUntilMoved()
+    }
     startNew()
     flashToast(
       keeping
@@ -624,7 +644,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
           ? `Added to ${isEmergency ? 'Emergency' : category}`
           : 'Saved',
     )
-  }, [draft, board, startNew, flashToast])
+  }, [draft, board, startNew, flashToast, effectiveFilter])
 
   const handleDelete = useCallback(() => {
     const { phrase, keeping } = draft
