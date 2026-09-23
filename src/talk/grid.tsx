@@ -693,26 +693,23 @@ export function PhraseGrid({
   }, [phrases.length])
 
   /**
-   * And brought into view, once there is a cell to bring.
+   * And brought into view.
    *
-   * **Keyed on the window as well as on the phrase**, because growing it is
-   * what makes the cell exist: the pass before that there is nothing here to
-   * find, and an effect that ran once would quietly do nothing on exactly the
-   * lists long enough to need it.
+   * **The cell is always there by the time this runs**, which is what the two
+   * adjustments above are for: both happen during the render that named the
+   * phrase, so React has already re-rendered with a window wide enough to hold
+   * it before anything is committed. So this asks once, on the phrase, rather
+   * than watching the window for a cell to appear.
    *
    * Centred rather than merely on screen — a cell against the top edge sits
    * under the message box, and one against the bottom under the emergency bar.
-   * Once per phrase, so the growing window does not scroll the board again
-   * under somebody already reading it.
    */
-  const broughtIntoView = useRef<string | null>(null)
   useEffect(() => {
-    if (!landed || broughtIntoView.current === landed) return
-    const cell = innerRef.current?.querySelector(`[data-phrase="${landed}"]`)
-    if (!cell) return
-    broughtIntoView.current = landed
-    cell.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [landed, shown])
+    if (!landed) return
+    innerRef.current
+      ?.querySelector(`[data-phrase="${landed}"]`)
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [landed])
 
   // The rail's bottom jump has to have somewhere to land. The count rather than
   // null, because null means "not measured yet" and the effect would answer that
