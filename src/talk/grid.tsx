@@ -87,6 +87,9 @@ const PhraseCell = memo(function PhraseCell({
       )}
       style={dwellVar(settings.phraseDwellMs)}
       role="button"
+      // How the grid finds the cell it has to scroll to. The id rather than a
+      // position, the list being rearranged under this by four orders.
+      data-phrase={phrase.id}
       // Says out loud what the tint says by eye. A mark that lasts has to reach
       // somebody reading the board rather than looking at it.
       aria-current={justSaid || undefined}
@@ -497,6 +500,7 @@ export function PhraseGrid({
   onReorder,
   onLift,
   onSelect,
+  landed,
 }: {
   phrases: Phrase[]
   /**
@@ -528,6 +532,16 @@ export function PhraseGrid({
   /** Announced when a phrase is picked up — the styling alone says nothing aloud. */
   onLift?: (label: string) => void
   onSelect: (phrase: Phrase) => void
+  /**
+   * A phrase just put on the board: marked as the last thing done, and brought
+   * into view.
+   *
+   * What a save leaves behind otherwise is one more cell among a couple of
+   * thousand and a line of text that fades. The two halves answer the two
+   * halves of that — the mark says *which one*, and the scroll is what makes
+   * the mark worth having, a new cell being as likely as not below the fold.
+   */
+  landed?: string | null
 }) {
   const gridRef = useRef<HTMLElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
@@ -599,6 +613,34 @@ export function PhraseGrid({
     setShown(step)
   }
 
+  /**
+   * The phrase just put on the board takes the mark the last one chosen takes:
+   * one mark meaning *that one, and it went there*, rather than a second one to
+   * learn. It goes the same way too — on the next dwell, whatever that is.
+   *
+   * Adjusted during render rather than in an effect, the rule for state that
+   * follows a prop: an effect would paint one frame of the board without it.
+   * Starting at null rather than at `landed` so that a grid mounting with one
+   * already named still marks it.
+   */
+  const [landedFor, setLandedFor] = useState<string | null>(null)
+  if (landedFor !== landed) {
+    setLandedFor(landed ?? null)
+    if (landed) setSpokenId(landed)
+  }
+
+  /**
+   * Where it landed, so the window can be grown to reach it. **After the reset
+   * above, which is the pass this matters in**: arriving at the tab starts the
+   * window again at a screenful, and a category runs to a hundred and eighty
+   * phrases — so the new one is often past the end of what is rendered, and a
+   * cell that does not exist is nothing to scroll to. The grid grows on its own
+   * only for somebody scrolling towards the bottom, which is the very thing
+   * this is here to save them.
+   */
+  const landedAt = useMemo(() => (landed ? phrases.findIndex(p => p.id === landed) : -1), [landed, phrases])
+  if (landedAt >= 0 && shown !== null && shown <= landedAt) setShown(landedAt + 1)
+
   const visible = shown === null || shown >= phrases.length ? phrases : phrases.slice(0, shown)
 
   // Measures, then grows until the cells fill the viewport. That second part is
@@ -649,6 +691,28 @@ export function PhraseGrid({
       ro.disconnect()
     }
   }, [phrases.length])
+
+  /**
+   * And brought into view, once there is a cell to bring.
+   *
+   * **Keyed on the window as well as on the phrase**, because growing it is
+   * what makes the cell exist: the pass before that there is nothing here to
+   * find, and an effect that ran once would quietly do nothing on exactly the
+   * lists long enough to need it.
+   *
+   * Centred rather than merely on screen — a cell against the top edge sits
+   * under the message box, and one against the bottom under the emergency bar.
+   * Once per phrase, so the growing window does not scroll the board again
+   * under somebody already reading it.
+   */
+  const broughtIntoView = useRef<string | null>(null)
+  useEffect(() => {
+    if (!landed || broughtIntoView.current === landed) return
+    const cell = innerRef.current?.querySelector(`[data-phrase="${landed}"]`)
+    if (!cell) return
+    broughtIntoView.current = landed
+    cell.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [landed, shown])
 
   // The rail's bottom jump has to have somewhere to land. The count rather than
   // null, because null means "not measured yet" and the effect would answer that
