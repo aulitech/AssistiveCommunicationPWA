@@ -559,6 +559,67 @@ describe('starting from the last choice made', () => {
     expect(shownCategory()).toBe(elsewhere)
   })
 
+  describe('and from the tab in front of them', () => {
+    const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
+    const leaveEditMode = () => click(editToggle())
+
+    /** Somewhere to file things that is not where the editor already is. */
+    const goElsewhere = () => {
+      const elsewhere = someOtherCategory()
+      leaveEditMode()
+      click(tab(elsewhere))
+      return elsewhere
+    }
+
+    // Somebody who opens edit mode with a category on screen is adding to that
+    // category, nearly every time — and the alternative is a picker landing on
+    // wherever the last phrase went, which after one trip to another tab is the
+    // wrong answer for every phrase after it.
+    it('files the next new phrase under the category being looked at', () => {
+      renderApp()
+      enterEditMode()
+      const elsewhere = goElsewhere()
+
+      enterEditMode()
+
+      expect(shownCategory()).toBe(elsewhere)
+    })
+
+    // Only on the way *in*. A draft that refiled itself every time somebody
+    // looked at another tab would change where a phrase goes without being
+    // asked — including one they had already chosen a category for.
+    it('leaves the draft where it is when the tab changes under it', () => {
+      renderApp()
+      enterEditMode()
+      const elsewhere = goElsewhere()
+      enterEditMode()
+
+      click(tab('All'))
+
+      expect(shownCategory()).toBe(elsewhere)
+    })
+
+    // None of the four is somewhere a phrase can be filed: All is every
+    // category at once, and the other three are records of what was said. So
+    // they leave the last choice standing rather than throwing it away and
+    // making somebody pick again.
+    for (const notACategory of ['All', 'Sent', 'Translations']) {
+      it(`leaves it standing under ${notACategory}`, () => {
+        renderApp()
+        enterEditMode()
+        const elsewhere = goElsewhere()
+        // Landed on, so the tab is the only thing that could change it back.
+        enterEditMode()
+        leaveEditMode()
+
+        click(tab(notACategory))
+        enterEditMode()
+
+        expect(shownCategory()).toBe(elsewhere)
+      })
+    }
+  })
+
   it('remembers it across a reload', () => {
     renderApp()
     enterEditMode()

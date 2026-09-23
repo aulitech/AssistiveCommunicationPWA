@@ -80,7 +80,11 @@ export function useEditor({
   duplicateOf,
 }: {
   allCategories: string[]
-  /** Where a new phrase starts from: the last category and voice used. */
+  /**
+   * Where a new phrase starts from: the last voice used, and the category
+   * either last filed under or last looked at — `talk.tsx` writes the tab there
+   * on the way into edit mode, where that tab is a category at all.
+   */
   recent: { category?: string; voice?: string }
   voiceFor: (id: string) => string | undefined
   /** Whether the board already holds this wording under this category. */
