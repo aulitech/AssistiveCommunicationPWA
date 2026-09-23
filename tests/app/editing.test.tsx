@@ -1066,4 +1066,21 @@ describe('going to the phrase the message is', () => {
     expect(activeTab()).toBe('Texting')
     expect(marked()).toBe('Good morning')
   })
+
+  // And it does not go deaf where it did not move. Nothing was replaced under
+  // anybody's gaze, so refusing their next dwell would cost them one for
+  // nothing — in edit mode, the phrase they were reaching for to reword.
+  it('is still listening where the board stayed put', () => {
+    renderApp()
+    click(tab('Texting'))
+    click(cellFor('Good morning')!)
+    enterEditMode()
+
+    const other = cells().find(c => c.textContent !== 'Good morning')!
+    fireEvent.pointerEnter(other)
+    act(() => void vi.advanceTimersByTime(1500))
+    settle()
+
+    expect(box().value, 'the board was deaf to the next dwell').not.toBe('Good morning')
+  })
 })
