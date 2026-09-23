@@ -1040,6 +1040,17 @@ describe('going to the phrase the message is', () => {
     expect(box().value).toBe('Nothing anywhere on this board says this')
   })
 
+  // The box's contents have just changed under them — the phrase as it was
+  // written rather than the one filling of it they had said — and the board
+  // has moved. The toast is what says both, and which category it went to.
+  it('says what it opened, and where', () => {
+    composeAPhrase()
+
+    enterEditMode()
+
+    expect($('.toast')?.textContent).toMatch(new RegExp(`editing this phrase.*${activeTab()}`, 'i'))
+  })
+
   // All is the one tab that cannot answer *which category is this in*, not
   // showing categories being the whole of what it is for.
   it('names the category it went to, on the tab and on the strip alike', () => {
