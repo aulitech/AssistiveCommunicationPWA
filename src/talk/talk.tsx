@@ -107,21 +107,26 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const [editingCategory, setEditingCategory] = useState<{ name: string | null; forDraft?: boolean } | null>(null)
   const [filling, setFilling] = useState<Phrase | null>(null)
   /**
-   * The phrase just put on the board, and the tab the board moved to for it.
+   * The phrase the board is pointing at, and the tab it moved to to do it.
    *
-   * Both halves are about the same thing: a save that leaves nothing on screen
-   * but a toast. The grid marks the cell and brings it into view; the bar
-   * brings the tab to its middle, but only where the board moved by itself —
-   * see `FilterBar.centreOn`.
+   * Two things put something here: a phrase just **made**, which would
+   * otherwise be one more cell among a couple of thousand and a toast that
+   * fades, and a phrase just **found** — the message box holding one that is
+   * already on the board, on the way into edit mode.
+   *
+   * The grid marks the cell and brings it into view; the bar brings the tab to
+   * its middle, and only where the board moved by itself. **A fresh object
+   * every time**, because being pointed at the same phrase twice is two
+   * occasions and both components key on the identity.
    */
-  const [landed, setLanded] = useState<{ id: string; movedTo: string | null } | null>(null)
+  const [pointing, setPointing] = useState<{ id: string; movedTo: string | null } | null>(null)
   const [recent, setRecent] = useState(loadRecent)
   // Which of the four orders each tab is in. One per tab rather than one for
   // the board: the categories are not alike, and a single setting makes the
   // right answer for one of them the wrong answer everywhere else.
   const [phraseSorts, setPhraseSorts] = useState(loadPhraseSorts)
 
-  const { store, allCategories, voiceFor } = board
+  const { store, allCategories, voiceFor, phraseSaying } = board
 
   // The phrase being written, which in edit mode is what the message box holds.
   // There is always one — pointing it at a phrase is what choosing a cell does
@@ -587,6 +592,28 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   }, [])
 
   /**
+   * Where the board has to go to put a phrase in front of somebody, or null
+   * where it is in front of them already.
+   *
+   * **All shows every category at once**, so a phrase filed anywhere is on it
+   * already and moving would only take somebody off the tab they chose. The
+   * three pinned records are not categories and show none of it, so those move
+   * like any other tab.
+   */
+  const moveToShow = useCallback(
+    (category: string) => (effectiveFilter !== 'all' && effectiveFilter !== category ? category : null),
+    [effectiveFilter],
+  )
+
+  /** Show a tab the board chose itself, rather than one somebody dwelled on. */
+  const showTab = useCallback((tab: string) => {
+    setActiveFilter(tab)
+    // Every cell has just been replaced under a pointer that has not moved,
+    // and in edit mode the one landing underneath opens for rewording.
+    holdDwellsUntilMoved()
+  }, [])
+
+  /**
    * Save what is in the box.
    *
    * Nothing closes afterwards, because nothing was opened — the editor goes back
@@ -627,18 +654,17 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
      * moving out of where they are — refiling several out of one category is a
      * run they would be thrown out of after the first.
      */
-    const movesTo =
-      making && !isEmergency && effectiveFilter !== 'all' && effectiveFilter !== category ? category : null
+    const movesTo = making && !isEmergency ? moveToShow(category) : null
 
     if (making) {
       // The id comes back so a brand-new phrase can be given the voice chosen
       // for it — there is no id to hang one on until the phrase exists.
       const id = board.addPhrase(text, category, isEmergency)
       if (voice) board.setVoice(id, voice)
-      // Which cell it is, for the board to mark and scroll to — see `landed`.
+      // Which cell it is, for the board to point at — see `pointing`.
       // Nothing for the emergency bar, whose phrases are never in the grid and
       // are on screen under every tab anyway.
-      setLanded(isEmergency ? null : { id, movedTo: movesTo })
+      setPointing(isEmergency ? null : { id, movedTo: movesTo })
     } else {
       // Fetched and stored the moment it is assigned, so the phrase can be said
       // in that voice without waiting — including on the emergency bar, which
@@ -649,12 +675,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // on the last one is already gone — every dwell clears it, this one
       // included.
     }
-    if (movesTo) {
-      setActiveFilter(movesTo)
-      // Every cell has just moved under a pointer that has not, and in edit
-      // mode the one that lands underneath would open for rewording.
-      holdDwellsUntilMoved()
-    }
+    if (movesTo) showTab(movesTo)
     startNew()
     flashToast(
       keeping
@@ -663,7 +684,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
           ? `Added to ${isEmergency ? 'Emergency' : category}`
           : 'Saved',
     )
-  }, [draft, board, startNew, flashToast, effectiveFilter])
+  }, [draft, board, startNew, flashToast, moveToShow, showTab])
 
   const handleDelete = useCallback(() => {
     const { phrase, keeping } = draft
@@ -763,17 +784,42 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * wherever the last phrase went — which after one trip to a different tab is
    * the wrong answer for every phrase after it. Only on the way *in*: leaving
    * edit mode says nothing about where anything belongs.
+   *
+   * **Unless what it carries in is already on the board**, in which case the
+   * board goes and finds it: a message box holding one phrase, as it does the
+   * moment one is chosen while composing, is somebody pointing at that phrase
+   * — and what they got was a copy of it filed wherever they happened to be,
+   * which cannot be saved and says only *Already on the board*. Now the cell
+   * itself is marked and brought into view, under its own tab.
    */
   const setMode = useCallback(
     (mode: 'speak' | 'compose' | 'edit') => {
       update({ autoSpeak: mode === 'speak' })
       setEditMode(mode === 'edit')
-      startNew(mode === 'edit' ? message.trim() : '')
-      // **Only where the tab is a category.** Four of them are not — All, and
-      // the three pinned records: Sent, the answers and Translations — and
-      // nothing can be filed under any of those, so they leave the last choice
-      // standing rather than throwing it away and asking again.
-      if (mode === 'edit' && allCategories.includes(effectiveFilter)) fileUnder(effectiveFilter)
+      const carried = mode === 'edit' ? message.trim() : ''
+      startNew(carried)
+      // Asked about the tab in front of them as well, which is what decides it
+      // where the same wording is filed under more than one category.
+      const already = carried ? phraseSaying(carried, effectiveFilter) : undefined
+      if (already) {
+        // **Including off All**, unlike a phrase just saved, and the difference
+        // is the question being answered. A save's is *did it go, and where* —
+        // which the toast answers, and All was already showing it. This one's
+        // is *which category is this phrase in*, and All is the one tab that
+        // cannot answer it, since not showing categories is the whole of what
+        // it is for.
+        const movedTo = already.category === effectiveFilter ? null : already.category
+        if (movedTo) showTab(movedTo)
+        setPointing({ id: already.id, movedTo })
+      }
+      // Its category if there is one, since that is where the next phrase
+      // belongs too — otherwise the tab, and **only where the tab is a
+      // category.** Four of them are not: All, and the three pinned records,
+      // Sent, the answers and Translations. Nothing can be filed under any of
+      // those, so they leave the last choice standing rather than throwing it
+      // away and asking again.
+      const filing = already?.category ?? (allCategories.includes(effectiveFilter) ? effectiveFilter : null)
+      if (mode === 'edit' && filing) fileUnder(filing)
       // Reordering is a mode within edit mode; leaving it should not leave
       // either of them armed for next time.
       setReordering(false)
@@ -789,7 +835,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             : 'Auto-speak off — phrases build a message',
       )
     },
-    [message, startNew, update, flashToast, allCategories, effectiveFilter, fileUnder],
+    [message, startNew, update, flashToast, allCategories, effectiveFilter, fileUnder, phraseSaying, showTab],
   )
 
   const toggleEditMode = useCallback(() => setMode(editMode ? 'compose' : 'edit'), [editMode, setMode])
@@ -1052,7 +1098,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
               onToggleSort={editMode ? handleToggleSort : undefined}
               onReorder={editMode ? board.reorderCategories : undefined}
               onLift={name => flashToast(`Holding ${name} — dwell where it should go`)}
-              centreOn={landed?.movedTo ?? null}
+              pointing={pointing}
             />
           )}
 
@@ -1061,7 +1107,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             // A new tab or a new word is a different list; the same phrases in
             // a new order is not.
             listKey={`${effectiveFilter}\u0000${filterWord}`}
-            landed={landed?.id ?? null}
+            pointing={pointing}
             emptyMessage={
               showingSent
                 ? 'Nothing said yet. Messages you speak or copy are kept here.'
