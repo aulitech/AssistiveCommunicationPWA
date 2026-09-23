@@ -818,15 +818,49 @@ describe('following a new phrase to where it was filed', () => {
   })
 
   // The bar is on screen under every tab, so a phrase added to it is already
-  // where somebody can see it.
+  // where somebody can see it. Added from Sent, where the draft carries a
+  // category the board is not showing — which is the only way it could move.
   it('does not move for a phrase added to the emergency bar', () => {
-    const { here } = standingOn()
+    standingOn()
+    click(tab('Sent'))
 
     click($('.emergency-add'))
     writePhrase('Call my sister')
     savePhrase()
 
-    expect(activeTab()).toBe(here)
+    expect(activeTab()).toBe('Sent')
+  })
+
+  /** What the browser does by itself when a cell lands under a motionless pointer. */
+  const arrivesUnderThePointer = () => {
+    fireEvent.pointerEnter(cells()[0])
+    act(() => void vi.advanceTimersByTime(1500))
+    settle()
+  }
+
+  // Every cell on the board has just been replaced under a pointer that has
+  // not moved, and in edit mode the one that lands underneath opens for
+  // rewording — which is somebody's own phrase, loaded into the box they were
+  // about to write the next one in.
+  it('refuses the cell that lands under a motionless pointer', () => {
+    const { elsewhere } = standingOn()
+    addPhrase('One for over there', elsewhere)
+
+    arrivesUnderThePointer()
+
+    expect(box().value, 'a phrase opened itself for rewording').toBe('')
+  })
+
+  // And it is not deaf where the board did not move. A save that leaves
+  // somebody on the tab they were on has replaced nothing, so refusing their
+  // next dwell would cost them a phrase for nothing.
+  it('is still listening where the board stayed put', () => {
+    standingOn()
+    addPhrase('One for right here')
+
+    arrivesUnderThePointer()
+
+    expect(box().value).not.toBe('')
   })
 
   // Keeping a message is the case with the least to show for it otherwise:
