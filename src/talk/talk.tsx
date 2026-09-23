@@ -132,7 +132,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // There is always one — pointing it at a phrase is what choosing a cell does
   // in edit mode, and there is nothing to open and nothing to close.
   const editor = useEditor({ allCategories, recent, voiceFor, duplicateOf: board.duplicateOf })
-  const { draft, startNew } = editor
+  const { draft, startNew, open: openPhrase } = editor
   // Pulled out rather than reached through `composer`, which is a fresh object
   // every render: a callback depending on the whole of it would change identity
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
@@ -790,17 +790,25 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * moment one is chosen while composing, is somebody pointing at that phrase
    * — and what they got was a copy of it filed wherever they happened to be,
    * which cannot be saved and says only *Already on the board*. Now the cell
-   * itself is marked and brought into view, under its own tab.
+   * itself is marked and brought into view, under its own tab, and **the
+   * editor opens on the phrase rather than on a copy of it**: the box holds
+   * what the phrase was written as, its own category and voice are what the
+   * strip shows, and Save saves it. Anything else is a dwell spent on finding
+   * again the cell the board has just finished pointing at.
    */
   const setMode = useCallback(
     (mode: 'speak' | 'compose' | 'edit') => {
       update({ autoSpeak: mode === 'speak' })
       setEditMode(mode === 'edit')
       const carried = mode === 'edit' ? message.trim() : ''
-      startNew(carried)
       // Asked about the tab in front of them as well, which is what decides it
       // where the same wording is filed under more than one category.
       const already = carried ? phraseSaying(carried, effectiveFilter) : undefined
+      // The phrase itself, or a new one carrying whatever was composed. What
+      // the box shows changes with it — the phrase's **source**, brackets and
+      // markup and all, rather than the one filling of it that was said.
+      if (already) openPhrase(already)
+      else startNew(carried)
       if (already) {
         // **Including off All**, unlike a phrase just saved, and the difference
         // is the question being answered. A save's is *did it go, and where* —
@@ -831,11 +839,26 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
         mode === 'speak'
           ? 'Auto-speak on — phrases speak immediately'
           : mode === 'edit'
-            ? 'Edit mode — choose a phrase to change it'
+            ? // Which is not the phrase they last said but the one they were
+              // holding, and the box now holds it as it was written.
+              already
+              ? `Editing this phrase, in ${already.category}`
+              : 'Edit mode — choose a phrase to change it'
             : 'Auto-speak off — phrases build a message',
       )
     },
-    [message, startNew, update, flashToast, allCategories, effectiveFilter, fileUnder, phraseSaying, showTab],
+    [
+      message,
+      startNew,
+      openPhrase,
+      update,
+      flashToast,
+      allCategories,
+      effectiveFilter,
+      fileUnder,
+      phraseSaying,
+      showTab,
+    ],
   )
 
   const toggleEditMode = useCallback(() => setMode(editMode ? 'compose' : 'edit'), [editMode, setMode])

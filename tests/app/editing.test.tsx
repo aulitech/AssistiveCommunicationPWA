@@ -1002,6 +1002,44 @@ describe('going to the phrase the message is', () => {
     expect(marked()).toBe(text)
   })
 
+  // On the phrase itself, not on a copy of it. Anything else is a dwell spent
+  // finding again the cell the board has just finished pointing at.
+  it('opens the editor on that phrase', () => {
+    const text = composeAPhrase()
+
+    enterEditMode()
+
+    expect(editTitle()).toBe('Editing phrase')
+    expect(box().value).toBe(text)
+    expect(iconBtn('Save phrase')?.disabled, 'a phrase cannot duplicate itself').toBe(false)
+    expect(iconBtn('Delete phrase')).toBeDefined()
+  })
+
+  // Saving it unchanged leaves one phrase, not two — the whole of what the
+  // copy could never do.
+  it('saves back onto the phrase rather than beside it', () => {
+    const text = composeAPhrase()
+    enterEditMode()
+
+    writePhrase(`${text}, please`)
+    savePhrase()
+
+    const saying = $$('.phrase-cell').map(c => c.textContent)
+    expect(saying).toContain(`${text}, please`)
+    expect(saying).not.toContain(text)
+  })
+
+  // A new phrase is still a new phrase: nothing on the board says this.
+  it('still starts a new one where the message is no phrase', () => {
+    renderApp()
+    writeIn(box(), 'Nothing anywhere on this board says this')
+
+    enterEditMode()
+
+    expect(editTitle()).toBe('New phrase')
+    expect(box().value).toBe('Nothing anywhere on this board says this')
+  })
+
   // All is the one tab that cannot answer *which category is this in*, not
   // showing categories being the whole of what it is for.
   it('names the category it went to, on the tab and on the strip alike', () => {
