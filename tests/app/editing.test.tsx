@@ -585,6 +585,56 @@ describe('starting from the last choice made', () => {
       expect(shownCategory()).toBe(elsewhere)
     })
 
+    // It is where somebody had got to, and a board on a mounted device is
+    // reloaded by whoever charges it rather than by the person using it.
+    it('remembers the tab across a reload', () => {
+      renderApp()
+      enterEditMode()
+      const elsewhere = goElsewhere()
+      enterEditMode()
+
+      cleanup()
+      renderApp()
+      enterEditMode()
+
+      expect(shownCategory()).toBe(elsewhere)
+    })
+
+    // Filing under the tab is about where a phrase goes and nothing else. The
+    // voice is the other half of that record and belongs to whoever set it.
+    it('keeps the remembered voice while it files', () => {
+      localStorage.setItem('peri_recent', JSON.stringify({ voice: 'elevenlabs:v1' }))
+      localStorage.setItem(
+        'peri_elevenlabs',
+        JSON.stringify({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }),
+      )
+      renderApp()
+      enterEditMode()
+      goElsewhere()
+      enterEditMode()
+
+      expect(JSON.parse(localStorage.getItem('peri_recent')!).voice).toBe('elevenlabs:v1')
+    })
+
+    // Leaving edit mode says nothing about where anything belongs. Filing on
+    // the way out as well would undo the category somebody had just chosen,
+    // the moment they left the mode they chose it in.
+    it('files nothing on the way out', () => {
+      renderApp()
+      enterEditMode()
+      const elsewhere = goElsewhere()
+      enterEditMode()
+
+      const chosen = categoryChoices().find(name => name !== elsewhere)!
+      addPhrase('One for over there', chosen)
+      leaveEditMode()
+
+      click(tab('All'))
+      enterEditMode()
+
+      expect(shownCategory()).toBe(chosen)
+    })
+
     // Only on the way *in*. A draft that refiled itself every time somebody
     // looked at another tab would change where a phrase goes without being
     // asked — including one they had already chosen a category for.
