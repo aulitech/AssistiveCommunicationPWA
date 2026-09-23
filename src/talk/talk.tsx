@@ -561,6 +561,23 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // ── Editing what is on the board ───────────────────────────────────────────
 
   /**
+   * Where the next new phrase goes.
+   *
+   * Two things say so: saving one, and opening edit mode on a category — see
+   * `setMode`. Written down as well as held, for the reason the rest of
+   * `peri_recent` is, and left alone where it already says that, so going in
+   * and out of edit mode on one tab is not a write every time.
+   */
+  const fileUnder = useCallback((category: string) => {
+    setRecent(current => {
+      if (current.category === category) return current
+      const next = { ...current, category }
+      saveRecent(next)
+      return next
+    })
+  }, [])
+
+  /**
    * Save what is in the box.
    *
    * Nothing closes afterwards, because nothing was opened — the editor goes back
@@ -700,12 +717,24 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    *
    * Entering edit mode carries whatever is in the message box in with it, so a
    * message worth keeping becomes a phrase without being typed again.
+   *
+   * **And it files the next new phrase under the tab in front of them.**
+   * Somebody going into edit mode with a category on screen is nearly always
+   * adding to that category, and the alternative was a picker landing on
+   * wherever the last phrase went — which after one trip to a different tab is
+   * the wrong answer for every phrase after it. Only on the way *in*: leaving
+   * edit mode says nothing about where anything belongs.
    */
   const setMode = useCallback(
     (mode: 'speak' | 'compose' | 'edit') => {
       update({ autoSpeak: mode === 'speak' })
       setEditMode(mode === 'edit')
       startNew(mode === 'edit' ? message.trim() : '')
+      // **Only where the tab is a category.** Four of them are not — All, and
+      // the three pinned records: Sent, the answers and Translations — and
+      // nothing can be filed under any of those, so they leave the last choice
+      // standing rather than throwing it away and asking again.
+      if (mode === 'edit' && allCategories.includes(effectiveFilter)) fileUnder(effectiveFilter)
       // Reordering is a mode within edit mode; leaving it should not leave
       // either of them armed for next time.
       setReordering(false)
@@ -721,7 +750,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             : 'Auto-speak off — phrases build a message',
       )
     },
-    [message, startNew, update, flashToast],
+    [message, startNew, update, flashToast, allCategories, effectiveFilter, fileUnder],
   )
 
   const toggleEditMode = useCallback(() => setMode(editMode ? 'compose' : 'edit'), [editMode, setMode])
