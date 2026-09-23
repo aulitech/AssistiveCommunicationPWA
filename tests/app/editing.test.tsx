@@ -507,44 +507,51 @@ describe('keeping a composed message as a phrase', () => {
   })
 })
 
+// Where a phrase is filed, and where the board is afterwards. Shared, because
+// both questions are asked through the same full-screen grid and the same tabs.
+const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
+const enterEditMode = () => click(editToggle())
+const leaveEditMode = () => click(editToggle())
+const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
+/** Which tab the board is on, as the bar itself says. */
+const activeTab = () => $('.filter-tab[aria-selected="true"]')?.textContent
+// The category is chosen from a full-screen grid now, portalled to the body,
+// so it is reached through the document rather than through the container.
+const categoryTrigger = () => $('.category-trigger')!
+const shownCategory = () => categoryTrigger().querySelector('.picker-trigger-label')!.textContent
+const tileNames = () => inDoc('.picker-tile .picker-tile-name').map(t => t.textContent!)
+const pickerBtn = (label: string) =>
+  inDoc('.picker-modal-actions .panel-btn').find(b => b.getAttribute('aria-label') === label)
+/** What the grid offers, leaving the choice as it found it. */
+const categoryChoices = () => {
+  click(categoryTrigger())
+  const names = tileNames().filter(n => n !== 'New category…')
+  click(pickerBtn('Cancel'))
+  return names
+}
+const chooseCategory = (name: string) => {
+  click(categoryTrigger())
+  click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === name))
+  click(pickerBtn('Done'))
+}
+/** A category that is not the one the editor starts on. */
+const someOtherCategory = () => {
+  const opening = shownCategory()
+  return categoryChoices().find(name => name !== opening)!
+}
+const addPhrase = (text: string, category?: string) => {
+  writePhrase(text)
+  if (category) chooseCategory(category)
+  savePhrase()
+}
+
 describe('starting from the last choice made', () => {
-  const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
-  const enterEditMode = () => click(editToggle())
   const voiceTrigger = phraseVoice
   const flush = async () => {
     await act(async () => {
       await Promise.resolve()
     })
     settle()
-  }
-  // The category is chosen from a full-screen grid now, portalled to the body,
-  // so it is reached through the document rather than through the container.
-  const categoryTrigger = () => $('.category-trigger')!
-  const shownCategory = () => categoryTrigger().querySelector('.picker-trigger-label')!.textContent
-  const tileNames = () => inDoc('.picker-tile .picker-tile-name').map(t => t.textContent!)
-  const pickerBtn = (label: string) =>
-    inDoc('.picker-modal-actions .panel-btn').find(b => b.getAttribute('aria-label') === label)
-  /** What the grid offers, leaving the choice as it found it. */
-  const categoryChoices = () => {
-    click(categoryTrigger())
-    const names = tileNames().filter(n => n !== 'New category…')
-    click(pickerBtn('Cancel'))
-    return names
-  }
-  const chooseCategory = (name: string) => {
-    click(categoryTrigger())
-    click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === name))
-    click(pickerBtn('Done'))
-  }
-  /** A category that is not the one the editor starts on. */
-  const someOtherCategory = () => {
-    const opening = shownCategory()
-    return categoryChoices().find(name => name !== opening)!
-  }
-  const addPhrase = (text: string, category?: string) => {
-    writePhrase(text)
-    if (category) chooseCategory(category)
-    savePhrase()
   }
 
   // Filing phrases is done in runs. Starting each one from the alphabetically
@@ -560,9 +567,6 @@ describe('starting from the last choice made', () => {
   })
 
   describe('and from the tab in front of them', () => {
-    const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
-    const leaveEditMode = () => click(editToggle())
-
     /** Somewhere to file things that is not where the editor already is. */
     const goElsewhere = () => {
       const elsewhere = someOtherCategory()
@@ -752,5 +756,96 @@ describe('starting from the last choice made', () => {
     settle()
 
     expect(JSON.parse(localStorage.getItem('peri_recent')!).voice).toBeUndefined()
+  })
+})
+
+// **What somebody just made is on screen.** A phrase filed anywhere but the
+// tab in front of them lands among a couple of thousand cells, and all they
+// have to show for writing one is a line of text that fades.
+describe('following a new phrase to where it was filed', () => {
+  /** In edit mode, on a category tab, with somewhere else to file things. */
+  const standingOn = () => {
+    renderApp()
+    enterEditMode()
+    const here = shownCategory()!
+    const elsewhere = categoryChoices().find(name => name !== here)!
+    leaveEditMode()
+    click(tab(here))
+    enterEditMode()
+    return { here, elsewhere }
+  }
+
+  it('takes the board to the category it was filed under', () => {
+    const { here, elsewhere } = standingOn()
+
+    addPhrase('One for over there', elsewhere)
+
+    expect(activeTab()).toBe(elsewhere)
+    expect(activeTab()).not.toBe(here)
+  })
+
+  it('stays where it is when the phrase was filed there', () => {
+    const { here } = standingOn()
+
+    addPhrase('One for right here')
+
+    expect(activeTab()).toBe(here)
+  })
+
+  // All shows every category at once, so the phrase is already on screen and
+  // there is nowhere to go — leaving somebody on the tab they chose.
+  it('leaves the board on All, where the phrase already is', () => {
+    renderApp()
+    enterEditMode()
+    const elsewhere = someOtherCategory()
+
+    addPhrase('One for over there', elsewhere)
+
+    expect(activeTab()).toBe('All')
+  })
+
+  // A phrase being reworded is one somebody is moving *out* of where they are.
+  // Refiling several out of one category is a run they would be thrown out of
+  // after the first.
+  it('does not follow a phrase being reworded out of the category', () => {
+    const { here, elsewhere } = standingOn()
+
+    click(cells()[0])
+    chooseCategory(elsewhere)
+    savePhrase()
+
+    expect(activeTab()).toBe(here)
+  })
+
+  // The bar is on screen under every tab, so a phrase added to it is already
+  // where somebody can see it.
+  it('does not move for a phrase added to the emergency bar', () => {
+    const { here } = standingOn()
+
+    click($('.emergency-add'))
+    writePhrase('Call my sister')
+    savePhrase()
+
+    expect(activeTab()).toBe(here)
+  })
+
+  // Keeping a message is the case with the least to show for it otherwise:
+  // the record it came off is unchanged, so without this nothing on screen
+  // moves at all.
+  it('takes the board to where a kept message was filed', () => {
+    renderApp()
+    click(plainCell())
+    click(iconBtn('Speak'))
+    clearMessage()
+    clearMessage()
+
+    click(tab('Sent'))
+    enterEditMode()
+    click(cells()[0])
+    const filedUnder = shownCategory()!
+    click(iconBtn('Keep this message as a phrase'))
+
+    expect(filedUnder).not.toBe('Sent')
+    expect(activeTab()).toBe(filedUnder)
   })
 })
