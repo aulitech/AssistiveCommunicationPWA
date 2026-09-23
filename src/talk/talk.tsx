@@ -645,9 +645,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // never waits.
       board.setVoice(phrase.id, voice)
       board.editPhrase(phrase, text, category, isEmergency)
-      // Rewording one puts no new cell anywhere, so there is nothing to point
-      // at — and what the mark claims is the last thing somebody did.
-      setLanded(null)
+      // Nothing to point at: rewording puts no new cell anywhere, and the mark
+      // on the last one is already gone — every dwell clears it, this one
+      // included.
     }
     if (movesTo) {
       setActiveFilter(movesTo)
