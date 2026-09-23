@@ -500,7 +500,7 @@ export function PhraseGrid({
   onReorder,
   onLift,
   onSelect,
-  landed,
+  pointing,
 }: {
   phrases: Phrase[]
   /**
@@ -533,15 +533,20 @@ export function PhraseGrid({
   onLift?: (label: string) => void
   onSelect: (phrase: Phrase) => void
   /**
-   * A phrase just put on the board: marked as the last thing done, and brought
-   * into view.
+   * A phrase the board is pointing at: marked as the last thing done, and
+   * brought into view. One it has just made, or one it has just gone looking
+   * for — see `pointing` in `talk.tsx`.
    *
    * What a save leaves behind otherwise is one more cell among a couple of
    * thousand and a line of text that fades. The two halves answer the two
    * halves of that — the mark says *which one*, and the scroll is what makes
-   * the mark worth having, a new cell being as likely as not below the fold.
+   * the mark worth having, a cell being as likely as not below the fold.
+   *
+   * **The object is the event, not the id.** Pointed at the same phrase twice
+   * — composed, put away, composed again — is two occasions, and a string
+   * would be the same value both times and do nothing the second.
    */
-  landed?: string | null
+  pointing?: { id: string } | null
 }) {
   const gridRef = useRef<HTMLElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
@@ -614,19 +619,19 @@ export function PhraseGrid({
   }
 
   /**
-   * The phrase just put on the board takes the mark the last one chosen takes:
+   * A phrase the board points at takes the mark the last one chosen takes:
    * one mark meaning *that one, and it went there*, rather than a second one to
    * learn. It goes the same way too — on the next dwell, whatever that is.
    *
    * Adjusted during render rather than in an effect, the rule for state that
    * follows a prop: an effect would paint one frame of the board without it.
-   * Starting at null rather than at `landed` so that a grid mounting with one
-   * already named still marks it.
+   * Starting at null rather than at `pointing` so that a grid mounting with
+   * one already named still marks it.
    */
-  const [landedFor, setLandedFor] = useState<string | null>(null)
-  if (landedFor !== landed) {
-    setLandedFor(landed ?? null)
-    if (landed) setSpokenId(landed)
+  const [pointedFor, setPointedFor] = useState<{ id: string } | null>(null)
+  if (pointedFor !== pointing) {
+    setPointedFor(pointing ?? null)
+    if (pointing) setSpokenId(pointing.id)
   }
 
   /**
@@ -638,8 +643,11 @@ export function PhraseGrid({
    * only for somebody scrolling towards the bottom, which is the very thing
    * this is here to save them.
    */
-  const landedAt = useMemo(() => (landed ? phrases.findIndex(p => p.id === landed) : -1), [landed, phrases])
-  if (landedAt >= 0 && shown !== null && shown <= landedAt) setShown(landedAt + 1)
+  const pointedAt = useMemo(
+    () => (pointing ? phrases.findIndex(p => p.id === pointing.id) : -1),
+    [pointing, phrases],
+  )
+  if (pointedAt >= 0 && shown !== null && shown <= pointedAt) setShown(pointedAt + 1)
 
   const visible = shown === null || shown >= phrases.length ? phrases : phrases.slice(0, shown)
 
@@ -705,11 +713,11 @@ export function PhraseGrid({
    * under the message box, and one against the bottom under the emergency bar.
    */
   useEffect(() => {
-    if (!landed) return
+    if (!pointing) return
     innerRef.current
-      ?.querySelector(`[data-phrase="${landed}"]`)
+      ?.querySelector(`[data-phrase="${pointing.id}"]`)
       ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [landed])
+  }, [pointing])
 
   // The rail's bottom jump has to have somewhere to land. The count rather than
   // null, because null means "not measured yet" and the effect would answer that

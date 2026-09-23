@@ -36,6 +36,7 @@ import {
   voiceOverrideFor,
   newPhraseId,
   phraseKey,
+  wordingKey,
   type PhraseStore,
 } from '../core/store'
 
@@ -217,6 +218,27 @@ export function useBoard() {
     [phraseKeys],
   )
 
+  /**
+   * The phrase on the board saying this, if one does — what the message box is
+   * asked about on the way into edit mode.
+   *
+   * `prefer` is the tab in front of them, and it decides between copies: the
+   * same wording is filed under several categories on purpose, and the one
+   * already on screen is the one they are looking at. Otherwise the first in
+   * board order.
+   *
+   * **The grid only**, not the emergency bar: what this answers is where to
+   * take somebody, and the bar is on screen under every tab already.
+   */
+  const phraseSaying = useCallback(
+    (text: string, prefer?: string) => {
+      const key = wordingKey(text)
+      const saying = mainPhrases.filter(p => wordingKey(p.source) === key)
+      return saying.find(p => p.category === prefer) ?? saying[0]
+    },
+    [mainPhrases],
+  )
+
   const phraseCountByCategory = useMemo(() => {
     const counts = new Map<string, number>()
     for (const p of mainPhrases) counts.set(p.category, (counts.get(p.category) ?? 0) + 1)
@@ -392,6 +414,7 @@ export function useBoard() {
     phraseCountByCategory,
     voiceFor,
     duplicateOf,
+    phraseSaying,
     setVoice,
     addPhrase,
     editPhrase,

@@ -179,7 +179,7 @@ export function FilterBar({
   onToggleSort,
   onReorder,
   onLift,
-  centreOn,
+  pointing,
 }: {
   /** `fixed` marks a tab that is not a category: nothing to rename or move. */
   categories: { id: string; label: string; fixed?: boolean }[]
@@ -199,16 +199,18 @@ export function FilterBar({
   /** Announced when a tab is picked up — the styling alone says nothing aloud. */
   onLift?: (name: string) => void
   /**
-   * A tab the board moved to **by itself**, to be brought to the middle of the
-   * bar. Forty-two categories is several screens of them, so a board that
-   * changed tabs without being asked would otherwise be showing a category
-   * whose tab is off the end of a bar nobody has scrolled.
+   * What the board went to show somebody, when it moved tabs **by itself** to
+   * do it — the moved-to tab is brought to the middle of the bar. Forty-two
+   * categories is several screens of them, so a board that changed tabs
+   * without being asked would otherwise be showing a category whose tab is off
+   * the end of a bar nobody has scrolled.
    *
    * By itself is the whole of the condition: a tab somebody dwelled on is one
    * they were already looking at, and sliding it out from under a gaze that has
-   * not moved is how the next dwell lands on its neighbour.
+   * not moved is how the next dwell lands on its neighbour. `movedTo` is null
+   * where the board stayed where it was, which is most of the time.
    */
-  centreOn?: string | null
+  pointing?: { movedTo: string | null } | null
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   // A category is named by itself, so a key here is already something to say.
@@ -218,11 +220,11 @@ export function FilterBar({
   // whatever its owner called it, and a name with a quotation mark in it is a
   // selector that matches nothing.
   useEffect(() => {
-    if (!centreOn) return
+    if (!pointing?.movedTo) return
     scrollRef.current
       ?.querySelector('[aria-selected="true"]')
       ?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
-  }, [centreOn])
+  }, [pointing])
 
   const scrollTo = useCallback((pos: number) => scrollRef.current?.scrollTo({ left: pos, behavior: 'smooth' }), [])
   const scrollBy = useCallback((dx: number) => scrollRef.current?.scrollBy({ left: dx, behavior: 'smooth' }), [])

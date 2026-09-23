@@ -278,11 +278,15 @@ describe('edit mode', () => {
   // Asked of the cells rather than of how many there are: the grid renders a
   // windowful of whatever list it is given, so a narrowed board and a whole one
   // are both a screenful, and only what is in them tells the two apart.
+  //
+  // A word rather than a whole phrase, and deliberately: a box holding one that
+  // is already on the board takes the board to it — see *going to the phrase
+  // the message is* — and this is about the grid it lands on, not which one.
   it('does not narrow the board to the message it came in with', () => {
     renderApp()
     const board = cells().map(c => c.textContent)
 
-    writeIn(box(), 'help')
+    writeIn(box(), 'wat')
     const narrowed = cells().map(c => c.textContent)
     expect(narrowed, 'composing did not narrow the grid at all').not.toEqual(board.slice(0, narrowed.length))
 
@@ -290,7 +294,7 @@ describe('edit mode', () => {
 
     const inEditMode = cells().map(c => c.textContent)
     expect(inEditMode).toEqual(board.slice(0, inEditMode.length))
-    expect(box().value, 'the message did not come with it').toBe('help')
+    expect(box().value, 'the message did not come with it').toBe('wat')
   })
 
   // A phrase listed twice in one category is a cell somebody has to read past to
@@ -964,5 +968,102 @@ describe('showing where the new phrase went', () => {
     click(cells().find(c => c.textContent !== 'One for over there')!)
 
     expect(marked()).toBeUndefined()
+  })
+})
+
+// A message box holding one phrase — which is what it holds the moment one is
+// chosen while composing — is somebody pointing at that phrase. What they got
+// for reaching for edit mode was a copy of it, filed wherever they happened to
+// be standing, that could not be saved and said only "Already on the board".
+//
+// **Composed on All**, which is where this happens: choosing a phrase narrows
+// the board to the word at the caret and takes the category bar away with it,
+// so the tab somebody is standing on when they reach for edit mode is the one
+// they chose the phrase from — All, or the phrase's own.
+describe('going to the phrase the message is', () => {
+  const marked = () => $('.phrase-cell[aria-current="true"]')?.textContent
+  const cellFor = (text: string) => $$('.phrase-cell').find(c => c.textContent === text)
+
+  /** A phrase of the board in the message box, with the board still on All. */
+  const composeAPhrase = () => {
+    renderApp()
+    const cell = plainCell()
+    const text = cell.textContent!
+    click(cell)
+    return text
+  }
+
+  it('takes the board to the category it is filed under', () => {
+    const text = composeAPhrase()
+
+    enterEditMode()
+
+    expect(activeTab()).not.toBe('All')
+    expect(marked()).toBe(text)
+  })
+
+  // All is the one tab that cannot answer *which category is this in*, not
+  // showing categories being the whole of what it is for.
+  it('names the category it went to, on the tab and on the strip alike', () => {
+    composeAPhrase()
+
+    enterEditMode()
+
+    expect(activeTab()).toBe(shownCategory())
+  })
+
+  it('brings the phrase into view and the tab to the middle of the bar', () => {
+    const text = composeAPhrase()
+
+    enterEditMode()
+
+    expect(scrolledIntoView).toContain(cellFor(text))
+    expect(scrolledIntoView.filter(el => el.classList.contains('filter-tab')).map(el => el.textContent)).toContain(
+      activeTab(),
+    )
+  })
+
+  // The same phrase composed, put away and composed again is two occasions, and
+  // the board has to answer both — which is why what the grid and the bar watch
+  // is an occasion rather than the phrase's own name.
+  it('goes again the next time the same phrase is composed', () => {
+    const text = composeAPhrase()
+    enterEditMode()
+    const home = activeTab()
+    leaveEditMode()
+    // The box has to be emptied to reach the tabs at all: a composed phrase
+    // narrows the board and the bar goes with it.
+    clearMessage()
+    click(tab('All'))
+    click(cellFor(text))
+
+    enterEditMode()
+
+    expect(activeTab()).toBe(home)
+    expect(marked(), 'the second time pointed at nothing').toBe(text)
+  })
+
+  it('stays where it is for a message that is no phrase at all', () => {
+    renderApp()
+    writeIn(box(), 'Nothing anywhere on this board says this')
+
+    enterEditMode()
+
+    expect(activeTab()).toBe('All')
+    expect(marked()).toBeUndefined()
+  })
+
+  // The table files "Good morning" under three categories on purpose, because
+  // somebody looks in whichever of the three they think in. The one they are
+  // looking at is the one they mean.
+  it('stays on the copy in front of them where the wording is filed twice', () => {
+    renderApp()
+    click(tab('Texting'))
+    click(cellFor('Good morning')!)
+
+    enterEditMode()
+
+    expect(activeTab()).toBe('Texting')
+    expect(marked()).toBe('Good morning')
   })
 })

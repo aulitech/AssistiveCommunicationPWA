@@ -1542,8 +1542,19 @@ export const factoryState = () => ({
  * before a phrase is saved, and a spreadsheet import before a row is added, so
  * the two agree about what "already there" means.
  */
+/**
+ * A phrase's wording, as the board compares two of them: trimmed, folded to
+ * lower case, spaces collapsed.
+ *
+ * Deliberately without the category, which is the other half of `phraseKey` and
+ * a different question: **the same wording is filed under three categories on
+ * purpose** — "Good morning" is under Interpersonal, Texting and Time of Day,
+ * because somebody looks in whichever of the three they think in.
+ */
+export const wordingKey = (text: string) => text.trim().toLowerCase().replace(/\s+/g, ' ')
+
 export const phraseKey = (text: string, category: string) =>
-  `${category.trim().toLowerCase()}\u0000${text.trim().toLowerCase().replace(/\s+/g, ' ')}`
+  `${category.trim().toLowerCase()}\u0000${wordingKey(text)}`
 
 /** Phrases the user wrote carry this prefix, which is how a delete tells them apart. */
 export const newPhraseId = () => `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
