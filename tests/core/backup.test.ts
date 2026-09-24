@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   BACKUP_FORMAT,
   BACKUP_VERSION,
-  IMPORTED_CATEGORY,
   applyBackup,
   backupFilename,
   buildBackup,
@@ -26,24 +25,23 @@ import {
   saveUsage,
 } from '../../src/core/store'
 
-// A store with something of the user's in every field, and the map of ids to
-// categories the app would hand alongside it.
-function fixture(): { state: AppState; categoryById: Map<string, string> } {
+// A store with something of the user's in every field: two phrases they wrote,
+// a reworded one Peri ships and a hidden one, three categories referring to
+// Library phrases — one of them empty — and both arrangements.
+function fixture(): { state: AppState } {
   const store: PhraseStore = {
     ...emptyStore(),
     custom: [
-      { id: 'custom-1', text: 'Put the kettle on', category: 'Food' },
-      { id: 'custom-2', text: 'The dog needs out', category: 'Home' },
+      { id: 'custom-1', text: 'Put the kettle on', category: 'Library' },
+      { id: 'custom-2', text: 'The dog needs out', category: 'Library' },
     ],
     overrides: { 'built-1': "I'm knackered", 'custom-2': 'The dog needs walking' },
     hidden: ['built-2'],
-    categoryRenames: { Feelings: 'Moods' },
-    categories: ['Home'],
-    categoryOverrides: { 'built-3': 'Home' },
-    categoryOrder: ['Home', 'Food', 'Moods'],
+    members: { Food: ['custom-1'], Home: ['built-3', 'custom-2'], Later: [] },
+    categoryOrder: ['Home', 'Food', 'Later'],
     categorySort: 'custom',
     emergencyOrder: ['em-2', 'em-0'],
-    phraseOrder: { Food: ['custom-1', 'built-2'], Home: ['built-3', 'custom-2'] },
+    libraryOrder: ['built-1', 'custom-2'],
   }
   const aliases: AliasStore = {
     lists: {
@@ -54,28 +52,12 @@ function fixture(): { state: AppState; categoryById: Map<string, string> } {
     },
     hidden: ['clothes'],
   }
-  const categoryById = new Map([
-    ['custom-1', 'Food'],
-    ['custom-2', 'Home'],
-    ['built-1', 'Moods'],
-    ['built-2', 'Food'],
-    ['built-3', 'Home'],
-  ])
-  return {
-    state: { store, aliases, settings: { ...DEFAULT_SETTINGS, phraseDwellMs: 2200 } },
-    categoryById,
-  }
+  return { state: { store, aliases, settings: { ...DEFAULT_SETTINGS, phraseDwellMs: 2200 } } }
 }
 
-const exportAll = () => {
-  const { state, categoryById } = fixture()
-  return buildBackup({ ...state, categoryById })
-}
+const exportAll = () => buildBackup(fixture().state)
 
-const exportOf = (scope: string[]) => {
-  const { state, categoryById } = fixture()
-  return buildBackup({ ...state, categoryById, scope })
-}
+const exportOf = (scope: string[]) => buildBackup({ ...fixture().state, scope })
 
 const fresh = (): AppState => ({ store: emptyStore(), aliases: EMPTY_ALIASES, settings: DEFAULT_SETTINGS })
 
@@ -89,14 +71,15 @@ describe('building a backup', () => {
 
   it('carries every kind of change the user can make', () => {
     const backup = exportAll()
-    expect(backup.added.map(p => p.id)).toEqual(['custom-1', 'custom-2'])
-    expect(backup.edited).toEqual([
-      { id: 'built-1', text: "I'm knackered" },
-      { id: 'built-3', category: 'Home' },
+    expect(backup.added).toEqual([
+      { id: 'custom-1', text: 'Put the kettle on', category: 'Library' },
+      { id: 'custom-2', text: 'The dog needs walking', category: 'Library' },
     ])
+    expect(backup.edited).toEqual([{ id: 'built-1', text: "I'm knackered" }])
     expect(backup.removed).toEqual(['built-2'])
-    expect(backup.categories.renamed).toEqual({ Feelings: 'Moods' })
-    expect(backup.categories.order).toEqual(['Home', 'Food', 'Moods'])
+    expect(backup.members).toEqual({ Food: ['custom-1'], Home: ['built-3', 'custom-2'], Later: [] })
+    expect(backup.libraryOrder).toEqual(['built-1', 'custom-2'])
+    expect(backup.categories.order).toEqual(['Home', 'Food', 'Later'])
     expect(backup.categories.sort).toBe('custom')
     expect(backup.aliases?.lists.contacts).toEqual(['Mum', 'Charles'])
     expect(backup.settings?.phraseDwellMs).toBe(2200)
@@ -125,12 +108,8 @@ describe('building a backup', () => {
   })
 
   it('leaves the field out entirely when the bar was never rearranged', () => {
-    const { state, categoryById } = fixture()
-    const backup = buildBackup({
-      ...state,
-      store: { ...state.store, emergencyOrder: [] },
-      categoryById,
-    })
+    const { state } = fixture()
+    const backup = buildBackup({ ...state, store: { ...state.store, emergencyOrder: [] } })
     expect(backup.emergencyOrder).toBeUndefined()
   })
 
@@ -139,19 +118,21 @@ describe('building a backup', () => {
     const backup = buildBackup({
       ...fresh(),
       store: { ...emptyStore(), emergencyOrder: ['em-1', 'em-0'] },
-      categoryById: new Map(),
       scope: ['Emergency'],
     })
     expect(summarize(backup).empty).toBe(false)
   })
 
-  it('keeps only the chosen categories', () => {
+  // A category is the phrases it refers to, so a file of one carries those
+  // phrases — Peri's own need nothing but the reference — and the category.
+  it('keeps only the chosen categories, and the phrases they refer to', () => {
     const backup = exportOf(['Home'])
     expect(backup.scope).toEqual(['Home'])
     expect(backup.added.map(p => p.id)).toEqual(['custom-2'])
-    expect(backup.edited.map(e => e.id)).toEqual(['built-3'])
+    expect(backup.edited).toEqual([])
     expect(backup.removed).toEqual([])
-    expect(backup.categories.created).toEqual(['Home'])
+    expect(backup.members).toEqual({ Home: ['built-3', 'custom-2'] })
+    expect(backup.libraryOrder).toBeUndefined()
     expect(backup.categories.order).toEqual(['Home'])
   })
 
@@ -164,28 +145,37 @@ describe('building a backup', () => {
     expect(backup.categories.sort).toBeUndefined()
   })
 
-  it('takes a removal along with the category it was removed from', () => {
-    expect(exportOf(['Food']).removed).toEqual(['built-2'])
+  // Library holds every phrase, so it is Library a removal belongs to.
+  it('takes a removal along with Library, and with no category', () => {
+    expect(exportOf(['Library']).removed).toEqual(['built-2'])
+    expect(exportOf(['Food']).removed).toEqual([])
+  })
+
+  it('carries every phrase and Library’s order with Library, and no category', () => {
+    const backup = exportOf(['Library'])
+    expect(backup.added.map(p => p.id)).toEqual(['custom-1', 'custom-2'])
+    expect(backup.edited.map(e => e.id)).toEqual(['built-1'])
+    expect(backup.libraryOrder).toEqual(['built-1', 'custom-2'])
+    expect(backup.members).toBeUndefined()
   })
 
   it('treats an empty choice of categories as the whole app', () => {
-    const { state, categoryById } = fixture()
-    expect(buildBackup({ ...state, categoryById, scope: [] }).scope).toBeNull()
+    expect(buildBackup({ ...fixture().state, scope: [] }).scope).toBeNull()
   })
 
   it('has nothing to say about an untouched app', () => {
-    const backup = buildBackup({ ...fresh(), categoryById: new Map() })
+    const backup = buildBackup(fresh())
     const summary = summarize(backup)
     expect(summary.added + summary.edited + summary.removed).toBe(0)
     expect(summary.empty).toBe(false) // the settings still ride along
-    expect(summarize(buildBackup({ ...fresh(), categoryById: new Map(), scope: ['Food'] })).empty).toBe(true)
+    expect(summarize(buildBackup({ ...fresh(), scope: ['Food'] })).empty).toBe(true)
   })
 
   // Otherwise the panel offers someone "your word lists" when they have changed
   // none, and replacing from that file would empty the lists on the device that
   // receives it.
   it('leaves untouched lists out rather than writing an empty object', () => {
-    const backup = buildBackup({ ...fresh(), categoryById: new Map() })
+    const backup = buildBackup(fresh())
     expect(backup.aliases).toBeUndefined()
     expect(summarize(backup).aliases).toBe(false)
     expect(describeBackup(summarize(backup))).toBe('your settings')
@@ -229,42 +219,84 @@ describe('reading a backup back', () => {
     const result = parseBackup(
       JSON.stringify({
         format: BACKUP_FORMAT,
-        version: 1,
+        version: 2,
         added: [
-          { id: 'a', text: 'Kept', category: 'Food' },
+          { id: 'a', text: 'Kept', category: 'Library' },
           { id: 'b' }, // no text — nothing to restore
           'nonsense',
           { text: 'No id' },
         ],
         edited: [{ id: 'c', text: 'Kept too' }, { id: '' }],
         removed: ['d', 7, null],
-        categories: {
-          created: ['Food', 3],
-          renamed: { Old: 'New', Bad: 5 },
-          order: 'not a list',
-          sort: 'sideways',
-        },
+        members: { Food: ['a', 3, 'a'], Broken: 'a', Library: ['a'] },
+        libraryOrder: ['a', null],
+        categories: { order: 'not a list', sort: 'sideways' },
         emergencyOrder: ['em-1', 4, '', null],
       }),
     )
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.backup.added).toEqual([{ id: 'a', text: 'Kept', category: 'Food' }])
+    expect(result.backup.added).toEqual([{ id: 'a', text: 'Kept', category: 'Library' }])
     expect(result.backup.edited).toEqual([{ id: 'c', text: 'Kept too' }])
     expect(result.backup.removed).toEqual(['d'])
-    expect(result.backup.categories.created).toEqual(['Food'])
-    expect(result.backup.categories.renamed).toEqual({ Old: 'New' })
+    expect(result.backup.members).toEqual({ Food: ['a'] })
+    expect(result.backup.libraryOrder).toEqual(['a'])
     expect(result.backup.categories.order).toEqual([])
     expect(result.backup.categories.sort).toBeUndefined()
     expect(result.backup.emergencyOrder).toEqual(['em-1'])
   })
 
-  it('files a phrase with no category rather than dropping it', () => {
+  /**
+   * **A file from before categories were references** filed each phrase under
+   * one category. Read as references: every phrase in Library, each category
+   * referring to the phrases filed under it — in the order its arrangement gave
+   * them, then the file's — a category it made and left empty kept, and
+   * Library's arrangement as Library's order.
+   */
+  it('reads a file from before categories were references into them', () => {
+    const result = parseBackup(
+      JSON.stringify({
+        format: BACKUP_FORMAT,
+        version: 1,
+        added: [
+          { id: 'custom-1', text: 'Put the kettle on', category: 'Food' },
+          { id: 'custom-2', text: 'Walk the dog', category: 'Food' },
+          { id: 'custom-3', text: 'Somewhere', category: 'Library' },
+          { id: 'custom-help', text: 'Help now', category: 'Emergency' },
+        ],
+        edited: [
+          { id: 'built-1', category: 'Food' },
+          { id: 'built-2', text: 'Reworded', category: 'Home' },
+        ],
+        categories: { created: ['Later'], renamed: { Feelings: 'Moods' }, order: ['Food', 'Library', 'Later'] },
+        phraseOrder: { Food: ['built-1', 'custom-2'], Library: ['custom-3'] },
+      }),
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const { backup } = result
+    expect(backup.added.map(p => [p.id, p.category])).toEqual([
+      ['custom-1', 'Library'],
+      ['custom-2', 'Library'],
+      ['custom-3', 'Library'],
+      ['custom-help', 'Emergency'],
+    ])
+    // A move alone says nothing now but the reference.
+    expect(backup.edited).toEqual([{ id: 'built-2', text: 'Reworded' }])
+    expect(backup.members).toEqual({ Later: [], Food: ['built-1', 'custom-2', 'custom-1'], Home: ['built-2'] })
+    expect(backup.libraryOrder).toEqual(['custom-3'])
+    expect(backup.categories.order).toEqual(['Food', 'Later'])
+  })
+
+  it('puts a phrase with no category in Library rather than dropping it', () => {
     const result = parseBackup(
       JSON.stringify({ format: BACKUP_FORMAT, version: 1, added: [{ id: 'a', text: 'Homeless' }] }),
     )
     expect(result.ok).toBe(true)
-    if (result.ok) expect(result.backup.added[0].category).toBe(IMPORTED_CATEGORY)
+    if (result.ok) {
+      expect(result.backup.added[0].category).toBe('Library')
+      expect(result.backup.members).toBeUndefined()
+    }
   })
 
   // A dwell of zero fires every control the instant a pointer crosses it. For
@@ -351,16 +383,14 @@ describe('reading a backup back', () => {
 describe('describing a backup', () => {
   it('counts what is in it', () => {
     const summary = summarize(exportAll())
-    expect(summary).toMatchObject({ added: 2, edited: 2, removed: 1, aliases: true, settings: true, empty: false })
+    expect(summary).toMatchObject({ added: 2, edited: 1, removed: 1, aliases: true, settings: true, empty: false })
   })
 
   it('says so plainly, in English', () => {
     expect(describeBackup(summarize(exportAll()))).toBe(
-      '2 phrases you added, 2 edits, 1 phrase you removed, your word lists, your settings',
+      '2 phrases you added, 1 edit, 1 phrase you removed, your word lists, your settings',
     )
-    expect(
-      describeBackup(summarize(buildBackup({ ...fresh(), categoryById: new Map(), scope: ['Food'] }))),
-    ).toMatch(/nothing/i)
+    expect(describeBackup(summarize(buildBackup({ ...fresh(), scope: ['Food'] })))).toMatch(/nothing/i)
   })
 
   it('names the file after what is in it and when', () => {
@@ -379,14 +409,14 @@ describe('restoring onto a fresh device', () => {
   it('puts back everything the backup carried', () => {
     const next = restored('replace')
     expect(next.store.custom).toEqual([
-      { id: 'custom-1', text: 'Put the kettle on', category: 'Food' },
-      { id: 'custom-2', text: 'The dog needs walking', category: 'Home' },
+      { id: 'custom-1', text: 'Put the kettle on', category: 'Library' },
+      { id: 'custom-2', text: 'The dog needs walking', category: 'Library' },
     ])
     expect(next.store.overrides).toEqual({ 'built-1': "I'm knackered" })
-    expect(next.store.categoryOverrides).toEqual({ 'built-3': 'Home' })
     expect(next.store.hidden).toEqual(['built-2'])
-    expect(next.store.categoryRenames).toEqual({ Feelings: 'Moods' })
-    expect(next.store.categoryOrder).toEqual(['Home', 'Food', 'Moods'])
+    expect(next.store.members).toEqual({ Food: ['custom-1'], Home: ['built-3', 'custom-2'], Later: [] })
+    expect(next.store.libraryOrder).toEqual(['built-1', 'custom-2'])
+    expect(next.store.categoryOrder).toEqual(['Home', 'Food', 'Later'])
     expect(next.store.categorySort).toBe('custom')
     expect(next.store.emergencyOrder).toEqual(['em-2', 'em-0'])
     expect(next.aliases.lists.contacts).toEqual(['Mum', 'Charles'])
@@ -404,11 +434,13 @@ describe('merging into a device that is already in use', () => {
   const local = (): AppState => ({
     store: {
       ...emptyStore(),
-      custom: [{ id: 'custom-local', text: 'Mine already', category: 'Food' }],
+      custom: [{ id: 'custom-local', text: 'Mine already', category: 'Library' }],
       overrides: { 'built-9': 'Local wording' },
       hidden: ['built-7'],
+      members: { Food: ['custom-local', 'built-5'] },
       categoryOrder: ['Food'],
       emergencyOrder: ['em-4'],
+      libraryOrder: ['built-9'],
     },
     aliases: { lists: { 'name.nickname': ['Bee'], contacts: ['Sam'] }, hidden: [] },
     settings: { ...DEFAULT_SETTINGS, rate: 1.6 },
@@ -418,7 +450,19 @@ describe('merging into a device that is already in use', () => {
     const next = applyBackup(exportAll(), local(), 'merge')
     expect(next.store.custom.map(p => p.id)).toEqual(['custom-local', 'custom-1', 'custom-2'])
     expect(next.store.overrides).toEqual({ 'built-9': 'Local wording', 'built-1': "I'm knackered" })
-    expect(next.store.categoryOrder).toEqual(['Food', 'Home', 'Moods'])
+    expect(next.store.categoryOrder).toEqual(['Food', 'Home', 'Later'])
+  })
+
+  // What the file's categories refer to goes behind what this device's already
+  // hold, so a category somebody arranged here stays arranged.
+  it('adds the file’s references behind this device’s, each once', () => {
+    const next = applyBackup(exportAll(), local(), 'merge')
+    expect(next.store.members).toEqual({
+      Food: ['custom-local', 'built-5', 'custom-1'],
+      Home: ['built-3', 'custom-2'],
+      Later: [],
+    })
+    expect(next.store.libraryOrder).toEqual(['built-9', 'built-1', 'custom-2'])
   })
 
   // Same rule as the categories: what somebody arranged on this device stays
@@ -460,22 +504,25 @@ describe('merging into a device that is already in use', () => {
 
   // Two devices give the same phrase two different ids, so an id alone would
   // let a phrase come back a second time under a different name.
+  // And the file's categories refer to the phrase already here.
   it('leaves no duplicate when the same phrase arrives under another id', () => {
     const backup: Backup = {
       ...exportAll(),
-      added: [{ id: 'custom-elsewhere', text: 'Mine already', category: 'Food' }],
+      added: [{ id: 'custom-elsewhere', text: 'mine  ALREADY', category: 'Library' }],
+      members: { Home: ['custom-elsewhere'] },
     }
     const next = applyBackup(backup, local(), 'merge')
     expect(next.store.custom).toHaveLength(1)
+    expect(next.store.members.Home).toEqual(['custom-local'])
   })
 
   it('takes the newer wording when a phrase comes back changed', () => {
     const backup: Backup = {
       ...exportAll(),
-      added: [{ id: 'custom-local', text: 'Mine, reworded', category: 'Food' }],
+      added: [{ id: 'custom-local', text: 'Mine, reworded', category: 'Library' }],
     }
     const next = applyBackup(backup, local(), 'merge')
-    expect(next.store.custom).toEqual([{ id: 'custom-local', text: 'Mine, reworded', category: 'Food' }])
+    expect(next.store.custom).toEqual([{ id: 'custom-local', text: 'Mine, reworded', category: 'Library' }])
   })
 
   // The store reads an override before a phrase's own text, so one left behind
@@ -485,7 +532,7 @@ describe('merging into a device that is already in use', () => {
     state.store.overrides['custom-local'] = 'Stale'
     const backup: Backup = {
       ...exportAll(),
-      added: [{ id: 'custom-local', text: 'Fresh', category: 'Food' }],
+      added: [{ id: 'custom-local', text: 'Fresh', category: 'Library' }],
     }
     const next = applyBackup(backup, state, 'merge')
     expect(next.store.overrides['custom-local']).toBeUndefined()
@@ -534,8 +581,8 @@ describe('what a backup must never carry', () => {
    */
   it('leaves how often each phrase is used out of the file', () => {
     saveUsage({ 'custom-1': { count: 40, at: 1_700_000_000_000 }, 'built-1': { count: 7, at: 1_700_000_000_001 } })
-    const { state, categoryById } = fixture()
-    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+    const { state } = fixture()
+    const file = serializeBackup(buildBackup({ ...state }))
 
     // The ids are in the file — they name the phrases the user changed. What
     // must not be is any record of how much they have been leant on.
@@ -545,8 +592,8 @@ describe('what a backup must never carry', () => {
 
   it('leaves a linked ElevenLabs key out of the file', () => {
     saveElevenLabs({ apiKey: 'sk-secret-key', voices: [{ id: 'v1', name: 'Rachel' }] })
-    const { state, categoryById } = fixture()
-    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+    const { state } = fixture()
+    const file = serializeBackup(buildBackup({ ...state }))
 
     expect(file).not.toContain('sk-secret-key')
     expect(file).not.toMatch(/apiKey/i)
@@ -559,12 +606,12 @@ describe('what a backup must never carry', () => {
    * missing something is worse than one that refuses to restore at all.
    */
   it('carries a voice for each language a phrase has one in, and reads them back', () => {
-    const { state, categoryById } = fixture()
+    const { state } = fixture()
     const store: PhraseStore = {
       ...state.store,
       voiceOverrides: { 'custom-1': { '': 'Samantha', 'es-PR': 'Monica' }, 'built-1': { vi: 'Linh' } },
     }
-    const file = serializeBackup(buildBackup({ ...state, store, categoryById }))
+    const file = serializeBackup(buildBackup({ ...state, store }))
 
     const result = parseBackup(file)
     expect(result.ok, 'the file it just wrote did not parse').toBe(true)
@@ -582,8 +629,8 @@ describe('what a backup must never carry', () => {
    * keep, so its single voice still has to arrive somewhere sensible.
    */
   it('reads a voice from a file written before they were per-language', () => {
-    const { state, categoryById } = fixture()
-    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+    const { state } = fixture()
+    const file = serializeBackup(buildBackup({ ...state }))
     const raw = JSON.parse(file)
     raw.edited = [{ id: 'built-1', voice: 'Samantha' }]
     raw.added = [{ id: 'x1', text: 'Hello', category: 'Home', voice: 'Monica' }]
@@ -606,8 +653,8 @@ describe('what a backup must never carry', () => {
       'peri_translations',
       JSON.stringify({ fr: { 'My chest hurts': "J'ai mal à la poitrine" } }),
     )
-    const { state, categoryById } = fixture()
-    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+    const { state } = fixture()
+    const file = serializeBackup(buildBackup({ ...state }))
 
     expect(file).not.toContain('poitrine')
   })
@@ -619,8 +666,8 @@ describe('what a backup must never carry', () => {
       { id: 's1', text: 'I need the toilet' },
       { id: 's2', text: 'My chest hurts' },
     ])
-    const { state, categoryById } = fixture()
-    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+    const { state } = fixture()
+    const file = serializeBackup(buildBackup({ ...state }))
 
     expect(file).not.toContain('I need the toilet')
     expect(file).not.toContain('My chest hurts')
@@ -633,8 +680,8 @@ describe('what a backup must never carry', () => {
    */
   it('leaves what was said in another language out of the file', () => {
     saveTranslated([{ id: 't1', source: 'My chest hurts', text: "J'ai mal à la poitrine", tag: 'fr' }])
-    const { state, categoryById } = fixture()
-    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+    const { state } = fixture()
+    const file = serializeBackup(buildBackup({ ...state }))
 
     expect(file).not.toContain('poitrine')
     expect(file).not.toContain('My chest hurts')
@@ -647,8 +694,8 @@ describe('what a backup must never carry', () => {
    */
   it('leaves the key for suggested replies out of the file', () => {
     saveReplyKey('sk-ant-secret-1234')
-    const { state, categoryById } = fixture()
-    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+    const { state } = fixture()
+    const file = serializeBackup(buildBackup({ ...state }))
 
     expect(file).not.toContain('sk-ant-secret-1234')
   })
@@ -660,8 +707,8 @@ describe('what a backup must never carry', () => {
    */
   it('leaves the questions it was asked today out of the file', () => {
     saveReplyContext([{ at: Date.now(), question: 'Did the chest pain come back?', reply: 'Yes, this morning' }])
-    const { state, categoryById } = fixture()
-    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+    const { state } = fixture()
+    const file = serializeBackup(buildBackup({ ...state }))
 
     expect(file).not.toContain('chest pain')
     expect(file).not.toContain('this morning')
@@ -670,8 +717,8 @@ describe('what a backup must never carry', () => {
   // Nor the answers last offered to it, which are the same conversation.
   it('leaves the answers last offered out of the file', () => {
     saveAnswers({ at: Date.now(), question: 'Did the chest pain come back?', replies: ['Only once, last night'] })
-    const { state, categoryById } = fixture()
-    const file = serializeBackup(buildBackup({ ...state, categoryById }))
+    const { state } = fixture()
+    const file = serializeBackup(buildBackup({ ...state }))
 
     expect(file).not.toContain('chest pain')
     expect(file).not.toContain('last night')
@@ -680,9 +727,9 @@ describe('what a backup must never carry', () => {
   // The chosen voice does travel, and on a device with no account of its own it
   // falls back to the device voice rather than going quiet.
   it('does carry the chosen voice, which is not a secret', () => {
-    const { state, categoryById } = fixture()
+    const { state } = fixture()
     state.settings.voiceURI = 'elevenlabs:v1'
-    const backup = buildBackup({ ...state, categoryById })
+    const backup = buildBackup({ ...state })
     expect(backup.settings?.voiceURI).toBe('elevenlabs:v1')
   })
 })
@@ -701,11 +748,10 @@ describe('the spoken language in a file', () => {
   }
 
   it('makes the round trip', () => {
-    const { state, categoryById } = fixture()
+    const { state } = fixture()
     const written = buildBackup({
       ...state,
       settings: { ...DEFAULT_SETTINGS, language: 'fr-FR' },
-      categoryById,
     })
     const result = parseBackup(serializeBackup(written))
     if (!result.ok) throw new Error(result.error)
@@ -744,93 +790,47 @@ describe('the spoken language in a file', () => {
 // they did as a rewording is, so it travels — and unlike the emergency bar's,
 // which is one category's and goes whole or not at all, it can be trimmed to the
 // categories a file covers.
-describe('the arrangement of the phrases in a category', () => {
-  it('travels in a whole-app backup', () => {
-    expect(exportAll().phraseOrder).toEqual({
-      Food: ['custom-1', 'built-2'],
-      Home: ['built-3', 'custom-2'],
-    })
-  })
-
-  it('survives being written out and read back', () => {
-    const file = serializeBackup(exportAll())
-    const result = parseBackup(file)
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.backup.phraseOrder).toEqual({
-      Food: ['custom-1', 'built-2'],
-      Home: ['built-3', 'custom-2'],
-    })
-  })
-
+// A category is the Library phrases it refers to, in an order of its own —
+// which is its Custom order, so it is as much a thing somebody did as a
+// rewording is.
+describe('a category’s references', () => {
   it('is trimmed to the categories the file covers', () => {
-    expect(exportOf(['Home']).phraseOrder).toEqual({ Home: ['built-3', 'custom-2'] })
+    expect(exportOf(['Home']).members).toEqual({ Home: ['built-3', 'custom-2'] })
   })
 
-  it('is left out entirely when nothing in scope was arranged', () => {
-    expect(exportOf(['Moods']).phraseOrder).toBeUndefined()
+  it('is left out entirely when the file covers no category', () => {
+    expect(exportOf(['Emergency']).members).toBeUndefined()
   })
 
-  // A file that says nothing else is still worth something if it arranges a
+  // A file that says nothing else is still worth something if it makes a
   // category, so it must not count as empty.
   it('counts as something the file says', () => {
-    const { categoryById } = fixture()
-    const store: PhraseStore = { ...emptyStore(), phraseOrder: { Food: ['a', 'b'] } }
+    const store: PhraseStore = { ...emptyStore(), members: { Food: [] } }
     const state: AppState = { store, aliases: EMPTY_ALIASES, settings: DEFAULT_SETTINGS }
-    // Scoped, so neither the settings nor the word lists ride along: an
-    // arrangement is the only thing left in the file that can speak for it.
-    const arranged = buildBackup({ ...state, categoryById, scope: ['Food'] })
-    expect(summarize(arranged).empty).toBe(false)
+    // Scoped, so neither the settings nor the word lists ride along.
+    expect(summarize(buildBackup({ ...state, scope: ['Food'] })).empty).toBe(false)
 
-    // And the same file with the arrangement taken out really is empty, or the
-    // line above would pass whatever the arrangement counted for.
-    const bare = buildBackup({ ...state, store: emptyStore(), categoryById, scope: ['Food'] })
-    expect(summarize(bare).empty).toBe(true)
-  })
-
-  /**
-   * What the file arranged goes behind what this device had already arranged —
-   * the rule every merge here follows. A device with no arrangement of its own
-   * takes the file's exactly; one that has arranged a category does not have it
-   * rearranged underneath them.
-   */
-  it('goes behind an arrangement this device already had', () => {
-    const base: AppState = {
-      store: { ...emptyStore(), phraseOrder: { Food: ['mine-1', 'custom-1'] } },
-      aliases: EMPTY_ALIASES,
-      settings: DEFAULT_SETTINGS,
-    }
-    const next = applyBackup(exportAll(), base, 'merge')
-    expect(next.store.phraseOrder).toEqual({
-      Food: ['mine-1', 'custom-1', 'built-2'],
-      Home: ['built-3', 'custom-2'],
-    })
-  })
-
-  it('arrives whole on a device that had arranged nothing', () => {
-    const next = applyBackup(exportAll(), fresh(), 'merge')
-    expect(next.store.phraseOrder).toEqual({
-      Food: ['custom-1', 'built-2'],
-      Home: ['built-3', 'custom-2'],
-    })
+    // And the same file with the category taken out really is empty, or the
+    // line above would pass whatever the category counted for.
+    expect(summarize(buildBackup({ ...state, store: emptyStore(), scope: ['Food'] })).empty).toBe(true)
   })
 
   it('leaves a category the file says nothing about alone', () => {
     const base: AppState = {
-      store: { ...emptyStore(), phraseOrder: { Moods: ['mine-9'] } },
+      store: { ...emptyStore(), members: { Moods: ['mine-9'] } },
       aliases: EMPTY_ALIASES,
       settings: DEFAULT_SETTINGS,
     }
     const next = applyBackup(exportOf(['Home']), base, 'merge')
-    expect(next.store.phraseOrder.Moods).toEqual(['mine-9'])
+    expect(next.store.members.Moods).toEqual(['mine-9'])
   })
 
   it('reads nothing out of a damaged one rather than refusing the file', () => {
     const raw = JSON.parse(serializeBackup(exportAll()))
-    raw.phraseOrder = 'Food, Home'
+    raw.members = 'Food, Home'
     const result = parseBackup(JSON.stringify(raw))
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.backup.phraseOrder).toBeUndefined()
+    expect(result.backup.members).toBeUndefined()
   })
 })

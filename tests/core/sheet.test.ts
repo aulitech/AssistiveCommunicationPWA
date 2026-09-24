@@ -10,8 +10,8 @@ import {
   FORMER_IDS,
   phraseId,
 } from '../../src/core/phrases'
-import { displayCategory, emptyStore, type PhraseStore } from '../../src/core/store'
-import { IMPORTED_CATEGORY } from '../../src/core/backup'
+import { emptyStore, type PhraseStore } from '../../src/core/store'
+import { libraryOf } from '../../src/core/board'
 import {
   applyLists,
   applySheet,
@@ -45,28 +45,14 @@ const OTHER = plain.find(p => p.id !== TEA.id)!
 
 /** The board a store makes, by `use-board`'s rules, for the phrases above. */
 function boardOf(store: PhraseStore = emptyStore()): SheetBoard {
-  const shown = (id: string, category: string) =>
-    store.categoryOverrides[id] ?? displayCategory(category, store.categoryRenames)
   const emergency = EMERGENCY_PHRASES.filter(p => !store.hidden.includes(p.id)).map(p =>
     plainPhrase(p.id, store.overrides[p.id] ?? p.source, 'Emergency'),
   )
-  const shipped = [TEA, OTHER]
-    .filter(p => !store.hidden.includes(p.id))
-    .map(p => plainPhrase(p.id, store.overrides[p.id] ?? p.source, shown(p.id, p.category)))
-  const mine = store.custom
-    .filter(c => !store.hidden.includes(c.id))
-    .map(c =>
-      plainPhrase(
-        c.id,
-        store.overrides[c.id] ?? c.text,
-        c.category === 'Emergency' ? 'Emergency' : shown(c.id, c.category),
-      ),
-    )
-  const phrases = [...emergency, ...shipped, ...mine]
-  const categories = [
-    ...new Set([...phrases.map(p => p.category).filter(c => c !== 'Emergency'), ...store.categories]),
-  ]
-  return { store, phrases, categories }
+  const library = libraryOf([TEA, OTHER], store)
+  const bar = store.custom
+    .filter(c => c.category === 'Emergency' && !store.hidden.includes(c.id))
+    .map(c => plainPhrase(c.id, store.overrides[c.id] ?? c.text, 'Emergency'))
+  return { store, phrases: [...emergency, ...bar, ...library], categories: Object.keys(store.members) }
 }
 
 /** New ids that can be predicted, so a test can name what it added. */
@@ -81,30 +67,35 @@ const on = (store: PhraseStore) => boardOf(store)
 
 describe('the board as rows', () => {
   /**
-   * **As it is arranged**: the emergency bar first, being the part somebody
-   * reaches for without reading, then the tabs in the order they are shown,
-   * each in its own arrangement.
+   * One row a phrase: the emergency bar first, being the part somebody reaches
+   * for without reading, then Library in its own arrangement — each with the
+   * categories that refer to it, in the order their tabs are in.
    */
-  it('writes the emergency bar first, then the tabs in order, each as arranged', () => {
+  it('writes the bar first, then Library as arranged, each with the categories it is in', () => {
     const phrases: Phrase[] = [
-      plainPhrase('a', 'Apple', 'Food'),
-      plainPhrase('b', 'Bread', 'Food'),
-      plainPhrase('h', 'Hello', 'Greetings'),
+      plainPhrase('a', 'Apple', 'Library'),
+      plainPhrase('b', 'Bread', 'Library'),
+      plainPhrase('h', 'Hello', 'Library'),
       plainPhrase('em-0', 'Help me!', 'Emergency'),
     ]
-    const rows = boardRows(phrases, ['Greetings', 'Food'], { Food: ['b', 'a'] })
+    const store = { ...emptyStore(), members: { Food: ['b', 'a'], Greetings: ['h', 'a'] }, libraryOrder: ['h'] }
+    const rows = boardRows(phrases, ['Greetings', 'Food'], store)
     expect(rows.map(r => `${r.category}: ${r.phrase}`)).toEqual([
       'Emergency: Help me!',
       'Greetings: Hello',
+      'Greetings; Food: Apple',
       'Food: Bread',
-      'Food: Apple',
     ])
   })
 
-  // A phrase whose category the tab list somehow does not have is still a row.
-  it('loses nothing to a category missing from the tabs', () => {
-    const rows = boardRows([plainPhrase('x', 'Orphan', 'Lost')], [], {})
-    expect(rows).toEqual([{ category: 'Lost', phrase: 'Orphan', id: 'x' }])
+  // A phrase in no category is in Library alone, and says so by saying nothing.
+  it('leaves the cell empty for a phrase in Library alone', () => {
+    const rows = boardRows([plainPhrase('x', 'Loose', 'Library')], [], emptyStore())
+    expect(rows).toEqual([{ category: '', phrase: 'Loose', id: 'x' }])
+  })
+
+  it('heads the columns Categories, Phrase and ID', () => {
+    expect(rowsToTable([])[0]).toEqual(['Categories', 'Phrase', 'ID'])
   })
 
   /**
@@ -113,7 +104,7 @@ describe('the board as rows', () => {
    */
   it('writes each phrase as it was written, slots and all', () => {
     const slotted = PHRASES.find(p => p.segments.some(s => s.kind === 'slot'))!
-    expect(boardRows([slotted], [slotted.category], {})[0]!.phrase).toBe(slotted.source)
+    expect(boardRows([slotted], [], emptyStore())[0]!.phrase).toBe(slotted.source)
     expect(slotted.source).toMatch(/\{/)
   })
 
@@ -124,7 +115,7 @@ describe('the board as rows', () => {
    */
   it('marks every ID so no spreadsheet reads one as a number', () => {
     expect(rowsToTable([row('Tea', 'Drinks', '12e45'), row('New', 'Drinks')])).toEqual([
-      ['Category', 'Phrase', 'ID'],
+      ['Categories', 'Phrase', 'ID'],
       ['Drinks', 'Tea', '#12e45'],
       ['Drinks', 'New', ''],
     ])
@@ -342,37 +333,40 @@ describe('reading a table back', () => {
 })
 
 describe('putting a sheet onto the board', () => {
-  it('adds a row with no ID as a new phrase, under its category', () => {
-    const { store, plan } = applySheet([row('Tea please', 'Drinks')], boardOf(), 'merge', ids())
-    expect(store.custom).toEqual([{ id: 'custom-new-1', text: 'Tea please', category: 'Drinks' }])
-    expect(store.categories).toContain('Drinks')
+  it('adds a row with no ID as a new phrase in Library, and in the categories it names', () => {
+    const { store, plan } = applySheet([row('Tea please', 'Drinks; Morning')], boardOf(), 'merge', ids())
+    expect(store.custom).toEqual([{ id: 'custom-new-1', text: 'Tea please', category: 'Library' }])
+    expect(store.members).toEqual({ Drinks: ['custom-new-1'], Morning: ['custom-new-1'] })
     expect(plan).toMatchObject({ added: 1, changed: 0, removed: 0 })
   })
 
-  it('files a row that names no category under Imported', () => {
-    const { store } = applySheet([row('Tea please')], boardOf(), 'merge', ids())
-    expect(store.custom[0]!.category).toBe(IMPORTED_CATEGORY)
+  // Library is where every phrase is, so naming it — or nothing — is the same.
+  it('puts a row naming no category, or only Library, in Library alone', () => {
+    const { store } = applySheet([row('Tea please'), row('Coffee', 'library')], boardOf(), 'merge', ids())
+    expect(store.custom.map(c => c.category)).toEqual(['Library', 'Library'])
+    expect(store.members).toEqual({})
   })
 
-  // Typed in a hurry, "greetings" is the Greetings tab rather than a second one
+  // Typed in a hurry, "drinks" is the Drinks tab rather than a second one
   // beside it — and two rows inventing a category in two spellings agree.
   it('matches a category whatever its case', () => {
+    const board = on({ ...emptyStore(), members: { Drinks: [] } })
     const { store } = applySheet(
-      [row('One', TEA.category.toUpperCase()), row('Two', 'new stuff'), row('Three', 'New Stuff')],
-      boardOf(),
+      [row('One', 'DRINKS'), row('Two', 'new stuff'), row('Three', 'New Stuff')],
+      board,
       'merge',
       ids(),
     )
-    expect(store.custom.map(c => c.category)).toEqual([TEA.category, 'new stuff', 'new stuff'])
+    expect(store.members).toEqual({ Drinks: ['custom-new-1'], 'new stuff': ['custom-new-2', 'custom-new-3'] })
   })
 
   /**
-   * **Found rather than added again**: the same wording in the same category,
-   * matched as the editor matches — case and spacing aside — so a sheet read
-   * twice does not put everything on the board twice.
+   * **Found rather than added again**: the same wording in Library, matched as
+   * the editor matches — case and spacing aside — so a sheet read twice does not
+   * put everything on the board twice.
    */
   it('adds nothing already on the board, and nothing twice', () => {
-    const sheet = [row(`  ${TEA.source.toUpperCase()}  `, TEA.category), row('Tea please', 'Drinks')]
+    const sheet = [row(`  ${TEA.source.toUpperCase()}  `), row('Tea please', 'Drinks')]
     const once = applySheet(sheet, boardOf(), 'merge', ids())
     expect(once.plan).toMatchObject({ added: 1, unchanged: 1 })
     const twice = applySheet(sheet, on(once.store), 'merge', ids())
@@ -381,16 +375,16 @@ describe('putting a sheet onto the board', () => {
   })
 
   it('rewords a phrase by its ID, whoever wrote it', () => {
-    const store = { ...emptyStore(), custom: [{ id: 'custom-1', text: 'My tea', category: 'Drinks' }] }
+    const store = { ...emptyStore(), custom: [{ id: 'custom-1', text: 'My tea', category: 'Library' }] }
     const { store: next, plan } = applySheet(
-      [row('Tea, strong', TEA.category, TEA.id), row('My tea, milky', 'Drinks', 'custom-1')],
+      [row('Tea, strong', '', TEA.id), row('My tea, milky', '', 'custom-1')],
       on(store),
       'merge',
       ids(),
     )
     expect(next.overrides).toEqual({ [TEA.id]: 'Tea, strong', 'custom-1': 'My tea, milky' })
     expect(plan).toMatchObject({ changed: 2, added: 0 })
-    expect(find(on(next), 'Tea, strong')?.category).toBe(TEA.category)
+    expect(find(on(next), 'Tea, strong')?.category).toBe('Library')
   })
 
   // A sheet saved before the table was collapsed has a row for each copy, by
@@ -398,36 +392,34 @@ describe('putting a sheet onto the board', () => {
   it('reads the id of a copy dropped from the table as the phrase it was folded into', () => {
     const copy = phraseId('Point of View', TEA.source)
     expect(FORMER_IDS.get(copy)).toBe(TEA.id)
-    const { store: next, plan } = applySheet(
-      [row('Tea, strong', TEA.category, copy)],
-      on(emptyStore()),
-      'merge',
-      ids(),
-    )
+    const { store: next, plan } = applySheet([row('Tea, strong', '', copy)], on(emptyStore()), 'merge', ids())
     expect(next.overrides).toEqual({ [TEA.id]: 'Tea, strong' })
     expect(next.custom).toEqual([])
     expect(plan).toMatchObject({ changed: 1, added: 0 })
   })
 
-  it('moves a phrase by its ID, the way the editor moves one', () => {
-    const store = { ...emptyStore(), custom: [{ id: 'custom-1', text: 'My tea', category: 'Drinks' }] }
-    const { store: next } = applySheet(
+  // Adding puts a phrase in the categories a row names, at their end, and never
+  // takes one out of a category.
+  it('puts a phrase by its ID in the categories its row names, and takes it out of none', () => {
+    const store = {
+      ...emptyStore(),
+      custom: [{ id: 'custom-1', text: 'My tea', category: 'Library' }],
+      members: { Favourites: ['custom-1'], Drinks: ['custom-1'] },
+    }
+    const { store: next, plan } = applySheet(
       [row(TEA.source, 'Favourites', TEA.id), row('My tea', 'Favourites', 'custom-1')],
       on(store),
       'merge',
       ids(),
     )
-    // Peri's own by an override; somebody's own by its category, which it carries.
-    expect(next.categoryOverrides).toEqual({ [TEA.id]: 'Favourites' })
-    expect(next.custom[0]!.category).toBe('Favourites')
-    expect(next.categories).toContain('Favourites')
-    expect(find(on(next), TEA.source)?.category).toBe('Favourites')
+    expect(next.members).toEqual({ Favourites: ['custom-1', TEA.id], Drinks: ['custom-1'] })
+    expect(plan).toMatchObject({ changed: 1, unchanged: 1 })
   })
 
   /**
    * **Nothing moves onto or off the emergency bar unless somebody wrote it.**
-   * The bar Peri ships is a fixed six, and a sheet filing one under Greetings —
-   * or a greeting under Emergency — is taken as a wording change and no more.
+   * The bar Peri ships is a fixed six, and a sheet putting one in Greetings —
+   * or a greeting on Emergency — is taken as a wording change and no more.
    */
   it("leaves Peri's emergency phrases on the bar and its others off it", () => {
     const help = EMERGENCY_PHRASES[0]!
@@ -438,12 +430,16 @@ describe('putting a sheet onto the board', () => {
       ids(),
     )
     expect(next.overrides).toEqual({ [help.id]: 'Help me now!' })
-    expect(next.categoryOverrides).toEqual({})
+    expect(next.members).toEqual({})
     expect(plan).toMatchObject({ changed: 1, unchanged: 1 })
   })
 
-  it('puts a phrase somebody wrote onto the bar, and a new one there too', () => {
-    const store = { ...emptyStore(), custom: [{ id: 'custom-1', text: 'Get the nurse', category: 'People' }] }
+  it('puts a phrase somebody wrote onto the bar, and out of every category', () => {
+    const store = {
+      ...emptyStore(),
+      custom: [{ id: 'custom-1', text: 'Get the nurse', category: 'Library' }],
+      members: { People: ['custom-1'] },
+    }
     const { store: next } = applySheet(
       [row('Get the nurse', 'emergency', 'custom-1'), row('I feel faint', 'Emergency')],
       on(store),
@@ -454,8 +450,9 @@ describe('putting a sheet onto the board', () => {
       .phrases.filter(p => p.category === 'Emergency')
       .map(p => p.source)
     expect(bar).toEqual(expect.arrayContaining(['Get the nurse', 'I feel faint']))
-    // The bar is not a tab, so no category is made for it.
-    expect(next.categories).not.toContain('Emergency')
+    // The bar is not a tab, so no category is made for it, and a phrase on it
+    // is in none.
+    expect(next.members).toEqual({ People: [] })
   })
 
   /**
@@ -466,13 +463,14 @@ describe('putting a sheet onto the board', () => {
   it('brings back a phrase that was taken off the board', () => {
     const store = { ...emptyStore(), hidden: [TEA.id, OTHER.id] }
     const { store: next, plan } = applySheet(
-      [row(TEA.source, TEA.category, TEA.id), row('Reworded', OTHER.category, OTHER.id)],
+      [row(TEA.source, '', TEA.id), row('Reworded', 'Kept', OTHER.id)],
       on(store),
       'merge',
       ids(),
     )
     expect(next.hidden).toEqual([])
     expect(next.overrides).toEqual({ [OTHER.id]: 'Reworded' })
+    expect(next.members).toEqual({ Kept: [OTHER.id] })
     expect(plan).toMatchObject({ restored: 2, added: 0 })
   })
 
@@ -489,12 +487,13 @@ describe('putting a sheet onto the board', () => {
   // last — the first is the one somebody sees at the top.
   it('takes the first row for an ID that appears twice', () => {
     const { store } = applySheet(
-      [row('First', TEA.category, TEA.id), row('Second', TEA.category, TEA.id)],
+      [row('First', '', TEA.id), row('Second', 'Later', TEA.id)],
       boardOf(),
       'merge',
       ids(),
     )
     expect(store.overrides[TEA.id]).toBe('First')
+    expect(store.members).toEqual({})
   })
 
   it('never takes a phrase away when adding', () => {
@@ -505,29 +504,34 @@ describe('putting a sheet onto the board', () => {
 })
 
 describe('replacing the board with a sheet', () => {
-  const mine = { id: 'custom-1', text: 'My tea', category: 'Drinks' }
+  const mine = { id: 'custom-1', text: 'My tea', category: 'Library' }
   const store = (): PhraseStore => ({
     ...emptyStore(),
     custom: [mine],
     overrides: { 'custom-1': 'My tea, milky' },
     emergencyOrder: ['em-1', 'em-0'],
-    phraseOrder: { Drinks: ['custom-1'], [TEA.category]: [TEA.id, 'gone'] },
+    members: { Drinks: ['custom-1', OTHER.id], Old: [TEA.id] },
+    categoryOrder: ['Old', 'Drinks'],
+    libraryOrder: [TEA.id, OTHER.id],
   })
 
   /**
    * **What the sheet leaves out goes** — deleted if somebody wrote it, hidden if
-   * Peri shipped it, the rule the bin follows — and the arrangements are tidied
-   * of it.
+   * Peri shipped it, the rule the bin follows — and the categories and
+   * arrangements are tidied of it.
    */
   it('takes away whatever the sheet does not have', () => {
-    const keep = [row(OTHER.source, OTHER.category, OTHER.id), row('Help me!', 'Emergency', 'em-0')]
+    const keep = [row(OTHER.source, 'Drinks', OTHER.id), row('Help me!', 'Emergency', 'em-0')]
     const { store: next, plan } = applySheet(keep, on(store()), 'replace', ids())
     expect(next.custom).toEqual([])
     expect(next.overrides).toEqual({})
     expect(next.hidden).toEqual(expect.arrayContaining([TEA.id, 'em-1', 'em-5']))
     expect(next.hidden).not.toContain(OTHER.id)
     expect(next.emergencyOrder).toEqual(['em-0'])
-    expect(next.phraseOrder).toEqual({ [TEA.category]: ['gone'] })
+    expect(next.libraryOrder).toEqual([OTHER.id])
+    // A category no row names goes; one it names holds what the rows say.
+    expect(next.members).toEqual({ Drinks: [OTHER.id] })
+    expect(next.categoryOrder).toEqual(['Drinks'])
     expect(
       on(next)
         .phrases.map(p => p.source)
@@ -536,16 +540,27 @@ describe('replacing the board with a sheet', () => {
     expect(plan.removed).toBe(boardOf(store()).phrases.length - 2)
   })
 
+  // A category keeps its own order: the rows are not read for it.
+  it('keeps each category’s own order, and adds what is new at its end', () => {
+    const sheet = boardRows(boardOf(store()).phrases, ['Old', 'Drinks'], store())
+      .map(r => (r.id === TEA.id ? { ...r, category: 'Old; Drinks' } : r))
+      .reverse()
+    const { store: next } = applySheet(sheet, on(store()), 'replace', ids())
+    expect(next.members).toEqual({ Drinks: ['custom-1', OTHER.id, TEA.id], Old: [TEA.id] })
+  })
+
   // A row that lost its ID but kept its wording is still that phrase, and
   // replacing must not take away something the sheet plainly has.
   it('keeps a phrase whose row kept its wording and lost its ID', () => {
-    const everything = boardOf(store()).phrases.map(p => row(p.source, p.category, p.id === TEA.id ? '' : p.id))
+    const everything = boardRows(boardOf(store()).phrases, ['Old', 'Drinks'], store()).map(r =>
+      r.id === TEA.id ? { ...r, id: '' } : r,
+    )
     const { plan } = applySheet(everything, on(store()), 'replace', ids())
     expect(plan).toMatchObject({ removed: 0, added: 0 })
   })
 
   it('does in merge exactly what it does in replace, bar the taking away', () => {
-    const sheet = [row('Tea, strong', TEA.category, TEA.id), row('New', 'Drinks')]
+    const sheet = [row('Tea, strong', 'Old', TEA.id), row('New', 'Drinks')]
     const merged = applySheet(sheet, on(store()), 'merge', ids())
     const replaced = applySheet(sheet, on(store()), 'replace', ids())
     expect(merged.plan).toEqual({ ...replaced.plan, removed: 0 })

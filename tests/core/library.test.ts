@@ -20,12 +20,10 @@ describe('folding the dropped copies into the phrase that stayed', () => {
       {
         ...emptyStore(),
         overrides: { 'copy-a': 'Copy A reworded', other: 'Untouched' },
-        categoryOverrides: { 'copy-b': 'Favourites' },
       },
       former,
     )
     expect(folded.overrides).toEqual({ kept: 'Copy A reworded', other: 'Untouched' })
-    expect(folded.categoryOverrides).toEqual({ kept: 'Favourites' })
 
     const own = foldFormerCopies(
       { ...emptyStore(), overrides: { 'copy-a': 'From the copy', kept: 'Its own' } },
@@ -55,16 +53,18 @@ describe('folding the dropped copies into the phrase that stayed', () => {
     expect(folded.voiceOverrides).toEqual({ kept: { '': 'copy-voice', es: 'own-spanish' } })
   })
 
-  it('names the phrase that stayed in every arrangement, once', () => {
+  it('names the phrase that stayed in every category and arrangement, once', () => {
     const folded = foldFormerCopies(
       {
         ...emptyStore(),
-        phraseOrder: { Favourites: ['x', 'copy-a', 'kept', 'copy-b'] },
+        members: { Favourites: ['x', 'copy-a', 'kept', 'copy-b'] },
+        libraryOrder: ['copy-b', 'y'],
         emergencyOrder: ['copy-b', 'em-0'],
       },
       former,
     )
-    expect(folded.phraseOrder).toEqual({ Favourites: ['x', 'kept'] })
+    expect(folded.members).toEqual({ Favourites: ['x', 'kept'] })
+    expect(folded.libraryOrder).toEqual(['kept', 'y'])
     expect(folded.emergencyOrder).toEqual(['kept', 'em-0'])
   })
 
@@ -88,7 +88,7 @@ describe('folding the dropped copies into the phrase that stayed', () => {
   })
 
   it('passes a board that never touched a copy through untouched', () => {
-    const store = { ...emptyStore(), overrides: { x: 'Mine' }, hidden: ['y'], phraseOrder: { A: ['x'] } }
+    const store = { ...emptyStore(), overrides: { x: 'Mine' }, hidden: ['y'], members: { A: ['x'] } }
     expect(foldFormerCopies(store, former, true)).toEqual(store)
   })
 })
@@ -120,7 +120,7 @@ describe('a board written before the collapse', () => {
   // exists is not a reason to bring it back.
   it('keeps a phrase hidden once the board has been saved since', () => {
     savePhraseStore({ ...emptyStore(), hidden: [kept.id] })
-    expect(JSON.parse(localStorage.getItem(KEY)!).table).toBe(2)
+    expect(JSON.parse(localStorage.getItem(KEY)!).table).toBe(3)
     expect(loadPhraseStore().hidden).toEqual([kept.id])
   })
 

@@ -40,13 +40,13 @@ const PASSPHRASE = 'the cat sat down'
  */
 const board = (mine?: string): Backup => ({
   format: 'peri-backup',
-  version: 1,
+  version: 2,
   exported: '1970-01-01T00:00:00.000Z',
   scope: null,
-  added: mine ? [{ id: mine, text: mine, category: 'Feelings' }] : [],
+  added: mine ? [{ id: mine, text: mine, category: 'Library' }] : [],
   edited: [],
   removed: [],
-  categories: { created: [], renamed: {}, order: [] },
+  categories: { order: [] },
 })
 
 /** What the board that arrived, or the board on the server, actually says. */
