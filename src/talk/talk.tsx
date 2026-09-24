@@ -12,7 +12,7 @@ import { cancelAllDwells, holdDwells, holdDwellsUntilMoved, RestingContext } fro
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
 import { compose, composeWithBlank, hasChoices, parseSegments, type Phrase } from '../core/phrases'
-import { soleLink } from '../core/markdown'
+import { soleLink, stripMarkdown } from '../core/markdown'
 import { openLink } from '../core/links'
 import { search } from '../core/search'
 import { heldOrder, sortPhrases } from '../core/sort'
@@ -32,6 +32,7 @@ import {
   sortFor,
   type ElevenLabsAccount,
   type PhraseSort,
+  type PhraseUse,
   type User,
 } from '../core/store'
 import { applyBackup, buildBackup, type AppState } from '../core/backup'
@@ -53,7 +54,7 @@ import { EmergencyBar } from './emergency'
 import { SlotPicker } from './slots'
 import { CategoryModal } from './editors'
 import { TopPanel } from '../menu/menu'
-import { useBoard } from './use-board'
+import { useBoard, type Removed } from './use-board'
 import { useComposer } from './use-composer'
 import { useEditor } from './use-editor'
 import { SENT_CATEGORY, SENT_FILTER, useSent } from './use-sent'
@@ -140,6 +141,15 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * occasions and both components key on the identity.
    */
   const [pointing, setPointing] = useState<{ id: string; movedTo: string | null } | null>(null)
+  /**
+   * The last phrase deleted, and everything the delete took — see `Removed` in
+   * `use-board.ts`. Offered back in the slot at the box's lower left, the one
+   * that starts a new phrase, while the draft is still the blank the delete
+   * left behind; anything written or opened after it takes the offer away.
+   */
+  const [lastDeleted, setLastDeleted] = useState<{ phrase: Phrase; removed: Removed; use?: PhraseUse } | null>(
+    null,
+  )
   const [recent, setRecent] = useState(loadRecent)
   // Which of the four orders each tab is in. One per tab rather than one for
   // the board: the categories are not alike, and a single setting makes the
@@ -153,6 +163,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // in edit mode, and there is nothing to open and nothing to close.
   const editor = useEditor({ allCategories, recent, voiceFor, duplicateOf: board.duplicateOf })
   const { draft, startNew, open: openPhrase } = editor
+  // Anything written or opened after a delete takes the offer to undo it away:
+  // the blank the bin left is the only draft a phrase can be put back into
+  // without writing over something. Adjusted during render — state following
+  // state — so no frame shows an undo that would do that.
+  if (lastDeleted && !editor.isUntouched) setLastDeleted(null)
   // Pulled out rather than reached through `composer`, which is a fresh object
   // every render: a callback depending on the whole of it would change identity
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
@@ -342,7 +357,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // Pulled out for the reason `insertPhrase` is: `handleSelectPhrase` reaches
   // every one of a couple of thousand memoised cells, and a callback depending
   // on the whole of a hook result depends on a fresh object every render.
-  const { record: recordUsed, forget: forgetUsed } = usage
+  const { record: recordUsed, forget: forgetUsed, restore: restoreUsed } = usage
   // Pulled out for the same reason: both reach the memoised cells too.
   const { record: recordTranslated, forget: forgetTranslated } = translated
   // And these two, which reach them from the answers side. Both are stable
@@ -718,13 +733,32 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       else if (phrase.category === SUGGEST_CATEGORY) forgetSuggestion(phrase.id)
       else sent.forget(phrase.id)
     } else {
-      board.removePhrase(phrase.id)
-      // Its count goes with it, so the record stays the size of the board.
-      forgetUsed(phrase.id)
+      const removed = board.removePhrase(phrase.id)
+      // Its count goes with it, so the record stays the size of the board —
+      // kept here instead, until nobody can ask for the phrase back.
+      const use = forgetUsed(phrase.id)
+      setLastDeleted({ phrase, removed, use })
     }
     startNew()
-    flashToast(keeping ? 'Forgotten' : 'Deleted')
+    flashToast(keeping ? 'Forgotten' : 'Deleted — undo is at the lower left')
   }, [draft, board, sent, forgetTranslated, forgetSuggestion, forgetUsed, startNew, flashToast])
+
+  /**
+   * Put back the phrase just deleted, **as it was**: on the board where it
+   * was, with its count, and open in the box, which is where it was when the
+   * bin took it — an undo that left somebody to find it again would be half of
+   * one. It takes the mark and the scroll a phrase just made takes.
+   */
+  const handleUndoDelete = useCallback(() => {
+    if (!lastDeleted) return
+    const { phrase, removed, use } = lastDeleted
+    board.restorePhrase(removed)
+    if (use) restoreUsed(phrase.id, use)
+    openPhrase(phrase, phrase.category === 'Emergency')
+    setPointing({ id: phrase.id, movedTo: null })
+    setLastDeleted(null)
+    flashToast('Put back')
+  }, [lastDeleted, board, restoreUsed, openPhrase, flashToast])
 
   // ── Editing the categories ─────────────────────────────────────────────────
 
@@ -820,6 +854,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     (mode: 'speak' | 'compose' | 'edit') => {
       update({ autoSpeak: mode === 'speak' })
       setEditMode(mode === 'edit')
+      // A delete is undone in edit mode or not at all: coming back to a blank
+      // draft later is not coming back to the moment after the bin.
+      setLastDeleted(null)
       const carried = mode === 'edit' ? message.trim() : ''
       // Asked about the tab in front of them as well, which is what decides it
       // where the same wording is filed under more than one category.
@@ -1143,6 +1180,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             editor={editor}
             onSavePhrase={handleSave}
             onDeletePhrase={handleDelete}
+            undoDelete={lastDeleted && { words: stripMarkdown(lastDeleted.phrase.text), undo: handleUndoDelete }}
             onSpeak={handleSpeak}
             onCopy={handleCopy}
             onPasted={reportPaste}

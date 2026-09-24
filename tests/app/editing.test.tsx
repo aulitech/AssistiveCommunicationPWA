@@ -1133,3 +1133,155 @@ describe('going to the phrase the message is', () => {
     expect(box().value, 'the board was deaf to the next dwell').not.toBe('Good morning')
   })
 })
+
+/**
+ * **Deleting was the one change the app offered no way back from**, and the bin
+ * sits a dwell's breadth from Save. So the slot at the box's lower left — the
+ * one that starts a new phrase, which has nothing to do the moment after a
+ * delete — offers the phrase back.
+ */
+describe('putting back a phrase just deleted', () => {
+  const undoButton = () =>
+    $$<HTMLButtonElement>('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo deleting'))
+  const stored = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}')
+  const onBoard = () => cells().map(c => c.textContent)
+
+  it('offers it back, by name', () => {
+    renderApp()
+    enterEditMode()
+    const cell = plainCell()
+    const text = cell.textContent!
+    click(cell)
+
+    deletePhrase()
+
+    expect(undoButton()?.getAttribute('aria-label')).toBe(`Undo deleting “${text}”`)
+  })
+
+  it('puts it back where it was, and open in the box as it was', () => {
+    renderApp()
+    enterEditMode()
+    const before = onBoard()
+    const cell = plainCell()
+    const text = cell.textContent!
+    click(cell)
+    deletePhrase()
+    expect(onBoard()).not.toContain(text)
+
+    click(undoButton())
+
+    expect(onBoard().slice(0, before.length)).toEqual(before)
+    expect(box().value).toBe(text)
+    expect(editTitle()).toBe('Editing phrase')
+    expect($('.phrase-cell[aria-current="true"]')?.textContent, 'it was not marked').toBe(text)
+  })
+
+  // A phrase somebody wrote is an entry that goes, not one that is hidden, and
+  // it goes back among the others where it was — and into its category's
+  // arrangement at the place it held there.
+  it('puts back a phrase somebody wrote, in its place in the arrangement', () => {
+    localStorage.setItem(
+      'dwellspeak_phrase_store_v2',
+      JSON.stringify({
+        custom: [
+          { id: 'custom-a', text: 'Put the kettle on', category: 'Kitchen' },
+          { id: 'custom-b', text: 'Make me a sandwich', category: 'Kitchen' },
+          { id: 'custom-c', text: 'Is there any cake', category: 'Kitchen' },
+        ],
+        phraseOrder: { Kitchen: ['custom-c', 'custom-b', 'custom-a'] },
+      }),
+    )
+    renderApp()
+    click(tab('Kitchen'))
+    enterEditMode()
+    click(cells().find(c => c.textContent === 'Make me a sandwich'))
+    deletePhrase()
+
+    click(undoButton())
+
+    expect(stored().custom.map((p: { id: string }) => p.id)).toEqual(['custom-a', 'custom-b', 'custom-c'])
+    expect(stored().phraseOrder.Kitchen).toEqual(['custom-c', 'custom-b', 'custom-a'])
+  })
+
+  it('puts an emergency phrase back in its place on the bar', () => {
+    localStorage.setItem(
+      'dwellspeak_phrase_store_v2',
+      JSON.stringify({ emergencyOrder: ['em-3', 'em-0', 'em-1', 'em-2', 'em-4', 'em-5'] }),
+    )
+    renderApp()
+    enterEditMode()
+    const bar = () => $$('.emergency-btn:not(.emergency-tool)').map(b => b.textContent)
+    const arranged = bar()
+    click($$('.emergency-btn').find(b => b.textContent === arranged[1]))
+    deletePhrase()
+    expect(bar()).not.toContain(arranged[1])
+
+    click(undoButton())
+
+    expect(bar()).toEqual(arranged)
+    expect(stored().emergencyOrder).toEqual(['em-3', 'em-0', 'em-1', 'em-2', 'em-4', 'em-5'])
+  })
+
+  // Put back among the phrases nobody has used, Most used would have moved it
+  // somewhere else — which is not putting it back.
+  it('puts its count back', () => {
+    renderApp()
+    const cell = plainCell()
+    const text = cell.textContent!
+    click(cell)
+    clearMessage()
+    click(cells().find(c => c.textContent === text))
+    clearMessage()
+    const counted = localStorage.getItem('peri_usage')
+
+    enterEditMode()
+    click(cells().find(c => c.textContent === text))
+    deletePhrase()
+    expect(localStorage.getItem('peri_usage'), 'the delete kept its count').not.toBe(counted)
+
+    click(undoButton())
+
+    expect(JSON.parse(localStorage.getItem('peri_usage')!)).toEqual(JSON.parse(counted!))
+  })
+
+  it('stops offering once something else is written', () => {
+    renderApp()
+    enterEditMode()
+    click(plainCell())
+    deletePhrase()
+
+    writePhrase('Something new')
+
+    expect(undoButton()).toBeUndefined()
+    expect(iconBtn('Start a new phrase')).toBeDefined()
+  })
+
+  it('stops offering once edit mode is left, and does not offer again on coming back', () => {
+    renderApp()
+    enterEditMode()
+    click(plainCell())
+    deletePhrase()
+
+    leaveEditMode()
+    enterEditMode()
+
+    expect(undoButton()).toBeUndefined()
+  })
+
+  // Forgetting a sent message takes it off a record, not off the board: there
+  // is nothing there to put back.
+  it('offers nothing for a message forgotten off Sent', () => {
+    renderApp()
+    click(plainCell())
+    click(iconBtn('Speak'))
+    clearMessage()
+    clearMessage()
+    click(tab('Sent'))
+    enterEditMode()
+    click(cells()[0])
+
+    click(iconBtn('Forget this message'))
+
+    expect(undoButton()).toBeUndefined()
+  })
+})

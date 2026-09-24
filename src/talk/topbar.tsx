@@ -235,6 +235,7 @@ export function Topbar({
   onToggleRest,
   onSavePhrase,
   onDeletePhrase,
+  undoDelete,
   categories,
   countFor,
   onCreateCategory,
@@ -261,6 +262,13 @@ export function Topbar({
   /** Both of these change the board, so the screen does them, not the editor. */
   onSavePhrase: () => void
   onDeletePhrase: () => void
+  /**
+   * The phrase just deleted, while it can still be put back — see
+   * `lastDeleted` in `talk.tsx`. It takes the slot that starts a new phrase,
+   * which has nothing to do at that moment: the bin has just left the draft
+   * blank.
+   */
+  undoDelete: { words: string; undo: () => void } | null
   /** For the strip on the box's lower border: what a phrase can be filed under. */
   categories: string[]
   countFor: (name: string) => number
@@ -627,7 +635,17 @@ export function Topbar({
               at the left. Down here it shares the line with the edit strip,
               which is centred, and has the left end to itself. */}
           <div className="topbar-clear">
-            {editMode ? (
+            {editMode && undoDelete ? (
+              // The undo glyph the composer's own slot draws, because it means
+              // the same thing: put back the last thing I did.
+              <ActionButton
+                className="on-border"
+                onSelect={undoDelete.undo}
+                label={`Undo deleting “${undoDelete.words}”`}
+              >
+                <UndoIcon />
+              </ActionButton>
+            ) : editMode ? (
               <ActionButton
                 className="on-border"
                 onSelect={() => startNew()}
