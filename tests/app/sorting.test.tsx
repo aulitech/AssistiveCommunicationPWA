@@ -385,29 +385,74 @@ describe('what each order does', () => {
  * decides the rest. The other way round, "cold" would find the phrase that is
  * nothing but that word and then bury it under everything else that matched.
  */
-describe('a typed word ranks over the order', () => {
-  const MATCHES = [
-    { id: 'custom-z', text: 'Zebra crossing', category: 'Sorted' },
-    { id: 'custom-1', text: 'Are you cold', category: 'Sorted' },
-    { id: 'custom-2', text: 'Cold', category: 'Sorted' },
-    { id: 'custom-3', text: 'Very cold', category: 'Sorted' },
+/**
+ * **What is typed searches Library**, whichever tab is showing, in three groups
+ * — phrases beginning with it, then phrases holding it anywhere, then phrases
+ * whose first words' initials it spells — and each group in the order its
+ * phrases were last used, the most recent first. Filed under words nothing Peri
+ * ships contains, so the groups hold only these.
+ */
+describe('what is typed', () => {
+  const QUARK = [
+    { id: 'custom-q1', text: 'Quark soup', category: 'Library' },
+    { id: 'custom-q2', text: 'Quark pie', category: 'Library' },
+    { id: 'custom-q3', text: 'Hot quark tea', category: 'Library' },
+    { id: 'custom-q4', text: 'Cold quark cake', category: 'Library' },
+    { id: 'custom-q5', text: 'A quark fell', category: 'Library' },
+    { id: 'custom-q6', text: 'Quiet until a real knock', category: 'Library' },
+    { id: 'custom-q7', text: 'Quark soup', category: 'Sorted' },
+    { id: 'custom-v', text: 'Very xenial tall pumas', category: 'Library' },
   ]
-
   const type = (value: string) => {
     fireEvent.change($('.text-display')!, { target: { value } })
     settle()
   }
+  const used = (at: Record<string, number>) =>
+    localStorage.setItem(
+      'peri_usage',
+      JSON.stringify(Object.fromEntries(Object.entries(at).map(([id, when]) => [id, { count: 1, at: when }]))),
+    )
 
-  it('puts the best match first, and the chosen order decides the rest', () => {
-    renderApp(MATCHES)
+  it('groups what begins with it, then what holds it, then what it spells, each by recency', () => {
+    used({ 'custom-q2': 200, 'custom-q1': 100, 'custom-q4': 300 })
+    renderApp(QUARK)
     showSorted()
-    chooseOrder('A to Z')
 
-    type('cold')
+    type('  QUARK ')
 
-    // "Cold" is the whole-phrase match and leads however the board is arranged;
-    // the two that merely contain the word follow it in A–Z order.
-    expect(onBoard()).toEqual(['Cold', 'Are you cold', 'Very cold'])
+    expect(onBoard()).toEqual([
+      'Quark pie',
+      'Quark soup',
+      'Cold quark cake',
+      'Hot quark tea',
+      'A quark fell',
+      'Quiet until a real knock',
+    ])
+  })
+
+  // The Sorted tab holds a "Quark soup" of its own, and it is not offered.
+  it('searches Library only', () => {
+    renderApp(QUARK)
+    showSorted()
+    type('quark soup')
+    expect(cells().map(c => c.getAttribute('data-phrase'))).toEqual(['custom-q1'])
+  })
+
+  // "i want" followed by more is one thing typed, not a word after a word.
+  it('matches what was typed as a whole, spaces and all', () => {
+    renderApp(QUARK)
+    type('hot quark')
+    expect(onBoard()).toEqual(['Hot quark tea'])
+  })
+
+  // The initials have to be the phrase's words one after another, from the
+  // first: "xtp" is the middle of "Very xenial tall pumas", not its opening.
+  it('spells from the first word only', () => {
+    renderApp(QUARK)
+    type('vxtp')
+    expect(onBoard()).toEqual(['Very xenial tall pumas'])
+    type('xtp')
+    expect(onBoard()).toEqual([])
   })
 })
 
@@ -804,19 +849,26 @@ describe('the mark on the last phrase said', () => {
   // board — which is the whole reason the mark is on the cell rather than on a
   // place in the grid. Typing is not a dwell, so the mark is still there.
   it('stays on the phrase when the board moves under it', () => {
-    renderApp()
-    showSorted()
+    renderApp([...BOARD, { id: 'custom-split', text: 'Banana split', category: 'Library' }])
     click($('.edit-toggle'))
     click($('.edit-toggle'))
-    click(cellFor('Banana'))
+    const typeIn = (typed: string) => {
+      fireEvent.change($('.text-display')!, { target: { value: typed } })
+      fireEvent.select($('.text-display')!, {
+        target: { selectionStart: typed.length, selectionEnd: typed.length },
+      })
+      settle()
+    }
+    typeIn('banana spl')
+    click(cellFor('Banana split'))
 
-    const typed = 'Banana b'
-    fireEvent.change($('.text-display')!, { target: { value: typed } })
-    fireEvent.select($('.text-display')!, { target: { selectionStart: typed.length, selectionEnd: typed.length } })
-    settle()
+    // Everything in Library beginning with "b" — the one just said first, being
+    // the one used most recently.
+    typeIn('Banana split b')
 
-    expect(onBoard(), 'the board did not move, so nothing was proved').toEqual(['Banana'])
-    expect(marked()).toEqual(['Banana'])
+    expect(onBoard().length, 'the board did not move, so nothing was proved').toBeGreaterThan(1)
+    expect(onBoard()[0]).toBe('Banana split')
+    expect(marked()).toEqual(['Banana split'])
   })
 
   // Nothing was said: a cell in edit mode is a phrase being opened.

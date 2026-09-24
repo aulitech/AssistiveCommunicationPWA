@@ -303,7 +303,9 @@ const byText = new Set(texting.map(p => p.text))
 
 // Acronyms that are also the initials of what they stand for, so typing the
 // acronym is a way of finding the phrase. Not all of them are: HRU is "How aRe
-// yoU", which no initials rule can reach. This is the well-known part of the
+// yoU", which no initials rule can reach, and ETA skips the "of" in "Estimated
+// time of arrival" — the initials have to be the phrase's words one after
+// another, from the first. This is the well-known part of the
 // set that is reachable, held here so a reworded expansion cannot quietly stop
 // answering to its own acronym.
 const FOUND_BY_INITIALS = [
@@ -315,13 +317,11 @@ const FOUND_BY_INITIALS = [
   'OMW',
   'AFK',
   'ASAP',
-  'ETA',
   'LMK',
   'HMU',
   'IDK',
   'IDC',
   'IKR',
-  'NGL',
   'TBH',
   'TBF',
   'TY',
@@ -348,7 +348,6 @@ const FOUND_BY_INITIALS = [
   'AKA',
   'PSA',
   'LOL',
-  'ROFL',
   'JK',
   'OMG',
   'SMH',
@@ -374,7 +373,6 @@ const FOUND_BY_INITIALS = [
   'PM',
   'GG',
   'GLHF',
-  'WYD',
   'ROI',
   'KPI',
   'TGIF',
@@ -472,14 +470,14 @@ describe('the texting acronyms', () => {
   // which is what a grid narrowed to a handful of cells needs.
   it('finds the common ones by typing the acronym', () => {
     const missed = FOUND_BY_INITIALS.filter(
-      acronym => !search(texting, 'all', acronym).some(p => p.text === TEXTING[acronym]),
+      acronym => !search(texting, acronym, {}).some(p => p.text === TEXTING[acronym]),
     )
     expect(missed).toEqual([])
   })
 
   it('reaches most of the rest that way too', () => {
     const reachable = Object.entries(TEXTING).filter(([acronym, expansion]) =>
-      search(texting, 'all', acronym).some(p => p.text === expansion),
+      search(texting, acronym, {}).some(p => p.text === expansion),
     )
     expect(reachable.length).toBeGreaterThanOrEqual(REACHABLE_BY_ACRONYM)
   })
@@ -496,11 +494,11 @@ describe('the texting acronyms', () => {
   })
 
   it('still finds the cut ones by their acronym', () => {
-    const missed = CENSORED.filter(
-      acronym => !search(texting, 'all', acronym).some(p => p.text === TEXTING[acronym]),
-    )
-    // "F you" is f-y by initials, not f-u; it is reached by typing the words.
-    expect(missed).toEqual(['FU'])
+    const missed = CENSORED.filter(acronym => !search(texting, acronym, {}).some(p => p.text === TEXTING[acronym]))
+    // "F you" is f-y by initials, not f-u; the others skip a word the acronym
+    // leaves out ("Son of a b"), and the initials have to be the phrase's words
+    // one after another. All of them are reached by typing the words.
+    expect(missed).toEqual(['FU', 'ROFLMAO', 'SOB', 'SOL'])
   })
 
   it('lists every acronym in CENSORED as one it actually has', () => {

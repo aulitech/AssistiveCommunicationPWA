@@ -1,42 +1,53 @@
-// Narrowing the grid to what is being typed.
+// Finding a phrase from what is being typed.
 //
 // Pure, and out here rather than in the screen, so the ranking can be reasoned
 // about — and tested — without rendering two thousand cells.
 
 import { type Phrase } from './phrases'
 import { stripMarkdown } from './markdown'
+import { type PhraseUsage } from './store'
+
+/** Case folded and spaces collapsed, so what is compared is only the words. */
+const fold = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim()
+
+/** The first letter or digit of each word — a word's first character, past any quote or bracket. */
+const initials = (text: string) =>
+  text
+    .split(' ')
+    .map(word => word.match(/[\p{L}\p{N}]/u)?.[0] ?? '')
+    .join('')
 
 /**
- * The phrases to show: the chosen category, narrowed by the word being typed.
+ * The phrases what has been typed could be, **in three groups**:
  *
- * Ranked rather than filtered, so a near miss still surfaces — a whole-phrase
- * prefix first, then a prefix of any word in it, then the word's letters used as
- * initials ("cyp" finding "can you please").
+ *  1. those that **begin** with it — "i want a dr" finding "I want a drink";
+ *  2. those that **hold it anywhere** — "drink" finding "Can I have a drink";
+ *  3. those whose **first words' initials** it spells, from the first word on —
+ *     "ttyl" finding "Talk to you later", which is what a texting acronym is.
+ *
+ * Case does not matter and the spaces around it do not either, and a phrase
+ * appears once, in the first group it belongs to. **Within each group the one
+ * used most recently comes first** — what somebody said last is what they are
+ * likeliest to be reaching for again — and phrases nobody has used keep the
+ * order they were handed in.
  *
  * Matched against the words rather than the markup, so `**Help** me` is found by
- * typing "help" — nobody types the asterisks they can see are not there, and the
- * whole-phrase prefix would otherwise never match a phrase that opens with one.
+ * typing "help": nobody types the asterisks they can see are not there.
  */
-export function search(phrases: Phrase[], category: string, word: string): Phrase[] {
-  const pool = category === 'all' ? phrases : phrases.filter(p => p.category === category)
-  const q = word.toLowerCase()
-  if (!q) return pool
+export function search(phrases: Phrase[], typed: string, usage: PhraseUsage): Phrase[] {
+  const q = fold(typed)
+  if (!q) return []
 
-  const score = (phrase: string): number => {
-    const p = phrase.toLowerCase()
-    if (p.startsWith(q)) return 3
-    const words = p.split(/\s+/)
-    if (words.some(w => w.startsWith(q))) return 2
-    let qi = 0
-    for (const w of words) {
-      if (qi < q.length && w[0] === q[qi]) qi++
-    }
-    return qi === q.length ? 1 : 0
+  const groups: Phrase[][] = [[], [], []]
+  for (const p of phrases) {
+    const text = fold(stripMarkdown(p.text))
+    if (text.startsWith(q)) groups[0].push(p)
+    else if (text.includes(q)) groups[1].push(p)
+    else if (initials(text).startsWith(q)) groups[2].push(p)
   }
 
-  return pool
-    .map(p => ({ p, s: score(stripMarkdown(p.text)) }))
-    .filter(x => x.s > 0)
-    .sort((a, b) => b.s - a.s)
-    .map(x => x.p)
+  // A stable sort, and a phrase with no use recorded reads as used at the dawn
+  // of time — so those stay in the order given, after every one that has been.
+  const at = (p: Phrase) => usage[p.id]?.at ?? 0
+  return groups.flatMap(group => [...group].sort((a, b) => at(b) - at(a)))
 }

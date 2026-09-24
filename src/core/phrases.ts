@@ -431,6 +431,9 @@ interface TableRow {
   merged?: string[]
 }
 
+/** The category every phrase Peri ships is filed under — see `TableRow`. */
+export const LIBRARY = 'Library'
+
 const PHRASE_ROWS = ((phraseTable.phrases as TableRow[]) ?? []).filter(p => p.txt?.trim())
 
 /**

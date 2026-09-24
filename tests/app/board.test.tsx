@@ -632,7 +632,8 @@ describe('rendering only part of a long grid', () => {
     openCategory()
     click($$('.scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll to bottom'))
 
-    fireEvent.change($('.text-display')!, { target: { value: 'help' } })
+    // Nothing in Library says this, so the list the window was over is gone.
+    fireEvent.change($('.text-display')!, { target: { value: 'zzqx' } })
     settle()
 
     expect(rendered()).toBeLessThan(60)

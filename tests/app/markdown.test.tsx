@@ -127,35 +127,35 @@ describe('what the board draws', () => {
   })
 })
 
+// Typing searches Library, so these are filed there — under words nothing Peri
+// ships contains, or the phrase is one match among hundreds and not on screen.
 describe('finding a marked-up phrase', () => {
+  const QUOKKA = { id: 'custom-q', text: '**Quokkas** are lovely', category: 'Library' }
+  const LIKE = { id: 'custom-q2', text: 'I like quokkas too', category: 'Library' }
+  const FRUIT = { id: 'custom-fruit', text: '# Fruit\n- apple\n- kumquat', category: 'Library' }
+
   // The explicit ask. Nobody types the asterisks they can see are not there,
   // and a whole-phrase prefix would otherwise never match a phrase opening
   // with one.
   it('is found by typing the words, not the markup', () => {
-    renderApp()
-    showMarked()
-    typeInBox('help')
-    expect(cells().map(c => c.textContent)).toContain('Help me up')
+    renderApp([QUOKKA])
+    typeInBox('quokkas are')
+    expect(cells().map(c => c.textContent)).toContain('Quokkas are lovely')
   })
 
   it('is found by a word further along it', () => {
-    renderApp()
-    showMarked()
-    typeInBox('juice')
-    expect(cells().map(c => c.textContent)).toContain('Drinkswaterjuice')
+    renderApp([FRUIT])
+    typeInBox('kumquat')
+    expect(cells().map(c => c.textContent)).toContain('Fruitapplekumquat')
   })
 
-  // The ranking puts a whole-phrase prefix above a word prefix. Scored against
-  // the raw text this phrase does not merely rank badly — "**help" begins with
-  // no letter of the query and shares no initials, so it scores nothing and
-  // drops off the list altogether.
+  // A phrase beginning with what was typed comes before one holding it further
+  // along. Matched against the raw text this phrase would begin with two
+  // asterisks, and fall into the second group behind the phrase it leads.
   it('ranks it as though the markers were not there', () => {
-    renderApp([MARKED, { id: 'custom-other', text: 'I can help you', category: 'Marked' }])
-    showMarked()
-    typeInBox('help')
-    const texts = cells().map(c => c.textContent)
-    expect(texts).toContain('Help me up')
-    expect(texts.indexOf('Help me up')).toBeLessThan(texts.indexOf('I can help you'))
+    renderApp([LIKE, QUOKKA])
+    typeInBox('quokkas')
+    expect(cells().map(c => c.textContent)).toEqual(['Quokkas are lovely', 'I like quokkas too'])
   })
 })
 
