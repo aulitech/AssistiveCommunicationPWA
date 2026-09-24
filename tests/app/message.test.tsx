@@ -118,15 +118,16 @@ describe('placing the caret in the message box by dwell', () => {
   // `onSelect`, which is already wired to the same setter, so the hook's own
   // `onPlace` can be pulled out and this still passes. `ui/caret.test.tsx` is
   // what holds that, and says why it is worth holding.
-  it('narrows the grid to the word the caret was moved into', () => {
+  // What the grid searches for is what was typed up to the caret.
+  it('searches for what is typed up to where the caret was moved', () => {
     renderApp()
-    fireEvent.change(composer(), { target: { value: 'zzzz help' } })
+    fireEvent.change(composer(), { target: { value: 'help zzzz' } })
     settle()
-    const onHelp = cells().length
+    expect(cells(), 'nothing says "help zzzz"').toHaveLength(0)
 
-    answers(2) // inside "zzzz", which nothing completes
+    answers(4) // just after "help"
     dwell(composer())
-    expect(cells().length, 'the grid stayed on the word the caret left').toBeLessThan(onHelp)
+    expect(cells().length, 'the grid stayed on what the caret left').toBeGreaterThan(0)
   })
 })
 
@@ -964,6 +965,8 @@ describe('choosing one phrase after another', () => {
         custom: [
           { id: 'custom-moon', text: 'Once in a blue moon', category: 'Sayings' },
           { id: 'custom-moonlight', text: 'Moonlight becomes you', category: 'Sayings' },
+          // Typing searches Library, so the one found by typing is filed there.
+          { id: 'custom-moonlight-lib', text: 'Moonlight becomes you', category: 'Library' },
           { id: 'custom-thanks', text: 'Thank you', category: 'Manners' },
           { id: 'custom-tell', text: 'Tell {} I said hello', category: 'Messages' },
         ],
@@ -1094,6 +1097,42 @@ describe('choosing one phrase after another', () => {
 
     expect(cells().map(c => c.textContent)).toEqual(['Moonlight becomes you'])
     expect(tab('Manners'), 'the tabs stayed over a narrowed board').toBeUndefined()
+  })
+
+  // What is searched is everything typed since the phrase, spaces and all, and
+  // choosing a phrase replaces the whole of it rather than its last word.
+  it('replaces several typed words as a whole', () => {
+    seeded()
+    click(cellFor('Once in a blue moon'))
+    typeInto('Once in a blue moon moonlight bec')
+    expect(cells().map(c => c.textContent)).toEqual(['Moonlight becomes you'])
+
+    click(cellFor('Moonlight becomes you'))
+
+    expect(message()).toBe('Once in a blue moon Moonlight becomes you')
+  })
+
+  it('replaces the whole box when nothing was chosen first', () => {
+    seeded()
+    typeInto('  MOONLIGHT  becomes ')
+    click(cellFor('Moonlight becomes you'))
+    expect(message()).toBe('Moonlight becomes you')
+  })
+
+  /**
+   * Regression guard, found in a browser. Chrome takes a key press ahead of a
+   * timer, so a phrase chosen and typed after at once had the letters arrive
+   * before the caret was put at the end of the phrase — which then put it back,
+   * behind them, and the next phrase went in there. Typed here before the timer
+   * has run.
+   */
+  it('leaves the caret where typing put it when the typing came first', () => {
+    seeded()
+    fireEvent.pointerMove(document.body, { clientX: 900, clientY: 300 })
+    fireEvent.click(cellFor('Once in a blue moon')!)
+    typeInto('Once in a blue moon moonl')
+
+    expect(cells().map(c => c.textContent)).toEqual(['Moonlight becomes you'])
   })
 
   // And finishing that word is still finishing it.

@@ -135,7 +135,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     insert: insertPhrase,
     propose: proposeMessage,
     text: message,
-    currentWord,
+    typed,
     copy: copyMessage,
     speak: speakMessage,
   } = composer
@@ -305,7 +305,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * caret would be a word of the answer they just took, and the other nineteen
    * would disappear at the moment somebody wanted to compare them.
    */
-  const filterWord = editMode || showingSuggestions ? '' : currentWord
+  const filterWord = editMode || showingSuggestions ? '' : typed
 
   // How often each phrase is used — see `use-usage.ts`. The record follows every
   // phrase chosen; what the board is *ordered* by does not, which is the next

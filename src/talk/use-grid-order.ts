@@ -7,10 +7,11 @@
 // the list the grid draws and the two ways of changing its order.
 
 import { useCallback, useMemo, useState } from 'react'
-import { type Phrase } from '../core/phrases'
+import { LIBRARY, type Phrase } from '../core/phrases'
 import { search } from '../core/search'
 import { heldOrder, sortPhrases } from '../core/sort'
 import {
+  displayCategory,
   loadPhraseSorts,
   savePhraseSorts,
   setSortFor,
@@ -19,9 +20,6 @@ import {
   type PhraseUsage,
 } from '../core/store'
 import { type Board } from './use-board'
-import { SENT_CATEGORY } from './use-sent'
-import { TRANSLATED_CATEGORY } from './use-translated'
-import { SUGGEST_CATEGORY } from './suggestions'
 
 /** One shared empty arrangement, so a category with none keeps a stable memo. */
 const EMPTY_ARRANGEMENT: string[] = []
@@ -52,7 +50,7 @@ export function useGridOrder({
   suggestions: Phrase[]
   /** How much each phrase is used, as it stands now. */
   counts: PhraseUsage
-  /** The word the grid narrows to, or empty. */
+  /** What has been typed since the last phrase chosen, which the grid searches Library for — or empty. */
   filterWord: string
 }) {
   // Which of the four orders each tab is in. One per tab rather than one for
@@ -63,10 +61,6 @@ export function useGridOrder({
   /** What this tab is showing. A tab nobody has chosen for shows `DEFAULT_SORT`. */
   const phraseSort = sortFor(phraseSorts, tab, canArrange)
 
-  // Arranged before it is searched, never after. Filtering to a category keeps
-  // the order it is given and so does the ranking, so this decides ties within a
-  // rank band while a typed word still puts the best match first.
-  //
   // The hand arrangement is the shown category's own, and there is none under
   // All: its phrases come from every category at once, and ranking them against
   // each other's arrangements would interleave orders that were never about one
@@ -113,19 +107,38 @@ export function useGridOrder({
     [board.mainPhrases, phraseSort, ranking, handArrangement],
   )
 
+  /**
+   * **What is typed searches Library, whichever tab is showing** — see `search`.
+   * Library by the name it shows under, which a rename changes. In the order
+   * the board lists it rather than the tab's own, since the tab may not be
+   * Library at all, and `search` orders what it finds by recency anyway.
+   */
+  const library = displayCategory(LIBRARY, board.store.categoryRenames)
+  const libraryPhrases = useMemo(
+    () => board.mainPhrases.filter(p => p.category === library),
+    [board.mainPhrases, library],
+  )
+
   // Both records keep the order they happened in, newest first, and neither is
   // put through `sortPhrases` at all — which is what "always sorted by recency"
   // means for the Translations tab, exactly as it does for Sent.
   const visiblePhrases = useMemo(
     () =>
-      showingSent
-        ? search(heldOrder(sentPhrases, sentOrder), SENT_CATEGORY, filterWord)
-        : showingTranslated
-          ? search(translatedPhrases, TRANSLATED_CATEGORY, filterWord)
-          : showingSuggestions
-            ? search(suggestions, SUGGEST_CATEGORY, filterWord)
-            : search(arrangedPhrases, tab, filterWord),
+      filterWord
+        ? search(libraryPhrases, filterWord, counts)
+        : showingSent
+          ? heldOrder(sentPhrases, sentOrder)
+          : showingTranslated
+            ? translatedPhrases
+            : showingSuggestions
+              ? suggestions
+              : tab === 'all'
+                ? arrangedPhrases
+                : arrangedPhrases.filter(p => p.category === tab),
     [
+      filterWord,
+      libraryPhrases,
+      counts,
       showingSent,
       showingTranslated,
       showingSuggestions,
@@ -135,7 +148,6 @@ export function useGridOrder({
       suggestions,
       arrangedPhrases,
       tab,
-      filterWord,
     ],
   )
 

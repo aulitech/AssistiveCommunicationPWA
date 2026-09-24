@@ -1,7 +1,7 @@
 // The message being built, and everything that acts on it.
 //
-// The caret matters more here than in an ordinary text box: it decides which
-// word the grid filters on, and it is where a chosen phrase lands. A dwell user
+// The caret matters more here than in an ordinary text box: it decides what the
+// grid searches for, and it is where a chosen phrase lands. A dwell user
 // cannot place it by clicking, so the app moves it deliberately and tracks where
 // it went.
 
@@ -26,36 +26,55 @@ export function useComposer({
   const [text, setTextState] = useState('')
   /**
    * What the box held before, for Undo. **With where a phrase in it ended**, or
-   * putting a cleared message back would put back a phrase whose last word the
+   * putting a cleared message back would put back a phrase whose words the
    * board then read as typed — and the next phrase chosen would write over it,
-   * the very thing `afterPhrase` exists to stop.
+   * the very thing `phraseEnd` exists to stop.
    */
-  const [history, setHistory] = useState<{ text: string; afterPhrase: number | null }[]>([])
+  const [history, setHistory] = useState<{ text: string; phrased: string }[]>([])
   const [cursorPos, setCursorPos] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   /**
-   * Where the caret sits right after a phrase was put in the box, **while
-   * nothing has been typed since** — null otherwise.
+   * Where the last phrase put in the box ended — 0 when none has been. **What
+   * is typed after it is what the board searches for**, spaces and all: "i want
+   * a dr" finds "I want a drink", and choosing it replaces the whole of what was
+   * typed rather than its last word.
    *
-   * A phrase is finished; a word somebody is typing is not, and the two look
-   * the same to anything that reads only the text. The caret left against a
-   * phrase's last word was read as a word being typed: the board narrowed to
-   * it and took the category bar away, and the next phrase chosen replaced it
-   * as if finishing it — "Once in a blue moon" and then "Moonlight becomes you"
-   * came out as "Once in a blue Moonlight becomes you". Building a sentence
-   * out of more than one category, which is what composing is for, could not
-   * be done without typing a space first.
+   * A phrase is finished; what somebody is typing is not, and the two look the
+   * same to anything that reads only the text. The caret left against a
+   * phrase's last word was once read as a word being typed: the board narrowed
+   * to it and took the category bar away, and the next phrase chosen replaced
+   * it as if finishing it — "Once in a blue moon" and then "Moonlight becomes
+   * you" came out as "Once in a blue Moonlight becomes you". Everything before
+   * this point is left alone.
+   *
+   * **Kept as the text up to that point**, and the point is how much of it the
+   * box still holds. Typed after, it is untouched; changed anywhere before its
+   * end, the phrase is not whole any more and the point moves back to the start
+   * of the word the change is in — see `setText`.
    */
-  const [afterPhrase, setAfterPhrase] = useState<number | null>(null)
+  const [phrased, setPhrased] = useState('')
+  const phraseEnd = useMemo(() => {
+    let same = 0
+    while (same < phrased.length && same < text.length && phrased[same] === text[same]) same++
+    return same
+  }, [text, phrased])
 
   /**
    * Text the person wrote themselves — typed, pasted, or from Peri's own keys.
-   * Whatever it is, it is not a phrase just chosen any more.
+   *
+   * An edit inside the last phrase unmakes it back to the start of the word
+   * the edit is in: taking the last letter off "moon" and typing it back is
+   * typing "moon", and the board searches for the whole word.
    */
   const setText = useCallback((next: string) => {
+    setPhrased(was => {
+      let same = 0
+      while (same < was.length && same < next.length && was[same] === next[same]) same++
+      if (same === was.length) return was
+      return was.slice(0, same - (next.slice(0, same).match(/\S*$/)?.[0].length ?? 0))
+    })
     setTextState(next)
-    setAfterPhrase(null)
   }, [])
 
   /** Clear when there is something to clear; otherwise put the last one back. */
@@ -73,13 +92,22 @@ export function useComposer({
    */
   const setCursor = useCallback((index: number) => setCursorPos(index), [])
 
-  /** The partial word left of the cursor, which the grid narrows itself to. */
-  const currentWord = useMemo(() => {
-    // Against the end of a phrase just chosen there is no word being typed.
-    if (cursorPos === afterPhrase) return ''
-    const before = text.slice(0, cursorPos)
-    return before.match(/\S+$/)?.[0] ?? ''
-  }, [text, cursorPos, afterPhrase])
+  /**
+   * Where what is being typed begins, for a caret at `pos`: the end of the last
+   * phrase — or, with the caret back inside what came before it, the start of
+   * the word it is in, since a caret moved into a phrase's gap is filling a
+   * blank one word at a time.
+   */
+  const typedFrom = useCallback(
+    (pos: number) => (pos >= phraseEnd ? phraseEnd : pos - (text.slice(0, pos).match(/\S+$/)?.[0].length ?? 0)),
+    [text, phraseEnd],
+  )
+
+  /** What has been typed since the last phrase, which the grid searches for. */
+  const typed = useMemo(() => {
+    const pos = Math.min(cursorPos, text.length)
+    return text.slice(typedFrom(pos), pos).trim()
+  }, [text, cursorPos, typedFrom])
 
   /**
    * Replace the partial word left of the cursor with `phraseText`.
@@ -103,22 +131,33 @@ export function useComposer({
       const pos = Math.min(cursorPos, text.length)
       const before = text.slice(0, pos)
       const after = text.slice(pos)
-      // The word being finished is replaced — unless the caret is against the
-      // end of a phrase, which is not a word being typed but a phrase that
-      // ended there, and is kept whole.
-      const stripped = pos === afterPhrase ? before : before.replace(/\S+$/, '')
+      // What was being typed is replaced, the space between it and what came
+      // before kept — and none kept where nothing came before. A caret against
+      // the end of a phrase has nothing typed after it, so the phrase is kept
+      // whole.
+      const from = typedFrom(pos)
+      const stripped = from > 0 ? text.slice(0, from) + (before.slice(from).match(/^\s*/)?.[0] ?? '') : ''
       const separator = stripped.length > 0 && !stripped.endsWith(' ') ? ' ' : ''
       const inserted = stripped + separator + phraseText
       const newText = inserted + (after.startsWith(' ') || after === '' ? '' : ' ') + after
 
-      setHistory(h => [...h, { text, afterPhrase }])
+      setHistory(h => [...h, { text, phrased }])
       setTextState(newText)
+      // The end of the phrase, wherever the caret goes: in a blank, a word is
+      // exactly what comes next — but a caret taken from the blank to the end
+      // without typing is still against a phrase that ended there.
+      setPhrased(inserted)
 
       // Land the cursor in the first unfilled blank if there is one, so the word
       // can be typed straight into the gap; otherwise sit at the end of what was
       // just inserted.
       const at = blankAt >= 0 ? stripped.length + separator.length + blankAt : -1
       setTimeout(() => {
+        // **Typed into since, it is theirs.** Chrome takes a key press ahead of
+        // a timer, so on a board busy redrawing itself after the choice, what
+        // somebody typed next can arrive first — and putting the caret back at
+        // the phrase then put the letters after it behind it.
+        if (el && el.value !== newText) return
         if (el) {
           if (at >= 0) {
             el.selectionStart = at
@@ -131,14 +170,9 @@ export function useComposer({
           }
         }
         setCursorPos(at >= 0 ? at : inserted.length)
-        // The end of the phrase, wherever the caret went: in a blank, a word is
-        // exactly what comes next, and typing it clears this anyway — but a
-        // caret taken from the blank to the end without typing is still
-        // against a phrase that ended there.
-        setAfterPhrase(inserted.length)
       }, 0)
     },
-    [text, afterPhrase, cursorPos],
+    [text, phrased, cursorPos, typedFrom],
   )
 
   /**
@@ -160,7 +194,7 @@ export function useComposer({
     const at = blankAt >= 0 ? blankAt : suggestion.length
     setCursorPos(at)
     // An answer is a whole one, like a phrase: nothing at its end is being typed.
-    setAfterPhrase(blankAt >= 0 ? null : at)
+    setPhrased(suggestion)
     const el = textareaRef.current
     // After the render that wrote the text, or the box is still holding the old
     // value and the caret lands in the middle of it.
@@ -173,16 +207,16 @@ export function useComposer({
 
   const clearOrUndo = useCallback(() => {
     if (text) {
-      setHistory(h => [...h, { text, afterPhrase }])
+      setHistory(h => [...h, { text, phrased }])
       setTextState('')
-      setAfterPhrase(null)
+      setPhrased('')
     } else if (history.length) {
       const last = history[history.length - 1]
       setTextState(last.text)
-      setAfterPhrase(last.afterPhrase)
+      setPhrased(last.phrased)
       setHistory(h => h.slice(0, -1))
     }
-  }, [text, history, afterPhrase])
+  }, [text, history, phrased])
 
   /** Resolves to whether the clipboard took it, which is worth saying out loud. */
   const copy = useCallback(() => {
@@ -198,7 +232,7 @@ export function useComposer({
     text,
     setText,
     cursorPos,
-    currentWord,
+    typed,
     showUndo,
     canClear: Boolean(text) || history.length > 0,
     textareaRef,
