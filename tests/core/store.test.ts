@@ -18,6 +18,7 @@ import {
   sameAccount,
   readReplyModel,
   replyModelName,
+  replyModelThinks,
   saveReplyContext,
   saveAnswers,
   loadAnswers,
@@ -278,7 +279,7 @@ describe('the model behind a suggested reply', () => {
     expect(REPLY_MODELS.map(m => m.id)).toEqual([
       'claude-haiku-4-5-20251001',
       'claude-sonnet-5',
-      'claude-opus-5',
+      'claude-opus-5-5',
       'claude-fable-5-1',
     ])
   })
@@ -296,11 +297,40 @@ describe('the model behind a suggested reply', () => {
   })
 
   it('takes a model it knows', () => {
-    expect(readReplyModel('claude-opus-5')).toBe('claude-opus-5')
+    expect(readReplyModel('claude-opus-5-5')).toBe('claude-opus-5-5')
+  })
+
+  /**
+   * **Up, never down.** Anything unknown falls back to the default, which is
+   * the quickest — so a model this build stopped offering would otherwise move
+   * somebody who chose the most careful one to the least, silently, from their
+   * settings, their backups and their other devices alike.
+   */
+  it('reads a model it used to offer as the one that succeeded it', () => {
+    expect(readReplyModel('claude-opus-5')).toBe('claude-opus-5-5')
+  })
+
+  it('carries a stored choice of the old model forward to the new one', () => {
+    localStorage.setItem('dwellspeak_settings', JSON.stringify({ replyModel: 'claude-opus-5' }))
+    expect(loadSettings().replyModel).toBe('claude-opus-5-5')
+  })
+
+  // What is looked up came out of storage or a file.
+  it('is not fooled by a name every object answers to', () => {
+    for (const raw of ['constructor', 'toString', '__proto__']) {
+      expect(readReplyModel(raw), raw).toBe(DEFAULT_REPLY_MODEL)
+    }
+  })
+
+  it('knows which models think before they answer', () => {
+    expect(replyModelThinks('claude-opus-5-5')).toBe(true)
+    expect(replyModelThinks('claude-fable-5-1')).toBe(true)
+    expect(replyModelThinks('claude-haiku-4-5-20251001')).toBe(false)
+    expect(replyModelThinks('claude-sonnet-5')).toBe(false)
   })
 
   it('falls back for anything else at all', () => {
-    for (const raw of ['some-model-from-later', '', null, undefined, 7, {}, ['claude-opus-5']]) {
+    for (const raw of ['some-model-from-later', '', null, undefined, 7, {}, ['claude-opus-5-5']]) {
       expect(readReplyModel(raw), String(raw)).toBe(DEFAULT_REPLY_MODEL)
     }
   })
@@ -321,7 +351,7 @@ describe('the model behind a suggested reply', () => {
   })
 
   it('reads a damaged one as the default rather than throwing', () => {
-    localStorage.setItem('dwellspeak_settings', JSON.stringify({ replyModel: { id: 'claude-opus-5' } }))
+    localStorage.setItem('dwellspeak_settings', JSON.stringify({ replyModel: { id: 'claude-opus-5-5' } }))
     expect(loadSettings().replyModel).toBe(DEFAULT_REPLY_MODEL)
   })
 })

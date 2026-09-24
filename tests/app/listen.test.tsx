@@ -1414,7 +1414,7 @@ describe('the suggested reply', () => {
     const fetcher = suggests('Tea please')
     vi.stubGlobal('fetch', fetcher)
     saveReplyKey('sk-ant-test')
-    renderApp({ replyModel: 'claude-opus-5' })
+    renderApp({ replyModel: 'claude-opus-5-5' })
     hear('Do you want tea?')
 
     click(suggestBtn())
@@ -1423,7 +1423,7 @@ describe('the suggested reply', () => {
     const body = JSON.parse(String((fetcher.mock.calls as unknown as [string, RequestInit][])[0][1].body)) as {
       model: string
     }
-    expect(body.model).toBe('claude-opus-5')
+    expect(body.model).toBe('claude-opus-5-5')
   })
 
   /**

@@ -138,27 +138,55 @@ export interface Settings {
  *
  * Here rather than beside the service that calls them, because this is where
  * the setting is validated and `core/` cannot reach `listen/`.
+ *
+ * **`thinks` marks a model that always thinks before it answers** and cannot
+ * be asked not to. What it costs is paid out of the same `max_tokens` as the
+ * answers, so `listen/suggest.ts` gives those models room and asks them to
+ * think as little as they will — see `MAX_TOKENS_THINKING` there.
  */
-export const REPLY_MODELS: { id: string; name: string; detail: string }[] = [
+export const REPLY_MODELS: { id: string; name: string; detail: string; thinks?: boolean }[] = [
   { id: 'claude-haiku-4-5-20251001', name: 'Quickest', detail: 'Haiku 4.5. Answers in about a second' },
   {
     id: 'claude-sonnet-5',
     name: 'Better',
     detail: 'Sonnet 5. A little slower, and reads a question more closely',
   },
-  { id: 'claude-opus-5', name: 'Best', detail: 'Opus 5. The slowest, for questions that need thinking about' },
+  {
+    id: 'claude-opus-5-5',
+    name: 'Best',
+    detail: 'Opus 5.5. The slowest, for questions that need thinking about',
+    thinks: true,
+  },
   {
     id: 'claude-fable-5-1',
     name: 'Warmest',
     detail: 'Fable 5.1. Writes more like a person and less like a form',
+    thinks: true,
   },
 ]
 
 export const DEFAULT_REPLY_MODEL = REPLY_MODELS[0].id
 
+/**
+ * Models this build used to offer, and the one each is read as now.
+ *
+ * **Moved up, never down.** Anything this build does not know falls back to
+ * the default, which is the quickest — so without this, somebody who had
+ * chosen Opus would be moved to Haiku the day Opus moved on, silently, and so
+ * would every backup and every synchronized board naming it. A Map rather than
+ * an object, because what is looked up here came out of storage or a file, and
+ * `'constructor'` on a plain object is a function.
+ */
+const SUCCEEDED_BY = new Map([['claude-opus-5', 'claude-opus-5-5']])
+
 /** A model this build knows, or the default. Asked of storage and of a file alike. */
-export const readReplyModel = (raw: unknown): string =>
-  REPLY_MODELS.find(m => m.id === raw)?.id ?? DEFAULT_REPLY_MODEL
+export const readReplyModel = (raw: unknown): string => {
+  const id = typeof raw === 'string' ? (SUCCEEDED_BY.get(raw) ?? raw) : raw
+  return REPLY_MODELS.find(m => m.id === id)?.id ?? DEFAULT_REPLY_MODEL
+}
+
+/** Whether a model always thinks before answering — see `REPLY_MODELS`. */
+export const replyModelThinks = (id: string): boolean => REPLY_MODELS.find(m => m.id === id)?.thinks === true
 
 /** What a model is called, for a control that has to say which one is on. */
 export const replyModelName = (id: string): string =>
