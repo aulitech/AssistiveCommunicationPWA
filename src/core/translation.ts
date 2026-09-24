@@ -28,7 +28,7 @@ const CACHE_LIMIT = 2000
 
 const KEY = 'peri_translations'
 import { reportFailure } from './report'
-import { storageKey } from './store'
+import { storageKey, writeKey } from './store'
 
 /** A language's translations, keyed by the exact words that would be spoken. */
 export interface TranslationTable {
@@ -208,13 +208,10 @@ export function rememberTranslation(text: string, tag: string, translated: strin
   }
 
   all[table] = forLanguage
-  try {
-    localStorage.setItem(storageKey(KEY), JSON.stringify(all))
-  } catch {
-    // A full or unavailable store costs speed, never speech — but it means
-    // every phrase is paid for again on the next reload, which is worth knowing.
-    reportFailure('translations/save', 'Could not keep the translation on this device')
-  }
+  // A full or unavailable store costs speed here, never speech — every phrase
+  // is paid for again on the next reload. But a store too full for this is too
+  // full for the board as well, so it says so like any other write.
+  writeKey(storageKey(KEY), JSON.stringify(all))
 }
 
 /** Test seam, and what a factory reset reaches. */

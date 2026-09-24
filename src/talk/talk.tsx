@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { loadTranslations } from '../core/translation'
-import { cancelAllDwells, holdDwellsUntilMoved, RestingContext } from '../ui/dwell'
+import { cancelAllDwells, holdDwells, holdDwellsUntilMoved, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
 import { compose, composeWithBlank, hasChoices, parseSegments, type Phrase } from '../core/phrases'
@@ -22,6 +22,7 @@ import {
   loadReplyKey,
   loadPhraseSorts,
   loadRecent,
+  onWriteFailure,
   sameAccount,
   saveElevenLabs,
   savePhraseSorts,
@@ -41,7 +42,8 @@ import { speak, warmVoice } from '../voice/speech'
 import { clearAudioCache, setRemoteClips } from '../voice/audio-cache'
 import { REMOTE_PREFIX } from '../voice/elevenlabs'
 import { cx } from '../ui/style'
-import { BusyIndicator, DwellCursor } from '../ui/controls'
+import { BusyIndicator, DwellCursor, PanelButton } from '../ui/controls'
+import { downloadBackup } from '../menu/backup-file'
 import { Keyboard } from '../ui/keyboard'
 import { type PasteResult } from '../ui/link-input'
 import { Topbar } from './topbar'
@@ -91,6 +93,24 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   }, [])
 
   const { toast, flashToast } = useToast()
+
+  /**
+   * **Whether this device has stopped keeping what is changed.** A write the
+   * browser refused — a full store, a private window — no longer takes the
+   * screen down with it (`writeKey`), so the board carries on from memory, and
+   * that is exactly what makes it dangerous: everything looks fine until the
+   * next reload hands back the board as it was before. So it says so, and it
+   * stays said — a toast would be gone before a gaze reached it — with a backup
+   * one dwell away while memory still holds what storage does not.
+   */
+  const [notKeeping, setNotKeeping] = useState(false)
+  useEffect(() => onWriteFailure(() => setNotKeeping(true)), [])
+  // The strip arrives at the top and moves everything below it, under a
+  // pointer that has not moved.
+  useEffect(() => {
+    if (notKeeping) holdDwells()
+  }, [notKeeping])
+  const [keptInFile, setKeptInFile] = useState<boolean | null>(null)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState('all')
@@ -1069,6 +1089,16 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
   // `editor.open` is stable, which matters: this value reaches every one of a
   // couple of thousand memoised phrase cells.
+  /**
+   * The board as it is **in memory**, which is the point: storage is what has
+   * stopped taking changes, so a backup built from it would leave out exactly
+   * the ones at risk. The same file the Backup panel writes.
+   */
+  const keepInFile = useCallback(() => {
+    const backup = buildBackup({ store, aliases: board.aliases, settings, categoryById: board.categoryById })
+    setKeptInFile(downloadBackup(backup).ok)
+  }, [store, board.aliases, board.categoryById, settings])
+
   const editCtx: EditCtxValue = useMemo(() => ({ editMode, openEdit: editor.open }), [editMode, editor.open])
 
   const countFor = useCallback(
@@ -1080,6 +1110,24 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     <EditCtx.Provider value={editCtx}>
       <RestingContext.Provider value={resting}>
         <div className={cx('app', editMode && 'edit-mode', resting && 'resting', keyboardOpen && 'has-keyboard')}>
+          {notKeeping && (
+            <div className="not-keeping" role="alert">
+              <p>
+                This device has stopped saving changes. They will be lost when Peri is closed — save a backup now.
+              </p>
+              <PanelButton
+                label={
+                  keptInFile === true
+                    ? 'Backup saved'
+                    : keptInFile === false
+                      ? 'Could not save — try again'
+                      : 'Save a backup'
+                }
+                kind="primary"
+                onActivate={keepInFile}
+              />
+            </div>
+          )}
           <Topbar
             composer={composer}
             editMode={editMode}

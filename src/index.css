@@ -4407,3 +4407,61 @@ body {
   text-underline-offset: 2px;
   text-decoration-thickness: 1px;
 }
+
+/* ── When storage stops taking changes ─────────────────────────────────────
+   A strip at the very top, in the flow rather than over it: anything laid over
+   the board would sit on top of controls somebody aims at by resting, and the
+   arrival is covered by the dwell hold instead. Amber, not red — red in this app
+   means something is about to be destroyed, and this is somebody being told
+   there is still time to keep it. */
+.not-keeping {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.75rem 1rem;
+  background: color-mix(in srgb, var(--rest) 16%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--rest) 50%, transparent);
+  color: var(--text);
+}
+.not-keeping p {
+  flex: 1;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+/* ── When the app itself has failed ────────────────────────────────────────
+   The emergency bar keeps the bottom of the screen, where it always is — it is
+   the surface somebody reaches for without reading, and this is the moment
+   least suited to making them look for it. */
+.still-talking {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+}
+.still-talking-words {
+  padding: 2rem 1.5rem 1rem;
+  text-align: center;
+}
+.still-talking-words h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+}
+.still-talking-words p {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+.still-talking-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2rem;
+  padding: 1rem;
+}
+.still-talking .emergency-bar {
+  margin-top: auto;
+}

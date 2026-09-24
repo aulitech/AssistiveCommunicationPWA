@@ -9,6 +9,8 @@
 // token is discarded once those are read. Do not treat a signed-in user as
 // having proven anything.
 
+import { writeKey } from '../core/store'
+
 export interface OAuthUser {
   name: string
   email: string
@@ -216,7 +218,7 @@ export async function signInWithApple(): Promise<OAuthUser> {
   const fresh = `${first} ${last}`.trim()
   const nameKey = `${APPLE_NAME_KEY}:${claims.sub}`
   localStorage.removeItem(APPLE_NAME_KEY)
-  if (fresh) localStorage.setItem(nameKey, fresh)
+  if (fresh) writeKey(nameKey, fresh)
   const name = fresh || localStorage.getItem(nameKey) || claims.email || 'Apple user'
 
   return {

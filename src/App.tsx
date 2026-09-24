@@ -25,6 +25,7 @@ import { SettingsCtx } from './ui/settings'
 import { SignInPage } from './signin/signin'
 import { LegalPage } from './legal/legal-page'
 import { TalkScreen } from './talk/talk'
+import { ErrorBoundary } from './talk/error-boundary'
 
 export default function App() {
   // Legal pages are plain documents at their own URLs. Two leaf pages reached
@@ -117,15 +118,21 @@ export default function App() {
   // The legal pages inside the provider as well, though they need no account:
   // they are driven by dwell now, and a dwell there should take the time this
   // person set rather than the one the app ships with.
+  //
+  // **Every screen inside the boundary**, and the boundary inside the settings:
+  // what it puts up if a screen fails is the emergency bar, which should dwell
+  // at this person's speed rather than the one Peri ships with.
   return (
     <SettingsCtx.Provider value={ctx}>
-      {legalDoc ? (
-        <LegalPage doc={legalDoc} />
-      ) : user ? (
-        <TalkScreen user={user} onSignOut={handleSignOut} />
-      ) : (
-        <SignInPage onSignIn={handleSignIn} />
-      )}
+      <ErrorBoundary>
+        {legalDoc ? (
+          <LegalPage doc={legalDoc} />
+        ) : user ? (
+          <TalkScreen user={user} onSignOut={handleSignOut} />
+        ) : (
+          <SignInPage onSignIn={handleSignIn} />
+        )}
+      </ErrorBoundary>
     </SettingsCtx.Provider>
   )
 }
