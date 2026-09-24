@@ -647,10 +647,16 @@ describe('ordering categories', () => {
     expect($('.edit-modal')?.getAttribute('aria-label')).toBe('Rename category')
   })
 
-  // Renaming mid-arrangement would drop whatever is in the air.
+  // Renaming mid-arrangement would drop whatever is in the air. On a real
+  // category, so the tab showing is not what keeps it quiet.
   it('keeps the pencil quiet while reordering', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
+    click(tabNamed(catTabs()[0].textContent!))
+    expect(renameBtn()?.getAttribute('aria-disabled'), 'the pencil was quiet before reordering').toBeNull()
+
+    click(reorderBtn())
+
     expect(renameBtn()?.getAttribute('aria-disabled')).toBe('true')
   })
 
