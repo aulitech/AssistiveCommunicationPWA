@@ -1,0 +1,722 @@
+/* The panels the menu opens — Aliases, the guide, Backup & sharing — the confirmations, and the legal pages.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Aliases panel ── */
+/* The panel hangs down as far as its lists and no further than the screen.
+   Bounding it is what makes it scroll at all: the pane inside fills whatever
+   height it is given, and a height given by the content it holds can never be
+   overflowed — the arrows never appear, and everything past the bottom of the
+   screen is simply out of reach, there being no wheel and no scrollbar here.
+
+   `dvh` for the reason `.top-panel.is-tall` uses it: on a phone `vh` is the
+   viewport with the browser's chrome *hidden*, so a panel sized in it runs under
+   the address bar. The reserve is the user row above it, in `rem` so it follows
+   the zoom the row's own text does. */
+.alias-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: calc(100vh - 8rem);
+  max-height: calc(100dvh - 8rem);
+}
+
+/* One list per alias, folded up. Folded, the panel is a list of what it can
+   offer — which is how somebody finds the one they came for, rather than
+   scrolling past fifty body parts to reach it. */
+.alias-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+/* No padding of its own while folded: the tighter the list of headings, the more
+   of it is on screen, which is the point of folding it. */
+.alias-list-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.alias-list-head .setting-label { flex: 1; }
+
+.alias-count {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.alias-caret {
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--text-muted);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.alias-list.is-open .alias-caret { transform: rotate(90deg); }
+
+/* The two that are about the lists rather than about any one list's words:
+   adding one, and editing what they are called. Above all of them, since that
+   is what they act on. */
+.alias-panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* A field and a delete, in place of the heading that opens the list. */
+.alias-list-head.is-editing {
+  cursor: default;
+  gap: 6px;
+}
+
+.alias-name {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The tools an open list carries: which arrangement, and arranging. */
+.alias-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+}
+
+.alias-tool {
+  position: relative;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-muted);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.alias-tool svg { width: 1.1rem; height: 1.1rem; }
+.alias-tool.is-on { color: var(--accent); border-color: var(--accent); }
+.alias-tool[aria-disabled='true'] { opacity: 0.35; cursor: default; }
+.alias-tool .dwell-bar { background: var(--accent); }
+.alias-delete { color: var(--danger); }
+.alias-delete .dwell-bar { background: var(--danger); }
+
+/* A grid rather than a wrapped row. Fifty chips in a paragraph is a wall to
+   read; columns give the eye something to travel down. Sized in `ch` so a column
+   holds a word rather than a fixed number of pixels of one. */
+.alias-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12ch, 1fr));
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.alias-word {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  background: var(--cell);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  overflow: hidden;
+}
+
+.alias-word-text {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Being edited: a field where the word was, and the × beside it. The chip keeps
+   its own shape rather than growing around the field, or turning the mode on
+   would reflow the whole grid and move every word the user was looking at. */
+.alias-word.is-editing {
+  padding: 2px 4px 2px 6px;
+  cursor: default;
+}
+
+.alias-word-name {
+  font-size: 0.9rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.alias-word.reorderable { cursor: grab; }
+.alias-word.dwelling .dwell-bar { background: var(--accent); }
+
+/* The word in the air — the loudest thing in the grid, because it is what the
+   user is holding. The same blue the category tabs and the emergency bar use,
+   for the same reason: it must not be mistaken for a word simply selected. */
+.alias-word.is-held {
+  cursor: grabbing;
+  background: var(--held);
+  border-color: var(--held);
+  color: #000;
+  transform: translateY(-2px);
+}
+
+.alias-word.is-held .alias-word-text { color: #000; }
+
+/* Every other word, while one is in the air. */
+.alias-word.is-drop-zone {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--held) 70%, transparent);
+}
+
+.alias-word.is-drop-target {
+  border-color: var(--accent);
+  box-shadow: -3px 0 0 var(--accent);
+}
+/* ── Profile panel ── */
+/* Supplies the {contact} and {name} values the phrase table ships empty.
+   Typed rather than dwelled — one-off setup, usually by whoever configures
+   the device. */
+.profile-hint {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.profile-empty {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.profile-input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 1rem;
+  outline: none;
+}
+
+.profile-input:focus {
+  border-color: var(--accent);
+}
+
+/* The dwell that puts the caret where somebody is looking, painted as a
+   background layer for the reason the message box paints its own that way: an
+   input can hold no children, so there is nowhere to put a `.dwell-bar`.
+
+   Every step of a hold replays it — caret, then the word, then the lot — so the
+   next one is visibly coming and holding still is a thing with a result. See
+   `useCaretDwell`. */
+/* The fill on every single-line field in the app — see `DwellInput`. Painted
+   rather than drawn in a bar, for the reason the message box paints its own: an
+   input can hold no children, so there is nowhere to put a `.dwell-bar`. Its own
+   class rather than the Aliases panel's, because the key fields in Settings, a
+   category's name and the number in a spinner are the same kind of thing and do
+   not look like an alias. */
+.caret-field.dwelling {
+  background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  animation: boxDwellFill var(--dwell-duration, 800ms) linear forwards;
+}
+
+.profile-input::placeholder {
+  color: var(--text-muted);
+}
+
+.contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 10px;
+  border-radius: 7px;
+  background: var(--cell);
+  border: 1px solid var(--border);
+}
+
+.contact-name {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-remove {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.contact-remove.dwelling {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+}
+
+.contact-remove .dwell-bar { background: var(--danger); }
+.contact-remove.dwelling .dwell-bar {
+  animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
+}
+
+.contact-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.contact-add-btn {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.contact-add-btn.dwelling {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.contact-add-btn.is-disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.contact-add-btn .dwell-bar { background: var(--accent); }
+.contact-add-btn.dwelling .dwell-bar {
+  animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
+}
+
+/* ── Help guide ── */
+/* Long-form reading inside a panel that is otherwise all controls, so it gets
+   generous line spacing and its own scroll arrows — a dwell user cannot reach
+   a scrollbar or a wheel. */
+.help-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* The whole viewport — see `.top-panel.is-tall`. The guide is the longest thing
+     in the app to read, and every screenful of it costs a dwell on an arrow. */
+  flex: 1;
+}
+
+.help-scroller {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.help-body {
+  padding: 18px 16px 22px;
+}
+
+/* Reading column. The panel spans the whole viewport, so without this the
+   guide's lines run the full width of a wide monitor — a measure of a couple
+   of hundred characters, where comfortable reading is 45–75. */
+.help-measure {
+  max-width: 68ch;
+  margin-inline: auto;
+}
+
+.help-title {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.help-section {
+  margin-top: 20px;
+}
+
+.help-section:first-of-type {
+  margin-top: 10px;
+}
+
+.help-section-title {
+  margin: 0 0 7px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ── A guide that folds up ── */
+/* Only the guide does this; the legal pages are documents and stay open. Each
+   heading is a dwell control, so it is sized like one — a target the width of the
+   word "Overview" is a poor one to aim at, and these are the only way in. */
+.help-section.is-collapsible {
+  border-bottom: 1px solid var(--border);
+  /* No gap between them: folded up these are a list, and the border under each
+     is what keeps one off the next. Scoped rather than taken off `.help-section`
+     itself, which also draws the privacy policy and the terms — those have no
+     borders and would run together without the margin. Two classes beats the
+     `:first-of-type` rule above as well, so the first heading sits flush too. */
+  margin-top: 0;
+}
+
+/* No padding: folded up, the guide is a list of headings, and the tighter that
+   list is the more of it is on screen at once — which is the point of folding it.
+   The row is still full width, so what shrinks is the height of the target and
+   not its area. The border below each is what separates one from the next. */
+.help-section.is-collapsible .help-section-title {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  line-height: 1.9;
+  cursor: pointer;
+  user-select: none;
+}
+
+.help-section.is-collapsible.is-open .help-section-title { margin-bottom: 6px; }
+.help-section.is-collapsible .help-section-title.dwelling { color: var(--text); }
+
+/* A triangle rather than a plus or a chevron: it points at the heading while
+   closed and at the text while open, so the direction is the state. */
+.help-section-caret {
+  flex-shrink: 0;
+  width: 0;
+  height: 0;
+  border-left: 6px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transition: transform 0.15s ease;
+}
+
+.help-section.is-open .help-section-caret {
+  transform: rotate(90deg);
+}
+
+/* The last blocks of an open section want room before the next heading. */
+.help-section.is-collapsible > :last-child { margin-bottom: 12px; }
+
+.help-text {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.help-list {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.help-list li {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+/* Reading long text needs selection; the app disables it globally. */
+.help-body, .help-body * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ── Backup & sharing ── */
+/* Same shape as the help guide: the whole viewport — see `.top-panel.is-tall` —
+   in a dwell-scrollable pane. It was held to half the screen, which with the
+   spreadsheet under the backup put most of the screen's controls a dozen dwells
+   on an arrow away, below a panel that stopped halfway down an empty screen. */
+.backup-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.backup-scroller,
+.settings-scroller {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.backup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 18px;
+  max-width: 68ch;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.backup-note {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.backup-heading {
+  width: auto;
+  margin-top: 2px;
+}
+
+.backup-scope-trigger { width: 100%; }
+
+.backup-summary {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.panel-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--surface);
+}
+
+.panel-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+.panel-btn.danger  { background: transparent; color: var(--danger); border-color: var(--danger); }
+.panel-btn.is-disabled { opacity: 0.4; cursor: default; }
+.panel-btn.dwelling { filter: brightness(1.2); }
+.panel-btn .dwell-bar { background: rgba(255,255,255,0.3); }
+.panel-btn.danger .dwell-bar { background: color-mix(in srgb, var(--danger) 30%, transparent); }
+
+/* The file picker is the browser's, and it opens only for a real click or an
+   Enter on the input itself — never for a timer. Laying the input over the whole
+   button means a click anywhere on it counts, rather than Peri having to
+   synthesise one that the browser would refuse. */
+/* Where the browser's picker hands its answer back, and nothing else: the button
+   in front of it is the target — see `chooseFile`. Not `display: none`, which
+   some browsers take as a reason to refuse to open a picker for it at all. */
+.backup-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.backup-incoming {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: var(--accent-dim);
+}
+
+.backup-error,
+.backup-status {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.backup-error { color: #f87171; }
+.backup-status { color: var(--accent); }
+
+/* ── Confirming something that cannot be undone by dwelling again ── */
+/* Centred rather than under the control that opened it: a pointer rests where it
+   last fired, and a "yes" appearing beneath it would be answered by the pointer
+   already sitting there. */
+.confirm-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(2px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.confirm-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 420px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+
+.confirm-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.confirm-note {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* What happened when a backup was offered before a reset. Said after the fact,
+   never before it: a blocked download that had already claimed to save would be
+   the worst possible moment to be wrong. */
+.confirm-ok { color: var(--accent); }
+.confirm-warn { color: #f59e0b; }
+
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  /* The safe one first, so it is the one nearer the reading order and the one a
+     hurried dwell lands on. */
+  justify-content: flex-start;
+}
+
+/* The factory reset, alone at the foot of Settings. Spaced well clear of the
+   values above it: every revert up there puts one setting back and this puts the
+   whole device back, and a pointer travelling to one must not cross the other. */
+/* No rule of its own above it: the last setting's row already draws one, and the
+   two were a pair of lines forty-odd pixels apart with nothing between them. The
+   space is what sets this apart from the settings above. */
+.setting-reset {
+  margin-top: 28px;
+  padding-top: 20px;
+}
+
+/* ── Legal pages (/privacy, /terms) ── */
+/* Standalone documents rather than app screens: they are handed to Google and
+   Meta as published policy URLs, so they must stand on their own. */
+.legal-page {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* The document inside a pane with dwell controls above and below it, rather than
+   a page that scrolled by wheel alone — see `legal-page.tsx`. The padding moves
+   in here so the controls sit at the very edges of the screen, where a gaze
+   finds an edge without having to find a control. */
+.legal-body {
+  padding: 32px 20px 64px;
+}
+
+.legal-measure {
+  max-width: 68ch;
+  margin-inline: auto;
+}
+
+.legal-back {
+  margin: 0 0 20px;
+  font-size: 1.05rem;
+}
+
+.legal-title {
+  margin: 0 0 4px;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.legal-updated {
+  margin: 0 0 18px;
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+.legal-intro {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  line-height: 1.65;
+  color: var(--text);
+  padding-left: 14px;
+  border-left: 2px solid var(--accent);
+}
+
+.help-legal-links {
+  margin: 28px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+
+/* Documents are for reading, and the app disables selection globally. */
+.legal-page, .legal-page * {
+  user-select: text;
+  -webkit-user-select: text;
+}

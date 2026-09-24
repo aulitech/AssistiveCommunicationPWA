@@ -1,0 +1,118 @@
+/* Markdown in a phrase, and what shows when storage or the app itself fails.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Markdown in a phrase ── */
+
+/* A phrase can carry inline emphasis, headings and bullets — see
+   `core/markdown.ts` for what is understood and what stays literal. Everything
+   here is drawn relative to the cell's own type rather than at fixed sizes, so
+   the same rules work on a 15px grid cell and on the 13px emergency label. */
+
+.md-strong { font-weight: 800; }
+.md-em { font-style: italic; }
+.md-strike { text-decoration: line-through; opacity: 0.75; }
+
+.md-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+  padding: 0 0.28em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+/* Lines are blocks so they stack, and the cell's row grows to fit them. Row
+   heights already vary — about one row in five wraps — and the grid window
+   grows from the top rather than multiplying a row height by an index, so a
+   taller cell costs nothing but its own space. */
+.md-line { display: block; }
+.md-line + .md-line { margin-top: 0.2em; }
+
+.md-heading { font-weight: 800; }
+.md-h1 { font-size: 1.2em; }
+.md-h2 { font-size: 1.1em; }
+.md-h3 { font-size: 1.03em; }
+
+/* The bullet is drawn, not typed: it is not part of what the phrase says, so it
+   must not be selectable, searchable or speakable. */
+.md-item { display: flex; gap: 0.45em; align-items: baseline; text-align: left; }
+
+.md-bullet {
+  flex: 0 0 auto;
+  width: 0.32em;
+  height: 0.32em;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+/* A link inside a phrase. Drawn as a link, not built as one — the cell around
+   it is a dwell button whose job is to speak, and a real anchor inside would
+   give a gaze user two targets in one place. */
+.md-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+
+/* ── When storage stops taking changes ─────────────────────────────────────
+   A strip at the very top, in the flow rather than over it: anything laid over
+   the board would sit on top of controls somebody aims at by resting, and the
+   arrival is covered by the dwell hold instead. Amber, not red — red in this app
+   means something is about to be destroyed, and this is somebody being told
+   there is still time to keep it. */
+.not-keeping {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.75rem 1rem;
+  background: color-mix(in srgb, var(--rest) 16%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--rest) 50%, transparent);
+  color: var(--text);
+}
+.not-keeping p {
+  flex: 1;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+/* ── When the app itself has failed ────────────────────────────────────────
+   The emergency bar keeps the bottom of the screen, where it always is — it is
+   the surface somebody reaches for without reading, and this is the moment
+   least suited to making them look for it. */
+.still-talking {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+}
+.still-talking-words {
+  padding: 2rem 1.5rem 1rem;
+  text-align: center;
+}
+.still-talking-words h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+}
+.still-talking-words p {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+.still-talking-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2rem;
+  padding: 1rem;
+}
+.still-talking .emergency-bar {
+  margin-top: auto;
+}

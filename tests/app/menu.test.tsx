@@ -6,6 +6,7 @@ import { resolve } from 'node:path'
 import { HELP_SECTIONS } from '../../src/menu/help'
 import { scrolledIntoView } from '../setup'
 import { $$, $, settle, click, mount, renderApp, cells, modes, plainCell, clearMessage } from './harness'
+import { stylesheet } from '../stylesheet'
 
 // The panel spans the viewport, and everything in this menu is aimed at rather
 // than read — so where an item is not, and when it will not answer, matter as
@@ -18,7 +19,7 @@ describe('the menu items', () => {
   // jsdom lays nothing out, so this can only check the rule is written. Whether
   // the items actually shrink is a question for the deploy preview.
   it('is no wider than what is written on it', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const css = stylesheet()
     expect(css).toMatch(/\.panel-nav \{[^}]*\balign-items: flex-start;/)
   })
 
@@ -292,7 +293,7 @@ describe('leaving a panel', () => {
   // never narrower than Back. jsdom lays nothing out, so the stylesheet is what
   // can be read.
   it('sets the name at 1.3rem and the version at 0.8rem, centred without crowding Back', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
     const value = (selector: string, prop: string) => {
       const rule = css.slice(css.indexOf(`${selector} {`))
       return rule.slice(0, rule.indexOf('}')).match(new RegExp(`\\b${prop}: *([^;]+);`))?.[1]
@@ -372,7 +373,7 @@ describe('the scrim behind the menu', () => {
   // dwell that lands on it. jsdom applies no stylesheet, so the rule itself is
   // what there is to check.
   it('keeps the phrases underneath from being reached', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const css = stylesheet()
     const open = css.slice(css.indexOf('.panel-scrim.open {'))
     expect(open.slice(0, open.indexOf('}'))).toMatch(/pointer-events:\s*auto/)
   })
@@ -514,7 +515,7 @@ describe('reaching all of a panel that has grown', () => {
     click(nav('Aliases'))
     expect($('.alias-panel'), 'the Aliases panel fills its parent instead').not.toBeNull()
 
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const css = stylesheet()
     expect(css).toContain('.alias-panel {')
     const rule = css.slice(css.indexOf('.alias-panel {'))
     // `dvh` as well: on a phone `vh` is the viewport with the browser's chrome
@@ -557,7 +558,7 @@ describe('the menu panels on a wide screen', () => {
 
     const measure = $(selector)
     expect(measure, `${panel} has no column`).not.toBeNull()
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const css = stylesheet()
     const rule = css.slice(css.indexOf(`${selector} {`))
     expect(rule.slice(0, rule.indexOf('}'))).toMatch(/max-width:\s*68ch/)
   })

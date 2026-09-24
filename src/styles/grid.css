@@ -1,0 +1,261 @@
+/* The phrase grid, its rail, the cell, and the dwell fills every control uses.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Phrase Grid ── */
+.grid-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px;
+  scrollbar-width: none;
+}
+
+.grid-wrapper::-webkit-scrollbar { display: none; }
+
+/* ── Grid scroll bar ── */
+.grid-scrollbar {
+  display: flex;
+  flex-direction: column;
+  width: 44px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.scroll-btn {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  transition: color 0.1s, background 0.1s;
+}
+
+.scroll-btn:last-child { border-bottom: none; }
+
+/* Six controls stacked in a column need vertical room, and on a short screen —
+   a phone on its side, a browser window pulled down — the grid has better use
+   for it. The pages are the pair that goes: a nudge repeats while it is held,
+   so it crosses the same distance a page does, and the two ends still reach
+   either end of the grid in one dwell. Nothing becomes unreachable.
+
+   Height alone is the test, with no orientation clause: the rule the category
+   bar uses needs one because a tablet in portrait is wider than a phone, but a
+   landscape tablet is 768px tall and a landscape phone is 430px, so the height
+   already tells them apart. */
+@media (max-height: 700px) {
+  .scroll-btn-page { display: none; }
+}
+
+.scroll-btn svg {
+  width: 18px;
+  height: 18px;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.scroll-btn.dwelling {
+  color: var(--text);
+}
+
+.scroll-btn-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent-dim);
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+
+.scroll-btn.dwelling .scroll-btn-fill {
+  animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
+}
+
+/* The controls in this rail that do not scroll: which order the phrases are in,
+   and — in edit mode — arranging them by hand. Marked off from the five that do
+   scroll, by their own fixed height rather than an equal share of the column and
+   by a heavier rule under the group, because this rail is found by position
+   rather than read and the scrolling controls are one thing.
+
+   Quiet rather than gone where they do not apply: a control that came and went
+   would move the five below it every time somebody looked at the Sent tab. */
+.rail-tools {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  border-bottom: 2px solid var(--border);
+}
+
+.rail-tool {
+  flex: 0 0 44px;
+}
+
+.rail-tool[aria-disabled] {
+  opacity: 0.4;
+}
+
+/* The mode is on — the same green every toggle in the app lights up with. */
+.reorder-btn.is-on {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.phrase-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 700px) {
+  .phrase-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1000px) {
+  .phrase-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* A filter that can legitimately be empty says so, rather than showing a blank
+   panel that reads as a fault. */
+.grid-empty {
+  margin: 0;
+  padding: 28px 24px;
+  max-width: 46ch;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  text-align: center;
+  margin-inline: auto;
+}
+
+/* Waiting for answers, said where the answers will land. The spinner sits on
+   the line rather than in the corner: a gaze already on the board should not
+   have to go looking for the news that cells are coming. Reports and never
+   answers — the paragraph is not a target and nothing in it is. */
+.grid-empty.is-busy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+/* ── Phrase Cell ── */
+.phrase-cell {
+  position: relative;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--cell);
+  padding: 16px 12px 12px;
+  /* In rem so a zoomed phrase has somewhere to go: a cell fixed in pixels
+     around text that scales is one that wraps an extra line and clips. */
+  min-height: 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  overflow: hidden;
+  transition: background 0.1s ease;
+  /* The unfiltered grid is ~2,200 cells. Let the browser skip layout and paint
+     for the ones scrolled out of view. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+}
+
+.phrase-cell:hover, .phrase-cell.dwelling {
+  background: var(--cell-hover);
+}
+
+/* The last phrase said off the board. On every other surface this colour is a
+   flash on a timer; here it lasts until anything else fires, so that under an
+   order that follows use it says *that one, and it went there* rather than
+   blinking at a cell that is moving at the same moment. It sits after the hover
+   rule on purpose — while the marked cell is being dwelled the fill bar is the
+   feedback, and losing the mark under the pointer would be the moment it is
+   least wanted. `aria-current` says the same thing to a screen reader. */
+.phrase-cell.selected {
+  background: var(--selected-flash);
+  border-color: var(--accent);
+}
+
+.phrase-cell-text {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.35;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* A cell with a second line stacks, rather than setting the two side by side:
+   every other cell in the app holds one run of text and is a centring row. */
+.phrase-cell.has-detail {
+  flex-direction: column;
+}
+
+/* The second line, on the Translations tab and nowhere else: what came out of
+   the speaker above, and the board's own wording here. Held to two lines, since
+   a composed message can be a paragraph and a cell that grows with one would
+   make its row taller than every phrase beside it. */
+.phrase-cell-detail {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+
+/* Dwell progress bar */
+.dwell-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: var(--dwell-color);
+  border-radius: 0 0 0 10px;
+}
+
+.phrase-cell.dwelling .dwell-bar {
+  animation: dwellFillH var(--dwell-duration, 1500ms) linear forwards;
+}
+
+/* ── Custom cursor (hidden) ── */
+.dwell-cursor { display: none; }
+
+/* ── Animations ── */
+@keyframes dwellFillH {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+@keyframes dwellFillV {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+@keyframes cursorPulse {
+  0%   { box-shadow: 0 0 0 2px rgba(34,197,94,0.3); }
+  100% { box-shadow: 0 0 0 16px rgba(34,197,94,0); }
+}

@@ -1,0 +1,149 @@
+/* The category tabs and their arrows — and `.grid-area`, the row the grid and its rail share, which was written here.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Filter bar ── */
+.filter-bar-wrap {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.filter-scroll {
+  display: flex;
+  gap: 6px;
+  /* The vertical padding is headroom: this clips its overflow, and a held tab
+     bobs upward out of the line. */
+  padding: 12px 4px;
+  overflow-x: auto;
+  flex: 1;
+  scrollbar-width: none;
+}
+
+.filter-scroll::-webkit-scrollbar { display: none; }
+
+/* On a narrow screen the arrows, the category tools and the tabs all want the
+   same width, and the arrows are what repeat — four of them spend 144px before
+   a single category is visible. They give way first.
+
+   They keep full bar height, which is the dimension a dwell actually needs, and
+   28px stays clear of the 24px minimum target size. The tools do not shrink:
+   being findable is the whole reason they sit out here. */
+@media (max-width: 700px) {
+  .filter-arrow { width: 28px; }
+  .filter-arrow svg { width: 14px; height: 14px; }
+}
+
+.filter-arrow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  flex-shrink: 0;
+
+  color: var(--text-muted);
+  overflow: hidden;
+  transition: color 0.1s, background 0.1s;
+}
+
+/* A divider on the side facing the tabs, so each arrow is separated from its
+   neighbour and from the scroller — and nowhere doubled, since only one of any
+   two adjacent arrows draws the line between them.
+ *
+ * Keyed off which side of the scroller the arrow is on rather than off its
+ * position in the row. It was `:last-child` and `:nth-last-child(2)`, written
+ * when there were two arrows on the right; there are three now, and there are
+ * two on a portrait phone, so counting from the end was going to keep being
+ * wrong. `.filter-bar-tools` draws its own left border, so the outermost arrow
+ * needs nothing on that side. */
+.filter-arrow {
+  border-right: 1px solid var(--border);
+}
+
+.filter-scroll ~ .filter-arrow {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+
+.filter-arrow svg {
+  width: 16px;
+  height: 16px;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.filter-arrow.dwelling {
+  color: var(--text);
+  background: var(--cell-hover);
+}
+
+.filter-arrow .dwell-bar {
+  border-radius: 0;
+}
+
+/* A phone held upright is the narrowest this bar ever gets, and six arrows plus
+   the tools leave it almost no room for the tabs they exist to reach. The two
+   that go all the way are the ones to drop: paging gets to either end as well,
+   only a screen at a time, whereas nothing else nudges. Width alone is not the
+   test — a tablet in portrait is over 700px and keeps all six. */
+@media (max-width: 700px) and (orientation: portrait) {
+  .filter-arrow-end {
+    display: none;
+  }
+}
+
+.filter-arrow.dwelling .dwell-bar {
+  animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
+}
+
+.filter-tab {
+  position: relative;
+  flex-shrink: 0;
+  padding: 7px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-muted);
+
+  overflow: hidden;
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+  white-space: nowrap;
+}
+
+.filter-tab.dwelling {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--cell-hover);
+}
+
+.filter-tab.flashed,
+.filter-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+
+.filter-tab .dwell-bar {
+  border-radius: 20px;
+}
+
+.filter-tab.dwelling .dwell-bar {
+  animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
+}
+
+/* ── Grid area + scroll controls ── */
+.grid-area {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}

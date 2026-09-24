@@ -1,0 +1,338 @@
+/* The sign-in page, at every height it has to fit.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Sign-in page ── */
+/* A fixed frame the exact height of the viewport, with the content scrolling
+   inside it. The page itself must not scroll: the dwell arrows live at the top
+   and bottom of the frame, and would scroll away with everything else.
+   `dvh` last, so it wins where supported — `vh` counts the mobile browser
+   chrome that is not actually there. */
+.signin-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.signin-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px 32px;
+}
+
+/* Brand */
+.signin-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 36px;
+}
+
+.signin-logo {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.signin-logo svg {
+  width: 72px;
+  height: 72px;
+}
+
+.signin-app-name {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0;
+}
+
+.signin-tagline {
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Features */
+.signin-features {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+
+.signin-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: var(--cell);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.signin-feature-icon {
+  font-size: 1.7rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.signin-feature-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.signin-feature-body {
+  font-size: 1rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* Auth section */
+.signin-actions {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Fitting the page on one screen.
+   Height is what runs out — a phone in landscape has barely 400px of it, and
+   the sign-in buttons alone want 400. So the page gives ground in order of
+   what it can afford to lose, and never touches the dwell-time control or the
+   ways in: someone who needs a slow dwell cannot reach anything without the
+   first, and nobody gets past this page without the second.
+   The dwell arrows catch whatever still does not fit. */
+
+/* Laptops and small windows: tighten, and drop the feature blurbs. The titles
+   still say what the app does. */
+@media (max-height: 900px) {
+  .signin-content { padding: 24px 20px 20px; }
+  .signin-brand { gap: 10px; margin-bottom: 20px; }
+  .signin-logo, .signin-logo svg { width: 56px; height: 56px; }
+  .signin-app-name { font-size: 2rem; }
+  .signin-tagline { font-size: 1.15rem; }
+  .signin-features { gap: 8px; margin-bottom: 20px; }
+  .signin-feature { padding: 9px 14px; }
+  .signin-feature-body { display: none; }
+}
+
+/* Phones held upright: the feature list goes entirely. The tagline says the
+   same thing in one line. */
+@media (max-height: 740px) {
+  .signin-features { display: none; }
+}
+
+/* Phones on their side: nothing promotional survives but the name. */
+@media (max-height: 560px) {
+  .signin-content { padding: 14px 20px 14px; }
+  .signin-brand {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .signin-logo, .signin-logo svg { width: 36px; height: 36px; }
+  .signin-app-name { font-size: 1.6rem; }
+  .signin-tagline { display: none; }
+  .signin-legal { font-size: 0.8rem; }
+}
+
+@media (max-width: 380px) {
+  .signin-content { padding-left: 12px; padding-right: 12px; }
+}
+
+/* Auth button */
+.auth-btn {
+  position: relative;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--cell);
+  overflow: hidden;
+
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.auth-btn.dwelling {
+  border-color: var(--accent);
+  background: var(--cell-hover);
+}
+
+.auth-btn.flashed {
+  background: var(--selected-flash);
+  border-color: var(--accent);
+}
+
+.auth-btn-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--text);
+  position: relative;
+}
+
+.auth-guest-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  width: 22px;
+  text-align: center;
+}
+
+/* Dwell progress bar inside auth button */
+.auth-dwell-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: var(--accent);
+  border-radius: 0;
+}
+
+.auth-btn.dwelling .auth-dwell-bar {
+  animation: dwellFillH var(--dwell-ms, 1200ms) linear forwards;
+}
+
+/* Apple button text is white */
+.auth-apple .auth-btn-inner { color: var(--text); }
+
+/* Divider */
+.signin-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 2px 0;
+}
+
+.signin-divider::before,
+.signin-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Legal */
+.signin-legal {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.6;
+  margin: 4px 0 0;
+  padding: 0 8px;
+}
+
+/* Error banner */
+.signin-error {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 1rem;
+  color: #fca5a5;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* Details step */
+.signin-details-heading {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 16px;
+}
+
+.signin-field-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.signin-optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.8rem;
+}
+
+.signin-input {
+  display: block;
+  width: 100%;
+  background: var(--cell);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px 14px;
+  font-size: 1.15rem;
+  font-family: var(--font);
+  color: var(--text);
+  outline: none;
+  margin-bottom: 16px;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.signin-input::placeholder { color: var(--text-muted); }
+.signin-input:focus { border-color: var(--accent); }
+
+.auth-confirm { border-color: var(--accent) !important; }
+.auth-confirm .auth-btn-inner { color: var(--accent); }
+.auth-back { opacity: 0.7; }
+.auth-btn.is-disabled { opacity: 0.35; pointer-events: none; }
+
+/* Loading state */
+.signin-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+}
+
+.signin-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* PWA safe area */
+.app, .signin-page {
+  padding-bottom: env(safe-area-inset-bottom);
+}

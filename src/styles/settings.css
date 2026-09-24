@@ -1,0 +1,623 @@
+/* The settings panel and the voice picker.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Settings panel ── */
+/* Fills whatever the panel gives it, which for this view is the viewport — see
+   `.top-panel.is-tall`. It grows with the linked-account row and the reset at the
+   foot of it, and a panel taller than the screen is one whose bottom a dwell user
+   cannot reach, so it is bounded and scrolled either way. */
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 16px 12px;
+  /* The panel spans the whole viewport, so without this a setting's label sits
+     at one edge of a wide monitor and its control at the other. The same
+     measure the guide and the backup screen use, so the four panels line up. */
+  max-width: 68ch;
+  width: 100%;
+  margin-inline: auto;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.setting-row:last-child { border-bottom: none; }
+
+.setting-label {
+  font-size: 1rem;
+  color: var(--text-muted);
+  width: 96px;
+  flex-shrink: 0;
+}
+
+.setting-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+/* − / + dwell step buttons */
+.step-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+}
+
+.step-btn.dwelling { background: color-mix(in srgb, var(--accent) 20%, var(--surface)); }
+.step-btn .dwell-bar { background: var(--accent); }
+
+/* The revert, at the end of every spinner. It goes quiet at the default rather
+   than away: a row that changed width as a value crossed its default would move
+   the two buttons beside it, and a control somebody has learnt to find should be
+   in the same place whether or not it has anything to do. */
+.step-btn.is-disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.step-btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  pointer-events: none;
+}
+
+/* value + formatted label */
+.setting-spinner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.setting-number {
+  width: 64px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.setting-number:focus { border-color: var(--accent); }
+
+/* hide browser spinner arrows */
+.setting-number::-webkit-inner-spin-button,
+.setting-number::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.setting-number[type=number] { -moz-appearance: textfield; }
+
+/* **As wide as the widest thing it can say**, never narrower and never changing.
+   It was 32px, which cut `1000ms` to `1000r` and ran `100%` into the + beside it.
+   The widest value is drawn invisibly in the same grid cell as the real one — see
+   `SettingSpinner` — so the width is exact in whatever font the device has, and
+   the + and the reset beside it stay where a gaze learnt to find them. */
+.setting-formatted {
+  display: inline-grid;
+  /* And never narrower than a time, the longest thing any spinner here says —
+     `1.500s` — so the + and the reset line up down the whole list rather than
+     each row's sitting where its own widest value put it. They are aimed at by
+     position, and a column is a place; six rows each a little off is not. The
+     sizer above still wins for anything longer. */
+  min-width: 6.5ch;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.setting-formatted::before {
+  content: attr(data-widest);
+  visibility: hidden;
+  grid-area: 1 / 1;
+}
+
+.setting-formatted > span { grid-area: 1 / 1; }
+
+/* Linking an ElevenLabs account. Stacks under its label rather than sitting on
+   one line: a key field, a button, an error and a note do not fit beside a
+   96px label on a phone. */
+.eleven-row { align-items: flex-start; }
+
+.eleven-control {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+/* The model behind a suggested reply. A line of its own under the key, because
+   the key field already takes a full line and a trigger wrapped onto the end of
+   it would read as part of the key rather than as a separate choice. */
+.reply-model-trigger {
+  flex-basis: 100%;
+}
+
+/* A value typed once and needed again later — the ElevenLabs key, the
+   Synchronize passphrase. It takes a line of its own: a field and two buttons
+   will not sit beside a label on a phone, and these are read character by
+   character, which is what the monospace is for. */
+.secret-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex-basis: 100%;
+}
+
+.secret-input {
+  flex: 1;
+  min-width: 140px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+}
+
+.secret-said { flex-basis: 100%; }
+
+/* Reveal and copy: icons rather than words, because the field beside them is the
+   widest thing in the panel and two labelled buttons pushed it down to nothing
+   on a phone. Sized like the other icon controls in the menu, and lit the same
+   way — the eye stays lit while the value is showing, which is the only cue that
+   a credential is on screen. */
+.secret-btn {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.secret-btn svg { width: 1.1rem; height: 1.1rem; }
+.secret-btn.dwelling,
+.secret-btn.is-on { border-color: var(--accent); color: var(--accent); }
+.secret-btn.is-disabled { opacity: 0.35; cursor: default; }
+.secret-btn .dwell-bar { background: var(--accent); }
+.secret-btn.dwelling .dwell-bar {
+  animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
+}
+
+/* A row that has something to say about itself. The note takes a line of its
+   own, so the control has to wrap and the label sits at the top of the two lines
+   rather than beside their middle. */
+.setting-row.has-note { align-items: flex-start; }
+.setting-row.has-note .setting-control { flex-wrap: wrap; }
+
+.setting-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.eleven-status {
+  flex: 1;
+  min-width: 120px;
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.eleven-error,
+.eleven-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.eleven-error { color: #f87171; }
+.eleven-note { color: var(--text-muted); }
+
+/* Synchronizing. The same shape as the row above it, because they are the same
+   kind of thing to set up: a field, a button, and a line saying where it got to.
+   The code is monospaced and spaced out — it exists to be compared across two
+   screens, or read down a phone line to whoever set the other device up. */
+.sync-row { align-items: flex-start; }
+
+.sync-control {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.sync-status {
+  flex: 1;
+  min-width: 120px;
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.sync-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+}
+
+.sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-basis: 100%;
+}
+
+/* One shape for every control that opens a full-screen grid — a voice, a
+   category, a set of categories to export. The trigger stays in the row it
+   belongs to; the choosing happens full screen. Each keeps a name of its own
+   alongside this one, so a rule — or a test — can still say which it means. */
+.picker-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 186px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.picker-trigger.dwelling { border-color: var(--accent); }
+.picker-trigger .dwell-bar { background: var(--accent); }
+
+.picker-trigger-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── Voice picker ── */
+/* Sixty device voices in a 186px dropdown was the one list in this app that a
+   gaze user could not realistically work through. It takes the screen instead,
+   in the same shape as the slot picker. */
+.picker-modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(2px);
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.picker-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 900px;
+  max-height: 88vh;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  overflow: hidden;
+}
+
+.picker-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.picker-modal-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.picker-modal-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.picker-modal-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.picker-modal-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Chips for cutting a long grid down. They scroll sideways rather than wrapping:
+   a filter row that grows to three lines pushes the grid itself off the screen. */
+.picker-filters {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+/* A row that scrolls sideways, with its own dwell arrows. Without them the far
+   end of the row does not exist for anybody without a wheel. */
+.scroll-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.scroll-row-inner {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  flex: 1;
+  scrollbar-width: none;
+}
+
+.scroll-row-inner::-webkit-scrollbar { display: none; }
+
+.scroll-row .pane-scroll-btn {
+  flex: 0 0 34px;
+  padding: 0;
+  border-bottom: none;
+}
+
+.scroll-row .pane-scroll-btn:first-child { border-right: 1px solid var(--border); }
+.scroll-row .pane-scroll-btn:last-child { border-left: 1px solid var(--border); }
+
+.picker-filter {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.picker-filter.dwelling { border-color: var(--accent); color: var(--text); background: var(--cell-hover); }
+.picker-filter .dwell-bar { border-radius: 20px; background: var(--accent); }
+
+.picker-filter.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+
+.picker-filter-count {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.picker-modal-body { padding: 14px; }
+
+.picker-grid {
+  display: grid;
+  /* Wide enough for a voice name and where it came from, and no narrower on a
+     phone than a dwell can comfortably hold. */
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.picker-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-height: 62px;
+  padding: 10px 12px;
+  background: var(--cell);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.picker-tile:hover,
+.picker-tile.dwelling { background: var(--cell-hover); border-color: var(--accent); }
+.picker-tile .dwell-bar { background: var(--accent); }
+
+.picker-tile.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  /* Room for the mark, so a long name does not run under it. */
+  padding-right: 30px;
+}
+
+.picker-tile-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #000;
+}
+
+.picker-tile-name {
+  font-size: 1.05rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-tile-detail {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The account's voices are the reason somebody linked one; they lead the grid
+   and say so without having to be read. */
+.picker-tile.is-remote .picker-tile-detail { color: var(--brand); }
+
+/* Shared scrollable pane with dwell-driven arrows (voice list, help guide). */
+.scroll-pane {
+  display: flex;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+
+.scroll-pane-inner {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  /* Beside the rail now rather than above it, so it has to be allowed to give up
+     width as well as height. */
+  min-width: 0;
+  scrollbar-width: none;
+}
+
+/* **The pane's scroll controls, down its right edge** — see `ScrollPane`. The
+   grid's rail in every particular that a gaze learns by: the same 44px, the same
+   edge, the four sharing the height so each is as tall as the pane allows, and
+   the same fill rising from the bottom. One edge for everything that scrolls. */
+.pane-rail {
+  display: flex;
+  flex-direction: column;
+  width: 44px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.pane-rail .pane-scroll-btn {
+  padding: 0;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.pane-rail .pane-scroll-btn:last-child { border-bottom: none; }
+/* The rule for a row of these draws a line between neighbours on the left; a
+   rail's neighbours are above and below. */
+.pane-rail .pane-scroll-btn + .pane-scroll-btn { border-left: none; }
+
+.pane-rail .pane-scroll-btn.dwelling { color: var(--text); }
+
+.scroll-pane-inner::-webkit-scrollbar { display: none; }
+
+/* Jump and nudge sit side by side rather than stacked: two full-width bars top
+   and bottom would cost 56px of a pane that is height-constrained already, and
+   splitting each bar in two costs none. */
+
+.pane-scroll-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Half a bar each, and the whole bar's height, which is the dimension a dwell
+     actually needs. */
+  flex: 1;
+  padding: 6px 0;
+  cursor: pointer;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.pane-scroll-btn + .pane-scroll-btn { border-left: 1px solid var(--border); }
+.pane-scroll-btn.dwelling { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); }
+
+/* **A fill that actually fills.** These carried a `.dwell-bar` and no rule ever
+   animated it, so holding one showed a tint and nothing counting down to the
+   moment it would fire — the one thing a dwell control has to show. It rises
+   from the bottom, as the grid's rail does, because that is the rail these now
+   are; the row of these under the category chips and the pair inside a text box
+   rise the same way. */
+.pane-scroll-btn .dwell-bar {
+  inset: 0;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: var(--accent-dim);
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+
+.pane-scroll-btn.dwelling .dwell-bar {
+  animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
+}
+
+/* Nowhere to go this way: in its place, answering to nothing, and plainly so. */
+.pane-scroll-btn.is-idle {
+  color: color-mix(in srgb, var(--text-muted) 35%, transparent);
+  cursor: default;
+}
+
+.voice-option {
+  position: relative;
+  padding: 8px 12px;
+  font-size: 1rem;
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+
+.voice-option:last-child { border-bottom: none; }
+.voice-option.selected { color: var(--accent); }
+.voice-option.dwelling { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); }
+.voice-option .dwell-bar { background: var(--accent); }

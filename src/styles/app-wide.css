@@ -1,0 +1,312 @@
+/* What the whole app shares: the toast, Peri's own keyboard, waiting, focus, and reduced motion.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Sign-in dwell control ── */
+/* Dwell time is adjustable before sign-in — otherwise anyone who needs a slow
+   dwell cannot comfortably operate the buttons that let them in. */
+.signin-dwell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.signin-dwell-label {
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ── Toast ── */
+.toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: 148px;
+  transform: translateX(-50%);
+  z-index: 400;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 500;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+
+/* ── Peri's own keyboard ── */
+/* On a device driven by hover alone there is no other keyboard at all: iOS
+   raises its own on a gesture and presses its keys with taps, and a pointer
+   that only moves has neither. So these are the keys, and they are dwell
+   controls like everything else here.
+
+   Fixed and portalled, above the panels — every text field in the app is one it
+   has to reach, and most of them are inside a panel. `.app` gives up the same
+   height from the bottom, so the emergency bar stays above it rather than under
+   it: the one surface somebody reaches for without reading must not be the one
+   the keyboard covers. */
+
+/* **Height is the whole design.** Typing narrows the board to what matches, and
+   a keyboard that leaves no board leaves nothing to narrow — the point of
+   typing here is to reach a phrase in three letters rather than to write it out.
+   So four rows are squeezed into as little as they can be worked in, and the
+   spacing between them is pixels rather than rem: the keys grow with the text
+   size, the gutters between them do not need to. */
+:root { --keyboard-height: 30dvh; }
+
+.app.has-keyboard { padding-bottom: var(--keyboard-height); }
+
+.keyboard {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 550;
+  height: var(--keyboard-height);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.55);
+}
+
+.key-row {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+}
+
+.key {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  /* A key is a cell: the same two greys the phrase grid uses, so the palette's
+     contrast guarantees carry over rather than being invented again here. */
+  background: var(--cell);
+  color: var(--text);
+  /* The letter on the key, not the text of the app: read at a glance, and in
+     rem so it follows the text size like everything else. */
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.key:hover { background: var(--cell-hover); border-color: var(--accent); }
+
+/* Space earns its width: it is the commonest key of all, and the only one
+   whose face is a word rather than a character. */
+.key.is-wide { flex: 7; }
+
+/* Shift and backspace are wider than a letter and flank the short row, so the
+   three letter rows come out the same width and a column stays a column. */
+.key-tool {
+  flex: 1.5;
+  font-size: 1.05rem;
+  color: var(--text-muted);
+}
+
+/* Where shift would be, on a layer that has nothing for it to do. */
+.key-gap {
+  flex: 1.5;
+  pointer-events: none;
+}
+
+.key-space { font-size: 0.95rem; color: var(--text-muted); }
+
+/* Shift and the symbol layer stay lit while they are on. Locked capitals are
+   the accent in full, because a locked shift and a one-shot shift produce very
+   different words and the difference has to be visible before typing, not
+   after. */
+.key.is-on { border-color: var(--accent); color: var(--accent); }
+.key.is-locked { background: var(--accent-dim); }
+
+.key.dwelling { border-color: var(--accent); }
+
+/* A short screen has to give up proportionally more, or the keys stop being
+   targets at all. A tall one gives up less, because 30dvh of an iPad is
+   already a generous key. The arrangement never changes with either — a layout
+   that reflowed would move every letter, and these are aimed at rather than
+   read. */
+@media (max-height: 700px) { :root { --keyboard-height: 42dvh; } }
+@media (min-height: 1000px) { :root { --keyboard-height: 26dvh; } }
+
+/* ── Waiting ── */
+/* The only thing on screen that says "wait", for the two things that can keep
+   somebody waiting: an exchange with the sync server, and re-parsing the phrase
+   table after an alias list changes. It is not a control — nothing to aim at,
+   and inert to the pointer, so a gaze passing over it is not caught. Above the
+   panels, because both of those are started from inside one. */
+.busy-region {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 600;
+  pointer-events: none;
+}
+
+.busy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+
+.busy-spinner {
+  flex-shrink: 0;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+/* An icon named in a line of prose, drawn where it stands — see `prose-icons`.
+   Sized in `em` rather than `rem`, so it follows the type of whatever line it is
+   in rather than needing a rule per place prose appears, and nudged down by a
+   fraction so its middle sits on the middle of the letters beside it rather than
+   on their baseline. */
+.prose-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.22em;
+  /* The accent, because these are controls and every control in this app is
+     drawn in it while it is being worked. In running text that also tells an
+     icon from the words around it without a box or a rule to separate them. */
+  color: var(--accent);
+}
+
+.prose-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* A link answering to dwell — see `DwellLink`. The fill is an underline that
+   grows across the words, since a link is a run of text rather than a box and a
+   bar under a box would be under nothing. Padded a little and pulled back by the
+   same amount, so it is a larger target than the letters without moving them. */
+.dwell-link {
+  position: relative;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 0.3em 0.15em;
+  margin: -0.3em -0.15em;
+  border-radius: 4px;
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-repeat: no-repeat;
+  background-position: left 88%;
+  background-size: 100% 1px;
+}
+
+.dwell-link.dwelling {
+  animation: linkDwellFill var(--dwell-duration, 800ms) linear forwards;
+}
+
+@keyframes linkDwellFill {
+  from { background-size: 0 3px; }
+  to { background-size: 100% 3px; }
+}
+
+/* ── Focus ── */
+/* Every dwell control is also reachable by keyboard and switch access, so the
+   focused one has to be obvious. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* **Except the two text boxes, which say it on their own border.** An outline
+   sits just outside a border, so the ring around a focused box was a second line
+   drawn around a single box — the same double line edit mode avoids by tinting
+   the border rather than drawing an outline over it. These are the only
+   focusable things here that paint their own focus, and the message box carries
+   `autoFocus`, so the app opened showing it.
+ *
+ * **And every other text field**, which had the same double line: a field a
+ * dwell puts the caret in is a focused field, so every rest on a key or a
+ * passphrase in Settings drew its own accent border and a second ring three
+ * pixels outside it. `.caret-field` is every single-line field in the app — see
+ * `DwellInput` — and each says focus on its own border below. */
+.text-display:focus-visible,
+.heard-text:focus-visible,
+.caret-field:focus-visible {
+  outline: none;
+}
+
+/* The one sign of focus a field gives, so that taking the ring away above takes
+   nothing a keyboard user was relying on. The heard box had the ring taken away
+   and was given nothing in its place, which left it the one field in the app
+   that showed no focus at all. */
+.caret-field:focus,
+.heard-text:focus { border-color: var(--accent); }
+
+.phrase-cell:focus-visible,
+.slot-option:focus-visible,
+.emergency-btn:focus-visible {
+  outline-offset: -3px;
+}
+
+/* ── Reduced motion ── */
+/* The dwell fill is a progress indicator, not decoration — it tells the user
+   how long to hold, so it stays. Everything else stops moving. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .dwell-cursor-dot { animation: none !important; }
+
+  /* The held category — or emergency phrase — stops bobbing but stays raised,
+     filled and ringed, none of which moves. */
+  .filter-tab.is-held,
+  .emergency-btn.is-held { animation: none !important; }
+
+  /* The resting lozenge stops pulsing; it stays lit, and the app is still
+     dimmed behind it. */
+  .rest-btn.is-resting { animation: none !important; }
+
+  /* The live microphone's level stands still, part full; it is still lit, and
+     still there only while sound is coming in. */
+  .heard-live .mic-level {
+    animation: none !important;
+    transform: scaleY(0.6);
+  }
+
+  .signin-spinner,
+  .busy-spinner { animation-duration: 2s !important; }
+}

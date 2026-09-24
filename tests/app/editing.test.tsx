@@ -1,8 +1,6 @@
 // Writing a phrase and rewording one, which in edit mode happens in the message box rather than in a dialog.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, fireEvent, act } from '@testing-library/react'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { scrolledIntoView, unmeasuredGrid } from '../setup'
 import {
   $$,
@@ -25,6 +23,7 @@ import {
   editTitle,
   clearMessage,
 } from './harness'
+import { stylesheet } from '../stylesheet'
 
 // Regression guard, and the destructive kind: the editor used to open on
 // `phrase.text`, which has had its slots resolved into labels. Opening a
@@ -415,7 +414,7 @@ describe('edit mode', () => {
   // jsdom applies no cascade and lays nothing out, so this can only check that
   // the rule is written. Whether it takes effect is for the deploy preview.
   it('centres that strip on the border rather than below it', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const css = stylesheet()
 
     expect(css).toMatch(/\.app\.edit-mode \.topbar \{ padding-bottom: var\(--edit-bar-inset\); \}/)
     expect(css).toMatch(/\.edit-bar \{[^}]*\bbottom: var\(--edit-bar-inset\);/)

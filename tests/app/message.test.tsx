@@ -1,8 +1,6 @@
 // The message being built: the caret, the keys, the box that grows with what is in it, the controls on its borders, and the list of what has been said.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, fireEvent, act } from '@testing-library/react'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { setClipboardText, spoken } from '../setup'
 import {
   $$,
@@ -20,6 +18,7 @@ import {
   editTitle,
   clearMessage,
 } from './harness'
+import { stylesheet } from '../stylesheet'
 
 describe('placing the caret in the message box by dwell', () => {
   const composer = () => $<HTMLTextAreaElement>('.text-display')!
@@ -429,7 +428,7 @@ describe('the message box growing', () => {
   // The board underneath is what somebody is speaking with. A message box that
   // ate it would be a box with nothing to put in it.
   it('is capped in the stylesheet, which is where the board is protected', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const css = stylesheet()
     const rule = css.slice(css.indexOf('.text-display {'))
     const box = rule.slice(0, rule.indexOf('}'))
 
@@ -474,7 +473,7 @@ describe('the message box growing', () => {
  */
 describe('the mode strip', () => {
   const rule = () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
     const at = css.slice(css.indexOf('.topbar-modes {'))
     return at.slice(0, at.indexOf('}'))
   }
@@ -553,7 +552,7 @@ describe('the slot that empties the box', () => {
    * whether they land on the lines is a question for the deploy preview.
    */
   it('puts the two value controls on the lower border and the actions on the upper', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const css = stylesheet()
     const edge = (selector: string) => {
       const rule = css.slice(css.indexOf(`${selector} {`))
       const block = rule.slice(0, rule.indexOf('}'))
@@ -617,7 +616,7 @@ describe('the slot that empties the box', () => {
    * whether it looks right is a question for the deploy preview.
    */
   it('stands every border control on one grey ground, at the microphone’s size', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
     const block = (selector: string) => {
       const rule = css.slice(css.indexOf(`${selector} {`))
       return rule.slice(0, rule.indexOf('}'))

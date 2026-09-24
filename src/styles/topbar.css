@@ -1,0 +1,229 @@
+/* The topbar and the message box, and the icon buttons on its borders.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Topbar ── */
+.topbar {
+  /* Anchors the mode strip. Centring on the topbar rather than on the message
+     box itself puts it 4px off the box's true centre — the button rails either
+     side are not quite symmetric — which is not a difference anyone can see.
+
+     The top padding is where the message box begins, and the mode strip is
+     centred on that line — so the padding has to be at least half the strip or it
+     would overflow the top of the bar. The strip is a 1.5rem toggle in 0.25rem of
+     padding, which is 2rem, so this is 1rem — in rem rather than pixels, because
+     the strip it is half of is built out of rem and would otherwise outgrow its
+     own anchor at any zoom above 100%. **It has to equal `.topbar-modes`
+     `top`**: equal is what puts the strip on the border, and half the strip is
+     what keeps it inside the bar. */
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  /* The top padding is half the mode strip, which is built out of rem itself —
+     so it is written in rem too and the two cannot come apart when the root
+     font-size changes. */
+  /* Half of the tallest strip on each border, or it hangs over the bar. Every
+     strip is the microphone's height now, 2rem, so this is a rem either way. In
+     edit mode `--edit-bar-inset` takes the bottom, being the larger there. */
+  padding: 1rem 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--surface);
+
+  /* How tall either box is allowed to get. **One number for both**, because the
+     two are held to one height — see `topbar.tsx` — and a pair kept equal by
+     measurement but capped by two different numbers would come apart at exactly
+     the point one of them was full. Five lines of 1.35rem at 1.4 plus the
+     padding, and never more than a third of a short screen. */
+  --box-max-height: min(11rem, 33dvh);
+  /* The padding both boxes take, as two numbers rather than one shorthand: the
+     waiting line inside the message box has to stand exactly where the first
+     line of text does, and it can only ask for the halves separately. */
+  --box-pad-y: 0.75rem;
+  --box-pad-x: 0.9rem;
+}
+
+/* The message box and the one strip that belongs to it rather than to the pair
+   of boxes. The wrapper exists only to be positioned against: the microphone and
+   the two value controls hang off `.text-display-wrap`, where they hold one point
+   on screen whether listen mode is open or not, but the control that empties the
+   message has to follow the message — on a wide screen the wrapper's left edge is
+   the *question's* left edge, and a Clear there would be a Clear on somebody
+   else's words. `min-width: 0` for the reason the wrapper has it. */
+.message-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.text-display {
+  display: block;
+  width: 100%;
+  /* In rem, like the type inside it: a box fixed in pixels around text that
+     scales is a box that clips the moment anybody turns the zoom up. One line
+     of 1.35rem at 1.4, plus this padding, is 3.4rem — so the pair of numbers
+     below and the `.icon-btn` square that has to line up with them all move
+     together when the root font-size does. */
+  min-height: 3.5rem;
+  /* The box grows with what is in it — see `topbar.tsx`, which measures the
+     text and sets a height — and this is where it stops. Five lines of 1.35rem
+     at 1.4, plus the padding, and never more than a third of a short screen:
+     the board underneath is what somebody is speaking with, and a message box
+     that ate it would be a box with nothing to put in it. */
+  max-height: var(--box-max-height);
+  padding: var(--box-pad-y) var(--box-pad-x);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1.35rem;
+  font-weight: 500;
+  font-family: var(--font);
+  color: var(--text);
+  line-height: 1.4;
+  resize: none;
+  overflow-y: auto;
+  scrollbar-width: none;
+  outline: none;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Up and down inside a text box that has more in it than shows — see
+   `BoxScroll`. Down the box's right edge, in padding the box gives up only while
+   they are there (`.has-scroll`), so no word ever sits under one.
+ *
+ * **Inset from the top and the bottom** by more than the strips on the message
+ * box's border reach into it: the three actions stand 1.75rem into its upper
+ * right corner and the language and the voice most of a rem into its lower one.
+ * Two targets in one place is the one thing this layout must never do. The inset
+ * only matters at the cap, which is the only time these are drawn, and the cap
+ * leaves room for both. */
+.box-scroll {
+  position: absolute;
+  top: 2rem;
+  bottom: 1.1rem;
+  right: 0.3rem;
+  width: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 2;
+  /* The column is a frame, not a target; only the two buttons in it are. */
+  pointer-events: none;
+}
+
+.box-scroll .pane-scroll-btn {
+  flex: 0 0 2rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  pointer-events: auto;
+}
+
+/* The end with nowhere to go keeps its place and answers to nothing, so the one
+   that does never moves under a resting pointer. */
+.box-scroll .pane-scroll-btn.is-idle { pointer-events: none; }
+
+/* The room the arrows stand in, taken from the words only while they are there. */
+.text-display.has-scroll,
+.heard-text.has-scroll {
+  padding-right: calc(var(--box-pad-x) + 2.3rem);
+}
+
+/* The heard box and its arrows, positioned against the box rather than against
+   everything the column holds under it. Its height is the box's, so the tools
+   below still ride the box's lower border. */
+.heard-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.text-display::-webkit-scrollbar { display: none; }
+.text-display:focus { border-color: var(--accent); }
+.text-display::placeholder { color: var(--text-muted); font-weight: 400; }
+
+/* ── Icon Buttons ── */
+.icon-btn {
+  position: relative;
+  /* Square, and the same height as the message box it sits beside — see the
+     note there for why that height is in rem. */
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--cell);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  overflow: hidden;
+  margin: 0 4px;
+  outline: none;
+  -webkit-user-select: none;
+}
+
+
+/* The same button painted small enough to ride a border — see `.topbar-clear`.
+   The bordered `--cell` square is dropped for the ground the strip paints, and
+   the invisible hit area is the one `.mode-btn` carries, since this is now the
+   same kind of control sitting in the same kind of place. */
+.icon-btn.on-border {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.icon-btn.on-border::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.icon-btn.on-border svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* **The one the whole board exists to reach** — speak outside edit mode, save
+   inside it — told apart by colour and by being last in its row, and no longer
+   by size: every control on the two boxes' borders is the microphone's height,
+   so the border furniture reads as one set. It was a 3rem glyph for a while.
+   Quiet in the muted grey with nothing to say, like everything else here. */
+.icon-btn.on-border.is-primary { color: var(--accent); }
+.icon-btn.on-border.is-primary:disabled { color: var(--text-muted); }
+
+.icon-btn svg {
+  width: 22px;
+  height: 22px;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.icon-btn .dwell-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: var(--accent-dim);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: none;
+}
+
+.icon-btn.dwelling .dwell-ring {
+  animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
+}
+
+.icon-btn.selected {
+  background: var(--selected-flash);
+}

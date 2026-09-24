@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, act } from '@testing-library/react'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import App from '../../src/App'
 import { DEFAULT_SETTINGS } from '../../src/core/store'
+import { stylesheet } from '../stylesheet'
 
 // Category editing spans the filter bar, the rename dialog and the editor strip
 // under the message box, so it gets its own file rather than swelling
@@ -833,7 +832,7 @@ describe('paging the category bar', () => {
     const named = $$('.filter-arrow-end').map(a => a.getAttribute('aria-label'))
     expect(named).toEqual(['Go to first category', 'Go to last category'])
 
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const css = stylesheet()
     // Width alone would take the arrows off a tablet in portrait as well.
     expect(css).toMatch(
       /@media \(max-width: 700px\) and \(orientation: portrait\) \{\s*\.filter-arrow-end \{\s*display: none;/,

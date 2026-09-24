@@ -1,0 +1,98 @@
+/* The colour, size and spacing tokens every other file reads, and the page itself.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+:root {
+  /* System stack rather than a webfont: the app has to work with no network,
+     and a blocking font request would leave the grid unreadable offline. */
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --cell: #1e1e1e;
+  --cell-hover: #252525;
+  --border: #2e2e2e;
+  --text: #f2f2f2;
+  /* The dimmer of the two, for sublabels, hints and counts. It was #888, which
+     is 4.7:1 on a cell and **4.3:1 on one being hovered** — under the 4.5:1 AA
+     asks for, in the one state a control is in while somebody is looking at it.
+     This clears 7:1 against every surface in the palette, hover included, which
+     is what AAA asks and what an app read by people with low vision should
+     hold. `src/structure.test.ts` does the arithmetic. */
+  --text-muted: #b0b0b0;
+  --accent: #22c55e;
+  --accent-dim: rgba(34, 197, 94, 0.15);
+  /* Two urgencies, told apart by **being different colours entirely**. `--danger`
+     is destruction — delete a phrase, empty the board, sign out — and it is the
+     only red in the app. `--urgent` is the emergency bar, which is not destroying
+     anything and must not be read as if it were: it was red, and a red bar said
+     *careful* where it needed to say *here, now*. Nothing outside those two ideas
+     is either colour anywhere in the app. */
+  --danger: #ef4444;
+  --urgent: #4fcaf0;
+  --dwell-color: #22c55e;
+  --selected-flash: rgba(34, 197, 94, 0.3);
+  /* The one deliberate exception to the single-accent palette. A category held
+     for reordering cannot be another green pill: "selected" already is one, and
+     the two states must never be mistaken for each other. Blue also stays
+     separable from green under the common colour-vision deficiencies. */
+  --held: #60a5fa;
+  /* Rest is the other exception, and has to be told apart from both of the
+     above at a glance — it is the way out when nothing else responds. */
+  --rest: #f59e0b;
+  /* The Peri mark's own gold. Used by the logo and nothing else — the interface
+     stays green, so this never competes with a control for meaning. */
+  --brand: #fcdd6b;
+  /* **The ground under every control that rides the message box and the heard
+     box** — the microphone, the modes, the actions, the one that empties a box,
+     the heard box's tools, the language and the voice, and the edit strip. One
+     value for all of them, so the border furniture reads as one set.
+   *
+   * **Grey at fifteen per cent, mixed rather than laid over.** It is the colour
+     a fifteen-per-cent grey makes on the bar, but opaque: every one of these sits
+     *on* a border, and a translucent ground let the box's border run straight
+     through the glyphs — the focused box's green line crossing copy, paste and
+     speak. Solid black was the first answer to that; this is the same answer in
+     the lighter grey. */
+  --border-ground: color-mix(in srgb, rgb(128 128 128) 15%, var(--surface));
+
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input, textarea, [contenteditable] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  /* dvh last so it wins where supported — with the order reversed, a retracting
+     mobile toolbar pushes the emergency bar below the fold. */
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg);
+}

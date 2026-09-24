@@ -1,0 +1,374 @@
+/* Edit mode: the box as an editor, the category dialog, the slots and the slot picker.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Edit mode ── */
+.app.edit-mode .phrase-cell.edit-mode,
+.app.edit-mode .emergency-btn.edit-mode {
+  cursor: pointer;
+  outline: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* The box is the phrase editor in edit mode, so it keeps the text cursor it has
+   everywhere else and says which mode it is in with its own border. Dashed is
+   the same cue the phrase cells carry — which surfaces edit mode has changed the
+   meaning of — but on the box it has to be the border rather than an outline
+   over it: the box already has one, and an outline sits just outside it, so the
+   two read as a double line drawn around a single box. */
+.app.edit-mode .text-display {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* Focus still brightens it, and has to be said again here to outrank the rule
+   above. The style says which mode the board is in, the colour says where the
+   typing will go. */
+.app.edit-mode .text-display:focus { border-color: var(--accent); }
+
+/* The dwell progress everywhere else is a child element; a textarea cannot hold
+   one, so it is painted as a background layer instead. Same bar, no wrapper —
+   which keeps the topbar's flex layout exactly as it was. */
+.text-display.dwelling {
+  background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  animation: boxDwellFill var(--dwell-duration, 800ms) linear forwards;
+}
+
+/* Painted rather than sized, which is the whole of why the two boxes cannot use
+   the `dwellFillH` every other control's `.dwell-bar` uses: that one animates
+   `width`, and these have nothing inside them to be the bar. */
+@keyframes boxDwellFill {
+  from { background-size: 0 3px; }
+  to { background-size: 100% 3px; }
+}
+
+/* Room for the lower half of the strip — half its height, and the same number
+   the strip is positioned by. Only in edit mode, so it is a cost editing pays
+   and talking does not: the bar is 8px taller there and unchanged everywhere
+   else. */
+.app.edit-mode {
+  --edit-bar-inset: 1.25rem;
+}
+
+.app.edit-mode .topbar { padding-bottom: var(--edit-bar-inset); }
+
+/* The other strip, on the lower border of the message box, and centred on it
+   exactly as `.topbar-modes` is on the upper one. The words are in the box; this
+   is everything else a phrase has, which is two things — where it is filed and
+   how it sounds.
+
+   Riding the border rather than sitting in a band below it is the same bargain
+   the modes strike above: what it costs is the bottom-centre of the box, and
+   what it saves is the grid. Opaque black for the same reason too — it sits *on*
+   the box, and the border and the typed text showed through the gaps.
+
+   **The inset is one number used twice**, and it has to stay that way. It is
+   `.topbar` padding-bottom in edit mode, which is where the box's lower border
+   falls; it is this strip's `bottom`, which with `translateY(50%)` is where the
+   strip's own centre line falls. Equal is what puts the strip *on* the border.
+   Written as two numbers they drifted apart immediately — the padding grew to
+   make room and the strip stayed where it was, leaving it centred 20px below
+   the border it was meant to be riding.
+
+   The number is **half the strip's height**, which is why the height is stated
+   here rather than left to the content: half is what puts the strip's lower
+   edge exactly on the bottom of the bar, so it reaches the border without
+   hanging over the category tabs. Both are in rem, so the strip and the room
+   made for it grow together with the type inside them. */
+.edit-bar {
+  position: absolute;
+  bottom: var(--edit-bar-inset);
+  height: 2.5rem;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  /* Above the app, below the panel and the dialogs — the same layer the modes
+     sit on, since the two strips are the same kind of thing. */
+  z-index: 90;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* **It never scrolls**, which it used to: sideways, on a phone, with nothing a
+     gaze could use to do it — so the category trigger at its far end was the
+     one control in the app a dwell user could see the edge of and not reach.
+     The voice has gone to the box's corner since, which left a title and one
+     trigger; the title is what gives way now, down to an ellipsis, and the
+     control never leaves the strip. */
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+
+  background: var(--border-ground);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+
+/* Tighter than the same control in a settings row: this one is riding a border
+   rather than sitting in a panel, and every pixel of it is a pixel of grid. */
+.edit-bar .picker-trigger {
+  padding: 5px 9px;
+  font-size: 0.9rem;
+  /* The strip's ground, not a second one laid on it — two fifteen-per-cent greys
+     stacked would be a different grey from every other control on the border. */
+  background: transparent;
+}
+
+.edit-bar .voice-trigger { width: 150px; }
+
+.edit-bar-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding-left: 2px;
+  /* What gives way on a narrow screen, so the trigger beside it never does. The
+     whole of it is still read out: the strip carries its own label. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Saying why Save has gone quiet. Amber rather than the danger red: nothing is
+   being destroyed, and nothing has gone wrong — the phrase is simply already
+   there. */
+.edit-bar-title.is-warning { color: var(--rest); }
+
+/* An emergency phrase has no category to choose, and the strip says so rather
+   than dropping the control — a strip that loses one between one phrase and the
+   next moves everything beside it. */
+.edit-bar-fixed {
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* The same control as the voice trigger beside it, and deliberately the same
+   shape: two choices on one strip, each opening a full-screen grid, and no
+   reason for anybody to learn two. */
+.category-trigger { width: 132px; }
+
+/* The last tile in the category grid is not a category. */
+.picker-tile.is-new {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+/* Delete sits in the topbar rail in edit mode, and is the one red thing in it:
+   deleting a phrase is the change this app offers no way back from. */
+.icon-btn.danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+
+.icon-btn.danger .dwell-ring { background: color-mix(in srgb, var(--danger) 35%, transparent); }
+
+/* ── CategoryModal ── */
+/* The one dialog left. The phrase editor was one of these until the message box
+   took the job over — a dialog covered the very phrases being edited, and every
+   one of its controls was a target somewhere the pointer had never been. */
+.edit-modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.edit-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+
+.edit-modal-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.edit-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.edit-action-btn {
+  position: relative;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--surface);
+}
+
+.edit-action-btn.save   { background: var(--accent); color: #000; border-color: var(--accent); }
+.edit-action-btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); margin-right: auto; }
+.edit-action-btn.is-disabled { opacity: 0.4; cursor: default; }
+
+.edit-action-btn.dwelling { filter: brightness(1.2); }
+.edit-action-btn .dwell-bar { background: rgba(255,255,255,0.3); }
+.edit-action-btn.danger .dwell-bar { background: color-mix(in srgb, var(--danger) 30%, transparent); }
+
+/* ── Fill-in-the-blank slots ── */
+/* Phrases from the table carry choice slots ("Please turn {control} the
+   lights"). Show them as a distinct token so it reads as something to pick
+   rather than as literal wording. */
+.phrase-slot {
+  color: var(--accent);
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+  padding-bottom: 1px;
+}
+
+/* A blank holds no characters — see `BLANK` — so the gap has to be drawn rather
+   than typed. The minimum width is what keeps the dashed underline visible; an
+   empty inline span is nothing at all, and a blank nobody can see is a blank
+   nobody fills. */
+.phrase-slot.is-blank {
+  color: var(--text-muted);
+  border-bottom-color: var(--text-muted);
+  letter-spacing: 0.05em;
+  display: inline-block;
+  min-width: 2.5ch;
+  vertical-align: baseline;
+}
+
+/* ── SlotPicker ── */
+.slot-picker-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  z-index: 320;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.slot-picker {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 720px;
+  /* dvh, not vh: on a phone `vh` is the viewport with the browser chrome hidden,
+     so a picker sized in it runs under the address bar and its last row cannot
+     be reached. The dialog does not scroll — the options inside it do, by dwell,
+     so the preview above them and Cancel below them never leave the screen. */
+  max-height: 80dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+
+.slot-picker-preview {
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--text);
+}
+
+.slot-picker-preview .phrase-slot.is-current {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 6px;
+  padding: 2px 8px;
+  border-bottom: none;
+}
+
+.slot-picker-preview .phrase-slot.is-filled {
+  color: var(--text);
+  border-bottom: none;
+}
+
+.slot-picker-step {
+  text-align: center;
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+/* The options' pane, which is the part of the picker that grows and so the part
+   that scrolls. `min-height: 0` lets it give up height to the dialog's cap rather
+   than pushing Cancel off the bottom. */
+.slot-scroller {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-radius: 10px;
+}
+
+.slot-options {
+  /* Room for the lift a held option makes, which would otherwise be clipped at
+     the pane's edge. */
+  padding: 4px 2px;
+}
+
+.slot-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.slot-option {
+  position: relative;
+  overflow: hidden;
+  padding: 18px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--cell);
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+
+.slot-option:hover, .slot-option.dwelling { background: var(--cell-hover); }
+.slot-option.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 1500ms) linear forwards; }
+
+.slot-cancel {
+  position: relative;
+  overflow: hidden;
+  align-self: center;
+  padding: 10px 28px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.slot-cancel.dwelling { color: var(--text); background: var(--cell-hover); }
+.slot-cancel .dwell-bar { animation: none; }
+.slot-cancel.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
+
+/* ── Add-emergency tile (edit mode) ── */
+/* Nothing of its own any more. It was a dashed outline, which is how this app
+   draws "nothing here yet", but the tools at the end of this bar are bare glyphs
+   now and an outline is the thing they do not have — see `.emergency-tool`,
+   which is where the width, the colour and the icon come from. The class stays
+   because the tests reach for it by name. */

@@ -1,0 +1,337 @@
+/* Editing and arranging by hand: the category tabs, the emergency bar and the phrase grid.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Category editing (edit mode) ── */
+.edit-modal-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 1.05rem;
+  outline: none;
+}
+
+.edit-modal-input:focus { border-color: var(--accent); }
+.edit-modal-input::placeholder { color: var(--text-muted); }
+
+.edit-modal-note {
+  margin: -6px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Ordering controls, parked past the scroll arrows so they hold still while
+   the tabs move under them. Bigger than the pills in the scroller, since these
+   are the ones a user has to find. */
+.filter-bar-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+}
+
+/* The add / sort / reorder controls at the end of the bar.
+ *
+ * Bare glyphs: no border, no padding, no pill. They sit at the end of a row of
+ * pills, and a tool drawn as one more pill reads as one more category — while
+ * these are the controls a user has to pick out of the row without reading it.
+ * So what makes them findable is the icon itself, drawn heavier and larger than
+ * anything else in the bar, rather than a box drawn around it.
+ *
+ * The box stays as a hit area, sized rather than padded, which is also what the
+ * fill has to paint when the mode is on. The size is what the padding used to
+ * come to, so the bar is exactly as tall as it was. The border stays too and is
+ * merely transparent: `is-on` gives it a colour, and a border appearing from
+ * nothing would shift the icon by a pixel every time the mode was switched. */
+.filter-bar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 46px;
+  height: 36px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+/* One size across both bars — see `.emergency-tool svg`, which matches it — and
+   in rem so it tracks the text size rather than sitting at a fixed pixel count
+   beside it. Heavier than the icons carry themselves, and set here rather than in
+   the markup: `PlusIcon` is also the add control in the profile panel, where it
+   sits in an ordinary button and wants an ordinary weight. */
+.filter-bar-btn svg { width: 1.2rem; height: 1.2rem; stroke-width: 3; }
+
+@media (max-width: 700px) {
+  .filter-bar-btn svg { width: 1rem; height: 1rem; }
+}
+
+/* The pill is gone, so a dwell says so with the glyph and the wash rising behind
+   it rather than by lighting up an outline. */
+.filter-bar-btn.dwelling {
+  color: var(--accent);
+  border-color: transparent;
+  background: transparent;
+}
+
+/* Filling bottom up, the way the topbar icon buttons do. A 3px line along the
+   bottom reads as an underline on something with an edge to underline; with the
+   pill gone there is nothing for it to sit under, and a rising wash reads as the
+   button filling instead. Translucent, so the glyph stays legible through it,
+   and clipped by the pill radius `.filter-tab` already sets with its
+   `overflow: hidden`.
+
+   The width and height have to be undone by hand: the base rule sizes this as a
+   3px sliver, and `width: 0` would beat `inset` at deciding how wide it is. */
+.filter-bar-btn .dwell-bar {
+  inset: 0;
+  width: auto;
+  height: auto;
+  background: var(--accent-dim);
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+
+.filter-bar-btn.dwelling .dwell-bar {
+  animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
+}
+
+/* The one state that does draw a box. Reordering is a mode, and a mode has to be
+   loud — this is the only thing on either bar saying the tabs have stopped being
+   things to open and become things to pick up. It paints the hit area the bare
+   glyph was already occupying, so nothing moves as it comes and goes. */
+.filter-bar-btn.is-on {
+  color: #000;
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.filter-bar-btn[aria-disabled] {
+  opacity: 0.4;
+}
+
+/* ── Reordering categories ── */
+
+/* Solid rather than the dashed rename outline: in this mode a tab is a thing
+   to pick up, not a thing to open. */
+.filter-tab.reorderable {
+  cursor: grab;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* The tab in the air. It should be the loudest thing in the bar — it is what
+   the user is holding — so it gets colour, weight, a socket ring and a slow
+   bob. Ghosting it, as this once did, read as "disabled" instead.
+
+   The cue has to survive `.filter-scroll` clipping its vertical overflow, which
+   is why the bob is small and the padding there was widened to fit it. */
+.filter-tab.is-held {
+  cursor: grabbing;
+  color: #000;
+  font-weight: 700;
+  background: var(--held);
+  border-color: var(--held);
+  border-style: solid;
+  box-shadow:
+    inset 0 0 0 2px var(--surface),
+    inset 0 0 0 4px var(--held),
+    0 4px 10px rgba(0, 0, 0, 0.5);
+  /* The resting position, and what remains when the bob is switched off under
+     reduced motion — held still reads as raised. */
+  transform: translateY(-4px);
+  animation: heldBob 1.1s ease-in-out infinite;
+}
+
+@keyframes heldBob {
+  0%, 100% { transform: translateY(-2px); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Every other category, while one is in the air: colour alone must not be the
+   thing carrying the message, and this makes the whole bar change state so it
+   reads from the corner of an eye. */
+.filter-tab.is-drop-zone {
+  color: var(--text);
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--held) 70%, transparent);
+}
+
+/* Where a dragged tab would land. */
+.filter-tab.is-drop-target {
+  border-color: var(--accent);
+  box-shadow: -3px 0 0 var(--accent);
+}
+
+/* ── Reordering the emergency bar ── */
+
+/* The tools at the end of the bar. Sized like the add tile they sit beside, so
+   the pair keeps a constant width and the reorder control does not move as the
+   mode is switched. */
+/* Bare glyphs, for the same reason as the category tools: these sit in a row of
+   red phrase tiles, and a tool drawn as another tile reads as another phrase —
+   on the one bar where being read wrongly matters most.
+ *
+ * The same box as the category tools, to the pixel, because they are the same
+ * four glyphs and this bar has six phrases to fit besides. It was 84px wide and
+ * stretched to whatever height the phrases came to, which was a tile's worth of
+ * room spent on something with no words in it — and made the rising dwell wash a
+ * tall column here and a small lozenge there, off the same two icons.
+ *
+ * Centred rather than stretched, so a phrase long enough to wrap does not drag
+ * the tools taller with it. Fixed either way, so the pair holds still as the
+ * mode is switched. */
+.emergency-tool {
+  flex: 0 0 46px;
+  height: 36px;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+/* The two tools sit closer to each other than to anything else, the way the
+   category pair does at 6px. They are direct children of the bar and take its
+   1.5rem gap like the phrases do, and there is no wrapper to give them a gap of
+   their own — so the second one pulls itself back by the difference. Only the
+   second: the space between the phrases and the pair is the bar's rhythm and
+   stays. */
+.emergency-tool + .emergency-tool { margin-left: calc(6px - 1.5rem); }
+
+/* The same size as the category tools — see `.filter-bar-btn svg`. The two sets
+   sit at opposite ends of the screen and are the same four glyphs, so they are
+   held to one size rather than each tuned to its own bar. */
+.emergency-tool svg { width: 1.2rem; height: 1.2rem; stroke-width: 3; }
+
+/* Not the red wash the phrases use — these are the tools beside the bar, not
+   something to say out loud, and the tint would be the one cue claiming
+   otherwise. The glyph and the wash rising behind it carry the dwell instead. */
+.emergency-tool.dwelling {
+  color: var(--accent);
+  background: transparent;
+}
+
+/* Bottom up and in the accent rather than left to right in red, for both of the
+   reasons above: it is an icon button now, and it is not a phrase. See
+   `.filter-bar-btn .dwell-bar`, including why the size has to be undone. */
+.emergency-tool .emergency-dwell-bar {
+  inset: 0;
+  width: auto;
+  height: auto;
+  background: var(--accent-dim);
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+
+.emergency-tool.dwelling .emergency-dwell-bar {
+  animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
+}
+
+.emergency-tool[aria-disabled] { opacity: 0.4; }
+
+/* Filled while reordering is on, the same way the category tools are: the mode
+   is the loud part, and the two bars should not say it in different voices. */
+.emergency-tool.is-on {
+  color: #000;
+  background: var(--accent);
+  border-color: transparent;
+}
+
+/* Only the glyph shrinks on a narrow screen now. The tools used to give back
+   half their width here, from 84px to 48px, because two of them beside six
+   phrases was a lot of bar to spend on icons — but 46px at every width is
+   narrower than the concession was, so there is nothing left to give back. */
+@media (max-width: 700px) {
+  .emergency-tool svg { width: 1rem; height: 1rem; }
+}
+
+/* The same three cues the tabs use, in the bar's own colour. Solid rather than
+   the dashed edit outline: in this mode a button is a thing to pick up, not a
+   thing to open. */
+.emergency-btn.reorderable {
+  cursor: grab;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* The phrase in the air — the loudest thing on the bar, because it is what the
+   user is holding. A lighter blue on the bar's own, so it cannot be read as one of the
+   emergency buttons it is sitting among. */
+.emergency-btn.is-held {
+  cursor: grabbing;
+  background: var(--held);
+  border-color: var(--held);
+  box-shadow:
+    inset 0 0 0 2px var(--surface),
+    inset 0 0 0 4px var(--held),
+    0 4px 10px rgba(0, 0, 0, 0.5);
+  transform: translateY(-4px);
+  animation: heldBob 1.1s ease-in-out infinite;
+}
+
+.emergency-btn.is-held .emergency-label { color: #000; }
+
+/* Every other phrase, while one is in the air. Colour alone must not carry the
+   message, so the whole bar changes state and reads from the corner of an eye. */
+.emergency-btn.is-drop-zone {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--held) 70%, transparent);
+}
+
+/* Where a dragged phrase would land. */
+.emergency-btn.is-drop-target {
+  border-color: var(--accent);
+  box-shadow: -3px 0 0 var(--accent);
+}
+
+/* ── Arranging the phrase grid ── */
+/* The same three states the category tabs and the emergency bar use, on the one
+   surface where there are two thousand of them. Written against `.phrase-cell`
+   rather than shared, because a cell is a block in a grid and those two are
+   pills in a row: the lift has nowhere to bob to and the drop target is a whole
+   edge rather than a left-hand rule. */
+
+.phrase-cell.reorderable {
+  cursor: grab;
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* The phrase in the air. The loudest thing on the grid, because it is what the
+   user is holding and the grid it is sitting in is otherwise uniform. */
+.phrase-cell.is-held {
+  cursor: grabbing;
+  background: var(--held);
+  border-color: var(--held);
+  box-shadow:
+    inset 0 0 0 2px var(--surface),
+    inset 0 0 0 4px var(--held),
+    0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.phrase-cell.is-held .phrase-cell-text { color: #000; }
+
+/* Every other cell, while one is in the air. Colour alone must not carry the
+   message, so the whole grid changes state and reads from the corner of an eye. */
+.phrase-cell.is-drop-zone {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--held) 70%, transparent);
+}
+
+/* Where a dragged phrase would land. */
+.phrase-cell.is-drop-target {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
