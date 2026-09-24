@@ -32,6 +32,7 @@ const sent = (fetcher: ReturnType<typeof vi.fn>) =>
   JSON.parse(String((fetcher.mock.calls as unknown as [string, RequestInit][])[0][1].body)) as {
     model: string
     max_tokens: number
+    output_config?: { effort?: string }
     system: SystemBlock[]
     tools: { type: string; name: string; max_uses: number }[]
     messages: { role: string; content: string }[]
@@ -165,8 +166,70 @@ describe('asking for answers', () => {
   it('asks the model that was chosen in Settings', async () => {
     const fetcher = replies('Tea please')
     vi.stubGlobal('fetch', fetcher)
+    await suggestReply('Do you want tea?', '', 'claude-sonnet-5')
+    expect(sent(fetcher).model).toBe('claude-sonnet-5')
+  })
+
+  // A board last saved naming the model this build no longer offers asks the
+  // one that succeeded it, rather than the quickest.
+  it('asks the successor of a model it used to offer', async () => {
+    const fetcher = replies('Tea please')
+    vi.stubGlobal('fetch', fetcher)
     await suggestReply('Do you want tea?', '', 'claude-opus-5')
-    expect(sent(fetcher).model).toBe('claude-opus-5')
+    expect(sent(fetcher).model).toBe('claude-opus-5-5')
+  })
+
+  /**
+   * **A model that always thinks spends its thinking out of `max_tokens`.** At
+   * the budget the others get, it could spend the lot before writing a single
+   * answer — an empty list, on the board, from a service that worked. So it
+   * gets room for both, and is asked to think as little as it will.
+   */
+  for (const model of ['claude-opus-5-5', 'claude-fable-5-1']) {
+    it(`gives ${model} room to think and asks it to keep it short`, async () => {
+      const fetcher = replies('Tea please')
+      vi.stubGlobal('fetch', fetcher)
+      await suggestReply('Do you want tea?', '', model)
+
+      expect(sent(fetcher).max_tokens).toBeGreaterThan(1200)
+      expect(sent(fetcher).output_config).toEqual({ effort: 'low' })
+    })
+  }
+
+  // Haiku takes no effort at all and refuses a request that names one.
+  for (const model of ['claude-haiku-4-5-20251001', 'claude-sonnet-5']) {
+    it(`asks ${model} for no effort, and keeps it to the short budget`, async () => {
+      const fetcher = replies('Tea please')
+      vi.stubGlobal('fetch', fetcher)
+      await suggestReply('Do you want tea?', '', model)
+
+      expect(sent(fetcher).output_config).toBeUndefined()
+      expect(sent(fetcher).max_tokens).toBeLessThanOrEqual(1200)
+    })
+  }
+
+  /**
+   * A thinking model's answer comes after its thinking. Read by position, the
+   * first block is the thinking and the board would be handed nothing — read by
+   * type after the last block that is not text, it is the answers.
+   */
+  it('reads the answers after a thinking block', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              content: [
+                { type: 'thinking', thinking: '', signature: 'x' },
+                { type: 'text', text: 'Tea please\nNo thanks' },
+              ],
+            }),
+          ),
+      ),
+    )
+    const result = await suggestReply('Do you want tea?', '', 'claude-opus-5-5')
+    expect(result).toEqual({ status: 'ok', replies: ['Tea please', 'No thanks'] })
   })
 
   /**

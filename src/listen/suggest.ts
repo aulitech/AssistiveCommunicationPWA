@@ -28,7 +28,7 @@
 import { reportFailure } from '../core/report'
 import { type Phrase } from '../core/phrases'
 import { soleLink, stripMarkdown } from '../core/markdown'
-import { loadReplyKey, readReplyModel, type ReplyTurn } from '../core/store'
+import { loadReplyKey, readReplyModel, replyModelThinks, type ReplyTurn } from '../core/store'
 
 const ENDPOINT = 'https://api.anthropic.com/v1/messages'
 /** Listing the models costs nothing and needs a working key, which makes it the check. */
@@ -54,6 +54,24 @@ export const headersFor = (key: string) => ({
  * dropped with the rest of the parse.
  */
 const MAX_TOKENS = 1200
+
+/**
+ * The same backstop for a model that thinks before it answers, and cannot be
+ * asked not to — `thinks` in `REPLY_MODELS`.
+ *
+ * **Its thinking is paid out of `max_tokens` too.** At 1,200 a model thinking
+ * at its default depth can spend the whole budget before it writes a single
+ * answer, and the list comes back empty — which reads, on the board, as the
+ * service having nothing to say. So those models get room for both, and are
+ * asked to think as little as they will (`effort: 'low'`): this is somebody
+ * with a person waiting in front of them, and the depth that effort buys is
+ * spent on the answers rather than before them.
+ *
+ * A ceiling rather than a spend — only what is used is paid for — and low
+ * enough that a model that did think its way to the top of it would still
+ * answer inside the wait the apology covers.
+ */
+const MAX_TOKENS_THINKING = 4000
 
 /**
  * How many answers the board is offered, and it is a number about the board
@@ -409,13 +427,19 @@ export async function suggestReply(
   const key = loadReplyKey()
   if (!key) return fail('No key for suggested replies — add one in Settings')
 
+  const chosen = readReplyModel(model)
+  const thinks = replyModelThinks(chosen)
+
   try {
     const response = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...headersFor(key) },
       body: JSON.stringify({
-        model: readReplyModel(model),
-        max_tokens: MAX_TOKENS,
+        model: chosen,
+        max_tokens: thinks ? MAX_TOKENS_THINKING : MAX_TOKENS,
+        // Only where the model thinks: Haiku takes no effort at all and would
+        // refuse the request for naming one.
+        ...(thinks && { output_config: { effort: 'low' } }),
         tools: [SEARCH_TOOL],
         // **The board is cached.** It is thirteen thousand tokens on a board
         // nobody has added to, and the same from one question to the next, so
