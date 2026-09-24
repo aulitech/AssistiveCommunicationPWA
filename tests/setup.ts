@@ -59,7 +59,7 @@ export const setAudioPlays = (ok: boolean) => {
  *
  * `core/virtual.ts` renders every cell in the table where it cannot measure a
  * viewport, which is the right answer in a browser that has not laid out and
- * was the answer here for every test: two and a half thousand cells mounted for
+ * was the answer here for every test: over two thousand cells mounted for
  * each one, half a second each, and most of the suite's running time.
  *
  * So the grid is given a viewport — four columns of 80px rows in 400px of

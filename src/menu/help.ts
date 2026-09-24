@@ -58,7 +58,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         'Rest on any phrase in the grid to add it to the box.',
         'Type in the box to narrow the grid to phrases that match what you are typing.',
-        'Use the tabs above the grid to show one category at a time.',
+        'Use the tabs above the grid to show one category at a time. Every phrase Peri comes with is under Library, each one once; the categories you make yourself sit beside it.',
         'The buttons on the right scroll the grid: the middle two move a little at a time and keep going while you rest on them, the outer two jump to the very top or bottom.',
       ),
       text('When the message is ready, the three at the top right of the box are what becomes of it:'),
@@ -315,7 +315,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Texting',
     blocks: [
       text(
-        'The Texting category holds what the common texting acronyms stand for — "Be right back", "Talk to you later", "In my opinion" and a couple of hundred more.',
+        'Library includes what the common texting acronyms stand for — "Be right back", "Talk to you later", "In my opinion" and a couple of hundred more.',
       ),
       text(
         'They are written out in full rather than as BRB or TTYL, because everything here can be spoken aloud and letters cannot. Typing the acronym still finds most of them: type "ttyl" and the grid narrows to "Talk to you later".',

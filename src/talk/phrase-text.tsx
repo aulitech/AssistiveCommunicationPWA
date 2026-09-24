@@ -51,7 +51,7 @@ function LineEl({ line }: { line: Line }) {
 
 /**
  * The phrase, laid out. Cheap for a phrase with no markup in it — which is every
- * one of the two and a half thousand Peri ships — because the parse gives up on
+ * one of the two thousand-odd Peri ships — because the parse gives up on
  * the first character when there is nothing to find.
  */
 export function PhraseText({ segments }: { segments: Segment[] }) {

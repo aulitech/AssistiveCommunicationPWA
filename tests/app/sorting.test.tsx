@@ -7,7 +7,7 @@ import { spoken, unmeasuredGrid } from '../setup'
 //
 // Every assertion here is about what is on screen and in what order, so the grid
 // has to hold only the phrases this file put there — the board also carries the
-// two and a half thousand phrases Peri ships. `showSorted` is what does that.
+// two thousand-odd phrases Peri ships. `showSorted` is what does that.
 
 let container: HTMLElement
 

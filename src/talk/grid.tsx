@@ -770,7 +770,7 @@ export function PhraseGrid({
  * on any screen this app is used on.
  *
  * **Measuring needs something rendered to measure**, so the alternative to a
- * guess is mounting all two and a half thousand cells once on the way to
+ * guess is mounting all two thousand-odd cells once on the way to
  * windowing them down, which is the most expensive thing the board does and it
  * did it every time it opened.
  *
