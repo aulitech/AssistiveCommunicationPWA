@@ -29,14 +29,16 @@ They are easy to confuse, because both run on every push and both report a check
 | | GitHub Actions | Netlify |
 |---|---|---|
 | **Decides** | whether a change may merge | nothing |
-| **Runs** | `pnpm check` — format, types, lint, ~1,800 tests | `pnpm build` |
-| **On a pull request** | the checks `check` and `version label` | a deploy preview, in about 20 seconds |
+| **Runs** | `pnpm check` — format, types, lint, ~1,900 tests — and `pnpm e2e`, the browser tests | `pnpm build` |
+| **On a pull request** | the checks `check`, `version label` and `browser` | a deploy preview, in about 20 seconds |
 | **On `main`** | the same checks | a production build, which is **not** published |
 | **Also** | the Publish workflow, by hand | hosting, the CDN, the redirects, and `/api/sync` with Netlify Blobs behind it |
 
 Netlify ran `pnpm check && pnpm build` as its build command until September 2026, which made every preview eight to ten minutes long and left the test suite as the only thing standing between a change and `main`. It builds now, and nothing else.
 
-**`main` is protected by a ruleset**: both checks, a pull request, rebase merges only, no force pushes, no deletion, and no bypass for anybody — including the person who owns the repository. A workflow cannot push to it either, which is why the version commit is made on the branch.
+**`main` is protected by a ruleset**: `check` and `version label`, a pull request, rebase merges only, no force pushes, no deletion, and no bypass for anybody — including the person who owns the repository. A workflow cannot push to it either, which is why the version commit is made on the branch.
+
+**`browser` is the browser tests** — the production build in Chromium, for what the jsdom suite cannot see: where things are, what a real browser does to a text box. `pnpm e2e` runs them locally, after `pnpm exec playwright install chromium` once. It is not required by the ruleset yet; it reports, and a red one uploads its traces.
 
 ### From a change to the people using it
 

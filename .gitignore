@@ -17,3 +17,7 @@ logs/
 # pnpm is the pinned package manager (.mise.toml); keep npm/yarn lockfiles out.
 package-lock.json
 yarn.lock
+
+# Playwright's own output — traces and reports from `pnpm e2e`.
+test-results/
+playwright-report/
