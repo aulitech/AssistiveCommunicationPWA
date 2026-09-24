@@ -923,6 +923,25 @@ describe('the suggested reply', () => {
     expect(messageBox().value, 'the second was added to the first').toBe('A bit cold')
   })
 
+  // An answer is a whole one, like a phrase: what is typed after it is what the
+  // board searches Library for, not the answer and what follows together.
+  it('searches only what is typed after the answer chosen', async () => {
+    vi.stubGlobal('fetch', suggests('A bit cold'))
+    withKey()
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+    chooseAnswer('A bit cold')
+
+    click($$('.filter-tab').find(t => t.textContent === 'All'))
+    fireEvent.change(messageBox(), { target: { value: 'A bit cold hungry' } })
+    settle()
+
+    expect(
+      answerCells().some(t => /hungry/i.test(t)),
+      'the answer was searched for with it',
+    ).toBe(true)
+  })
+
   /**
    * **The board comes back afterwards, and the answers stay.** Closing the box
    * ends the question, and what they were looking at before is where they were
