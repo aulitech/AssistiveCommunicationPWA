@@ -239,7 +239,19 @@ describe('renaming a category', () => {
 })
 
 describe('deleting a category', () => {
-  it('deletes one that is empty', () => {
+  /** A pointer aimed somewhere new, which is what the question waits for. */
+  const moveAway = (x = 700) => {
+    fireEvent.pointerMove(document.body, { clientX: x, clientY: 500 })
+    settle()
+  }
+  const confirmDelete = () => {
+    click(action('Delete'))
+    moveAway()
+    click(action('Delete'))
+  }
+  const question = () => $('.edit-modal[role="alertdialog"]')
+
+  it('deletes one that is empty, once asked', () => {
     renderApp()
     enterEditMode()
     click($('.add-category-tab'))
@@ -247,21 +259,134 @@ describe('deleting a category', () => {
     saveModal()
 
     renameTab('Temporary')
-    expect(action('Delete')).toBeDefined()
-    click(action('Delete'))
+    confirmDelete()
 
     expect(tabLabels()).not.toContain('Temporary')
     expect(storedStore().categories).toEqual([])
   })
 
-  // Deleting a populated category would take its phrases with it silently.
-  it('refuses one that holds phrases, and says why', () => {
+  it('offers to delete one that holds phrases, and asks first, saying how many go with it', () => {
     renderApp()
     enterEditMode()
-    renameTab(catTabs()[0].textContent!)
+    const name = catTabs()[0].textContent!
+    renameTab(name)
+    const count = cells().length
+    expect(action('Delete')).toBeDefined()
 
-    expect(action('Delete')).toBeUndefined()
-    expect($('.edit-modal-note')?.textContent).toMatch(/will move with it/i)
+    click(action('Delete'))
+
+    expect(question()?.getAttribute('aria-label')).toBe(`Delete ${name}`)
+    expect(question()?.textContent).toContain(`Delete ${name}?`)
+    expect($('.edit-modal-note')?.textContent).toContain(`${count} phrase`)
+    // Asking changed nothing.
+    expect(tabLabels()).toContain(name)
+    expect(storedStore().hidden ?? []).toEqual([])
+  })
+
+  // The dialog changes under a pointer resting where Delete was, so the delete
+  // that confirms is at the far end and nothing arms until the pointer moves.
+  it('puts the way back where Delete was, and waits for the pointer to move', () => {
+    renderApp()
+    enterEditMode()
+    const name = catTabs()[0].textContent!
+    renameTab(name)
+    click(action('Delete'))
+
+    const buttons = $$('.edit-action-btn').map(b => b.textContent)
+    expect(buttons).toEqual(['Keep it', 'Delete'])
+
+    fireEvent.click(action('Delete')!)
+    settle()
+    expect(tabLabels()).toContain(name)
+
+    moveAway()
+    click(action('Delete'))
+    expect(tabLabels()).not.toContain(name)
+  })
+
+  it('keeps it, back in the rename dialog, on Keep it', () => {
+    renderApp()
+    enterEditMode()
+    const name = catTabs()[0].textContent!
+    renameTab(name)
+    click(action('Delete'))
+    moveAway()
+    click(action('Keep it'))
+
+    expect(question()).toBeNull()
+    expect(nameField()).toBeTruthy()
+    expect(tabLabels()).toContain(name)
+    expect(storedStore().hidden ?? []).toEqual([])
+  })
+
+  it('takes every phrase in it — its own hidden, the user’s deleted — and says so', () => {
+    localStorage.setItem(
+      STORE_KEY,
+      JSON.stringify({ custom: [{ id: 'custom-mine', text: 'Written by me', category: 'Humor' }] }),
+    )
+    renderApp()
+    enterEditMode()
+    renameTab('Humor')
+    const shipped = cells()
+      .map(c => c.getAttribute('data-phrase'))
+      .filter(id => id && id !== 'custom-mine')
+    expect(shipped.length).toBeGreaterThan(0)
+
+    confirmDelete()
+
+    expect(tabLabels()).not.toContain('Humor')
+    expect(storedStore().custom).toEqual([])
+    expect(storedStore().hidden).toEqual(expect.arrayContaining(shipped))
+    expect($('.toast')?.textContent).toMatch(/Deleted Humor and its \d+ phrases/)
+    click(tabNamed('All'))
+    expect(cells().some(c => c.textContent === 'Written by me')).toBe(false)
+  })
+
+  // A category made later under the same name must not inherit what this one
+  // was: a rename pointing at it, or a phrase moved into it.
+  it('forgets a rename that pointed at it', () => {
+    renderApp()
+    enterEditMode()
+    renameTab('Humor')
+    type(nameField(), 'Jokes')
+    saveModal()
+    expect(storedStore().categoryRenames).toEqual({ Humor: 'Jokes' })
+
+    renameTab('Jokes')
+    confirmDelete()
+
+    expect(storedStore().categoryRenames).toEqual({})
+    expect(tabLabels()).not.toContain('Humor')
+  })
+
+  it('lets go of a phrase open in the box that has just gone', () => {
+    renderApp()
+    enterEditMode()
+    click(tabNamed('Humor'))
+    click(cells()[0])
+    const opened = box().value
+    expect(opened).not.toBe('')
+
+    click(renameBtn())
+    confirmDelete()
+
+    expect(box().value).toBe('')
+  })
+
+  it('keeps new words being filed under it, and finds them another home', () => {
+    renderApp()
+    click(tabNamed('Humor'))
+    enterEditMode()
+    const filed = () => $('.category-trigger .picker-trigger-label')?.textContent
+    expect(filed()).toBe('Humor')
+    writePhrase('Not yet saved')
+
+    click(renameBtn())
+    confirmDelete()
+
+    expect(box().value).toBe('Not yet saved')
+    expect(filed()).not.toBe('Humor')
+    expect(filed()).toBeTruthy()
   })
 })
 
@@ -618,6 +743,8 @@ describe('ordering categories', () => {
 
     click(reorderBtn())
     renameTab('Temporary')
+    click(action('Delete'))
+    fireEvent.pointerMove(document.body, { clientX: 700, clientY: 500 })
     click(action('Delete'))
 
     expect(storedStore().categoryOrder).not.toContain('Temporary')

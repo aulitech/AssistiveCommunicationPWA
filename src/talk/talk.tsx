@@ -670,10 +670,20 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const handleCategoryDelete = useCallback(() => {
     const name = editingCategory?.name
     if (!name) return
+    const count = board.phraseCountByCategory.get(name) ?? 0
     board.removeCategory(name)
     setActiveFilter(f => (f === name ? 'all' : f))
+    // The box must not go on holding a phrase that has just gone, where Save
+    // would write to it, nor filing new words under a category that is not
+    // there. What was typed into a new one is kept; it only needs a home.
+    if (draft.phrase?.category === name) startNew()
+    else if (draft.category === name) {
+      if (draft.phrase) openPhrase(draft.phrase, draft.isEmergency)
+      else startNew(draft.text)
+    }
     setEditingCategory(null)
-  }, [editingCategory, board])
+    flashToast(count > 0 ? `Deleted ${name} and its ${count} phrase${count === 1 ? '' : 's'}` : `Deleted ${name}`)
+  }, [editingCategory, board, draft, startNew, openPhrase, flashToast])
 
   // The tabs land where the pointer is either way, and the control that sorted
   // them looks the same in both states, so both have to be said out loud.
