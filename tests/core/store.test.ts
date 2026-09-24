@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   DEFAULT_REPLY_MODEL,
   DEFAULT_SETTINGS,
@@ -28,6 +28,8 @@ import {
   changesWhoIsSignedIn,
   emptySync,
   loadAliasSort,
+  onWriteFailure,
+  writeKey,
   loadAliases,
   loadElevenLabs,
   loadPhraseSorts,
@@ -815,5 +817,84 @@ describe('whose board', () => {
     expect(changesWhoIsSignedIn(null), 'storage cleared signs everybody out').toBe(true)
     expect(changesWhoIsSignedIn('dwellspeak_settings')).toBe(false)
     expect(changesWhoIsSignedIn('dwellspeak_user@google:1')).toBe(false)
+  })
+})
+
+/**
+ * **A refused write does not throw.** It used to, from inside a React state
+ * update more often than not, and the whole screen went with it — the emergency
+ * bar included. A full store and a private window both refuse.
+ */
+describe('writing it down', () => {
+  const refuse = () =>
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+    })
+
+  it('keeps what it is given, and says so', () => {
+    expect(writeKey('peri_test', 'kept')).toBe(true)
+    expect(localStorage.getItem('peri_test')).toBe('kept')
+  })
+
+  it('says so when storage refuses, rather than throwing', () => {
+    const refused = refuse()
+    try {
+      expect(() => writeKey('peri_test', 'lost')).not.toThrow()
+      expect(writeKey('peri_test', 'lost')).toBe(false)
+    } finally {
+      refused.mockRestore()
+    }
+  })
+
+  // Every saver goes through it, so none of them can take the screen down.
+  it('lets a saver fail without throwing', () => {
+    const refused = refuse()
+    try {
+      expect(() => savePhraseStore(emptyStore())).not.toThrow()
+    } finally {
+      refused.mockRestore()
+    }
+  })
+
+  /**
+   * Which record, and nothing else. What was in it is somebody's words, and
+   * whose it is names their account — a console ends up in screenshots.
+   */
+  it('reports which record, never what was in it or whose', async () => {
+    const { warnings } = await import('../setup')
+    const refused = refuse()
+    try {
+      writeKey('peri_sent@google:1234', JSON.stringify(['I need my inhaler']))
+    } finally {
+      refused.mockRestore()
+    }
+    const said = warnings.join(' ')
+    expect(said).toContain('peri_sent')
+    expect(said).not.toContain('inhaler')
+    expect(said).not.toContain('google:1234')
+  })
+
+  it('tells every listener, and stops telling one that has gone', () => {
+    const told: string[] = []
+    const stop = onWriteFailure(() => told.push('first'))
+    const stopSecond = onWriteFailure(() => told.push('second'))
+    const refused = refuse()
+    try {
+      writeKey('peri_test', 'lost')
+      stop()
+      writeKey('peri_test', 'lost')
+    } finally {
+      refused.mockRestore()
+      stopSecond()
+    }
+    expect(told).toEqual(['first', 'second', 'second'])
+  })
+
+  it('tells nobody when the write was kept', () => {
+    const told: string[] = []
+    const stop = onWriteFailure(() => told.push('told'))
+    writeKey('peri_test', 'kept')
+    stop()
+    expect(told).toEqual([])
   })
 })

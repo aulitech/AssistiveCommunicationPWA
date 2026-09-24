@@ -19,7 +19,12 @@ import { PlusIcon, ReorderIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { PhraseText } from './phrase-text'
 
-function EmergencyButton({
+/**
+ * One button on the bar. Exported for the screen shown when the app itself has
+ * failed — `error-boundary.tsx` — which offers the same buttons, so they look,
+ * dwell and speak there exactly as they do here.
+ */
+export function EmergencyButton({
   phrase,
   voice,
   reorder,

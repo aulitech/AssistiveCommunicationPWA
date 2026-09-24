@@ -578,7 +578,12 @@ describe('the shape of the source tree', () => {
       'core/store.ts': ['USER_KEY', 'FIRST_OWNER_KEY', 'SETTINGS_KEY + NOBODY'],
       'signin/auth.ts': ['APPLE_NAME_KEY', 'nameKey'],
     }
-    const STORED = /(?:localStorage\.(?:get|set|remove)Item|indexedDB\.open)\(\s*([^,)]+?)\s*[,)]/g
+    // `writeKey` is where every write goes now, so what its callers hand it is
+    // what has to name whose — its own declaration is not a call.
+    const STORED =
+      /(?:localStorage\.(?:get|set|remove)Item|indexedDB\.open|(?<!function )writeKey)\(\s*([^,)]+?)\s*[,)]/g
+    /** The one writer, which is handed a name already made: its callers are what is checked. */
+    const isTheWriter = (file: string, name: string) => file === 'core/store.ts' && name === 'key'
 
     const found = sources().flatMap(path => {
       const file = relative(SRC, path)
@@ -587,10 +592,30 @@ describe('the shape of the source tree', () => {
     expect(found.length, 'the pattern stopped finding anything').toBeGreaterThan(30)
     expect(
       found
-        .filter(({ file, name }) => !name.startsWith('storageKey(') && !DEVICE_WIDE[file]?.includes(name))
+        .filter(
+          ({ file, name }) =>
+            !name.startsWith('storageKey(') && !DEVICE_WIDE[file]?.includes(name) && !isTheWriter(file, name),
+        )
         .map(({ file, name }) => `${file}: ${name}`),
       'stored under a name every account on this device shares',
     ).toEqual([])
+  })
+
+  /**
+   * **Every write goes through `writeKey`.** A write can be refused — a full
+   * store, a private window — and one that threw from inside a state update
+   * took the whole screen down, the emergency bar with it. The helper is the
+   * one place that cannot happen, so it has to be the one place that writes.
+   */
+  it('writes to storage in exactly one place', () => {
+    const code = (path: string) =>
+      readFileSync(path, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+    const writers = sources().flatMap(path =>
+      [...code(path).matchAll(/localStorage\.setItem\(/g)].map(() => relative(SRC, path)),
+    )
+    expect(writers).toEqual(['core/store.ts'])
   })
 
   /**

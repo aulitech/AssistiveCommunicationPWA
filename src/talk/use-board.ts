@@ -10,25 +10,17 @@
 // screen already shows the result.
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
-import {
-  EMERGENCY_PHRASES,
-  buildPhrases,
-  compose,
-  parseSegments,
-  type Phrase,
-  type AliasStore,
-} from '../core/phrases'
+import { buildPhrases, type Phrase, type AliasStore } from '../core/phrases'
 import { stripMarkdown } from '../core/markdown'
+import { buildPhrase, categoryIndex, emergencyPhrasesOf, shownCategory } from '../core/board'
 import { audioKey, warmAudio } from '../voice/audio-cache'
 import { remoteVoiceId } from '../voice/elevenlabs'
 import { useSettings } from '../ui/settings'
 import {
-  displayCategory,
   loadPhraseStore,
   loadAliases,
   moveInOrder,
   orderCategories,
-  orderByIds,
   renameCategory,
   saveAliases,
   savePhraseStore,
@@ -79,50 +71,28 @@ export function useBoard() {
     startRebuild(() => setAliases(next))
   }, [])
 
-  // Overrides and user-authored phrases are re-parsed, so they behave like any
-  // other phrase — and keep their stored id, which is what delete matches on.
-  const buildPhrase = useCallback((id: string, raw: string, category: string): Phrase => {
-    const segments = parseSegments(raw)
-    return { id, text: compose(segments), source: raw, segments, category }
-  }, [])
-
   // Slot options are resolved at parse time, so the table is rebuilt when the
   // user's own lists change — a few milliseconds, and only on an alias edit.
   const tablePhrases = useMemo(() => buildPhrases(aliases), [aliases])
 
-  // A phrase moved individually keeps that category; otherwise it follows any
-  // rename applied to the category it came in.
-  const shownCategory = useCallback(
-    (id: string, source: string) => store.categoryOverrides[id] ?? displayCategory(source, store.categoryRenames),
-    [store.categoryOverrides, store.categoryRenames],
-  )
+  // Where each phrase shows — see `shownCategory` in `core/board.ts`.
+  const shownIn = useCallback((id: string, source: string) => shownCategory(store, id, source), [store])
 
   const mainPhrases = useMemo(() => {
     const base = tablePhrases
       .filter(p => !store.hidden.includes(p.id))
       .map(p =>
         store.overrides[p.id]
-          ? buildPhrase(p.id, store.overrides[p.id], shownCategory(p.id, p.category))
-          : { ...p, category: shownCategory(p.id, p.category) },
+          ? buildPhrase(p.id, store.overrides[p.id], shownIn(p.id, p.category))
+          : { ...p, category: shownIn(p.id, p.category) },
       )
     const custom = store.custom
       .filter(c => c.category !== 'Emergency' && !store.hidden.includes(c.id))
-      .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, shownCategory(c.id, c.category)))
+      .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, shownIn(c.id, c.category)))
     return [...base, ...custom]
-  }, [store, buildPhrase, tablePhrases, shownCategory])
+  }, [store, tablePhrases, shownIn])
 
-  const emergencyPhrases = useMemo(() => {
-    const base = EMERGENCY_PHRASES.filter(p => !store.hidden.includes(p.id)).map(p =>
-      store.overrides[p.id] ? buildPhrase(p.id, store.overrides[p.id], p.category) : p,
-    )
-    const custom = store.custom
-      .filter(c => c.category === 'Emergency' && !store.hidden.includes(c.id))
-      .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, 'Emergency'))
-    // Which button is where matters more here than anywhere else in the app —
-    // this is the bar somebody reaches for without reading it — so the user's
-    // own arrangement wins over the one Peri ships.
-    return orderByIds([...base, ...custom], store.emergencyOrder)
-  }, [store, buildPhrase])
+  const emergencyPhrases = useMemo(() => emergencyPhrasesOf(store), [store])
 
   const allCategories = useMemo(
     // User-created categories are listed even while empty, so one can be made
@@ -137,17 +107,8 @@ export function useBoard() {
     [mainPhrases, store.categories, store.categoryOrder, store.categorySort],
   )
 
-  // The category every phrase belongs to, hidden ones included. Exporting a few
-  // categories needs a category for phrases that are not on screen: one the user
-  // removed still belongs to the category it came from, and that is the only way
-  // to tell whether their removal is part of what they asked to export.
-  const categoryById = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const p of tablePhrases) map.set(p.id, shownCategory(p.id, p.category))
-    for (const p of EMERGENCY_PHRASES) map.set(p.id, 'Emergency')
-    for (const c of store.custom) map.set(c.id, shownCategory(c.id, c.category))
-    return map
-  }, [tablePhrases, store.custom, shownCategory])
+  // The category every phrase belongs to — see `categoryIndex` in `core/board.ts`.
+  const categoryById = useMemo(() => categoryIndex(tablePhrases, store), [tablePhrases, store])
 
   /**
    * The voice a phrase is said in when it has one of its own **for the language

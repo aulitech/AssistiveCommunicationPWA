@@ -6,6 +6,7 @@
 // store is a backup that silently restores nothing.
 
 import { EMPTY_ALIASES, type AliasStore, type Aliases } from './phrases'
+import { reportFailure } from './report'
 import { newDeviceId } from './sync'
 
 // Four of these storage keys still say `dwellspeak_`, the app's former name.
@@ -34,6 +35,50 @@ const RECENT_KEY = 'peri_recent'
 const USAGE_KEY = 'peri_usage'
 const PHRASE_SORT_KEY = 'peri_phrase_sort'
 const SYNC_KEY = 'peri_sync'
+
+// ── Writing it down ───────────────────────────────────────────────────────────
+// **Every write to storage goes through `writeKey`**, and `tests/app/
+// structure.test.ts` holds the tree to it.
+//
+// A write can be refused, and on the devices this app is for that is not
+// hypothetical: every account on a device keeps its own board in one origin's
+// few megabytes, a private window may refuse storage outright, and a browser
+// short of space refuses rather than making room. A refused write used to throw
+// — out of a React state update, more often than not — and take the whole
+// screen with it: a blank page, the emergency bar included, on a device that
+// may be the only way its owner has of saying anything.
+//
+// So nothing throws. The board goes on working from memory, the failure is
+// reported, and every listener is told — so the screen can say plainly that
+// what is changed now is not being kept, and offer a backup while there is
+// still something in memory to back up.
+
+const writeFailureListeners = new Set<() => void>()
+
+/** Told whenever a write is refused. Returns the unsubscribe. */
+export function onWriteFailure(listener: () => void): () => void {
+  writeFailureListeners.add(listener)
+  return () => {
+    writeFailureListeners.delete(listener)
+  }
+}
+
+/**
+ * Keep a value, and say whether it was kept.
+ *
+ * What is reported is which record — the name before whose it is — and never
+ * what was in it, nor whose: a console ends up in screenshots.
+ */
+export function writeKey(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value)
+    return true
+  } catch {
+    reportFailure('store/write', `Could not save ${key.split('@')[0]}`)
+    for (const listener of [...writeFailureListeners]) listener()
+    return false
+  }
+}
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
@@ -271,7 +316,7 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(s: Settings) {
-  localStorage.setItem(storageKey(SETTINGS_KEY), JSON.stringify(s))
+  writeKey(storageKey(SETTINGS_KEY), JSON.stringify(s))
 }
 
 /** Enough of a voice to say what language it is in. */
@@ -548,7 +593,7 @@ export function loadPhraseStore(): PhraseStore {
 }
 
 export function savePhraseStore(s: PhraseStore) {
-  localStorage.setItem(storageKey(PHRASE_STORE_KEY), JSON.stringify(s))
+  writeKey(storageKey(PHRASE_STORE_KEY), JSON.stringify(s))
 }
 
 // ── Aliases ──────────────────────────────────────────────────────────────────
@@ -641,7 +686,7 @@ export function loadAliases(): AliasStore {
 }
 
 export function saveAliases(a: AliasStore) {
-  localStorage.setItem(storageKey(ALIASES_KEY), JSON.stringify(a))
+  writeKey(storageKey(ALIASES_KEY), JSON.stringify(a))
 }
 
 /**
@@ -657,7 +702,7 @@ export function loadAliasSort(): 'custom' | 'alpha' {
 }
 
 export function saveAliasSort(sort: 'custom' | 'alpha') {
-  localStorage.setItem(storageKey(ALIAS_SORT_KEY), sort)
+  writeKey(storageKey(ALIAS_SORT_KEY), sort)
 }
 
 // ── Messages already said ─────────────────────────────────────────────────────
@@ -695,7 +740,7 @@ export function loadSent(): SentMessage[] {
 }
 
 export function saveSent(messages: SentMessage[]) {
-  localStorage.setItem(storageKey(SENT_KEY), JSON.stringify(messages))
+  writeKey(storageKey(SENT_KEY), JSON.stringify(messages))
 }
 
 // ── What was said in another language ─────────────────────────────────────────
@@ -753,7 +798,7 @@ export function loadTranslated(): Translated[] {
 }
 
 export function saveTranslated(list: Translated[]) {
-  localStorage.setItem(storageKey(TRANSLATED_KEY), JSON.stringify(list))
+  writeKey(storageKey(TRANSLATED_KEY), JSON.stringify(list))
 }
 
 /**
@@ -822,7 +867,7 @@ export function loadRecent(): RecentChoices {
 }
 
 export function saveRecent(recent: RecentChoices) {
-  localStorage.setItem(storageKey(RECENT_KEY), JSON.stringify(recent))
+  writeKey(storageKey(RECENT_KEY), JSON.stringify(recent))
 }
 
 // ── How much each phrase is used ──────────────────────────────────────────────
@@ -873,7 +918,7 @@ export function loadUsage(): PhraseUsage {
 }
 
 export function saveUsage(usage: PhraseUsage) {
-  localStorage.setItem(storageKey(USAGE_KEY), JSON.stringify(usage))
+  writeKey(storageKey(USAGE_KEY), JSON.stringify(usage))
 }
 
 /** The usage after `id` is used once more. */
@@ -950,7 +995,7 @@ export function loadPhraseSorts(): PhraseSorts {
 }
 
 export function savePhraseSorts(sorts: PhraseSorts) {
-  localStorage.setItem(storageKey(PHRASE_SORT_KEY), JSON.stringify(sorts))
+  writeKey(storageKey(PHRASE_SORT_KEY), JSON.stringify(sorts))
 }
 
 /**
@@ -1041,7 +1086,7 @@ export function loadElevenLabs(): ElevenLabsAccount | null {
 }
 
 export function saveElevenLabs(account: ElevenLabsAccount | null) {
-  if (account) localStorage.setItem(storageKey(ELEVENLABS_KEY), JSON.stringify(account))
+  if (account) writeKey(storageKey(ELEVENLABS_KEY), JSON.stringify(account))
   else localStorage.removeItem(storageKey(ELEVENLABS_KEY))
 }
 
@@ -1068,7 +1113,7 @@ export function loadReplyKey(): string {
 
 export function saveReplyKey(key: string) {
   const trimmed = key.trim()
-  if (trimmed) localStorage.setItem(storageKey(REPLY_KEY), trimmed)
+  if (trimmed) writeKey(storageKey(REPLY_KEY), trimmed)
   else localStorage.removeItem(storageKey(REPLY_KEY))
 }
 
@@ -1130,7 +1175,7 @@ export function loadReplyContext(now = Date.now()): ReplyTurn[] {
 
 export function saveReplyContext(turns: ReplyTurn[]) {
   if (turns.length === 0) localStorage.removeItem(storageKey(REPLY_CONTEXT_KEY))
-  else localStorage.setItem(storageKey(REPLY_CONTEXT_KEY), JSON.stringify(turns))
+  else writeKey(storageKey(REPLY_CONTEXT_KEY), JSON.stringify(turns))
 }
 
 /** The exchanges after this one, with the day's window applied. */
@@ -1194,7 +1239,7 @@ export function loadAnswers(now = Date.now()): KeptAnswers | null {
 /** Keep these, or — given none — take the key away entirely. */
 export function saveAnswers(answers: KeptAnswers | null) {
   if (!answers || answers.replies.length === 0) localStorage.removeItem(storageKey(ANSWERS_KEY))
-  else localStorage.setItem(storageKey(ANSWERS_KEY), JSON.stringify(answers))
+  else writeKey(storageKey(ANSWERS_KEY), JSON.stringify(answers))
 }
 
 // ── What the board says while a reply is being written ───────────────────────
@@ -1245,7 +1290,7 @@ export function loadApologies(now = Date.now()): Apologies {
 export function saveApologies(apologies: Apologies, now = Date.now()) {
   const said = apologies.said.filter(s => now - s.at < APOLOGY_REST_MS)
   if (apologies.ready.length === 0 && said.length === 0) localStorage.removeItem(storageKey(APOLOGIES_KEY))
-  else localStorage.setItem(storageKey(APOLOGIES_KEY), JSON.stringify({ ready: apologies.ready, said }))
+  else writeKey(storageKey(APOLOGIES_KEY), JSON.stringify({ ready: apologies.ready, said }))
 }
 
 // ── Who is signed in ─────────────────────────────────────────────────────────
@@ -1286,7 +1331,7 @@ export function loadUser(): User | null {
 }
 
 export function saveUser(u: User) {
-  localStorage.setItem(USER_KEY, JSON.stringify(u))
+  writeKey(USER_KEY, JSON.stringify(u))
 }
 
 export function clearUser() {
@@ -1366,7 +1411,7 @@ export function openBoardFor(user: User | null) {
   let first = localStorage.getItem(FIRST_OWNER_KEY)
   if (first === null) {
     first = owner
-    localStorage.setItem(FIRST_OWNER_KEY, owner)
+    writeKey(FIRST_OWNER_KEY, owner)
   }
   suffix = owner === first ? '' : `@${owner}`
 }
@@ -1406,7 +1451,7 @@ const reaching = ({ zoom, phraseDwellMs, actionDwellMs, repeatDelayMs }: Setting
  * left, and somebody who needs a slow dwell cannot sign back in at a quick one.
  */
 export function leaveForSignIn(settings: Settings) {
-  localStorage.setItem(SETTINGS_KEY + NOBODY, JSON.stringify({ ...DEFAULT_SETTINGS, ...reaching(settings) }))
+  writeKey(SETTINGS_KEY + NOBODY, JSON.stringify({ ...DEFAULT_SETTINGS, ...reaching(settings) }))
 }
 
 /**
@@ -1497,7 +1542,7 @@ export function loadSync(): SyncConfig {
 }
 
 export function saveSync(config: SyncConfig) {
-  localStorage.setItem(storageKey(SYNC_KEY), JSON.stringify(config))
+  writeKey(storageKey(SYNC_KEY), JSON.stringify(config))
 }
 
 // ── Factory reset ────────────────────────────────────────────────────────────
