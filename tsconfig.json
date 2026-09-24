@@ -19,5 +19,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src", "netlify", "tests",
-    "tools", "vite.config.ts", "vitest.config.ts"]
+    "tools", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
 }
