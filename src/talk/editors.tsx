@@ -9,7 +9,7 @@
 // in this file is that strip, the grid a category is chosen from, and the one
 // dialog that survives, which is about a category rather than a phrase.
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { holdDwellsUntilMoved, useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
 import { DwellInput, PickerModal, PickerTile } from '../ui/controls'
@@ -44,14 +44,19 @@ function EditAction({
   )
 }
 
+/** The separator a set of categories is held under while the grid is open — see `CategoryPicker`. */
+const JOIN = '\u0000'
+
 /**
- * Which category a phrase is filed under, chosen from a full-screen grid.
+ * Which categories refer to a phrase, chosen from a full-screen grid. **Every
+ * phrase is in Library whatever is ticked** — a category only refers to it —
+ * so ticking none is a phrase in Library alone.
  *
  * It was a `<select>`, which is the one control on this screen a dwell cannot
  * work: the list a native select opens is drawn by the operating system, outside
  * the page, where nothing can be hovered for a second and a half. So it takes
  * the same shape the voice picker does — the grid is the app's answer to
- * "one out of many", and there is no reason for a user to learn two.
+ * "which of these", and there is no reason for a user to learn two.
  */
 function CategoryPicker({
   value,
@@ -60,11 +65,11 @@ function CategoryPicker({
   onChange,
   onCreate,
 }: {
-  value: string
+  value: string[]
   categories: string[]
   /** How many phrases each one holds, which is the second line of its tile. */
   countFor: (name: string) => number
-  onChange: (name: string) => void
+  onChange: (names: string[]) => void
   /** Asks for a category that does not exist yet; the dialog does the naming. */
   onCreate: () => void
 }) {
@@ -77,10 +82,20 @@ function CategoryPicker({
    * offer to undo a delete went away, and a blank draft stopped following the
    * tab. A rest is how somebody looks at a tile as well as how they pick one —
    * see `ui/pending-choice.ts`, which the other grids here already use.
+   *
+   * **Held as one string**, the names joined, because a list is a new array
+   * every render and the hook tells a change by comparing: Done with nothing
+   * moved has to write nothing.
    */
-  const { open, pending, mark, begin, done, cancel } = usePendingChoice(value, onChange)
+  const joined = value.join(JOIN)
+  const commit = useCallback((next: string) => onChange(next ? next.split(JOIN) : []), [onChange])
+  const { open, pending, mark, begin, done, cancel } = usePendingChoice(joined, commit)
+  const ticked = pending ? pending.split(JOIN) : []
+  const toggle = (name: string) =>
+    mark((ticked.includes(name) ? ticked.filter(n => n !== name) : [...ticked, name]).join(JOIN))
 
   const { active, props } = useDwellControl(settings.actionDwellMs, begin)
+  const shown = value.length === 0 ? 'Library only' : value.join(', ')
 
   return (
     <>
@@ -90,10 +105,10 @@ function CategoryPicker({
         role="button"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Category: ${value || 'none'}. Choose another`}
+        aria-label={`Categories: ${shown}. Choose`}
         {...props}
       >
-        <span className="picker-trigger-label">{value || 'Choose a category'}</span>
+        <span className="picker-trigger-label">{shown}</span>
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -111,14 +126,19 @@ function CategoryPicker({
       </div>
 
       {open && (
-        <PickerModal title="Choose a category" hint="Where this phrase is filed" onDone={done} onCancel={cancel}>
+        <PickerModal
+          title="Choose categories"
+          hint="It is in Library whatever you tick. Tick every category it should be in as well."
+          onDone={done}
+          onCancel={cancel}
+        >
           {categories.map(name => (
             <PickerTile
               key={name}
               name={name}
               detail={`${countFor(name)} ${countFor(name) === 1 ? 'phrase' : 'phrases'}`}
-              selected={name === pending}
-              onSelect={() => mark(name)}
+              selected={ticked.includes(name)}
+              onSelect={() => toggle(name)}
             />
           ))}
           {/* Last, and it leaves the grid: naming it is a keyboard job, and the
@@ -157,7 +177,7 @@ export function PhraseEditBar({
   draft: Draft
   categories: string[]
   countFor: (name: string) => number
-  onCategory: (name: string) => void
+  onCategory: (names: string[]) => void
   onCreateCategory: () => void
 }) {
   return (
@@ -186,7 +206,7 @@ export function PhraseEditBar({
         <span className="edit-bar-fixed">Emergency</span>
       ) : (
         <CategoryPicker
-          value={draft.category}
+          value={draft.categories}
           categories={categories}
           countFor={countFor}
           onChange={onCategory}
@@ -213,8 +233,9 @@ export function CategoryModal({
   onClose: () => void
 }) {
   const [value, setValue] = useState(name ?? '')
-  // Deleting asks first. It takes every phrase in the category with it, and
-  // the bin is one dwell from Save — so the dwell on Delete only asks.
+  // Deleting asks first. It takes the category's order, which somebody may
+  // have spent a while on, and the bin is one dwell from Save — so the dwell on
+  // Delete only asks.
   const [confirming, setConfirming] = useState(false)
   const isNew = name === null
   const trimmed = value.trim()
@@ -253,7 +274,7 @@ export function CategoryModal({
           <div className="edit-modal-title">Delete {name}?</div>
           <p className="edit-modal-note">
             {phraseCount > 0
-              ? `Its ${phrases} will be deleted with it. This cannot be undone.`
+              ? `Its ${phrases} stay${phraseCount === 1 ? 's' : ''} in Library, and in any other category ${phraseCount === 1 ? 'it is' : 'they are'} in.`
               : 'It has no phrases in it.'}
           </p>
           <div className="edit-modal-actions is-confirming">

@@ -236,6 +236,7 @@ export function Topbar({
   onSavePhrase,
   onDeletePhrase,
   undoDelete,
+  removingFrom,
   categories,
   countFor,
   onCreateCategory,
@@ -269,6 +270,8 @@ export function Topbar({
    * blank.
    */
   undoDelete: { words: string; undo: () => void } | null
+  /** The category the bin takes the phrase out of, where it only does that — see `talk.tsx`. */
+  removingFrom: string | null
   /** For the strip on the box's lower border: what a phrase can be filed under. */
   categories: string[]
   countFor: (name: string) => number
@@ -691,7 +694,13 @@ export function Topbar({
               <ActionButton
                 className="on-border danger"
                 onSelect={onDeletePhrase}
-                label={draft.kept ? `Forget this ${draft.kept}` : 'Delete phrase'}
+                label={
+                  draft.kept
+                    ? `Forget this ${draft.kept}`
+                    : removingFrom
+                      ? `Take out of ${removingFrom}`
+                      : 'Delete phrase'
+                }
                 disabled={draft.isNew}
               >
                 <TrashIcon />
@@ -839,7 +848,7 @@ export function Topbar({
           draft={draft}
           categories={categories}
           countFor={countFor}
-          onCategory={editor.setCategory}
+          onCategory={editor.setCategories}
           onCreateCategory={onCreateCategory}
         />
       )}

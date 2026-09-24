@@ -33,9 +33,12 @@ export {
 } from './store/settings'
 export {
   emptyStore,
+  type FiledStore,
   foldFormerCopies,
+  fromFiled,
   loadPhraseStore,
   type PhraseStore,
+  readMembers,
   readPhraseOrder,
   readVoiceOverrides,
   savePhraseStore,
@@ -106,13 +109,4 @@ export { accountId, changesWhoIsSignedIn, clearUser, loadUser, saveUser, type Us
 export { forgetWhoseBoard, openBoardFor, ownerOf, storageKey } from './store/owner'
 export { emptySync, loadSync, saveSync, type SyncConfig } from './store/sync-config'
 export { factoryReset, factoryState } from './store/reset'
-export {
-  displayCategory,
-  moveInOrder,
-  newPhraseId,
-  orderByIds,
-  orderCategories,
-  phraseKey,
-  renameCategory,
-  wordingKey,
-} from './store/arrange'
+export { moveInOrder, newPhraseId, orderByIds, orderCategories, renameCategory, wordingKey } from './store/arrange'

@@ -35,7 +35,6 @@ export function BackupPanel({
   aliases,
   phrases,
   categories,
-  categoryById,
   onRestore,
 }: {
   store: PhraseStore
@@ -44,7 +43,6 @@ export function BackupPanel({
   phrases: Phrase[]
   /** Every category that can be exported on its own, in the order shown. */
   categories: string[]
-  categoryById: Map<string, string>
   onRestore: (next: AppState, message: string) => void
 }) {
   const { settings } = useSettings()
@@ -59,17 +57,14 @@ export function BackupPanel({
   const [error, setError] = useState<string | null>(null)
   const [incoming, setIncoming] = useState<{ backup: Backup; summary: BackupSummary } | null>(null)
 
-  const backup = useMemo(
-    () => buildBackup({ store, aliases, settings, categoryById, scope }),
-    [store, aliases, settings, categoryById, scope],
-  )
+  const backup = useMemo(() => buildBackup({ store, aliases, settings, scope }), [store, aliases, settings, scope])
   const summary = useMemo(() => summarize(backup), [backup])
   // What "Everything" would hold, whether or not it is the current choice — it
   // is the line under the option, so it has to stand for the option and not for
   // whatever categories happen to be ticked.
   const everything = useMemo(
-    () => (scope === null ? summary : summarize(buildBackup({ store, aliases, settings, categoryById }))),
-    [scope, summary, store, aliases, settings, categoryById],
+    () => (scope === null ? summary : summarize(buildBackup({ store, aliases, settings }))),
+    [scope, summary, store, aliases, settings],
   )
 
   const openPicker = useCallback(() => {

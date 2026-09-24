@@ -14,8 +14,8 @@
 // itself being one of the things that might be damaged.
 
 import { Component, useCallback, useState, type ReactNode } from 'react'
-import { buildPhrases, EMERGENCY_PHRASES, type Phrase } from '../core/phrases'
-import { categoryIndex, emergencyPhrasesOf } from '../core/board'
+import { EMERGENCY_PHRASES, type Phrase } from '../core/phrases'
+import { emergencyPhrasesOf } from '../core/board'
 import { loadAliases, loadPhraseStore, loadSettings } from '../core/store'
 import { buildBackup } from '../core/backup'
 import { reportFailure } from '../core/report'
@@ -67,12 +67,7 @@ function StillTalking() {
     try {
       const store = loadPhraseStore()
       const aliases = loadAliases()
-      const backup = buildBackup({
-        store,
-        aliases,
-        settings: loadSettings(),
-        categoryById: categoryIndex(buildPhrases(aliases), store),
-      })
+      const backup = buildBackup({ store, aliases, settings: loadSettings() })
       setKept(downloadBackup(backup).ok ? 'kept' : 'failed')
     } catch {
       setKept('failed')

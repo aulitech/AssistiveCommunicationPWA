@@ -21,8 +21,9 @@
 //    tested without a browser, and a rejected import cannot leave the store
 //    half-written.
 
-import { EMPTY_ALIASES, type AliasStore, type Aliases } from './phrases'
+import { EMERGENCY_PHRASES, EMPTY_ALIASES, LIBRARY, type AliasStore, type Aliases } from './phrases'
 import {
+  readMembers,
   readPhraseOrder,
   readLanguage,
   readReplyModel,
@@ -32,20 +33,26 @@ import {
   SETTING_LIMITS,
   aliasesFromProfile,
   emptyStore,
+  wordingKey,
   type PhraseStore,
   type Settings,
 } from './store'
 
 export const BACKUP_FORMAT = 'peri-backup'
-export const BACKUP_VERSION = 1
+/**
+ * **2 holds categories as references** — each category a list of Library
+ * phrases, in its own order. A file at 1 filed each phrase under one category,
+ * and is read into references as it is parsed; see `fromVersion1`.
+ */
+export const BACKUP_VERSION = 2
 
-/** Where an imported phrase goes when the file does not say. */
-export const IMPORTED_CATEGORY = 'Imported'
+const EMERGENCY = 'Emergency'
 
 /** A phrase the user wrote themselves. */
 export interface BackupPhrase {
   id: string
   text: string
+  /** Where it lives: Library, or the emergency bar. Which categories show it is `Backup.members`. */
   category: string
   /**
    * The voices it is said in, by language, where they are not the one in
@@ -75,8 +82,6 @@ export interface BackupEdit {
   id: string
   /** The new wording. */
   text?: string
-  /** The category it was moved to. */
-  category?: string
   /**
    * The voices it is said in, by language, where they are not the one in
    * settings. `voice` is the same thing from a file written before voices were
@@ -88,8 +93,6 @@ export interface BackupEdit {
 }
 
 export interface BackupCategories {
-  created: string[]
-  renamed: Record<string, string>
   order: string[]
   /** Whole-app backups only — a few categories should not decide how all of them sort. */
   sort?: 'alpha' | 'custom'
@@ -100,7 +103,7 @@ export interface Backup {
   version: number
   /** ISO 8601, and the source of the date in the filename. */
   exported: string
-  /** The categories this file covers, or null for all of them. */
+  /** The categories this file covers — Library and Emergency among them — or null for all of them. */
   scope: string[] | null
   added: BackupPhrase[]
   edited: BackupEdit[]
@@ -108,18 +111,18 @@ export interface Backup {
   removed: string[]
   categories: BackupCategories
   /**
+   * Each category the file covers, as the Library phrases it refers to, **in
+   * its own order** — an empty list for one somebody made and has not filled.
+   */
+  members?: Record<string, string[]>
+  /** Library's own arrangement, by phrase id, where the file covers Library. */
+  libraryOrder?: string[]
+  /**
    * The user's own order for the emergency bar, by phrase id. Carried only when
    * the file covers Emergency — it is a rearrangement, which is as much a thing
    * somebody did as a rewording is.
    */
   emergencyOrder?: string[]
-  /**
-   * The user's own arrangement of the phrases inside each category, by phrase
-   * id. Trimmed to the categories the file covers, which an arrangement *can*
-   * be — unlike the bar's, which is one category's and so goes whole or not at
-   * all. A category left out of the scope takes its arrangement with it.
-   */
-  phraseOrder?: Record<string, string[]>
   /** Whole-app backups only. Both of these. */
   aliases?: AliasStore
   settings?: Settings
@@ -129,23 +132,30 @@ export interface BackupInput {
   store: PhraseStore
   aliases: AliasStore
   settings: Settings
-  /**
-   * The category each phrase shows under, by id — hidden phrases included.
-   * Exporting one category needs a category for phrases that are not on screen:
-   * one the user removed still belongs to the category it came from.
-   */
-  categoryById: Map<string, string>
-  /** Categories to include. Null, absent or empty takes the lot. */
+  /** Categories to include — Library and Emergency among them. Null, absent or empty takes the lot. */
   scope?: string[] | null
   now?: Date
 }
 
 export function buildBackup(input: BackupInput): Backup {
-  const { store, aliases, settings, categoryById, now = new Date() } = input
+  const { store, aliases, settings, now = new Date() } = input
   const scope = input.scope && input.scope.length > 0 ? [...input.scope] : null
   const wanted = scope && new Set(scope)
-  const inScope = (category: string | undefined) => !wanted || (category !== undefined && wanted.has(category))
-  const categoryOf = (id: string) => categoryById.get(id)
+  const covers = (name: string) => !wanted || wanted.has(name)
+
+  // Which phrases the file is about. Library covers every phrase on the board,
+  // Emergency the bar, and a category the phrases it refers to.
+  const onBar = new Set([
+    ...EMERGENCY_PHRASES.map(p => p.id),
+    ...store.custom.filter(p => p.category === EMERGENCY).map(p => p.id),
+  ])
+  const referred = new Set(
+    Object.entries(store.members)
+      .filter(([category]) => covers(category))
+      .flatMap(([, ids]) => ids),
+  )
+  const inScope = (id: string) =>
+    !wanted || (onBar.has(id) ? covers(EMERGENCY) : covers(LIBRARY) || referred.has(id))
 
   const customIds = new Set(store.custom.map(p => p.id))
 
@@ -153,37 +163,26 @@ export function buildBackup(input: BackupInput): Backup {
   // an override. The file holds the text it actually shows, so a restore needs
   // to know about only one of them.
   const added: BackupPhrase[] = store.custom
-    .filter(p => inScope(categoryOf(p.id) ?? p.category))
+    .filter(p => inScope(p.id))
     .map(p => ({
       id: p.id,
       text: store.overrides[p.id] ?? p.text,
-      category: categoryOf(p.id) ?? p.category,
+      category: p.category === EMERGENCY ? EMERGENCY : LIBRARY,
       ...(store.voiceOverrides[p.id] ? { voices: store.voiceOverrides[p.id] } : {}),
     }))
 
   const edited: BackupEdit[] = [
-    ...new Set([
-      ...Object.keys(store.overrides),
-      ...Object.keys(store.categoryOverrides),
-      ...Object.keys(store.voiceOverrides),
-    ]),
+    ...new Set([...Object.keys(store.overrides), ...Object.keys(store.voiceOverrides)]),
   ]
-    .filter(id => !customIds.has(id) && inScope(categoryOf(id)))
+    .filter(id => !customIds.has(id) && inScope(id))
     .map(id => {
       const entry: BackupEdit = { id }
       if (store.overrides[id] !== undefined) entry.text = store.overrides[id]
-      if (store.categoryOverrides[id] !== undefined) entry.category = store.categoryOverrides[id]
       if (store.voiceOverrides[id] !== undefined) entry.voices = store.voiceOverrides[id]
       return entry
     })
 
-  // Each category's own arrangement, for the categories in scope. Keyed by the
-  // name a phrase is filed under now, which is what a scope names. Left out
-  // entirely when the scope covers nothing that was arranged, rather than
-  // written as an empty object — the rule the word lists follow above.
-  const phraseOrder = Object.fromEntries(
-    Object.entries(store.phraseOrder).filter(([category, ids]) => inScope(category) && ids.length > 0),
-  )
+  const members = Object.fromEntries(Object.entries(store.members).filter(([category]) => covers(category)))
 
   return {
     format: BACKUP_FORMAT,
@@ -192,22 +191,18 @@ export function buildBackup(input: BackupInput): Backup {
     scope,
     added,
     edited,
-    removed: store.hidden.filter(id => inScope(categoryOf(id))),
+    removed: store.hidden.filter(inScope),
     categories: {
-      created: store.categories.filter(inScope),
-      // Keyed by the name a category had, valued by the name it shows under; it
-      // is the second of those the user picked, so that is what scope means.
-      renamed: Object.fromEntries(Object.entries(store.categoryRenames).filter(([, shown]) => inScope(shown))),
-      order: store.categoryOrder.filter(inScope),
+      order: store.categoryOrder.filter(covers),
       ...(scope ? {} : { sort: store.categorySort }),
     },
+    // Left out where there is nothing to say, rather than written empty — the
+    // rule the word lists follow below.
+    ...(Object.keys(members).length > 0 ? { members } : {}),
+    ...(covers(LIBRARY) && store.libraryOrder.length > 0 ? { libraryOrder: [...store.libraryOrder] } : {}),
     // The bar is one category's worth of phrases, so its order goes when that
-    // category does — and an arrangement is all-or-nothing, so it is not
-    // filtered down the way the lists above are.
-    ...(inScope('Emergency') && store.emergencyOrder.length > 0
-      ? { emergencyOrder: [...store.emergencyOrder] }
-      : {}),
-    ...(Object.keys(phraseOrder).length > 0 ? { phraseOrder } : {}),
+    // category does — and an arrangement is all-or-nothing.
+    ...(covers(EMERGENCY) && store.emergencyOrder.length > 0 ? { emergencyOrder: [...store.emergencyOrder] } : {}),
     // Lists nobody has touched are left out rather than written as an empty
     // object, so the panel does not offer someone "your word lists" when they
     // have changed none — and so replacing from a file does not quietly empty
@@ -235,41 +230,68 @@ const str = (v: unknown) => (typeof v === 'string' ? v : '')
 const strings = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x !== '') : []
 
-const stringMap = (v: unknown): Record<string, string> => {
-  if (!isRecord(v)) return {}
-  const out: Record<string, string> = {}
-  for (const [k, val] of Object.entries(v)) {
-    if (k !== '' && typeof val === 'string') out[k] = val
-  }
-  return out
-}
+/** A phrase or an edit as a file has it, with the category a file at version 1 filed it under. */
+type Filed<T> = T & { filedUnder: string }
 
-function readAdded(v: unknown): BackupPhrase[] {
+function readAdded(v: unknown): Filed<BackupPhrase>[] {
   if (!Array.isArray(v)) return []
   return v
     .filter(isRecord)
     .map(p => ({
       id: str(p.id),
       text: str(p.text),
-      category: str(p.category) || IMPORTED_CATEGORY,
+      category: str(p.category) === EMERGENCY ? EMERGENCY : LIBRARY,
+      filedUnder: str(p.category),
       ...(readVoices(p) ? { voices: readVoices(p)! } : {}),
     }))
     .filter(p => p.id !== '' && p.text !== '')
 }
 
-function readEdited(v: unknown): BackupEdit[] {
+function readEdited(v: unknown): Filed<BackupEdit>[] {
   if (!Array.isArray(v)) return []
   return v
     .filter(isRecord)
     .map(e => {
-      const entry: BackupEdit = { id: str(e.id) }
+      const entry: Filed<BackupEdit> = { id: str(e.id), filedUnder: str(e.category) }
       if (typeof e.text === 'string' && e.text !== '') entry.text = e.text
-      if (typeof e.category === 'string' && e.category !== '') entry.category = e.category
       const voices = readVoices(e)
       if (voices) entry.voices = voices
       return entry
     })
-    .filter(e => e.id !== '' && (e.text !== undefined || e.category !== undefined || e.voices !== undefined))
+    .filter(e => e.id !== '' && (e.text !== undefined || e.filedUnder !== '' || e.voices !== undefined))
+}
+
+/** Without the category a phrase or edit was filed under, which only a file at version 1 has. */
+const unfiled = <T extends { filedUnder: string }>({ filedUnder: _, ...rest }: T) => rest
+
+/**
+ * **A file at version 1 as references.** Each phrase it filed under a category
+ * other than Library is referred to by that category, in the order the file's
+ * arrangement gave them and then the file's own; a category it made and left
+ * empty is an empty list; Library's arrangement is Library's order. What it
+ * renamed is not read: every name it renamed was a category Peri used to ship.
+ */
+function fromVersion1(
+  raw: Record<string, unknown>,
+  added: Filed<BackupPhrase>[],
+  edited: Filed<BackupEdit>[],
+): { members: Record<string, string[]>; libraryOrder: string[] } {
+  const categories = isRecord(raw.categories) ? raw.categories : {}
+  const arranged = readPhraseOrder(raw.phraseOrder) ?? {}
+  const members: Record<string, string[]> = {}
+  const own = (name: string) => name !== '' && name !== LIBRARY && name !== EMERGENCY
+  for (const name of strings(categories.created)) if (own(name)) members[name] ??= []
+  for (const { id, filedUnder } of [...added, ...edited]) {
+    if (own(filedUnder) && !(members[filedUnder] ??= []).includes(id)) members[filedUnder].push(id)
+  }
+  for (const [category, ids] of Object.entries(members)) {
+    const rank = new Map((arranged[category] ?? []).map((id, i) => [id, i]))
+    members[category] = [
+      ...ids.filter(id => rank.has(id)).sort((a, b) => rank.get(a)! - rank.get(b)!),
+      ...ids.filter(id => !rank.has(id)),
+    ]
+  }
+  return { members, libraryOrder: arranged[LIBRARY] ?? [] }
 }
 
 /**
@@ -361,7 +383,12 @@ export function parseBackup(text: string): ParseResult {
   const scope = Array.isArray(raw.scope) ? strings(raw.scope) : null
   const aliases = readAliasStore(raw.aliases) ?? readLegacyProfile(raw.profile)
   const settings = readSettings(raw.settings)
-  const phraseOrder = readPhraseOrder(raw.phraseOrder)
+  const added = readAdded(raw.added)
+  const edited = readEdited(raw.edited)
+  const { members, libraryOrder } =
+    version === 1
+      ? fromVersion1(raw, added, edited)
+      : { members: readMembers(raw.members) ?? {}, libraryOrder: strings(raw.libraryOrder) }
 
   return {
     ok: true,
@@ -371,17 +398,16 @@ export function parseBackup(text: string): ParseResult {
       exported: str(raw.exported),
       // An empty list would mean "cover nothing", which no export ever writes.
       scope: scope && scope.length > 0 ? scope : null,
-      added: readAdded(raw.added),
-      edited: readEdited(raw.edited),
+      added: added.map(unfiled),
+      edited: edited.map(unfiled).filter(e => e.text !== undefined || e.voices !== undefined),
       removed: strings(raw.removed),
       categories: {
-        created: strings(categories.created),
-        renamed: stringMap(categories.renamed),
-        order: strings(categories.order),
+        order: strings(categories.order).filter(name => name !== LIBRARY),
         ...(categories.sort === 'alpha' || categories.sort === 'custom' ? { sort: categories.sort } : {}),
       },
+      ...(Object.keys(members).length > 0 ? { members } : {}),
+      ...(libraryOrder.length > 0 ? { libraryOrder } : {}),
       ...(strings(raw.emergencyOrder).length > 0 ? { emergencyOrder: strings(raw.emergencyOrder) } : {}),
-      ...(phraseOrder && Object.keys(phraseOrder).length > 0 ? { phraseOrder } : {}),
       ...(aliases ? { aliases } : {}),
       ...(settings ? { settings } : {}),
     },
@@ -405,10 +431,7 @@ export interface BackupSummary {
 
 export function summarize(backup: Backup): BackupSummary {
   const names = new Set<string>([
-    ...backup.added.map(p => p.category),
-    ...backup.edited.map(e => e.category ?? '').filter(Boolean),
-    ...backup.categories.created,
-    ...Object.values(backup.categories.renamed),
+    ...Object.keys(backup.members ?? {}),
     ...backup.categories.order,
     ...(backup.scope ?? []),
   ])
@@ -427,11 +450,10 @@ export function summarize(backup: Backup): BackupSummary {
       summary.added === 0 &&
       summary.edited === 0 &&
       summary.removed === 0 &&
-      backup.categories.created.length === 0 &&
-      Object.keys(backup.categories.renamed).length === 0 &&
+      Object.keys(backup.members ?? {}).length === 0 &&
       backup.categories.order.length === 0 &&
       (backup.emergencyOrder?.length ?? 0) === 0 &&
-      Object.keys(backup.phraseOrder ?? {}).length === 0 &&
+      (backup.libraryOrder?.length ?? 0) === 0 &&
       !summary.aliases &&
       !summary.settings,
   }
@@ -501,37 +523,40 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
 
   const custom = base.store.custom.map(p => ({ ...p }))
   const overrides = { ...base.store.overrides }
-  const categoryOverrides = { ...base.store.categoryOverrides }
   const voiceOverrides = { ...base.store.voiceOverrides }
 
   // Importing the same file twice, or two files from the same person, should not
-  // leave two of everything. An id matches the very same phrase; text and
-  // category together catch the same phrase written again on another device,
-  // where it was given an id of its own.
+  // leave two of everything. An id matches the very same phrase; the same
+  // wording in the same place — Library, or the bar — catches the same phrase
+  // written again on another device, where it was given an id of its own. **The
+  // file's categories then refer to the phrase already here**, which is why the
+  // one it would have added is remembered as that one.
   const byId = new Map(custom.map(p => [p.id, p]))
-  // The separator is a NUL, the one character neither a category name nor a
-  // phrase can contain — a space or a colon would let one pair collide with
-  // another. Written as an escape rather than as the byte itself: a raw NUL in
-  // the source makes this whole file binary to grep, and a search over it then
-  // answers nothing rather than saying it cannot.
-  const key = (text: string, category: string) => `${category}\u0000${text}`
-  const seen = new Set(custom.map(p => key(p.text, p.category)))
+  // The separator is a NUL, the one character neither a place nor a phrase can
+  // contain. Written as an escape rather than as the byte itself: a raw NUL in
+  // the source makes this whole file binary to grep.
+  const key = (text: string, category: string) => `${category}\u0000${wordingKey(text)}`
+  const had = new Map(custom.map(p => [key(overrides[p.id] ?? p.text, p.category), p.id]))
+  const sameAs = new Map<string, string>()
 
   for (const phrase of backup.added) {
     const existing = byId.get(phrase.id)
+    const already = had.get(key(phrase.text, phrase.category))
     if (existing) {
       existing.text = phrase.text
       existing.category = phrase.category
-    } else if (!seen.has(key(phrase.text, phrase.category))) {
-      const copy = { ...phrase }
+    } else if (already !== undefined) {
+      sameAs.set(phrase.id, already)
+      continue
+    } else {
+      const copy = { id: phrase.id, text: phrase.text, category: phrase.category }
       custom.push(copy)
       byId.set(copy.id, copy)
     }
-    seen.add(key(phrase.text, phrase.category))
+    had.set(key(phrase.text, phrase.category), phrase.id)
     // An override left over from a phrase that once had this id would otherwise
     // mask the text just imported — the store reads the override first.
     delete overrides[phrase.id]
-    delete categoryOverrides[phrase.id]
     const voices = readVoices(phrase)
     if (voices) voiceOverrides[phrase.id] = voices
     else delete voiceOverrides[phrase.id]
@@ -539,47 +564,37 @@ export function applyBackup(backup: Backup, current: AppState, mode: ImportMode)
 
   for (const edit of backup.edited) {
     if (edit.text !== undefined) overrides[edit.id] = edit.text
-    if (edit.category !== undefined) categoryOverrides[edit.id] = edit.category
     const editVoices = readVoices(edit)
     if (editVoices) voiceOverrides[edit.id] = editVoices
   }
 
-  const order = [...base.store.categoryOrder]
-  for (const name of backup.categories.order) {
-    if (!order.includes(name)) order.push(name)
-  }
+  /** What the file's order adds to one already here: its own, on the end, each once. */
+  const appended = (here: string[], from: string[]) => [...here, ...from.filter(x => !here.includes(x))]
 
-  // Same rule as the categories above: what the file arranged is appended, so a
-  // device with no arrangement of its own takes the file's exactly, and one that
-  // has arranged its bar already does not have it rearranged underneath them.
-  const emergencyOrder = [...base.store.emergencyOrder]
-  for (const id of backup.emergencyOrder ?? []) {
-    if (!emergencyOrder.includes(id)) emergencyOrder.push(id)
-  }
-
-  // Same rule again, one category at a time: what the file arranged is appended
-  // behind what this device had already arranged, so a device with no
-  // arrangement of its own takes the file's exactly and one that has arranged a
-  // category does not have it rearranged underneath them. A category the file
-  // says nothing about keeps whatever it had.
-  const phraseOrder = { ...base.store.phraseOrder }
-  for (const [category, ids] of Object.entries(backup.phraseOrder ?? {})) {
-    const existing = phraseOrder[category] ?? []
-    phraseOrder[category] = [...existing, ...ids.filter(id => !existing.includes(id))]
+  // What the file refers to is appended behind what this device's categories
+  // already hold, so a device with nothing of its own takes the file's exactly
+  // and one that has arranged a category does not have it rearranged
+  // underneath them. A category the file says nothing about keeps what it had.
+  const members = { ...base.store.members }
+  for (const [category, ids] of Object.entries(backup.members ?? {})) {
+    if (category === LIBRARY || category === EMERGENCY) continue
+    members[category] = appended(members[category] ?? [], [...new Set(ids.map(id => sameAs.get(id) ?? id))])
   }
 
   const store: PhraseStore = {
     custom,
     overrides,
-    categoryOverrides,
     voiceOverrides,
     hidden: replacing ? [...new Set(backup.removed)] : base.store.hidden,
-    categoryRenames: { ...base.store.categoryRenames, ...backup.categories.renamed },
-    categories: [...new Set([...base.store.categories, ...backup.categories.created])],
-    categoryOrder: order,
+    members,
+    categoryOrder: appended(base.store.categoryOrder, backup.categories.order),
     categorySort: backup.categories.sort ?? base.store.categorySort,
-    emergencyOrder,
-    phraseOrder,
+    // Same rule for both arrangements: what the file arranged is appended.
+    emergencyOrder: appended(base.store.emergencyOrder, backup.emergencyOrder ?? []),
+    libraryOrder: appended(
+      base.store.libraryOrder,
+      (backup.libraryOrder ?? []).map(id => sameAs.get(id) ?? id),
+    ),
   }
 
   return {

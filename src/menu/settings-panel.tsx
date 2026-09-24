@@ -163,7 +163,6 @@ function VoiceRow() {
 export function SettingsPanel({
   store,
   aliases,
-  categoryById,
   sync,
   account,
   onAccountChange,
@@ -174,7 +173,6 @@ export function SettingsPanel({
   /** Only so the reset confirmation can offer a backup before it wipes them. */
   store: PhraseStore
   aliases: AliasStore
-  categoryById: Map<string, string>
   sync: SyncControl
   /**
    * Held in `talk` rather than here, because it is part of what synchronizing
@@ -197,8 +195,8 @@ export function SettingsPanel({
   const [confirmingReset, setConfirmingReset] = useState(false)
 
   const exportEverything = useCallback(
-    () => downloadBackup(buildBackup({ store, aliases, settings, categoryById })),
-    [store, aliases, settings, categoryById],
+    () => downloadBackup(buildBackup({ store, aliases, settings })),
+    [store, aliases, settings],
   )
 
   // Storage first, then a reload. Nothing here can reach the React state holding

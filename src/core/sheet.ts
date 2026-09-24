@@ -7,7 +7,9 @@
 // whoever helps somebody set their board up, and a spreadsheet is where that
 // person already knows how to work.
 //
-// One row a phrase: **Category, Phrase, ID** — and after the phrases, one row
+// One row a phrase: **Categories, Phrase, ID** — every phrase is in Library,
+// and the first cell lists the categories that refer to it as well, separated
+// by semicolons; Emergency for a button on the bar. After the phrases, one row
 // a word for the word lists the Aliases panel keeps, filed under the list's
 // name in curly brackets.
 //
@@ -15,7 +17,8 @@
 //    `**Help**` — so a row read back is the phrase it was, not the words one
 //    choice of its slots happened to show.
 //  * **The ID is what makes the sheet an editor rather than a list.** A row
-//    whose ID is on the board rewords or moves that phrase; a row without one
+//    whose ID is on the board rewords that phrase or changes its categories; a
+//    row without one
 //    is a new phrase; and replacing the board's phrases with the sheet's takes
 //    away whatever the sheet left out. Written with a `#` in front, because
 //    phrase ids are short base-36 hashes and a spreadsheet opening `12e45`
@@ -31,6 +34,7 @@
 
 import {
   FORMER_IDS,
+  LIBRARY,
   aliasNames,
   aliasWords,
   EMERGENCY_PHRASES,
@@ -41,19 +45,42 @@ import {
   type AliasStore,
   type Phrase,
 } from './phrases'
-import { IMPORTED_CATEGORY } from './backup'
-import { displayCategory, newPhraseId, orderByIds, phraseKey, type PhraseStore } from './store'
+import { newPhraseId, orderByIds, wordingKey, type PhraseStore } from './store'
 
 const EMERGENCY = 'Emergency'
 
 /** The columns, in the order Peri writes them. */
-export const SHEET_HEADER = ['Category', 'Phrase', 'ID']
+export const SHEET_HEADER = ['Categories', 'Phrase', 'ID']
 
-/** One row of a sheet. `id` is empty for a phrase the sheet adds. */
+/**
+ * One row of a sheet. `id` is empty for a phrase the sheet adds. `category` is
+ * the first cell as written: the categories it is in, separated by
+ * semicolons — see `namedIn`.
+ */
 export interface SheetRow {
   category: string
   phrase: string
   id: string
+}
+
+/** What separates the categories in a row's first cell, as Peri writes it. */
+const SEPARATOR = '; '
+
+/**
+ * The places a row's first cell names: its categories, and Emergency where it
+ * is a button on the bar. **Library is where every phrase is**, so naming it
+ * says nothing — a sheet from before categories were references files most of
+ * its rows under it, or under a category Peri used to ship, and both read.
+ */
+export function namedIn(cell: string): string[] {
+  return [
+    ...new Set(
+      cell
+        .split(';')
+        .map(c => c.trim())
+        .filter(c => c !== '' && c.toLowerCase() !== LIBRARY.toLowerCase()),
+    ),
+  ]
 }
 
 /** A sheet longer than this is not a board, and reading it would stall the page. */
@@ -62,35 +89,22 @@ const MAX_ROWS = 20_000
 // ── The board as rows ─────────────────────────────────────────────────────────
 
 /**
- * Every phrase on the board, as it is arranged: the emergency bar first, since
- * it is the part somebody reaches for without reading, then each category in
- * the order its tabs are in, and each category in its own arrangement.
+ * Every phrase on the board, one row each: the emergency bar first, since it is
+ * the part somebody reaches for without reading, then Library in its own
+ * arrangement — each with the categories that refer to it, in the order their
+ * tabs are in.
  */
-export function boardRows(
-  phrases: Phrase[],
-  categories: string[],
-  phraseOrder: Record<string, string[]>,
-): SheetRow[] {
-  const byCategory = new Map<string, Phrase[]>()
-  for (const p of phrases) {
-    const list = byCategory.get(p.category)
-    if (list) list.push(p)
-    else byCategory.set(p.category, [p])
-  }
-  const order = [
-    EMERGENCY,
-    ...categories.filter(c => c !== EMERGENCY),
-    // Nothing on the board should be missing from the tabs, but a row lost
-    // because a list disagreed would be a phrase lost from the sheet.
-    ...[...byCategory.keys()].filter(c => c !== EMERGENCY && !categories.includes(c)),
-  ]
-  return order.flatMap(category =>
-    orderByIds(byCategory.get(category) ?? [], phraseOrder[category] ?? []).map(p => ({
-      category,
-      phrase: p.source,
-      id: p.id,
-    })),
+export function boardRows(phrases: Phrase[], categories: string[], store: PhraseStore): SheetRow[] {
+  const onBar = phrases.filter(p => p.category === EMERGENCY)
+  const library = orderByIds(
+    phrases.filter(p => p.category !== EMERGENCY),
+    store.libraryOrder,
   )
+  const named = (id: string) => categories.filter(c => store.members[c]?.includes(id)).join(SEPARATOR)
+  return [
+    ...onBar.map(p => ({ category: EMERGENCY, phrase: p.source, id: p.id })),
+    ...library.map(p => ({ category: named(p.id), phrase: p.source, id: p.id })),
+  ]
 }
 
 /**
@@ -378,7 +392,7 @@ export type SheetMode = 'merge' | 'replace'
 /** What an import will do, counted before anybody is asked to confirm it. */
 export interface SheetPlan {
   added: number
-  /** Reworded, moved, or both. */
+  /** Reworded, moved onto or off the bar, or put in or taken out of a category. */
   changed: number
   /** Taken off the board once and named by the sheet again. */
   restored: number
@@ -401,20 +415,27 @@ export interface SheetBoard {
  *
  * Row by row, the first matching rule wins:
  *
- *  1. **An ID on the board** — the phrase takes the row's wording and category.
+ *  1. **An ID on the board** — the phrase takes the row's wording, and the
+ *     categories it names.
  *  2. **An ID for a phrase taken off the board** — it comes back, as the row
  *     has it. Only Peri's own phrases can be taken off and brought back; one
  *     somebody wrote and deleted is gone, and its row is a new phrase.
- *  3. **The same wording in the same category** as a phrase already there —
- *     that phrase, and nothing added. Matched as the editor matches, so a sheet
- *     read twice does not put everything on the board twice.
- *  4. **Anything else** is a new phrase. A row naming no category goes under
- *     Imported, and a row whose ID another row already used is the same phrase
+ *  3. **The same wording in the same place** — Library, or the bar — as a
+ *     phrase already there: that phrase, and nothing added. Matched as the
+ *     editor matches, so a sheet read twice does not put everything on the
+ *     board twice.
+ *  4. **Anything else** is a new phrase, in Library and in the categories the
+ *     row names. A row whose ID another row already used is the same phrase
  *     twice, which the first row has settled.
  *
+ * **A category keeps its own order**: the order of the rows is not read, and
+ * what the sheet puts in a category goes on its end. Adding never takes a
+ * phrase out of a category; replacing makes each category hold what the sheet
+ * says it holds, and takes away a category the sheet does not name.
+ *
  * **Nothing moves onto or off the emergency bar unless somebody wrote it.** The
- * bar Peri ships is a fixed six, and a sheet filing one of them under Greetings
- * — or a greeting under Emergency — is taken as a wording change and no more.
+ * bar Peri ships is a fixed six, and a sheet putting one of them in Greetings —
+ * or a greeting on Emergency — is taken as a wording change and no more.
  */
 export function applySheet(
   sheet: SheetRow[],
@@ -427,60 +448,80 @@ export function applySheet(
   // folded into now — see `foldFormerCopies`.
   const rows = sheet.map(row => (FORMER_IDS.has(row.id) ? { ...row, id: FORMER_IDS.get(row.id)! } : row))
   const { store } = board
+  const replacing = mode === 'replace'
   const custom = store.custom.map(p => ({ ...p }))
   const customById = new Map(custom.map(p => [p.id, p]))
   const overrides = { ...store.overrides }
-  const categoryOverrides = { ...store.categoryOverrides }
   const hidden = new Set(store.hidden)
-  const categories = new Set(store.categories)
   const onBoard = new Map(board.phrases.map(p => [p.id, p]))
-  const keyed = new Map(board.phrases.map(p => [phraseKey(p.source, p.category), p.id]))
+  const place = (p: { category: string }) => (p.category === EMERGENCY ? EMERGENCY : LIBRARY)
+  const keyed = new Map(board.phrases.map(p => [`${place(p)}\u0000${wordingKey(p.source)}`, p.id]))
   const shipped = new Map([...PHRASES, ...EMERGENCY_PHRASES].map(p => [p.id, p]))
   const plan: SheetPlan = { added: 0, changed: 0, restored: 0, unchanged: 0, removed: 0 }
   /** Every phrase the sheet names, which is what replacing keeps. */
   const inSheet = new Set<string>()
+  /** The categories each phrase in the sheet is to be in, in the order the rows name them. */
+  const wanted = new Map<string, string[]>()
+  const onBar = (id: string) =>
+    (customById.get(id)?.category ?? onBoard.get(id)?.category) === EMERGENCY ||
+    shipped.get(id)?.category === EMERGENCY
 
   // Categories matched without regard to case, so a sheet typed in a hurry
-  // files "greetings" under the Greetings tab rather than beside it — and two
+  // puts "greetings" in the Greetings tab rather than beside it — and two
   // rows inventing one category in two spellings agree on the first.
   const spelled = new Map([...board.categories, EMERGENCY].map(c => [c.toLowerCase(), c]))
-  const categoryOf = (raw: string) => {
-    const name = raw.trim() || IMPORTED_CATEGORY
-    const known = spelled.get(name.toLowerCase())
+  const spell = (raw: string) => {
+    const known = spelled.get(raw.toLowerCase())
     if (known) return known
-    spelled.set(name.toLowerCase(), name)
-    return name
+    spelled.set(raw.toLowerCase(), raw)
+    return raw
   }
 
-  const canMove = (id: string, from: string, to: string) =>
-    from === to ? false : from !== EMERGENCY && to !== EMERGENCY ? true : customById.has(id)
+  /** What a row puts a phrase in, and whether it puts it on the bar. */
+  const read = (row: SheetRow) => {
+    const named = namedIn(row.category).map(spell)
+    return { toBar: named.includes(EMERGENCY), categories: named.filter(c => c !== EMERGENCY) }
+  }
 
-  /** Filed under another category, the way the editor files one. */
-  const move = (id: string, to: string) => {
+  /** Onto the bar or off it, the way the editor does it — only for a phrase somebody wrote. */
+  const settle = (id: string, toBar: boolean) => {
     const mine = customById.get(id)
-    // A phrase somebody wrote carries its category itself, which is also what
-    // puts it on the emergency bar or takes it off.
-    if (mine) {
-      mine.category = to
-      delete categoryOverrides[id]
-    } else categoryOverrides[id] = to
-    if (to !== EMERGENCY) categories.add(to)
+    if (!mine || (mine.category === EMERGENCY) === toBar) return false
+    mine.category = toBar ? EMERGENCY : LIBRARY
+    return true
+  }
+
+  const refer = (id: string, categories: string[]) => {
+    if (onBar(id)) return
+    wanted.set(id, [...new Set([...(wanted.get(id) ?? []), ...categories])])
+  }
+  const referredNow = (id: string) => Object.keys(store.members).filter(c => store.members[c].includes(id))
+  const referencesChange = (id: string, categories: string[]) => {
+    if (onBar(id)) return false
+    const now = referredNow(id)
+    return replacing
+      ? now.length !== categories.length || now.some(c => !categories.includes(c))
+      : categories.some(c => !now.includes(c))
   }
 
   for (const row of rows) {
-    const category = categoryOf(row.category)
     if (row.id && inSheet.has(row.id)) continue
+    const { toBar, categories } = read(row)
 
     const current = row.id ? onBoard.get(row.id) : undefined
     if (current) {
       inSheet.add(current.id)
       const reworded = row.phrase !== current.source
-      const moved = canMove(current.id, current.category, category)
       if (reworded) overrides[current.id] = row.phrase
-      if (moved) move(current.id, category)
-      if (reworded || moved) {
+      const moved = settle(current.id, toBar)
+      const refiled = referencesChange(current.id, categories)
+      refer(current.id, categories)
+      if (reworded || moved || refiled) {
         // So a later row with the same new wording is found rather than added.
-        keyed.set(phraseKey(row.phrase, moved ? category : current.category), current.id)
+        keyed.set(
+          `${toBar && customById.has(current.id) ? EMERGENCY : place(current)}\u0000${wordingKey(row.phrase)}`,
+          current.id,
+        )
         plan.changed++
       } else plan.unchanged++
       continue
@@ -492,21 +533,19 @@ export function applySheet(
       inSheet.add(original.id)
       if (row.phrase === original.source) delete overrides[original.id]
       else overrides[original.id] = row.phrase
-      const was =
-        original.category === EMERGENCY
-          ? EMERGENCY
-          : (categoryOverrides[original.id] ?? displayCategory(original.category, store.categoryRenames))
-      if (canMove(original.id, was, category)) move(original.id, category)
-      keyed.set(phraseKey(row.phrase, category), original.id)
+      refer(original.id, categories)
+      keyed.set(`${place(original)}\u0000${wordingKey(row.phrase)}`, original.id)
       plan.restored++
       continue
     }
 
-    const key = phraseKey(row.phrase, category)
-    const same = keyed.get(key)
+    const where = toBar ? EMERGENCY : LIBRARY
+    const same = keyed.get(`${where}\u0000${wordingKey(row.phrase)}`)
     if (same) {
       inSheet.add(same)
-      plan.unchanged++
+      if (referencesChange(same, categories)) plan.changed++
+      else plan.unchanged++
+      refer(same, categories)
       continue
     }
 
@@ -514,17 +553,17 @@ export function applySheet(
     // this board or another of theirs and nothing here has it — so reading the
     // same sheet twice finds it the second time rather than adding it again.
     const id = row.id.startsWith('custom-') && !customById.has(row.id) && !onBoard.has(row.id) ? row.id : newId()
-    const added = { id, text: row.phrase, category }
+    const added = { id, text: row.phrase, category: where }
     custom.push(added)
     customById.set(id, added)
-    if (category !== EMERGENCY) categories.add(category)
-    keyed.set(key, id)
+    refer(id, categories)
+    keyed.set(`${where}\u0000${wordingKey(row.phrase)}`, id)
     inSheet.add(id)
     plan.added++
   }
 
   const removed = new Set<string>()
-  if (mode === 'replace') {
+  if (replacing) {
     for (const p of board.phrases) {
       if (inSheet.has(p.id)) continue
       removed.add(p.id)
@@ -533,31 +572,39 @@ export function applySheet(
       if (customById.has(p.id)) {
         customById.delete(p.id)
         delete overrides[p.id]
-        delete categoryOverrides[p.id]
       } else hidden.add(p.id)
     }
     plan.removed = removed.size
   }
 
-  // Arrangements tidied of whatever went, as the bin tidies them: an id naming
-  // nothing is harmless, but a store that only accumulates is one nobody can
-  // read later.
-  const phraseOrder: Record<string, string[]> = {}
-  for (const [category, ids] of Object.entries(store.phraseOrder)) {
-    const kept = ids.filter(id => !removed.has(id))
-    if (kept.length > 0) phraseOrder[category] = kept
+  // Each category keeps its own order. Adding appends what the sheet puts in
+  // it; replacing keeps, in their places, only the references the sheet still
+  // names, appends the rest, and takes away a category no row names.
+  const members: Record<string, string[]> = {}
+  const named = new Set([...wanted.values()].flat())
+  for (const [category, ids] of Object.entries(store.members)) {
+    if (replacing && !named.has(category)) continue
+    members[category] = ids.filter(id => !removed.has(id) && (!replacing || wanted.get(id)?.includes(category)))
   }
+  for (const [id, categories] of wanted) {
+    for (const category of categories) {
+      const list = (members[category] ??= [])
+      if (!list.includes(id)) list.push(id)
+    }
+  }
+  // A phrase put on the bar is in no category.
+  for (const category of Object.keys(members)) members[category] = members[category].filter(id => !onBar(id))
 
   return {
     store: {
       ...store,
       custom: custom.filter(p => customById.has(p.id)),
       overrides,
-      categoryOverrides,
       hidden: [...hidden],
-      categories: [...categories],
+      members,
+      categoryOrder: store.categoryOrder.filter(c => c in members),
       emergencyOrder: store.emergencyOrder.filter(id => !removed.has(id)),
-      phraseOrder,
+      libraryOrder: store.libraryOrder.filter(id => !removed.has(id)),
     },
     plan,
   }

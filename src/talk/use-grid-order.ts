@@ -11,7 +11,6 @@ import { LIBRARY, type Phrase } from '../core/phrases'
 import { search } from '../core/search'
 import { heldOrder, sortPhrases } from '../core/sort'
 import {
-  displayCategory,
   loadPhraseSorts,
   savePhraseSorts,
   setSortFor,
@@ -23,6 +22,7 @@ import { type Board } from './use-board'
 
 /** One shared empty arrangement, so a category with none keeps a stable memo. */
 const EMPTY_ARRANGEMENT: string[] = []
+const EMPTY_PHRASES: Phrase[] = []
 
 export function useGridOrder({
   board,
@@ -61,13 +61,12 @@ export function useGridOrder({
   /** What this tab is showing. A tab nobody has chosen for shows `DEFAULT_SORT`. */
   const phraseSort = sortFor(phraseSorts, tab, canArrange)
 
-  // The hand arrangement is the shown category's own, and there is none under
-  // All: its phrases come from every category at once, and ranking them against
-  // each other's arrangements would interleave orders that were never about one
-  // another. Applied here rather than after the filter because `sortPhrases`
-  // leaves ids it does not know where they were, so the other categories' cells
-  // are untouched either way.
-  const handArrangement = board.store.phraseOrder[tab] ?? EMPTY_ARRANGEMENT
+  // The hand arrangement: Library's own, or none for a category — whose
+  // references are held in its own order already, which is its Custom order.
+  const handArrangement = tab === LIBRARY ? board.store.libraryOrder : EMPTY_ARRANGEMENT
+  /** What the tab holds before it is ordered: Library, or a category's references. */
+  const { phrasesOf } = board
+  const tabPhrases = useMemo(() => (canArrange ? phrasesOf(tab) : EMPTY_PHRASES), [canArrange, phrasesOf, tab])
 
   /**
    * **The record the board is ordered by, taken when they last changed what
@@ -103,21 +102,16 @@ export function useGridOrder({
   }
 
   const arrangedPhrases = useMemo(
-    () => sortPhrases(board.mainPhrases, phraseSort, ranking, handArrangement),
-    [board.mainPhrases, phraseSort, ranking, handArrangement],
+    () => sortPhrases(tabPhrases, phraseSort, ranking, handArrangement),
+    [tabPhrases, phraseSort, ranking, handArrangement],
   )
 
   /**
    * **What is typed searches Library, whichever tab is showing** — see `search`.
-   * Library by the name it shows under, which a rename changes. In the order
-   * the board lists it rather than the tab's own, since the tab may not be
+   * In the board's order rather than the tab's own, since the tab may not be
    * Library at all, and `search` orders what it finds by recency anyway.
    */
-  const library = displayCategory(LIBRARY, board.store.categoryRenames)
-  const libraryPhrases = useMemo(
-    () => board.mainPhrases.filter(p => p.category === library),
-    [board.mainPhrases, library],
-  )
+  const library = board.mainPhrases
 
   // Both records keep the order they happened in, newest first, and neither is
   // put through `sortPhrases` at all — which is what "always sorted by recency"
@@ -125,19 +119,17 @@ export function useGridOrder({
   const visiblePhrases = useMemo(
     () =>
       filterWord
-        ? search(libraryPhrases, filterWord, counts)
+        ? search(library, filterWord, counts)
         : showingSent
           ? heldOrder(sentPhrases, sentOrder)
           : showingTranslated
             ? translatedPhrases
             : showingSuggestions
               ? suggestions
-              : tab === 'all'
-                ? arrangedPhrases
-                : arrangedPhrases.filter(p => p.category === tab),
+              : arrangedPhrases,
     [
       filterWord,
-      libraryPhrases,
+      library,
       counts,
       showingSent,
       showingTranslated,
@@ -147,7 +139,6 @@ export function useGridOrder({
       translatedPhrases,
       suggestions,
       arrangedPhrases,
-      tab,
     ],
   )
 
