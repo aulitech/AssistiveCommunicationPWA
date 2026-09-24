@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { act, fireEvent } from '@testing-library/react'
 import { downloads } from '../setup'
-import { $, box, cells, click, editToggle, renderApp, savePhrase, writePhrase } from './harness'
+import { $, $$, box, cells, click, editToggle, renderApp, savePhrase, writePhrase } from './harness'
 
 let refused: ReturnType<typeof vi.spyOn> | null = null
 /** Every write from here on refused, the way a full store refuses them. */
@@ -19,6 +19,7 @@ afterEach(() => {
 })
 
 const strip = () => $('.not-keeping')
+const tabNamed = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
 /**
  * The strip arrives at the top and moves everything under a pointer that has
  * not moved, so the app is deaf for the second after — a click included.
@@ -107,5 +108,31 @@ describe('when this device stops saving', () => {
     savePhrase()
 
     expect(strip()).toBeNull()
+  })
+})
+
+/**
+ * Regression guard, found in a browser: a phrase whose words were not words
+ * reached the parser while the board was drawn, and the board threw — on every
+ * load, since the damage stays put. The crash screen caught it, and *Start
+ * again* only started the crash again.
+ */
+describe('a phrase store with something damaged in it', () => {
+  it('opens the board, without the damaged phrase', () => {
+    localStorage.setItem(
+      'dwellspeak_phrase_store_v2',
+      JSON.stringify({
+        custom: [
+          { id: 'custom-broken', text: 123, category: 'Kitchen' },
+          { id: 'custom-kettle', text: 'Put the kettle on', category: 'Kitchen' },
+        ],
+      }),
+    )
+    renderApp()
+
+    expect($('.still-talking'), 'the board fell over on a damaged phrase').toBeNull()
+    expect($('.app')).not.toBeNull()
+    click(tabNamed('Kitchen'))
+    expect(cells().map(c => c.textContent)).toEqual(['Put the kettle on'])
   })
 })
