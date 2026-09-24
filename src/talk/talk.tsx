@@ -8,43 +8,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { loadTranslations } from '../core/translation'
-import { cancelAllDwells, holdDwells, holdDwellsUntilMoved, RestingContext } from '../ui/dwell'
+import { cancelAllDwells, holdDwellsUntilMoved, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
 import { compose, composeWithBlank, hasChoices, parseSegments, type Phrase } from '../core/phrases'
 import { soleLink, stripMarkdown } from '../core/markdown'
 import { openLink } from '../core/links'
-import { search } from '../core/search'
-import { heldOrder, sortPhrases } from '../core/sort'
 import {
-  loadElevenLabs,
   forgetReplyContext,
   loadReplyKey,
-  loadPhraseSorts,
   loadRecent,
-  onWriteFailure,
-  sameAccount,
-  saveElevenLabs,
-  savePhraseSorts,
   saveReplyKey,
   saveRecent,
-  setSortFor,
-  sortFor,
-  type ElevenLabsAccount,
-  type PhraseSort,
   type PhraseUse,
   type User,
 } from '../core/store'
-import { applyBackup, buildBackup, type AppState } from '../core/backup'
-import { accountId } from '../core/store'
-import { SYNC_EPOCH, keepDeviceSettings, portableSettings, type SyncPayload } from '../core/sync'
-import { useSync } from '../sync/use-sync'
+import { type AppState } from '../core/backup'
 import { speak, warmVoice } from '../voice/speech'
-import { clearAudioCache, setRemoteClips } from '../voice/audio-cache'
-import { REMOTE_PREFIX } from '../voice/elevenlabs'
 import { cx } from '../ui/style'
 import { BusyIndicator, DwellCursor, PanelButton } from '../ui/controls'
-import { downloadBackup } from '../menu/backup-file'
 import { Keyboard } from '../ui/keyboard'
 import { type PasteResult } from '../ui/link-input'
 import { Topbar } from './topbar'
@@ -62,11 +44,11 @@ import { useListen } from './use-listen'
 import { TRANSLATED_CATEGORY, TRANSLATED_FILTER, useTranslated, voiceForTranslated } from './use-translated'
 import { SUGGEST_CATEGORY, SUGGEST_FILTER } from './suggestions'
 import { useApologies } from './use-apologies'
+import { useSynchronized } from './use-synchronized'
+import { useNotKeeping } from './use-not-keeping'
+import { useGridOrder } from './use-grid-order'
 import { useUsage } from './use-usage'
 import { useToast } from './use-toast'
-
-/** One shared empty arrangement, so a category with none keeps a stable memo. */
-const EMPTY_ARRANGEMENT: string[] = []
 
 export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const { settings, update } = useSettings()
@@ -94,24 +76,6 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   }, [])
 
   const { toast, flashToast } = useToast()
-
-  /**
-   * **Whether this device has stopped keeping what is changed.** A write the
-   * browser refused — a full store, a private window — no longer takes the
-   * screen down with it (`writeKey`), so the board carries on from memory, and
-   * that is exactly what makes it dangerous: everything looks fine until the
-   * next reload hands back the board as it was before. So it says so, and it
-   * stays said — a toast would be gone before a gaze reached it — with a backup
-   * one dwell away while memory still holds what storage does not.
-   */
-  const [notKeeping, setNotKeeping] = useState(false)
-  useEffect(() => onWriteFailure(() => setNotKeeping(true)), [])
-  // The strip arrives at the top and moves everything below it, under a
-  // pointer that has not moved.
-  useEffect(() => {
-    if (notKeeping) holdDwells()
-  }, [notKeeping])
-  const [keptInFile, setKeptInFile] = useState<boolean | null>(null)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState('all')
@@ -151,10 +115,6 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     null,
   )
   const [recent, setRecent] = useState(loadRecent)
-  // Which of the four orders each tab is in. One per tab rather than one for
-  // the board: the categories are not alike, and a single setting makes the
-  // right answer for one of them the wrong answer everywhere else.
-  const [phraseSorts, setPhraseSorts] = useState(loadPhraseSorts)
 
   const { store, allCategories, voiceFor, phraseSaying } = board
 
@@ -332,9 +292,6 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    */
   const canArrange = effectiveFilter !== 'all' && !showingSent && !showingTranslated && !showingSuggestions
 
-  /** What this tab is showing. A tab nobody has chosen for shows `DEFAULT_SORT`. */
-  const phraseSort = sortFor(phraseSorts, effectiveFilter, canArrange)
-
   // Sent messages and translations are their own lists rather than part of the
   // board: both are a record of what was said, not phrases anybody added.
   /**
@@ -377,118 +334,20 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     forgetAnswers()
   }, [forgetAnswers])
 
-  // Arranged before it is searched, never after. Filtering to a category keeps
-  // the order it is given and so does the ranking, so this decides ties within a
-  // rank band while a typed word still puts the best match first.
-  //
-  // The hand arrangement is the shown category's own, and there is none under
-  // All: its phrases come from every category at once, and ranking them against
-  // each other's arrangements would interleave orders that were never about one
-  // another. Applied here rather than after the filter because `sortPhrases`
-  // leaves ids it does not know where they were, so the other categories' cells
-  // are untouched either way.
-  const handArrangement = store.phraseOrder[effectiveFilter] ?? EMPTY_ARRANGEMENT
-
-  /**
-   * **The record the board is ordered by, taken when they last changed what
-   * they are looking at** — a tab, or an order. Not the live record.
-   *
-   * An order that goes by use used to rearrange the board on the very dwell
-   * that chose a phrase: the cell just used slid to the front, everything else
-   * moved around it, and the next thing somebody looked for was not where they
-   * had left it. The order is not wrong — it is what "most used" means — but it
-   * cannot be applied to the board somebody is in the middle of reading.
-   *
-   * So the ranking is held while a tab is on screen and taken again when they
-   * look somewhere else. Nothing is lost: every phrase chosen is still counted,
-   * and the next tab shows the order those counts make.
-   *
-   * Adjusted during render rather than in an effect, which is the rule for
-   * state that follows a prop — an effect would draw the old order once first.
-   */
-  const [ranking, setRanking] = useState(usage.counts)
-  /**
-   * And the order the Sent list is shown in, held the same way and for the same
-   * reason: saying a message again moves it to the front of the record, which
-   * on the tab it was said from is the cell just used sliding out from under
-   * the gaze that used it. The record still moves; the screen holds.
-   */
-  const [sentOrder, setSentOrder] = useState(() => sent.phrases.map(p => p.id))
-  const showing = `${effectiveFilter}\u0000${phraseSort}`
-  const [rankedFor, setRankedFor] = useState(showing)
-  if (rankedFor !== showing) {
-    setRankedFor(showing)
-    setRanking(usage.counts)
-    setSentOrder(sent.phrases.map(p => p.id))
-  }
-
-  const arrangedPhrases = useMemo(
-    () => sortPhrases(board.mainPhrases, phraseSort, ranking, handArrangement),
-    [board.mainPhrases, phraseSort, ranking, handArrangement],
-  )
-
-  // Both records keep the order they happened in, newest first, and neither is
-  // put through `sortPhrases` at all — which is what "always sorted by recency"
-  // means for the Translations tab, exactly as it does for Sent.
-  const visiblePhrases = useMemo(
-    () =>
-      showingSent
-        ? search(heldOrder(sent.phrases, sentOrder), SENT_CATEGORY, filterWord)
-        : showingTranslated
-          ? search(translated.phrases, TRANSLATED_CATEGORY, filterWord)
-          : showingSuggestions
-            ? search(listener.suggestions, SUGGEST_CATEGORY, filterWord)
-            : search(arrangedPhrases, effectiveFilter, filterWord),
-    [
-      showingSent,
-      showingTranslated,
-      showingSuggestions,
-      sent.phrases,
-      sentOrder,
-      translated.phrases,
-      listener.suggestions,
-      arrangedPhrases,
-      effectiveFilter,
-      filterWord,
-    ],
-  )
-
-  /**
-   * A different arrangement moves every cell on the board at once. The picker
-   * holds the dwells on its way out, which is what stops the phrase arriving
-   * under a resting pointer being spoken by the change itself.
-   */
-  // Remembered against the tab it was chosen under, so coming back to a
-  // category brings back the order it was left in.
-  const chooseSort = useCallback(
-    (next: PhraseSort) => {
-      const sorts = setSortFor(phraseSorts, effectiveFilter, next)
-      savePhraseSorts(sorts)
-      setPhraseSorts(sorts)
-    },
-    [phraseSorts, effectiveFilter],
-  )
-
-  /**
-   * A move captures the order that was on screen and makes it the user's own,
-   * exactly as a category move does — and switches the grid to Custom order,
-   * since an arrangement nobody is looking at is not an arrangement.
-   *
-   * The list handed over is what is actually shown. In edit mode that is the
-   * whole category, because a typed word never narrows the grid there.
-   */
-  const handleReorderPhrases = useCallback(
-    (from: string, to: string) => {
-      board.reorderPhrases(
-        effectiveFilter,
-        visiblePhrases.map(p => p.id),
-        from,
-        to,
-      )
-      chooseSort('custom')
-    },
-    [board, effectiveFilter, visiblePhrases, chooseSort],
-  )
+  // What order the grid is in, and what it shows — see `use-grid-order.ts`.
+  const { phraseSort, visiblePhrases, chooseSort, handleReorderPhrases } = useGridOrder({
+    board,
+    tab: effectiveFilter,
+    canArrange,
+    showingSent,
+    showingTranslated,
+    showingSuggestions,
+    sentPhrases: sent.phrases,
+    translatedPhrases: translated.phrases,
+    suggestions: listener.suggestions,
+    counts: usage.counts,
+    filterWord,
+  })
 
   // ── Choosing a phrase ──────────────────────────────────────────────────────
 
@@ -1021,86 +880,21 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     [board, update, flashToast],
   )
 
-  // ── Synchronizing ──────────────────────────────────────────────────────────
-  // The board as a backup, which is the document sync ships. **A fixed date**,
-  // because `buildBackup` stamps the moment it was called and a stamp that moves
-  // every render is a board that looks changed every render — which would push
-  // for ever. When it was written down is the snapshot's business, not the
-  // document's.
-  /**
-   * The linked account lives here rather than in the settings row that edits it,
-   * for two reasons that arrived together: it is part of what synchronizing
-   * sends, and a row holding its own copy would go stale the moment a board
-   * arrived from another device carrying a different one.
-   */
-  const [account, setLinkedAccount] = useState<ElevenLabsAccount | null>(loadElevenLabs)
+  // Whether this device has stopped keeping what is changed — see
+  // `use-not-keeping.ts` — and the backup built from memory that answers it.
+  const { notKeeping, keptInFile, keepInFile } = useNotKeeping(board, settings)
 
-  /**
-   * Written straight through, and `speak` reads it back per utterance, so there
-   * is no second copy to keep in step. The cache goes with it: audio fetched on
-   * one account's credits is not another's to use, and a voice re-linked may
-   * well be a different one under the same name.
-   *
-   * **Writing the same account again is not a change**, and the guard is here
-   * rather than at the one caller that needs it today. A board arriving from
-   * another device carries the account whether or not that is what changed, so
-   * without this an edit to a phrase on the tablet would empty the phone's audio
-   * cache — every clip re-fetched, on the user's own credits, for nothing. It is
-   * the sort of cost that never shows up as a bug report.
-   */
-  const setAccount = useCallback((next: ElevenLabsAccount | null) => {
-    if (sameAccount(next, loadElevenLabs())) return
-    saveElevenLabs(next)
-    clearAudioCache()
-    // A remembered voice from the account that has just gone would seed the next
-    // new phrase with one that no longer exists.
-    if (next === null) {
-      const recent = loadRecent()
-      if (recent.voice?.startsWith(REMOTE_PREFIX)) saveRecent({ ...recent, voice: undefined })
-    }
-    setLinkedAccount(next)
-  }, [])
-
-  const syncBackup = useMemo(
-    () =>
-      buildBackup({
-        store,
-        aliases: board.aliases,
-        // Text size and volume are about this screen and this speaker, not about
-        // the person — so they are blanked on the way out, which also means
-        // turning the text size up is not a change to the board at all. See
-        // `portableSettings`.
-        settings: portableSettings(settings),
-        categoryById: board.categoryById,
-        now: SYNC_EPOCH,
-      }),
-    [store, board.aliases, settings, board.categoryById],
-  )
-
-  /** Everything sync carries: the board, and what a backup file may not hold. */
-  const syncPayload = useMemo(() => ({ backup: syncBackup, account, replyKey }), [syncBackup, account, replyKey])
-
-  // A board that arrived from another device lands exactly as a restored backup
-  // does — in one go, with a line saying where it came from, because a grid that
-  // rearranges itself under somebody with no explanation is alarming.
-  const applyFromSync = useCallback(
-    (incoming: SyncPayload, from: string) => {
-      const next = applyBackup(incoming.backup, { store, aliases: board.aliases, settings }, 'replace')
-      board.restore(next.store, next.aliases)
-      // Everything the person set, and this device's own text size and volume.
-      update(keepDeviceSettings(next.settings, settings))
-      // The account travels with the board, which is what makes a phrase given
-      // an ElevenLabs voice on one device still sound like itself on the next.
-      // `setAccount` ignores one that has not changed — see there.
-      setAccount(incoming.account)
-      // And the key behind a suggested reply, for the same reason: it is what
-      // makes the feature work on the second device without forty characters of
-      // noise being typed into it by dwell.
-      setReplyKey(incoming.replyKey)
-      flashToast(`Board updated from your other device (${from})`)
-    },
-    [board, store, settings, update, flashToast, setAccount, setReplyKey],
-  )
+  // Synchronizing — see `use-synchronized.ts`: the board and the account going
+  // to the user's other devices, and what arrives from them landing here.
+  const { sync, account, setAccount } = useSynchronized({
+    user,
+    board,
+    settings,
+    update,
+    replyKey,
+    setReplyKey,
+    flashToast,
+  })
 
   // The shipped translations for whichever language the board is spoken in,
   // brought into memory ahead of anybody pressing anything. `translationFor` has
@@ -1120,39 +914,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // board would be left with four rows of keys and no way to put them down.
   if (keyboardOpen && !settings.keyboard) setKeyboardOpen(false)
 
-  const sync = useSync({
-    accountId: accountId(user),
-    payload: syncPayload,
-    onApply: applyFromSync,
-  })
-
-  /**
-   * Tells the audio cache where the user's other devices keep their clips.
-   *
-   * **Here because this is the only place that can see both.** `voice/` and
-   * `sync/` sit on the same line of the layering, so neither may import the
-   * other, and a clip an ElevenLabs voice is about to be billed for is decided
-   * deep inside the first while the address it might already be at is worked out
-   * by the second. Null while synchronizing is off, which is where the app
-   * ships — and put back to null on the way out, or a signed-out screen would
-   * leave a stale set of keys installed in a module.
-   */
-  useEffect(() => {
-    setRemoteClips(sync.clips)
-    return () => setRemoteClips(null)
-  }, [sync.clips])
-
   // `editor.open` is stable, which matters: this value reaches every one of a
   // couple of thousand memoised phrase cells.
-  /**
-   * The board as it is **in memory**, which is the point: storage is what has
-   * stopped taking changes, so a backup built from it would leave out exactly
-   * the ones at risk. The same file the Backup panel writes.
-   */
-  const keepInFile = useCallback(() => {
-    const backup = buildBackup({ store, aliases: board.aliases, settings, categoryById: board.categoryById })
-    setKeptInFile(downloadBackup(backup).ok)
-  }, [store, board.aliases, board.categoryById, settings])
 
   const editCtx: EditCtxValue = useMemo(() => ({ editMode, openEdit: editor.open }), [editMode, editor.open])
 

@@ -458,3 +458,5 @@ export function useBoard() {
     restore,
   }
 }
+
+export type Board = ReturnType<typeof useBoard>
