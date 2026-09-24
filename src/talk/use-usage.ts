@@ -12,7 +12,7 @@
 // be chosen until the gaze leaves whatever it is resting on.
 
 import { useCallback, useState } from 'react'
-import { forgetUse, loadUsage, recordUse, saveUsage, type PhraseUsage } from '../core/store'
+import { forgetUse, loadUsage, recordUse, saveUsage, type PhraseUse, type PhraseUsage } from '../core/store'
 
 export function useUsage() {
   const [counts, setCounts] = useState<PhraseUsage>(loadUsage)
@@ -28,8 +28,22 @@ export function useUsage() {
   // longer exists.
   const record = useCallback((id: string) => write(recordUse(loadUsage(), id)), [write])
 
-  /** Drops a deleted phrase's count, so the record stays the size of the board. */
-  const forget = useCallback((id: string) => write(forgetUse(loadUsage(), id)), [write])
+  /**
+   * Drops a deleted phrase's count, so the record stays the size of the board —
+   * and hands back what it dropped, so an undone delete puts the phrase back
+   * where Most used had it rather than among the phrases nobody has used.
+   */
+  const forget = useCallback(
+    (id: string): PhraseUse | undefined => {
+      const usage = loadUsage()
+      write(forgetUse(usage, id))
+      return usage[id]
+    },
+    [write],
+  )
 
-  return { counts, record, forget }
+  /** Puts back a count that an undone delete took. */
+  const restore = useCallback((id: string, use: PhraseUse) => write({ ...loadUsage(), [id]: use }), [write])
+
+  return { counts, record, forget, restore }
 }

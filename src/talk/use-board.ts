@@ -30,7 +30,27 @@ import {
   phraseKey,
   wordingKey,
   type PhraseStore,
+  type StoredPhrase,
 } from '../core/store'
+
+/**
+ * Everything a delete takes, so it can be put back.
+ *
+ * **Deleting was the one change the app offered no way back from**, and the bin
+ * sits a dwell's breadth from Save. Only these four things go: the phrase's own
+ * entry (or, for one Peri ships, it is hidden), and its places on the emergency
+ * bar and in its category's arrangement. Its wording, voice and any category it
+ * was moved to stay in the store, which is what lets this be so small.
+ */
+export interface Removed {
+  id: string
+  /** A phrase somebody wrote: its entry, and where it was among the others. Null for one Peri ships. */
+  custom: { entry: StoredPhrase; at: number } | null
+  /** Where it was on the emergency bar's arrangement, or -1. */
+  emergencyAt: number
+  /** Where it was in its category's hand arrangement, if it had one. */
+  arranged: { category: string; at: number } | null
+}
 
 /** Every category's arrangement with one phrase taken out, dropping any left empty. */
 function withoutPhrase(order: Record<string, string[]>, id: string): Record<string, string[]> {
@@ -258,8 +278,14 @@ export function useBoard() {
   )
 
   /** Deletes one the user wrote; hides one that came with the app. */
+  /**
+   * Takes a phrase off the board, and hands back everything that took — see
+   * `Removed` — so an undo can put it back exactly where it was.
+   */
   const removePhrase = useCallback(
-    (id: string) =>
+    (id: string): Removed => {
+      const customAt = store.custom.findIndex(p => p.id === id)
+      const arranged = Object.entries(store.phraseOrder).find(([, ids]) => ids.includes(id))
       updateStore({
         ...(id.startsWith('custom-')
           ? { custom: store.custom.filter(p => p.id !== id) }
@@ -273,7 +299,48 @@ export function useBoard() {
         // a handful of short lists — and a category whose arrangement empties
         // out loses the key rather than keeping an empty one.
         phraseOrder: withoutPhrase(store.phraseOrder, id),
-      }),
+      })
+      return {
+        id,
+        custom: id.startsWith('custom-') && customAt >= 0 ? { entry: store.custom[customAt], at: customAt } : null,
+        emergencyAt: store.emergencyOrder.indexOf(id),
+        arranged: arranged ? { category: arranged[0], at: arranged[1].indexOf(id) } : null,
+      }
+    },
+    [store, updateStore],
+  )
+
+  /**
+   * Puts back what `removePhrase` took, **where it was**: among the phrases
+   * somebody wrote, on the emergency bar, and in its category's arrangement.
+   * Its wording, its voice and any category it was moved to were never taken —
+   * a delete leaves those in the store — so this is the whole of the phrase.
+   */
+  const restorePhrase = useCallback(
+    (r: Removed) => {
+      const at = (list: string[], index: number) =>
+        index < 0 || list.includes(r.id) ? list : [...list.slice(0, index), r.id, ...list.slice(index)]
+      updateStore({
+        ...(r.custom
+          ? store.custom.some(p => p.id === r.id)
+            ? {}
+            : {
+                custom: [
+                  ...store.custom.slice(0, r.custom.at),
+                  r.custom.entry,
+                  ...store.custom.slice(r.custom.at),
+                ],
+              }
+          : { hidden: store.hidden.filter(i => i !== r.id) }),
+        emergencyOrder: at(store.emergencyOrder, r.emergencyAt),
+        ...(r.arranged && {
+          phraseOrder: {
+            ...store.phraseOrder,
+            [r.arranged.category]: at(store.phraseOrder[r.arranged.category] ?? [], r.arranged.at),
+          },
+        }),
+      })
+    },
     [store, updateStore],
   )
 
@@ -380,6 +447,7 @@ export function useBoard() {
     addPhrase,
     editPhrase,
     removePhrase,
+    restorePhrase,
     addCategory,
     renameCategoryTo,
     removeCategory,
