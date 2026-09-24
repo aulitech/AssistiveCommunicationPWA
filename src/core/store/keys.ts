@@ -10,7 +10,8 @@ import { reportFailure } from '../report'
 // already using it. The name is cosmetic; the data is not.
 //
 // Each is somebody's, and is read and written through `storageKey`, which puts
-// whose after the name — see *Whose board*. `USER_KEY` is the one exception.
+// whose after the name — see docs/decisions/whose-board.md. `USER_KEY` is the one
+// exception.
 export const SETTINGS_KEY = 'dwellspeak_settings'
 export const PHRASE_STORE_KEY = 'dwellspeak_phrase_store_v2'
 export const PROFILE_KEY = 'dwellspeak_profile' // read once, to carry an old profile forward

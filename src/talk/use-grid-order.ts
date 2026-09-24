@@ -2,7 +2,7 @@
 //
 // Out of `talk.tsx`: the four arrangements, the snapshot of the usage record
 // the board is ordered by, the order the Sent list is held in, and the one list
-// all of that and a typed word make — see *Ordering the grid* in AGENTS.md.
+// all of that and a typed word make — see docs/decisions/ordering-the-grid.md.
 // What goes in is the tab, the three records and the counts; what comes out is
 // the list the grid draws and the two ways of changing its order.
 

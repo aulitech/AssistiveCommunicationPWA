@@ -1,6 +1,6 @@
 // Whether this device has stopped keeping what is changed, and the backup that
-// answers it — the strip at the top of the talk screen. See *Saying when
-// something failed* in AGENTS.md.
+// answers it — the strip at the top of the talk screen. See
+// docs/decisions/saying-when-something-failed.md.
 
 import { useCallback, useEffect, useState } from 'react'
 import { buildBackup } from '../core/backup'
