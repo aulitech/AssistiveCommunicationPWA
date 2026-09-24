@@ -93,7 +93,14 @@ export function useComposer({
   const insert = useCallback(
     (phraseText: string, blankAt = -1) => {
       const el = textareaRef.current
-      const pos = el?.selectionStart ?? text.length
+      // **Where the composer says the caret is, not where the box says.** A box
+      // without focus does not keep its caret: Chrome puts it back to the start
+      // when somebody rests on a category tab, with no event and no call on the
+      // box at all — and the next phrase chosen went in *before* the one before
+      // it. Unreachable while choosing a phrase took the tabs away, and found in
+      // a browser the day it stopped doing that. `cursorPos` is what the word
+      // the board narrows to is read from already, so the two now agree.
+      const pos = Math.min(cursorPos, text.length)
       const before = text.slice(0, pos)
       const after = text.slice(pos)
       // The word being finished is replaced — unless the caret is against the
@@ -131,7 +138,7 @@ export function useComposer({
         setAfterPhrase(inserted.length)
       }, 0)
     },
-    [text, afterPhrase],
+    [text, afterPhrase, cursorPos],
   )
 
   /**
