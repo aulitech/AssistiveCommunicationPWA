@@ -24,7 +24,13 @@ export function useComposer({
 } = {}) {
   const { settings } = useSettings()
   const [text, setTextState] = useState('')
-  const [history, setHistory] = useState<string[]>([])
+  /**
+   * What the box held before, for Undo. **With where a phrase in it ended**, or
+   * putting a cleared message back would put back a phrase whose last word the
+   * board then read as typed — and the next phrase chosen would write over it,
+   * the very thing `afterPhrase` exists to stop.
+   */
+  const [history, setHistory] = useState<{ text: string; afterPhrase: number | null }[]>([])
   const [cursorPos, setCursorPos] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -98,7 +104,7 @@ export function useComposer({
       const inserted = stripped + separator + phraseText
       const newText = inserted + (after.startsWith(' ') || after === '' ? '' : ' ') + after
 
-      setHistory(h => [...h, text])
+      setHistory(h => [...h, { text, afterPhrase }])
       setTextState(newText)
 
       // Land the cursor in the first unfilled blank if there is one, so the word
@@ -118,8 +124,11 @@ export function useComposer({
           }
         }
         setCursorPos(at >= 0 ? at : inserted.length)
-        // In a blank, a word is exactly what comes next.
-        setAfterPhrase(at >= 0 ? null : inserted.length)
+        // The end of the phrase, wherever the caret went: in a blank, a word is
+        // exactly what comes next, and typing it clears this anyway — but a
+        // caret taken from the blank to the end without typing is still
+        // against a phrase that ended there.
+        setAfterPhrase(inserted.length)
       }, 0)
     },
     [text, afterPhrase],
@@ -157,14 +166,16 @@ export function useComposer({
 
   const clearOrUndo = useCallback(() => {
     if (text) {
-      setHistory(h => [...h, text])
+      setHistory(h => [...h, { text, afterPhrase }])
       setTextState('')
+      setAfterPhrase(null)
     } else if (history.length) {
-      setTextState(history[history.length - 1])
+      const last = history[history.length - 1]
+      setTextState(last.text)
+      setAfterPhrase(last.afterPhrase)
       setHistory(h => h.slice(0, -1))
     }
-    setAfterPhrase(null)
-  }, [text, history])
+  }, [text, history, afterPhrase])
 
   /** Resolves to whether the clipboard took it, which is worth saying out loud. */
   const copy = useCallback(() => {

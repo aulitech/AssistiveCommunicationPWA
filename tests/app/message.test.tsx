@@ -962,6 +962,7 @@ describe('choosing one phrase after another', () => {
           { id: 'custom-moon', text: 'Once in a blue moon', category: 'Sayings' },
           { id: 'custom-moonlight', text: 'Moonlight becomes you', category: 'Sayings' },
           { id: 'custom-thanks', text: 'Thank you', category: 'Manners' },
+          { id: 'custom-tell', text: 'Tell {} I said hello', category: 'Messages' },
         ],
       }),
     )
@@ -1009,6 +1010,48 @@ describe('choosing one phrase after another', () => {
     click(cellFor('Moonlight becomes you'))
 
     expect(message()).toBe('Once in a blue moon Moonlight becomes you')
+  })
+
+  // Clear and then Undo put the message back as it was — phrase and all, not a
+  // phrase whose last word the board now reads as typed.
+  it('keeps a phrase whole after the message is cleared and put back', () => {
+    seeded()
+    click(cellFor('Once in a blue moon'))
+    click(iconBtn('Clear'))
+    click(iconBtn('Undo'))
+    expect(message()).toBe('Once in a blue moon')
+
+    click(cellFor('Moonlight becomes you'))
+
+    expect(message()).toBe('Once in a blue moon Moonlight becomes you')
+  })
+
+  // A gap is where the caret goes, but the phrase still ends where it ends:
+  // the caret taken there without typing is still against a phrase.
+  it('keeps a phrase with a gap whole when the caret is taken to its end', () => {
+    seeded()
+    click(tab('Messages'))
+    click(cells().find(c => c.textContent?.includes('I said hello')))
+    const end = message().length
+    fireEvent.select(box(), { target: { selectionStart: end, selectionEnd: end } })
+    settle()
+
+    click(tab('Sayings'))
+    click(cellFor('Moonlight becomes you'))
+
+    expect(message().endsWith('I said hello Moonlight becomes you')).toBe(true)
+  })
+
+  // Taking the last letter off a phrase and typing it back is typing a word,
+  // wherever the caret ends up.
+  it('narrows to a word typed back over the end of a phrase', () => {
+    seeded()
+    click(cellFor('Once in a blue moon'))
+
+    typeInto('Once in a blue moo')
+    typeInto('Once in a blue moon')
+
+    expect(tab('Manners'), 'a typed word was read as a phrase').toBeUndefined()
   })
 
   // A phrase is finished; a word somebody types is not. Typing after one is
