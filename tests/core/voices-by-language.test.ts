@@ -39,10 +39,10 @@ beforeEach(() => localStorage.clear())
 
 describe('choosing a voice', () => {
   it('is also choosing it for the language on now', () => {
-    const before = settings({ language: 'es-PR' })
+    const before = settings({ language: 'es-MX' })
     expect(chooseVoice(before, 'Monica')).toEqual({
       voiceURI: 'Monica',
-      voicesByLanguage: { 'es-PR': 'Monica' },
+      voicesByLanguage: { 'es-MX': 'Monica' },
     })
   })
 
@@ -53,10 +53,10 @@ describe('choosing a voice', () => {
   })
 
   it("keeps every other language's", () => {
-    const before = settings({ language: 'vi', voicesByLanguage: { '': 'Samantha', 'es-PR': 'Monica' } })
+    const before = settings({ language: 'vi', voicesByLanguage: { '': 'Samantha', 'es-MX': 'Monica' } })
     expect(chooseVoice(before, 'Linh').voicesByLanguage).toEqual({
       '': 'Samantha',
-      'es-PR': 'Monica',
+      'es-MX': 'Monica',
       vi: 'Linh',
     })
   })
@@ -74,19 +74,19 @@ describe('choosing a voice', () => {
 
 describe('switching the board to another language', () => {
   it('brings back the voice it was last spoken in', () => {
-    const before = settings({ language: '', voiceURI: 'Samantha', voicesByLanguage: { 'es-PR': 'Monica' } })
-    const after = chooseLanguage(before, 'es-PR', VOICES)
-    expect(after.language).toBe('es-PR')
+    const before = settings({ language: '', voiceURI: 'Samantha', voicesByLanguage: { 'es-MX': 'Monica' } })
+    const after = chooseLanguage(before, 'es-MX', VOICES)
+    expect(after.language).toBe('es-MX')
     expect(after.voiceURI).toBe('Monica')
   })
 
   it('and back again, which is the whole point', () => {
     let s = settings({ voiceURI: 'Samantha', voicesByLanguage: { '': 'Samantha' } })
-    s = { ...s, ...chooseLanguage(s, 'es-PR', VOICES) }
+    s = { ...s, ...chooseLanguage(s, 'es-MX', VOICES) }
     s = { ...s, ...chooseVoice(s, 'Monica') }
     s = { ...s, ...chooseLanguage(s, '', VOICES) }
     expect(s.voiceURI, 'the English voice did not come back').toBe('Samantha')
-    s = { ...s, ...chooseLanguage(s, 'es-PR', VOICES) }
+    s = { ...s, ...chooseLanguage(s, 'es-MX', VOICES) }
     expect(s.voiceURI, 'the Spanish voice did not come back').toBe('Monica')
   })
 
@@ -98,7 +98,7 @@ describe('switching the board to another language', () => {
    */
   it('writes down the voice it is leaving, even if it was never chosen here', () => {
     const before = settings({ language: '', voiceURI: 'Samantha', voicesByLanguage: {} })
-    const after = chooseLanguage(before, 'es-PR', VOICES)
+    const after = chooseLanguage(before, 'es-MX', VOICES)
     expect(after.voicesByLanguage).toMatchObject({ '': 'Samantha' })
   })
 
@@ -128,11 +128,11 @@ describe('switching the board to another language', () => {
  * or choosing a Spanish voice for a phrase throws away the English one it had.
  */
 describe("a phrase's own voice", () => {
-  const overrides = { a1: { '': 'Samantha', 'es-PR': 'Monica' }, b2: { 'es-PR': 'eleven:xY9' } }
+  const overrides = { a1: { '': 'Samantha', 'es-MX': 'Monica' }, b2: { 'es-MX': 'eleven:xY9' } }
 
   it('is the one for the language the board is speaking', () => {
     expect(voiceOverrideFor(overrides, 'a1', '')).toBe('Samantha')
-    expect(voiceOverrideFor(overrides, 'a1', 'es-PR')).toBe('Monica')
+    expect(voiceOverrideFor(overrides, 'a1', 'es-MX')).toBe('Monica')
   })
 
   /**
@@ -161,8 +161,8 @@ describe("a phrase's own voice", () => {
 describe('giving a phrase a voice for one language', () => {
   it('keeps the voices it has for every other', () => {
     const before = { a1: { '': 'Samantha', vi: 'Linh' } }
-    expect(setVoiceOverride(before, 'a1', 'es-PR', 'Monica')).toEqual({
-      a1: { '': 'Samantha', vi: 'Linh', 'es-PR': 'Monica' },
+    expect(setVoiceOverride(before, 'a1', 'es-MX', 'Monica')).toEqual({
+      a1: { '': 'Samantha', vi: 'Linh', 'es-MX': 'Monica' },
     })
   })
 

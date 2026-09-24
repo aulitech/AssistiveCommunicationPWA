@@ -487,14 +487,6 @@ describe('reporting a translation', () => {
     expect(reported).toEqual([])
   })
 
-  // Patois, which nothing translates into: a phrase outside the shipped table
-  // is said as it was written, so there is nothing to report.
-  it('reports nothing when no service will translate it', () => {
-    speak('Help me!', { ...SETTINGS, language: 'jam' }, { onTranslated })
-    expect(spoken).toEqual(['Help me!'])
-    expect(reported).toEqual([])
-  })
-
   it('reports nothing when there is no key to translate with', () => {
     speak("I'm cold", FRENCH, { onTranslated })
     expect(spoken).toEqual(["I'm cold"])
@@ -587,100 +579,25 @@ describe('saying words that are already translated', () => {
     speak('Aidez-moi !', SETTINGS, { alreadyIn: 'fr-FR' })
     expect(lastUtterance?.lang).toBe('fr-FR')
   })
-
-  // The tag the synthesiser is told is not always the tag the setting holds, and
-  // that has to keep being true here: there is no Patois voice anywhere.
-  it('says Patois as Jamaican English, as everywhere else', () => {
-    speak('Help mi!', SETTINGS, { alreadyIn: 'jam' })
-    expect(lastUtterance?.lang).toBe('en-JM')
-  })
 })
 
-/**
- * Patois, which nothing translates into.
- *
- * The shipped table is the whole of the answer here, and the property that
- * matters is the one that stops it going wrong quietly: a phrase outside that
- * table must not be sent to a service that would hand back English and call it
- * Patois.
- */
-describe('speaking a board in Jamaican Patois', () => {
-  const PATOIS = { ...SETTINGS, language: 'jam' }
+// A regional tag is said as itself, and read and translated as its base
+// language: there is one Spanish table, and the service is asked for `es`.
+describe('speaking a board in a regional Spanish', () => {
+  const MEXICO = { ...SETTINGS, language: 'es-MX' }
 
   beforeEach(() => {
     forgetTranslations()
     vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '')
   })
 
-  it('says what the shipped table says', () => {
-    seedTranslations('jam', { 'Help me!': 'Help mi!' })
-    speak('Help me!', PATOIS)
-    expect(spoken).toEqual(['Help mi!'])
+  it('is spoken as Mexican Spanish, not as Spanish', () => {
+    seedTranslations('es-MX', { 'Help me!': '¡Ayúdenme!' })
+    speak('Help me!', MEXICO)
+    expect(lastUtterance?.lang).toBe('es-MX')
   })
 
-  /**
-   * Not merely "does not send it" but "does not go away and think about it".
-   * Asserted before anything is flushed: a language nothing translates has
-   * nothing to wait for, so the words go out in the same tick they were asked
-   * for, exactly as an untranslated board does.
-   */
-  it('speaks a phrase it has no translation for straight away', () => {
-    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
-    const fetcher = vi.fn()
-    vi.stubGlobal('fetch', fetcher)
-
-    speak('Something nobody has said before', PATOIS)
-    expect(spoken, 'the phrase was deferred to a translation that can never come').toEqual([
-      'Something nobody has said before',
-    ])
-    expect(fetcher, 'a phrase went to a service that has no Patois').not.toHaveBeenCalled()
-  })
-
-  it('never sends a phrase anywhere, even with a key in hand', async () => {
-    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
-    const fetcher = vi.fn()
-    vi.stubGlobal('fetch', fetcher)
-
-    speak('Something nobody has said before', PATOIS)
-    await flush()
-    expect(fetcher, 'a phrase went to a service that has no Patois').not.toHaveBeenCalled()
-    expect(spoken, 'and it was said as it was written').toEqual(['Something nobody has said before'])
-  })
-
-  // There is no Patois voice anywhere, so the synthesiser is told the nearest
-  // thing there is.
-  it('is spoken as Jamaican English', () => {
-    seedTranslations('jam', { 'Help me!': 'Help mi!' })
-    speak('Help me!', PATOIS)
-    expect(lastUtterance?.lang).toBe('en-JM')
-  })
-})
-
-describe('speaking a board in Puerto Rican Spanish', () => {
-  const PUERTO_RICO = { ...SETTINGS, language: 'es-PR' }
-
-  beforeEach(() => {
-    forgetTranslations()
-    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '')
-  })
-
-  it('is spoken as Puerto Rican Spanish, not as Spanish', () => {
-    seedTranslations('es-PR', { 'Help me!': '¡Ayúdenme!' })
-    speak('Help me!', PUERTO_RICO)
-    expect(lastUtterance?.lang).toBe('es-PR')
-  })
-
-  /**
-   * The regional wording lives in the **shipped table**, which is Latin
-   * American Spanish. The service is asked for the closest thing it offers to
-   * a page — plain `es` — because Google's own `es-419` is on the LLM model,
-   * which wants a service account rather than a key.
-   *
-   * So a phrase Peri ships sounds Puerto Rican and one written here sounds
-   * Spanish, which is the honest state of it and worth pinning rather than
-   * pretending otherwise.
-   */
-  it('asks the service for the closest Spanish it has', async () => {
+  it('asks the service for Spanish', async () => {
     vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
     let asked = ''
     const fetcher = vi.fn(async (_url: string, init: RequestInit) => {
@@ -692,16 +609,14 @@ describe('speaking a board in Puerto Rican Spanish', () => {
     })
     vi.stubGlobal('fetch', fetcher)
 
-    speak("I'm cold", PUERTO_RICO)
+    speak("I'm cold", MEXICO)
     await flush()
     expect(JSON.parse(asked).target).toBe('es')
   })
 
-  // And the shipped table is what carries the difference.
-  it('keeps its own table, not the one plain Spanish reads', async () => {
-    seedTranslations('es-PR', { 'Get a doctor': 'Busque un doctor' })
+  it('reads the table plain Spanish reads', () => {
     seedTranslations('es-ES', { 'Get a doctor': 'Busque un médico' })
-    speak('Get a doctor', PUERTO_RICO)
-    expect(spoken).toEqual(['Busque un doctor'])
+    speak('Get a doctor', MEXICO)
+    expect(spoken).toEqual(['Busque un médico'])
   })
 })

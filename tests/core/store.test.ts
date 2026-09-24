@@ -359,6 +359,27 @@ describe('the model behind a suggested reply', () => {
   })
 })
 
+// Jamaican Patois and Puerto Rican Spanish were offered and are not now. A
+// board set to either speaks what is nearest: the device's own language for
+// Patois — read as a tag it is Japanese — and Spanish for Puerto Rico.
+describe('a language Peri no longer offers', () => {
+  it.each([
+    ['jam', ''],
+    ['es-PR', 'es'],
+    ['ES-pr', 'es'],
+    ['es-MX', 'es-MX'],
+    ['', ''],
+  ])('reads %s as %s', (stored, now) => {
+    localStorage.setItem('dwellspeak_settings', JSON.stringify({ language: stored }))
+    expect(loadSettings().language).toBe(now)
+  })
+
+  it('keeps the voice the board was speaking in', () => {
+    localStorage.setItem('dwellspeak_settings', JSON.stringify({ language: 'es-PR', voiceURI: 'uri-Paulina' }))
+    expect(loadSettings().voiceURI).toBe('uri-Paulina')
+  })
+})
+
 /**
  * Today's conversation, and the day it lasts.
  *

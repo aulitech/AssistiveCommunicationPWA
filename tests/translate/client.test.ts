@@ -142,17 +142,12 @@ describe('every way it can fail', () => {
     expect((await translate('Good morning', 'fr')).status).toBe('error')
   })
 
-  /**
-   * Patois is a language the API does not have. Google Translate the product
-   * added it in 2024; Cloud Translation, the one a page can call, carries
-   * Haitian Creole and no other English-based creole. Asking anyway would hand back English and call
-   * it a translation, which is worse than not translating at all.
-   */
-  it('does not go asking for a language nothing translates into', async () => {
+  // English into English costs a request and hands back the same words.
+  it('does not go asking for the language the board is already written in', async () => {
     const fetcher = answers({ data: { translations: [{ translatedText: 'nonsense' }] } })
-    expect(await translate('Help me!', 'jam')).toEqual({
+    expect(await translate('Help me!', 'en-GB')).toEqual({
       status: 'error',
-      error: 'Nothing here translates into jam',
+      error: 'Nothing here translates into en-GB',
     })
     expect(fetcher).not.toHaveBeenCalled()
   })
@@ -219,8 +214,8 @@ describe('what reaches the console', () => {
 
   it('names the language nothing translates into, rather than saying "that"', async () => {
     answers({ data: { translations: [] } })
-    await translate('Help me!', 'jam')
-    expect(warnings[0]).toContain('jam')
+    await translate('Help me!', 'en-GB')
+    expect(warnings[0]).toContain('en-GB')
   })
 
   it('says nothing at all when it works', async () => {

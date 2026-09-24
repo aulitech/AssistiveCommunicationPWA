@@ -10,10 +10,8 @@ import { readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   SOURCE_LANGUAGE,
-  VARIETIES,
   baseLanguage,
   translationTarget,
-  speechTag,
   tableFor,
   forgetTranslations,
   loadTranslations,
@@ -21,7 +19,6 @@ import {
   rememberTranslation,
   seedTranslations,
   translationFor,
-  varietyLabel,
 } from '../../src/core/translation'
 
 beforeEach(() => forgetTranslations())
@@ -33,13 +30,6 @@ const EMERGENCY = ['Help me!', "I'm in pain", 'Call 911', 'Get a doctor', "I can
 const TABLES = readdirSync(resolve(process.cwd(), 'src/core/imports/translations'))
   .filter(name => name.endsWith('.json'))
   .map(name => name.replace(/\.json$/, ''))
-
-/**
- * A table is named for the variety rather than for a tag, so `es-419.json` is
- * reached by asking for `es-PR`. Passing the file name straight through would
- * quietly test `es` twice and `es-419` never.
- */
-const tagFor = (table: string) => VARIETIES.find(v => v.table === table)?.tag ?? table
 
 describe('which languages mean translating', () => {
   it('is nothing at all when none has been chosen', () => {
@@ -172,7 +162,7 @@ describe('the shipped tables', () => {
    * in this app that must never quietly do that.
    */
   it.each(TABLES)('carries every emergency phrase in %s, the one bar that cannot wait', async table => {
-    const tag = tagFor(table)
+    const tag = table
     await loadTranslations(tag)
     for (const phrase of EMERGENCY) {
       expect(translationFor(phrase, tag), `${phrase} has no ${table}`).toBeTruthy()
@@ -191,66 +181,25 @@ describe('the shipped tables', () => {
   })
 })
 
-/**
- * Ways of speaking that a tag alone does not describe.
- *
- * Three questions hide inside one — what to say it as, what to translate it
- * with, and which shipped table it reads — and for these they have three
- * different answers. Anything not listed answers all three from its base
- * language, which is right for `de-DE` and wrong for both of these.
- */
-describe('a spoken variety', () => {
-  it('answers all three from the base language when Peri knows nothing special', () => {
+// Every language answers what table it reads and what it is translated with
+// from its base language: `es-MX` reads `es.json` and is asked for as `es`.
+describe('a regional tag', () => {
+  it('reads the table and asks the service for its base language', () => {
     expect(tableFor('de-DE')).toBe('de')
     expect(translationTarget('de-DE')).toBe('de')
-    expect(speechTag('de-DE')).toBe('de-DE')
+    expect(tableFor('es-MX')).toBe('es')
   })
 
-  /**
-   * Nobody has a Puerto Rican target. The **table** is Latin American Spanish,
-   * the near side of a real divide — European Spanish would give a board
-   * `vosotros` and `coger`, which means something else in San Juan — and it is
-   * named for the variety rather than a provider's code, the provider having
-   * changed once already. The service is asked for the closest thing it has.
-   */
-  it('sends Puerto Rican Spanish to Latin America rather than to Spain', () => {
-    expect(translationTarget('es-PR')).toBe('es')
-    expect(tableFor('es-PR')).toBe('es-419')
-    expect(tableFor('es-PR')).not.toBe(tableFor('es-ES'))
+  it('has nothing to translate into for the language the board is written in', () => {
+    expect(translationTarget('en-JM')).toBeNull()
+    expect(translationTarget('')).toBeNull()
   })
 
-  it('says Puerto Rican Spanish as Puerto Rican Spanish', () => {
-    expect(speechTag('es-PR')).toBe('es-PR')
-  })
-
-  /**
-   * **Patois is a language, not an accent**, and no service translates into it
-   * — Google Translate the product added it in 2024, Cloud Translation did
-   * not. Null is the answer, and it is
-   * not a missing case: it is what stops a phrase being sent somewhere that
-   * would hand back English.
-   */
-  it('has nothing to send Patois to', () => {
-    expect(translationTarget('jam')).toBeNull()
-    expect(tableFor('jam')).toBe('jam')
-    expect(needsTranslation('jam')).toBe(true)
-  })
-
-  // There is no Patois voice on any device, and Patois written down is close
-  // enough to English that an English voice reads it about right.
-  it('says Patois as Jamaican English, there being no Patois voice anywhere', () => {
-    expect(speechTag('jam')).toBe('en-JM')
-  })
-
-  it('has a name of its own for each, since a tag reads as a product code', () => {
-    for (const v of VARIETIES) expect(varietyLabel(v.tag)).toBe(v.label)
-    expect(varietyLabel('de-DE')).toBeUndefined()
-  })
-
-  it('keeps the two Spanishes apart in what it remembers', () => {
-    rememberTranslation('Get a doctor', 'es-ES', 'Busque un médico')
-    rememberTranslation('Get a doctor', 'es-PR', 'Busque un doctor')
-    expect(translationFor('Get a doctor', 'es-ES')).toBe('Busque un médico')
-    expect(translationFor('Get a doctor', 'es-PR')).toBe('Busque un doctor')
+  // Peri shipped a Latin American table for Puerto Rico and a hand-written one
+  // for Jamaican Patois, and both were taken out. The tables have to go with
+  // them, or a table nothing can reach is shipped to every device.
+  it('ships no table for a language it no longer offers', () => {
+    expect(TABLES).not.toContain('jam')
+    expect(TABLES).not.toContain('es-419')
   })
 })

@@ -59,14 +59,12 @@ One language at a time, with the *unrestricted* key:
 ```sh
 GOOGLE_TRANSLATE_KEY=AIza… pnpm translate es
 GOOGLE_TRANSLATE_KEY=AIza… pnpm translate fr
-GOOGLE_TRANSLATE_KEY=AIza… pnpm translate es-PR
+GOOGLE_TRANSLATE_KEY=AIza… pnpm translate vi
 ```
 
 The whole phrase table is roughly 52,000 characters, so a language is about a tenth of the monthly free tier. It **merges** rather than replaces, so re-running is cheap and the hand-written emergency phrases are not quietly taken over by a machine.
 
 **Read the output before committing it.** These are phrases somebody will say to a nurse about their own body, and a plausible-looking mistranslation is worse than an English sentence the listener has to work at.
-
-`pnpm translate jam` refuses, and says why: nothing translates into Jamaican Patois — Google Translate the product added it in 2024, Cloud Translation, the one this can call, did not. That table is written by hand and read by somebody who speaks it.
 
 ## Checking it works
 

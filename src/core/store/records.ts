@@ -64,8 +64,8 @@ export interface Translated {
   /**
    * The language setting it was said under — **the tag, not the table.**
    *
-   * `es-PR` reads the `es-419` table and is spoken as `es-PR`, so the table
-   * cannot say which voice to use or what to call it in a list. The tag can.
+   * `es-MX` reads the `es` table and is spoken as `es-MX`, so the table cannot
+   * say which voice to use or what to call it in a list. The tag can.
    */
   tag: string
 }

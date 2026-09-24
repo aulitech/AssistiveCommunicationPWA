@@ -154,6 +154,27 @@ export const readReplyModel = (raw: unknown): string => {
   return REPLY_MODELS.find(m => m.id === id)?.id ?? DEFAULT_REPLY_MODEL
 }
 
+/**
+ * Languages Peri used to offer and does not now, and what a board set to one
+ * speaks instead. **Asked of storage and of a file alike**, like the model
+ * above: a backup, or a device still on an older release, can carry one for
+ * years.
+ *
+ * Jamaican Patois goes back to the device's own language — nothing translates
+ * into it, and read as a tag its first two letters are Japanese. Puerto Rican
+ * Spanish goes to Spanish, which is what it was translated with all along.
+ */
+const RETIRED_LANGUAGES = new Map([
+  ['jam', ''],
+  ['es-pr', 'es'],
+])
+
+/** The language a stored setting means now. */
+export const readLanguage = (raw: unknown): string => {
+  const tag = typeof raw === 'string' ? raw : ''
+  return RETIRED_LANGUAGES.get(tag.toLowerCase()) ?? tag
+}
+
 /** Whether a model always thinks before answering — see `REPLY_MODELS`. */
 export const replyModelThinks = (id: string): boolean => REPLY_MODELS.find(m => m.id === id)?.thinks === true
 
@@ -233,6 +254,7 @@ export function loadSettings(): Settings {
       // opened in a later release naming a model this build never heard of
       // would fail on the first question somebody was asked.
       replyModel: readReplyModel(raw?.replyModel),
+      language: readLanguage(raw?.language),
     }
   } catch {
     return DEFAULT_SETTINGS

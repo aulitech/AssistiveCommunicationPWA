@@ -602,9 +602,9 @@ describe('the control', () => {
   })
 
   it('listens in the language the board is spoken in', () => {
-    renderApp({ language: 'es-PR' })
+    renderApp({ language: 'es-MX' })
     click(micBtn())
-    expect(FakeRecognition.last!.lang).toBe('es-PR')
+    expect(FakeRecognition.last!.lang).toBe('es-MX')
   })
 })
 

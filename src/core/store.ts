@@ -20,6 +20,7 @@ export {
   DEFAULT_SETTINGS,
   leaveForSignIn,
   loadSettings,
+  readLanguage,
   readReplyModel,
   REPLY_MODELS,
   replyModelName,

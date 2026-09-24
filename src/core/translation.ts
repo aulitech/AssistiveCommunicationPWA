@@ -36,87 +36,17 @@ export interface TranslationTable {
   of: Record<string, string>
 }
 
-/**
- * A way of speaking that Peri knows something extra about.
- *
- * A tag is not enough on its own once regions are involved. Three different
- * questions hide inside one, and for these they have three different answers:
- * what to *say it as*, what to *translate it with*, and which shipped table it
- * reads. Anything not listed here answers all three from its base language,
- * which is right for `de-DE` and wrong for both of these.
- */
-export interface SpokenVariety {
-  /** What the setting holds. */
-  tag: string
-  label: string
-  /** What `utterance.lang` is set to — not always the tag. */
-  speak: string
-  /** What the translation service is asked for, or **null when none will do it**. */
-  target: string | null
-  /** Which shipped table it reads. */
-  table: string
-}
-
-export const VARIETIES: SpokenVariety[] = [
-  /**
-   * Nobody has a Puerto Rican target. The table is Latin American Spanish —
-   * the near side of a real divide, since European Spanish would give a board
-   * `vosotros` and `coger`, the second of which means something else entirely
-   * in San Juan — and it is **named for the variety rather than for a
-   * provider's code**, because the provider has changed once already.
-   *
-   * Google's plain `es` is what gets asked for: its `es-419` is only on the
-   * LLM model, which wants a service account rather than a key and so cannot
-   * be called from a page. The shipped table is where the regional wording
-   * lives; the service fills the gaps around it.
-   */
-  { tag: 'es-PR', label: 'Spanish (Puerto Rico)', speak: 'es-PR', target: 'es', table: 'es-419' },
-  /**
-   * **Patois is a language, not an accent**, and no translation *API* supports
-   * it. Google Translate the product added it in 2024; Cloud Translation, the
-   * one a page can call, lists Haitian Creole and no other English-based
-   * creole. So this is the case the shipped tables exist for: the phrases Peri comes with are written
-   * out ahead of time, and anything somebody writes themselves is spoken as
-   * they wrote it, because there is nothing to send it to.
-   *
-   * It is *spoken* as `en-JM`. There is no Patois voice on any device, and
-   * Patois written down is close enough to English orthography that an English
-   * voice reads it about right — a Jamaican one, where there is one, better.
-   */
-  { tag: 'jam', label: 'Jamaican Patois', speak: 'en-JM', target: null, table: 'jam' },
-]
-
-const varietyFor = (tag: string) => VARIETIES.find(v => v.tag.toLowerCase() === tag.toLowerCase())
-
-/** "es-ES" and "es" are the same table, for anything not listed above. */
+/** "es-ES" and "es" are the same table. */
 export const baseLanguage = (tag: string) => tag.slice(0, 2).toLowerCase()
 
 /** Whether a language means translating at all. Empty, or plain English, does not. */
-export const needsTranslation = (tag: string) =>
-  Boolean(tag) && (Boolean(varietyFor(tag)) || baseLanguage(tag) !== SOURCE_LANGUAGE)
+export const needsTranslation = (tag: string) => Boolean(tag) && baseLanguage(tag) !== SOURCE_LANGUAGE
 
 /** Which shipped table a language reads, or null when it needs none. */
-export const tableFor = (tag: string): string | null =>
-  varietyFor(tag)?.table ?? (needsTranslation(tag) ? baseLanguage(tag) : null)
+export const tableFor = (tag: string): string | null => (needsTranslation(tag) ? baseLanguage(tag) : null)
 
-/**
- * What to ask the translation service for, or **null when nothing will do it**.
- *
- * Null is not a failure and not a missing case: Patois is a language no service
- * offers, so a phrase outside the shipped table is spoken as it was written and
- * nothing is sent anywhere.
- */
-export const translationTarget = (tag: string): string | null => {
-  const variety = varietyFor(tag)
-  if (variety) return variety.target
-  return needsTranslation(tag) ? baseLanguage(tag) : null
-}
-
-/** What the synthesiser is told, which is not always what the setting holds. */
-export const speechTag = (tag: string): string => varietyFor(tag)?.speak ?? tag
-
-/** How a language reads in a list, where Peri has a name of its own for it. */
-export const varietyLabel = (tag: string): string | undefined => varietyFor(tag)?.label
+/** What to ask the translation service for, or null when there is nothing to translate. */
+export const translationTarget = (tag: string): string | null => tableFor(tag)
 
 /**
  * The shipped tables, once loaded, and the ones remembered from before.

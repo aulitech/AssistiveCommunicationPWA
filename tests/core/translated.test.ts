@@ -47,10 +47,10 @@ describe('adding to the record', () => {
     expect(said(list)).toEqual(["fr: I am cold → J'ai froid", 'es: I am cold → Tengo frío'])
   })
 
-  // A variety is its own language here: `es-PR` reads the Latin American table
-  // and is spoken as `es-PR`, and neither is what plain `es` does.
+  // A variety is its own language here: `es-MX` is spoken as `es-MX`, which is
+  // not what plain `es` does, even reading the same table.
   it('keeps a variety apart from its base language', () => {
-    const list = listOf(['I am cold', 'Tengo frío', 'es'], ['I am cold', 'Tengo frío', 'es-PR'])
+    const list = listOf(['I am cold', 'Tengo frío', 'es'], ['I am cold', 'Tengo frío', 'es-MX'])
     expect(list).toHaveLength(2)
   })
 
@@ -91,7 +91,7 @@ describe('reading the record back', () => {
   beforeEach(() => localStorage.clear())
 
   it('round-trips what was written', () => {
-    const list = listOf(['I am cold', 'Tengo frío', 'es-PR'], ['Help me', 'Ayúdame', 'es'])
+    const list = listOf(['I am cold', 'Tengo frío', 'es-MX'], ['Help me', 'Ayúdame', 'es'])
     saveTranslated(list)
     expect(loadTranslated()).toEqual(list)
   })
