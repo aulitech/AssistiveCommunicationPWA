@@ -12,6 +12,23 @@ export interface Seeded {
 }
 
 /**
+ * Categories of the board's own. Everything Peri ships is in Library, and a
+ * test about moving between tabs needs more than one. `many` is enough of them
+ * that the bar has to scroll to bring one to its middle.
+ */
+export function categories(names: string[]): Seeded[] {
+  return names.flatMap((category, c) =>
+    ['First', 'Second'].map((word, i) => ({
+      id: `custom-e2e-${c}-${i}`,
+      text: `${word} in ${category}`,
+      category,
+    })),
+  )
+}
+export const many = () =>
+  categories(Array.from({ length: 30 }, (_, i) => `Category ${String(i + 1).padStart(2, '0')}`))
+
+/**
  * The board, signed in as a guest, with whatever the test put in the store.
  * **Page errors fail the test**: nothing that throws is allowed to pass for
  * having left the right text on screen.

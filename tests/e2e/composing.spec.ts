@@ -6,26 +6,26 @@
 // the second phrase went in before the first.
 
 import { expect, test } from '@playwright/test'
-import { cell, composing, messageBox, openBoard, tab } from './board'
+import { categories, cell, composing, messageBox, openBoard, tab } from './board'
 
 test('keeps the tabs after a phrase is chosen', async ({ page }) => {
-  await openBoard(page)
+  await openBoard(page, { phrases: categories(['Greetings']) })
   await composing(page)
-  await tab(page, 'Idioms').click()
+  await tab(page, 'Library').click()
 
   await cell(page, 'Once in a blue moon').click()
 
   await expect(messageBox(page)).toHaveValue('Once in a blue moon')
-  await expect(tab(page, 'Appreciation')).toBeVisible()
+  await expect(tab(page, 'Greetings')).toBeVisible()
 })
 
 test('builds a sentence from two categories, both phrases whole and in order', async ({ page }) => {
-  const { errors } = await openBoard(page)
+  const { errors } = await openBoard(page, { phrases: categories(['Greetings']) })
   await composing(page)
-  await tab(page, 'Idioms').click()
+  await tab(page, 'Library').click()
   await cell(page, 'Once in a blue moon').click()
 
-  await tab(page, 'Appreciation').click()
+  await tab(page, 'Greetings').click()
   const second = page.locator('.phrase-cell').first()
   const text = (await second.innerText()).trim()
   await second.click()
