@@ -38,7 +38,7 @@ export function useGridOrder({
   filterWord,
 }: {
   board: Board
-  /** The tab that is showing — a category, All, or one of the three records. */
+  /** The tab that is showing — Library, a category, or one of the three records. */
   tab: string
   /** Whether the tab is a category of its own, where Custom order means anything. */
   canArrange: boolean

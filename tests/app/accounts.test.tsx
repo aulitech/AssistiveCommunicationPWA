@@ -93,7 +93,7 @@ describe('two people on one device', () => {
 
     loadAs(bob)
     expect(sent(), 'the second account opened the first one’s board').toEqual([])
-    click(tab('All'))
+    click(tab('Library'))
     expect(sayOne(1)).not.toBe(adaSaid)
 
     loadAs(ada)
@@ -108,7 +108,7 @@ describe('two people on one device', () => {
 
     loadAs(guest)
     expect(sent(), 'a guest opened an account’s board').toEqual([])
-    click(tab('All'))
+    click(tab('Library'))
     sayOne(1)
 
     loadAs(ada)

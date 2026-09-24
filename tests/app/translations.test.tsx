@@ -84,7 +84,7 @@ describe('where the tab sits', () => {
   it('is always the last tab, whatever the categories do', () => {
     renderApp()
     expect(tabLabels().at(-1)).toBe('Translations')
-    expect(tabLabels().slice(0, 2)).toEqual(['Sent', 'All'])
+    expect(tabLabels().slice(0, 2)).toEqual(['Sent', 'Library'])
   })
 
   it('is there before anything has been translated, and says so', () => {

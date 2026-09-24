@@ -283,7 +283,7 @@ function SortControl({
    * can still do is say which tab it is on and what that tab does instead.
    */
   orderFixed?: string
-  /** False under All, which offers no Custom order — see `sortsFor`. */
+  /** False under Sent, the answers and Translations, which offer no Custom order — see `sortsFor`. */
   canArrange: boolean
   onChoose: (sort: PhraseSort) => void
 }) {
@@ -352,7 +352,7 @@ function GridScrollBar({
   sort: PhraseSort
   /** Why this tab's order is not the user's to change, or absent when it is. */
   orderFixed?: string
-  /** False under All, Sent and Translations: none of the three is a category. */
+  /** False under Sent, the answers and Translations: none of the three holds phrases in an order of its own. */
   canArrange: boolean
   onChooseSort: (sort: PhraseSort) => void
   reordering?: boolean
@@ -522,7 +522,7 @@ export function PhraseGrid({
   sort: PhraseSort
   /** Set on the two tabs that keep an order of their own: Sent, and Translations. */
   orderFixed?: string
-  /** False under All, Sent and Translations: no Custom order, and nothing to arrange. */
+  /** False under Sent, the answers and Translations: no Custom order, and nothing to arrange. */
   canArrange: boolean
   onChooseSort: (sort: PhraseSort) => void
   /** All four of these are edit-mode only. */

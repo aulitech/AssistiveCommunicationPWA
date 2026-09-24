@@ -182,7 +182,7 @@ describe('sent messages', () => {
       tabs()
         .map(el => el.textContent)
         .slice(0, 2),
-    ).toEqual(['Sent', 'All'])
+    ).toEqual(['Sent', 'Library'])
   })
 
   it('says so rather than showing a blank panel before anything is said', () => {
@@ -965,8 +965,6 @@ describe('choosing one phrase after another', () => {
         custom: [
           { id: 'custom-moon', text: 'Once in a blue moon', category: 'Sayings' },
           { id: 'custom-moonlight', text: 'Moonlight becomes you', category: 'Sayings' },
-          // Typing searches Library, so the one found by typing is filed there.
-          { id: 'custom-moonlight-lib', text: 'Moonlight becomes you', category: 'Library' },
           { id: 'custom-thanks', text: 'Thank you', category: 'Manners' },
           { id: 'custom-tell', text: 'Tell {} I said hello', category: 'Messages' },
         ],

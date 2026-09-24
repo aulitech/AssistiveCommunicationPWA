@@ -60,7 +60,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Type in the box to find phrases in Library. After you choose a phrase, what you type next starts a new search.',
         'Phrases that begin with what you typed come first, then phrases with it anywhere in them. Last are phrases whose first letters it spells, so "ttyl" finds "Talk to you later".',
         'In each of those groups, the phrase you used most recently comes first.',
-        'Use the tabs above the grid to show one category at a time. Every phrase Peri comes with is under Library, each one once; the categories you make yourself sit beside it.',
+        'Use the tabs above the grid to show one category at a time. Every phrase is in Library, each one once. The categories you make hold phrases from Library, in an order of their own, and a phrase can be in as many as you like.',
         'The buttons on the right scroll the grid: the middle two move a little at a time and keep going while you rest on them, the outer two jump to the very top or bottom.',
       ),
       text('When the message is ready, the three at the top right of the box are what becomes of it:'),
@@ -106,7 +106,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Each tab keeps its own order, so you can have one category alphabetical and another by what you use most. Opening a tab brings back the order you left it in, and the button always says which one that is.',
       ),
       text(
-        'The All tab is not offered Custom order, because your own order belongs to one category and All shows every category at once.',
+        'Library and every category can be put in an order of your own. Each keeps its own, so arranging one moves nothing in another.',
       ),
       text('The Sent tab keeps its own order, newest first, so the button is switched off while it is showing.'),
     ],
@@ -127,7 +127,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Arranging a category switches it to Custom order and keeps what you built. Whatever order was on screen when you moved something becomes your starting point, so you can sort A to Z first and then move the few you want elsewhere.',
       ),
       text(
-        'Each category has its own arrangement. All cannot be arranged, because it shows phrases from every category at once, so the arrange button is switched off there and on the Sent tab.',
+        'Library and each category have their own arrangement. The Sent tab is in the order things were said, so the arrange button is switched off there.',
       ),
       text(
         'A phrase you add later goes at the end rather than disturbing what you arranged. Rewording a phrase leaves it exactly where you put it.',
@@ -236,17 +236,18 @@ export const HELP_SECTIONS: ProseSection[] = [
       text('The controls on the box mean something else while it is on, in the same places:'),
       list(
         ':save: at the end of the top row saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for.',
-        ':delete: removes the phrase it came from. A phrase you added goes; one that came with the app is hidden.',
+        ':delete: on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
+        ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
         ':add: at the bottom left starts a new phrase — where :clear: is the rest of the time.',
-        'A strip under the box says what is being edited, and what category it is filed under.',
+        'A strip under the box says what is being edited, and which categories it is in. Tick as many as you like, or none to keep it in Library alone.',
         "The two at the bottom right corner become this phrase's own: the voice it is said in, and the language that voice is for.",
       ),
       text('And on the board itself:'),
       list(
         'Choose any phrase to bring it into the box and change its wording.',
         'A new phrase starts in the category and voice you last used, so adding several in a row takes one choice rather than one each.',
-        ':edit: among the tools at the end of the category tabs renames the category that is showing. Delete in the same box removes the category and every phrase in it — it asks first, and says how many phrases will go.',
-        'A category goes by itself once its last phrase is deleted or moved somewhere else, and an import leaves no empty ones behind. A new category you have not put anything in yet stays until you do.',
+        ':edit: among the tools at the end of the category tabs renames the category that is showing. Delete in the same box removes the category. It asks first, and its phrases stay in Library.',
+        'A category goes by itself once its last phrase is taken out, and an import leaves no empty ones behind. A new category you have not put anything in yet stays until you do.',
         'Use :add: at the end of the blue bar to add an emergency phrase.',
         ':arrange: beside it rearranges the blue bar: choose a phrase to pick it up, then choose where it should go. Choosing it again puts it back.',
       ),
@@ -595,8 +596,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Copy for Sheets copies the whole board. In Google Sheets, open an empty sheet, put the cursor in the first cell, and paste.',
       ),
       text(
-        'Each row has three columns: Category, Phrase and ID. Change the first two as much as you like. Leave the ID alone — it is how Peri knows which phrase a row is. A row with no ID is a new phrase.',
+        'Each row has three columns: Categories, Phrase and ID. Categories lists the categories a phrase is in, with a semicolon between each; leave it empty for Library alone. Change the first two as much as you like. Leave the ID alone — it is how Peri knows which phrase a row is.',
       ),
+      text('A row with no ID is a new phrase.'),
       text(
         'A phrase can keep its choices and its formatting in the sheet, written the way you would write them in Peri: {pronouns}, **bold**.',
       ),

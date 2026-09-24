@@ -125,7 +125,7 @@ describe('the board as a spreadsheet', () => {
 
     expect(filename).toMatch(/^peri-phrases-\d{4}-\d{2}-\d{2}\.csv$/)
     expect(text.startsWith('\uFEFF')).toBe(true)
-    expect(table[0]).toEqual(['Category', 'Phrase', 'ID'])
+    expect(table[0]).toEqual(['Categories', 'Phrase', 'ID'])
     expect(table[1]).toEqual(['Emergency', 'Help me!', '#em-0'])
     expect(table.slice(1).filter(r => r[2])).toHaveLength(onBoard)
     expect(table).toContainEqual(['Kitchen', 'Put the kettle on', '#custom-mine'])
@@ -182,7 +182,7 @@ describe('the board as a spreadsheet', () => {
     await flush()
 
     const copied = vi.mocked(navigator.clipboard.writeText).mock.calls.at(-1)![0]
-    expect(copied.split('\n')[0]).toBe('Category\tPhrase\tID')
+    expect(copied.split('\n')[0]).toBe('Categories\tPhrase\tID')
     expect(copied).toContain('Kitchen\tPut the kettle on\t#custom-mine')
     expect($('.sheet-status')?.textContent).toMatch(/paste it into the first cell/i)
   })
@@ -258,8 +258,13 @@ describe('bringing a spreadsheet back', () => {
     click(btn('Add and update'))
     await flush()
 
-    click($$('.filter-tab').find(t => t.textContent === 'Imported'))
-    expect(cellTexts()).toEqual(['Tea with honey', 'Coffee, black, no sugar'])
+    // Named in no category, they are in Library alone.
+    const stored = JSON.parse(localStorage.getItem(STORE_KEY)!)
+    expect(stored.custom.slice(-2).map((c: { text: string; category: string }) => [c.text, c.category])).toEqual([
+      ['Tea with honey', 'Library'],
+      ['Coffee, black, no sugar', 'Library'],
+    ])
+    expect($$('.filter-tab').map(t => t.textContent)).not.toContain('Imported')
   })
 
   /**
@@ -300,7 +305,7 @@ describe('bringing a spreadsheet back', () => {
     await flush()
 
     expect($$('.filter-tab').map(t => t.textContent)).not.toContain('Kitchen')
-    expect(JSON.parse(localStorage.getItem(STORE_KEY)!).categories).not.toContain('Kitchen')
+    expect(JSON.parse(localStorage.getItem(STORE_KEY)!).members).not.toHaveProperty('Kitchen')
   })
 
   /**

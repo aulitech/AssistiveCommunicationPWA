@@ -214,8 +214,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // look. Two are pinned at the front and one at the very end —
       // Translations is the tab nobody reaches for mid-sentence, and it is the
       // one tab whose cells are not in the language the rest of the board is
-      // written in. **Library is where every phrase lives**, second, where All
-      // used to be; the categories refer to its phrases.
+      // written in. **Library is where every phrase lives**, second; the
+      // categories refer to its phrases.
       { id: SENT_FILTER, label: SENT_CATEGORY, fixed: true },
       { id: LIBRARY, label: LIBRARY, fixed: true },
       // Third, from the first question answered on: the most recent answers
@@ -236,8 +236,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * a tab they have to find first spends the seconds this exists to give back.
    * So the board goes to the answers as they are asked for, and when the
    * question is done with — the box closed, or nothing came of asking — it goes
-   * back to the tab they were on rather than to All, a category they had chosen
-   * being where they were working.
+   * back to the tab they were on rather than to Library, a category they had
+   * chosen being where they were working.
    *
    * **On the asking, not on there being answers.** The most recent answers are
    * kept after the question has gone, so there being some says nothing about
@@ -522,9 +522,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const chooseTab = useCallback(
     (tab: string) => {
       setActiveFilter(tab)
-      // Library files a new phrase in Library alone.
-      if (editMode && editor.isUntouched && (tab === LIBRARY || allCategories.includes(tab)))
-        fileUnder(tab === LIBRARY ? '' : tab)
+      if (editMode && editor.isUntouched && allCategories.includes(tab)) fileUnder(tab)
     },
     [editMode, editor.isUntouched, allCategories, fileUnder],
   )
@@ -792,13 +790,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
         if (movedTo) showTab(movedTo)
         setPointing({ id: already.id, movedTo })
       }
-      // The tab, **only where the tab is Library or a category.** The three
-      // pinned records are not: nothing can be filed under any of those, so they
-      // leave the last choice standing rather than throwing it away and asking
-      // again. Library files the next phrase in Library alone.
-      const filing =
-        effectiveFilter === LIBRARY ? '' : allCategories.includes(effectiveFilter) ? effectiveFilter : null
-      if (mode === 'edit' && filing !== null) fileUnder(filing)
+      // The tab, **only where the tab is a category somebody made.** Four are
+      // not: Library, which every phrase is in whatever is ticked, and the
+      // three pinned records. They leave the last choice standing rather than
+      // throwing it away and asking again.
+      if (mode === 'edit' && allCategories.includes(effectiveFilter)) fileUnder(effectiveFilter)
       // Reordering is a mode within edit mode; leaving it should not leave
       // either of them armed for next time.
       setReordering(false)

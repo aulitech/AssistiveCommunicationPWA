@@ -28,13 +28,10 @@ export const PHRASE_SORTS: { id: PhraseSort; name: string; detail: string }[] = 
 const WITHOUT_CUSTOM = PHRASE_SORTS.filter(s => s.id !== 'custom')
 
 /**
- * The orders a tab offers.
- *
- * **All offers no Custom order.** A hand arrangement belongs to one category and
- * All shows every category at once, so there is nothing for it to be an
- * arrangement *of* — the tile would promise something nobody could build. Both
- * lists are built once, so a picker that has not changed does not look as though
- * it has.
+ * The orders a tab offers. **A record offers no Custom order** — Sent, the
+ * answers, Translations — being in the order it happened; Library and every
+ * category do. Both lists are built once, so a picker that has not changed does
+ * not look as though it has.
  */
 export const sortsFor = (canArrange: boolean) => (canArrange ? PHRASE_SORTS : WITHOUT_CUSTOM)
 
@@ -66,7 +63,7 @@ export function sortPhrases(
   phrases: Phrase[],
   sort: PhraseSort,
   usage: PhraseUsage,
-  /** The shown category's own arrangement, by phrase id. Empty under All. */
+  /** The tab's own arrangement, by phrase id — Library's, or none where a category's references are already in order. */
   order: string[] = [],
 ): Phrase[] {
   if (sort === 'custom') return orderByIds(phrases, order)

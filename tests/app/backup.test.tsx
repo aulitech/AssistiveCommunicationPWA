@@ -8,7 +8,11 @@ import { $$, $, settle, click, renderApp, cells } from './harness'
 
 describe('backup & sharing', () => {
   const STORE_KEY = 'dwellspeak_phrase_store_v2'
+  // Seeded in the shape from before categories were references, so every test
+  // here reads it through the conversion too: the phrase lives in Library, and
+  // Kitchen refers to it.
   const MINE = { id: 'custom-seed', text: 'Put the kettle on', category: 'Kitchen' }
+  const KEPT = { ...MINE, category: 'Library' }
 
   const seed = (store: Record<string, unknown>) => localStorage.setItem(STORE_KEY, JSON.stringify(store))
   const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
@@ -130,7 +134,8 @@ describe('backup & sharing', () => {
 
     const { filename, backup } = saved()
     expect(filename).toMatch(/^peri-backup-\d{4}-\d{2}-\d{2}\.json$/)
-    expect(backup.added).toContainEqual(MINE)
+    expect(backup.added).toContainEqual(KEPT)
+    expect(backup.members?.Kitchen).toEqual([MINE.id])
     expect(backup.scope).toBeNull()
   })
 
@@ -142,7 +147,7 @@ describe('backup & sharing', () => {
     chooseScope('Kitchen')
     const { filename, backup } = saved()
     expect(backup.scope).toEqual(['Kitchen'])
-    expect(backup.added).toEqual([MINE])
+    expect(backup.added).toEqual([KEPT])
     expect(filename).toBe(`peri-Kitchen-${backup.exported.slice(0, 10)}.json`)
   })
 
@@ -156,7 +161,7 @@ describe('backup & sharing', () => {
     const written = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
     const result = parseBackup(written)
     expect(result.ok).toBe(true)
-    if (result.ok) expect(result.backup.added).toContainEqual(MINE)
+    if (result.ok) expect(result.backup.added).toContainEqual(KEPT)
   })
 
   // The whole point of the feature: a phrase written on one device turning up
@@ -186,7 +191,8 @@ describe('backup & sharing', () => {
     await flush()
 
     expect(cellTexts()).toContain(MINE.text)
-    expect(JSON.parse(localStorage.getItem(STORE_KEY)!).custom).toContainEqual(MINE)
+    expect(JSON.parse(localStorage.getItem(STORE_KEY)!).custom).toContainEqual(KEPT)
+    expect(JSON.parse(localStorage.getItem(STORE_KEY)!).members.Kitchen).toEqual([MINE.id])
   })
 
   // A backup made before the table was collapsed names a reworded copy by the
@@ -221,7 +227,7 @@ describe('backup & sharing', () => {
     renderApp()
     openBackup()
     const backup = JSON.parse(saved().text)
-    backup.categories.created = [...backup.categories.created, 'Ghost']
+    backup.members = { ...backup.members, Ghost: [] }
     const file = JSON.stringify(backup)
 
     cleanup()
@@ -236,7 +242,7 @@ describe('backup & sharing', () => {
 
     expect($$('.filter-tab').map(t => t.textContent)).toContain('Kitchen')
     expect($$('.filter-tab').map(t => t.textContent)).not.toContain('Ghost')
-    expect(JSON.parse(localStorage.getItem(STORE_KEY)!).categories).not.toContain('Ghost')
+    expect(JSON.parse(localStorage.getItem(STORE_KEY)!).members).not.toHaveProperty('Ghost')
   })
 
   it('brings in a backup chosen from a file', async () => {

@@ -84,7 +84,7 @@ const showSorted = () => click(tab('Sorted'))
  * is reading it.
  */
 const lookAway = () => {
-  click(tab('All'))
+  click(tab('Library'))
   showSorted()
 }
 
@@ -156,10 +156,12 @@ describe('the control in the rail', () => {
    * once — so there is nothing there for Custom order to be an arrangement of,
    * and a tile promising one would promise something nobody could build.
    */
-  it('offers every order but Custom order under All', () => {
+  // Library has an order of its own to be arranged in, as a category does.
+  it('offers every order under Library, Custom order among them', () => {
     renderApp()
     click(sortBtn())
     expect(tiles().map(t => t.querySelector('.picker-tile-name')?.textContent)).toEqual([
+      'Custom order',
       'A to Z',
       'Recently used',
       'Most used',
@@ -400,7 +402,7 @@ describe('what is typed', () => {
     { id: 'custom-q4', text: 'Cold quark cake', category: 'Library' },
     { id: 'custom-q5', text: 'A quark fell', category: 'Library' },
     { id: 'custom-q6', text: 'Quiet until a real knock', category: 'Library' },
-    { id: 'custom-q7', text: 'Quark soup', category: 'Sorted' },
+    { id: 'custom-q7', text: 'Quiet quark', category: 'Sorted' },
     { id: 'custom-v', text: 'Very xenial tall pumas', category: 'Library' },
   ]
   const type = (value: string) => {
@@ -426,12 +428,13 @@ describe('what is typed', () => {
       'Cold quark cake',
       'Hot quark tea',
       'A quark fell',
+      'Quiet quark',
       'Quiet until a real knock',
     ])
   })
 
-  // The Sorted tab holds a "Quark soup" of its own, and it is not offered.
-  it('searches Library only', () => {
+  // Sorted holds only "Quiet quark", and the search is not held to it.
+  it('searches all of Library, whichever tab is showing', () => {
     renderApp(QUARK)
     showSorted()
     type('quark soup')
@@ -607,7 +610,7 @@ describe('the rendered window when the order changes', () => {
     // Back to the top, or the regrowth that follows any reset would hide it.
     layOut(0)
 
-    click(tab('All'))
+    click(tab('Library'))
     showSorted()
 
     expect(cells()).toHaveLength(60)
@@ -984,7 +987,8 @@ describe('arranging the phrases by hand', () => {
     click(reorderBtn())
   }
 
-  const stored = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!).phraseOrder
+  // A category's order is its references, and arranging it is rearranging them.
+  const stored = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!).members
 
   it('is offered only in edit mode, where the phrases are what is being changed', () => {
     renderApp()
@@ -1081,15 +1085,16 @@ describe('arranging the phrases by hand', () => {
     expect(reorderBtn()!.getAttribute('aria-pressed')).toBe('false')
   })
 
-  // Neither is a category, and an arrangement here belongs to one.
-  it('goes quiet under All, and says why', () => {
+  // Library has an order of its own, kept apart from every category's.
+  it('arranges Library by an order of its own', () => {
     renderApp()
-    click(editToggle())
+    arrangeOn()
+    const [first, second] = cells().map(c => c.getAttribute('data-phrase')!)
+    click(cells()[1])
+    click(cells()[0])
 
-    expect(reorderBtn()!.getAttribute('aria-disabled')).toBe('true')
-    // Three tabs are not a category now, so the label names the tab the user is
-    // on rather than one of them.
-    expect(reorderBtn()!.getAttribute('aria-label')).toMatch(/Open a category first/)
+    const kept = JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!).libraryOrder
+    expect(kept.slice(0, 2)).toEqual([second, first])
   })
 
   it('goes quiet under Sent', () => {
@@ -1104,7 +1109,10 @@ describe('arranging the phrases by hand', () => {
 
   it('opens nothing while it is quiet', () => {
     renderApp()
+    showSorted()
+    click(cellFor('Apple'))
     click(editToggle())
+    click(tab('Sent'))
     click(reorderBtn())
 
     expect($('.phrase-cell.reorderable')).toBeNull()
@@ -1129,9 +1137,8 @@ describe('arranging the phrases by hand', () => {
     expect(toast()).toBe('Holding Apple — dwell where it should go')
   })
 
-  // A store that only ever accumulates is one nobody can read later, and an
-  // arrangement naming phrases that no longer exist is the way it would.
-  it('forgets a phrase that is deleted', () => {
+  // Taken out of the category, it is out of its order — and still in Library.
+  it('forgets a phrase taken out of the category', () => {
     renderApp()
     showSorted()
     arrangeOn()
@@ -1141,7 +1148,7 @@ describe('arranging the phrases by hand', () => {
 
     click(reorderBtn()) // back to plain edit mode, where a cell opens
     click(cellFor('Apple'))
-    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Delete phrase'))
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Take out of Sorted'))
 
     expect(stored()).toEqual({ Sorted: ['custom-b', 'custom-c'] })
   })
@@ -1157,7 +1164,7 @@ describe('arranging the phrases by hand', () => {
 
     for (const text of ['Alone', 'Cherry', 'Apple', 'Banana']) {
       click(cellFor(text))
-      click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Delete phrase'))
+      click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Take out of Sorted'))
     }
 
     expect(stored()).toEqual({})
@@ -1185,13 +1192,28 @@ describe('what is counted', () => {
 
   /** A record that only ever grew would outlive the board it is about. */
   it('forgets a phrase that is deleted', () => {
+    // The whole of Library on screen, to find one among thousands on it.
+    unmeasuredGrid()
+    renderApp()
+    showSorted()
+    click(cellFor('Apple'))
+    click($('.edit-toggle'))
+    click(tab('Library'))
+    click(cellFor('Apple'))
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Delete phrase'))
+
+    expect(JSON.parse(localStorage.getItem('peri_usage')!)['custom-a']).toBeUndefined()
+  })
+
+  // Taken out of a category, it is still on the board, and still used.
+  it('keeps the count of a phrase only taken out of a category', () => {
     renderApp()
     showSorted()
     click(cellFor('Apple'))
     click($('.edit-toggle'))
     click(cellFor('Apple'))
-    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Delete phrase'))
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Take out of Sorted'))
 
-    expect(JSON.parse(localStorage.getItem('peri_usage')!)['custom-a']).toBeUndefined()
+    expect(JSON.parse(localStorage.getItem('peri_usage')!)['custom-a']?.count).toBe(1)
   })
 })

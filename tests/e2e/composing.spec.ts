@@ -11,7 +11,7 @@ import { categories, cell, composing, messageBox, openBoard, tab } from './board
 test('keeps the tabs after a phrase is chosen', async ({ page }) => {
   await openBoard(page, { phrases: categories(['Greetings']) })
   await composing(page)
-  await tab(page, 'Library').click()
+  // The board opens on Library, where every phrase is.
 
   await cell(page, 'Once in a blue moon').click()
 
@@ -22,7 +22,7 @@ test('keeps the tabs after a phrase is chosen', async ({ page }) => {
 test('builds a sentence from two categories, both phrases whole and in order', async ({ page }) => {
   const { errors } = await openBoard(page, { phrases: categories(['Greetings']) })
   await composing(page)
-  await tab(page, 'Library').click()
+  // The board opens on Library, where every phrase is.
   await cell(page, 'Once in a blue moon').click()
 
   await tab(page, 'Greetings').click()

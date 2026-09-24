@@ -1,7 +1,7 @@
 // Part of `core/store.ts` — see there for what the store is, and AGENTS.md for
 // the rules each part keeps.
 
-import { FORMER_IDS } from '../phrases'
+import { FORMER_IDS, LIBRARY } from '../phrases'
 import { PHRASE_SORT_KEY, RECENT_KEY, SENT_KEY, TRANSLATED_KEY, USAGE_KEY, writeKey } from './keys'
 import { storageKey } from './owner'
 
@@ -279,20 +279,24 @@ export function loadPhraseSorts(): PhraseSorts {
   const stored = localStorage.getItem(storageKey(PHRASE_SORT_KEY))
   if (!stored) return {}
   // Written before there was one per tab, when the whole board shared a single
-  // order. It was chosen while looking at some tab, and All is the one the
-  // board opens on, so that is where it lands rather than being thrown away.
+  // order. It was chosen while looking at some tab, and Library is the one the
+  // board opens on, so that is where it lands rather than being thrown away —
+  // unless it was the board's own order, which is not Library's.
   const legacy = readSort(stored)
-  // Its one order went to All, which is the tab the board opens on — unless it
-  // was the board's own order, which All no longer offers.
-  if (legacy) return legacy === 'custom' || legacy === DEFAULT_SORT ? {} : { all: legacy }
+  if (legacy) return legacy === 'custom' || legacy === DEFAULT_SORT ? {} : { [LIBRARY]: legacy }
   try {
     const raw: unknown = JSON.parse(stored)
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
     const sorts: PhraseSorts = {}
     for (const [filter, value] of Object.entries(raw as Record<string, unknown>)) {
       const sort = readSort(value)
-      // Storing the default says nothing.
-      if (sort && sort !== DEFAULT_SORT) sorts[filter] = sort
+      // Storing the default says nothing. **All's order is Library's**: All
+      // showed every phrase, as Library does now, and was where the board
+      // opened — but its Custom order was only ever a stored mistake, All having
+      // none, and is not Library's hand arrangement.
+      const tab = filter === 'all' ? LIBRARY : filter
+      if (sort && sort !== DEFAULT_SORT && !(filter === 'all' && (sort === 'custom' || tab in sorts)))
+        sorts[tab] = sort
     }
     return sorts
   } catch {
@@ -307,10 +311,10 @@ export function savePhraseSorts(sorts: PhraseSorts) {
 /**
  * What a tab is showing. A tab nobody has chosen for shows `DEFAULT_SORT`.
  *
- * **`canArrange` is false for All**, which offers no Custom order: a hand
- * arrangement belongs to one category and All shows every category at once, so
- * there is no arrangement for it to be in. A stored `custom` there is read as
- * the default rather than left as a state its own picker could not get back to.
+ * **`canArrange` is false for Sent, the answers and Translations**, which offer
+ * no Custom order: each is a record in the order it happened. A stored `custom`
+ * there is read as the default rather than left as a state its own picker could
+ * not get back to.
  */
 export function sortFor(sorts: PhraseSorts, filter: string, canArrange = true): PhraseSort {
   const stored = sorts[filter]

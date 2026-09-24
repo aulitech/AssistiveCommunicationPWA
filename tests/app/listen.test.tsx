@@ -932,7 +932,7 @@ describe('the suggested reply', () => {
     await act(async () => {})
     chooseAnswer('A bit cold')
 
-    click($$('.filter-tab').find(t => t.textContent === 'All'))
+    click($$('.filter-tab').find(t => t.textContent === 'Library'))
     fireEvent.change(messageBox(), { target: { value: 'A bit cold hungry' } })
     settle()
 
@@ -1763,7 +1763,7 @@ describe('the answers last offered, across a reload', () => {
     await answeredOnce()
     reopen()
 
-    expect($('.filter-tab.active')?.textContent).toBe('All')
+    expect($('.filter-tab.active')?.textContent).toBe('Library')
     click(answerTab())
     expect(answerCells()).toEqual(['I am, thank you', 'A bit cold'])
   })

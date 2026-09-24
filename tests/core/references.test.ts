@@ -1,16 +1,26 @@
 import { describe, it, expect } from 'vitest'
 import { PHRASES, phraseId } from '../../src/core/phrases'
-import { emptyStore, fromFiled, loadPhraseStore, type FiledStore } from '../../src/core/store'
+import { fromFiled, loadPhraseStore, type FiledStore } from '../../src/core/store'
 
 // Every phrase lives in Library and a category is a list of references to
 // Library phrases. A board written before that filed each phrase under one
 // category; this is it read into references, so nothing on any tab moves.
 
 const [first, second, third] = PHRASES
-const filed = (over: Partial<FiledStore>): FiledStore => {
-  const { members: _m, libraryOrder: _l, ...rest } = emptyStore()
-  return { ...rest, categoryRenames: {}, categories: [], categoryOverrides: {}, phraseOrder: {}, ...over }
-}
+const filed = (over: Partial<FiledStore>): FiledStore => ({
+  custom: [],
+  overrides: {},
+  hidden: [],
+  voiceOverrides: {},
+  categoryOrder: [],
+  categorySort: 'alpha',
+  emergencyOrder: [],
+  categoryRenames: {},
+  categories: [],
+  categoryOverrides: {},
+  phraseOrder: {},
+  ...over,
+})
 
 describe('a board from before categories were references', () => {
   it('puts a phrase somebody wrote in Library, and has its category refer to it', () => {
