@@ -477,6 +477,28 @@ describe('a category left with nothing in it', () => {
     expect(storedStore().members.Drinks).toContain('custom-solo')
   })
 
+  // Ticking a second category adds to the first rather than replacing it.
+  it('puts a phrase in a second category and keeps it in the first', () => {
+    openSolo()
+    toggleCategories('Drinks')
+    click(iconBtn('Save phrase'))
+
+    expect(storedStore().members.Solo).toEqual(['custom-solo'])
+    expect(storedStore().members.Drinks).toContain('custom-solo')
+  })
+
+  // Reworded, a phrase keeps its place in each category it stays in.
+  it('keeps a reworded phrase where it was in its category', () => {
+    openSolo()
+    click(tabNamed('Drinks'))
+    const before = cells().map(c => c.getAttribute('data-phrase'))
+    click(cells()[0])
+    writePhrase('Tea please, strong')
+    click(iconBtn('Save phrase'))
+
+    expect(storedStore().members.Drinks).toEqual(before)
+  })
+
   it('stays while it still has a phrase in it', () => {
     openSolo()
     click(tabNamed('Drinks'))
