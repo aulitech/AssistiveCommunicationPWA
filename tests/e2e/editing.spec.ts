@@ -105,3 +105,37 @@ test('moves between categories in edit mode, and renames with the pencil', async
   await page.locator('.rename-category-tab').click()
   await expect(page.locator('.edit-modal')).toHaveAttribute('aria-label', 'Rename category')
 })
+
+// The question arrives under a pointer resting where Delete was, so the delete
+// that confirms has to be somewhere else — the far end of the row. The dialog
+// is shorter without its name field and re-centres, so nothing promises what
+// *is* under the pointer; only that it cannot delete.
+for (const [what, viewport] of [
+  ['on a wide screen', { width: 1280, height: 900 }],
+  ['on a phone held upright', { width: 390, height: 844 }],
+] as const) {
+  test.describe(what, () => {
+    test.use({ viewport })
+    test('asks to delete a category with nothing that deletes under the pointer', async ({ page }) => {
+      const { errors } = await openBoard(page)
+      // Straight to the toggle: on a phone the microphone's hit area covers the
+      // edit toggle's centre, and a click there lands on the microphone.
+      await page.locator('.edit-toggle').dispatchEvent('click')
+      await tab(page, 'Humor').click()
+      await page.locator('.rename-category-tab').click()
+      const del = page.locator('.edit-action-btn', { hasText: 'Delete' })
+      const at = (await del.boundingBox())!
+      await del.click()
+
+      await expect(page.locator('.edit-modal[role="alertdialog"]')).toContainText('Delete Humor?')
+      const confirm = (await del.boundingBox())!
+      const x = at.x + at.width / 2
+      const y = at.y + at.height / 2
+      const covers =
+        x >= confirm.x && x <= confirm.x + confirm.width && y >= confirm.y && y <= confirm.y + confirm.height
+      expect(covers).toBe(false)
+      expect(confirm.x).toBeGreaterThan(at.x + at.width)
+      expect(errors).toEqual([])
+    })
+  })
+}
