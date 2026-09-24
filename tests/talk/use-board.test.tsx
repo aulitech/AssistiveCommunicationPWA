@@ -9,8 +9,8 @@ import { emptyStore } from '../../src/core/store'
 
 const withEmpty = {
   ...emptyStore(),
-  custom: [{ id: 'custom-1', text: 'Tea please', category: 'Drinks' }],
-  categories: ['Drinks', 'Made a moment ago'],
+  custom: [{ id: 'custom-1', text: 'Tea please', category: 'Library' }],
+  members: { Drinks: ['custom-1'], 'Made a moment ago': [] },
   categoryOrder: ['Made a moment ago', 'Drinks'],
 }
 
@@ -20,20 +20,14 @@ describe('a board landing on this one', () => {
   it('keeps an empty category another device sends', () => {
     const { result } = renderHook(() => useBoard())
     act(() => result.current.restore(withEmpty, EMPTY_ALIASES))
-    expect(result.current.store.categories).toEqual(['Drinks', 'Made a moment ago'])
+    expect(Object.keys(result.current.store.members)).toEqual(['Drinks', 'Made a moment ago'])
   })
 
   it('drops every empty category from an import', () => {
     const { result } = renderHook(() => useBoard())
     act(() => result.current.restore(withEmpty, EMPTY_ALIASES, true))
-    expect(result.current.store.categories).toEqual(['Drinks'])
+    expect(Object.keys(result.current.store.members)).toEqual(['Drinks'])
     expect(result.current.store.categoryOrder).toEqual(['Drinks'])
     expect(result.current.allCategories).not.toContain('Made a moment ago')
-  })
-
-  it('keeps Library while anything Peri ships is showing', () => {
-    const { result } = renderHook(() => useBoard())
-    act(() => result.current.restore({ ...withEmpty, categoryOrder: ['Library'] }, EMPTY_ALIASES, true))
-    expect(result.current.store.categoryOrder).toEqual(['Library'])
   })
 })

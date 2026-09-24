@@ -193,7 +193,6 @@ describe('what a snapshot carries and a backup does not', () => {
       store: emptyStore(),
       aliases: EMPTY_ALIASES,
       settings: DEFAULT_SETTINGS,
-      categoryById: new Map<string, string>(),
       now: SYNC_EPOCH,
     })
 

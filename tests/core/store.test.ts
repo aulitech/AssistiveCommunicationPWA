@@ -155,45 +155,41 @@ describe('telling two linked accounts apart', () => {
   })
 })
 
-// The user's own arrangement of the phrases inside a category. It belongs to the
-// category, so it has to survive the category being renamed — including the
-// rename that collapses two categories into one.
-describe('an arrangement and the category it belongs to', () => {
-  const storeWith = (phraseOrder: Record<string, string[]>, categories: string[] = []) => ({
+// A category's references are its phrases and its order both, so they go with
+// its name — including the rename that collapses two categories into one.
+describe('a category and its name', () => {
+  const storeWith = (members: Record<string, string[]>, categoryOrder: string[] = []) => ({
     ...emptyStore(),
-    categories,
-    phraseOrder,
+    members,
+    categoryOrder,
   })
 
-  it('follows the category to its new name', () => {
-    const next = renameCategory(storeWith({ Food: ['a', 'b'] }, ['Food']), 'Food', 'Meals')
-    expect(next.phraseOrder).toEqual({ Meals: ['a', 'b'] })
+  it('takes its phrases, in their order, to its new name', () => {
+    const next = renameCategory(storeWith({ Food: ['a', 'b'] }), 'Food', 'Meals')
+    expect(next.members).toEqual({ Meals: ['a', 'b'] })
   })
 
-  it('leaves every other category’s alone', () => {
-    const next = renameCategory(storeWith({ Food: ['a'], Home: ['c'] }, ['Food', 'Home']), 'Food', 'Meals')
-    expect(next.phraseOrder).toEqual({ Meals: ['a'], Home: ['c'] })
+  it('leaves every other category alone', () => {
+    const next = renameCategory(storeWith({ Food: ['a'], Home: ['c'] }), 'Food', 'Meals')
+    expect(next.members).toEqual({ Meals: ['a'], Home: ['c'] })
   })
 
-  // Renaming onto a name that already exists merges the two, so the arrangement
-  // merges the same way a backup does: what arrives goes behind what was there.
+  // Renaming onto a name that already exists merges the two, the way a backup
+  // does: what arrives goes behind what was there.
   it('goes behind the one it is merged into', () => {
-    const next = renameCategory(storeWith({ Food: ['a', 'b'], Home: ['c'] }, ['Food', 'Home']), 'Food', 'Home')
-    expect(next.phraseOrder).toEqual({ Home: ['c', 'a', 'b'] })
+    const next = renameCategory(storeWith({ Food: ['a', 'b'], Home: ['c'] }), 'Food', 'Home')
+    expect(next.members).toEqual({ Home: ['c', 'a', 'b'] })
   })
 
-  it('does not list a phrase twice when both named it', () => {
-    const next = renameCategory(
-      storeWith({ Food: ['a', 'b'], Home: ['b', 'c'] }, ['Food', 'Home']),
-      'Food',
-      'Home',
-    )
-    expect(next.phraseOrder).toEqual({ Home: ['b', 'c', 'a'] })
+  it('does not refer to a phrase twice when both did', () => {
+    const next = renameCategory(storeWith({ Food: ['a', 'b'], Home: ['b', 'c'] }), 'Food', 'Home')
+    expect(next.members).toEqual({ Home: ['b', 'c', 'a'] })
   })
 
-  it('writes nothing where there was no arrangement to move', () => {
-    const next = renameCategory(storeWith({ Home: ['c'] }, ['Food', 'Home']), 'Food', 'Meals')
-    expect(next.phraseOrder).toEqual({ Home: ['c'] })
+  it('keeps an empty one, and its place among the tabs', () => {
+    const next = renameCategory(storeWith({ Food: [], Home: ['c'] }, ['Home', 'Food']), 'Food', 'Meals')
+    expect(next.members).toEqual({ Home: ['c'], Meals: [] })
+    expect(next.categoryOrder).toEqual(['Home', 'Meals'])
   })
 })
 
@@ -940,9 +936,11 @@ describe('reading back a damaged phrase store', () => {
         { text: 'No id', category: 'Kitchen' },
       ],
     })
-    expect(loadPhraseStore().custom).toEqual([
-      { id: 'custom-good', text: 'Put the kettle on', category: 'Kitchen' },
-    ])
+    // A store in the shape from before categories were references, so it is
+    // read into one: the phrase lives in Library, and Kitchen refers to it.
+    const store = loadPhraseStore()
+    expect(store.custom).toEqual([{ id: 'custom-good', text: 'Put the kettle on', category: 'Library' }])
+    expect(store.members).toEqual({ Kitchen: ['custom-good'] })
   })
 
   it('keeps only the wordings that are words', () => {
@@ -953,20 +951,21 @@ describe('reading back a damaged phrase store', () => {
   it('keeps only the names that are names', () => {
     stored({
       hidden: ['em-0', 7, null],
-      categoryRenames: { Food: 'Meals', Drink: 3 },
-      categoryOverrides: { 'custom-a': 'Kitchen', 'custom-b': false },
+      members: { Kitchen: ['custom-a', 7, null, 'custom-a'], Broken: 'custom-b', Library: ['custom-c'] },
+      libraryOrder: ['custom-a', false],
     })
     const store = loadPhraseStore()
     expect(store.hidden).toEqual(['em-0'])
-    expect(store.categoryRenames).toEqual({ Food: 'Meals' })
-    expect(store.categoryOverrides).toEqual({ 'custom-a': 'Kitchen' })
+    // Library is not a category of references, and a list is a list.
+    expect(store.members).toEqual({ Kitchen: ['custom-a'] })
+    expect(store.libraryOrder).toEqual(['custom-a'])
   })
 
   // An array where a record belongs is not a record, whatever it holds.
   it('reads a list where a record belongs as nothing at all', () => {
-    stored({ overrides: ['em-0', 'Help'], categoryRenames: [] })
+    stored({ overrides: ['em-0', 'Help'], members: [] })
     const store = loadPhraseStore()
     expect(store.overrides).toEqual({})
-    expect(store.categoryRenames).toEqual({})
+    expect(store.members).toEqual({})
   })
 })
