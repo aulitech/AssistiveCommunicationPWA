@@ -30,6 +30,7 @@
 // half-written and the whole of it can be tested without a browser.
 
 import {
+  FORMER_IDS,
   aliasNames,
   aliasWords,
   EMERGENCY_PHRASES,
@@ -416,11 +417,15 @@ export interface SheetBoard {
  * — or a greeting under Emergency — is taken as a wording change and no more.
  */
 export function applySheet(
-  rows: SheetRow[],
+  sheet: SheetRow[],
   board: SheetBoard,
   mode: SheetMode,
   newId: () => string = newPhraseId,
 ): { store: PhraseStore; plan: SheetPlan } {
+  // A sheet saved before the table was collapsed has a row for each copy of a
+  // phrase, by the copy's own id; the dropped ones are the phrase they were
+  // folded into now — see `foldFormerCopies`.
+  const rows = sheet.map(row => (FORMER_IDS.has(row.id) ? { ...row, id: FORMER_IDS.get(row.id)! } : row))
   const { store } = board
   const custom = store.custom.map(p => ({ ...p }))
   const customById = new Map(custom.map(p => [p.id, p]))

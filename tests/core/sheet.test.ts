@@ -7,6 +7,8 @@ import {
   type Aliases,
   type AliasStore,
   type Phrase,
+  FORMER_IDS,
+  phraseId,
 } from '../../src/core/phrases'
 import { displayCategory, emptyStore, type PhraseStore } from '../../src/core/store'
 import { IMPORTED_CATEGORY } from '../../src/core/backup'
@@ -39,7 +41,7 @@ import {
 
 const plain = PHRASES.filter(p => p.segments.every(s => s.kind === 'text'))
 const TEA = plain[0]!
-const OTHER = plain.find(p => p.category !== TEA.category)!
+const OTHER = plain.find(p => p.id !== TEA.id)!
 
 /** The board a store makes, by `use-board`'s rules, for the phrases above. */
 function boardOf(store: PhraseStore = emptyStore()): SheetBoard {
@@ -389,6 +391,22 @@ describe('putting a sheet onto the board', () => {
     expect(next.overrides).toEqual({ [TEA.id]: 'Tea, strong', 'custom-1': 'My tea, milky' })
     expect(plan).toMatchObject({ changed: 2, added: 0 })
     expect(find(on(next), 'Tea, strong')?.category).toBe(TEA.category)
+  })
+
+  // A sheet saved before the table was collapsed has a row for each copy, by
+  // the copy's own id. The dropped ones are the phrase they were folded into.
+  it('reads the id of a copy dropped from the table as the phrase it was folded into', () => {
+    const copy = phraseId('Point of View', TEA.source)
+    expect(FORMER_IDS.get(copy)).toBe(TEA.id)
+    const { store: next, plan } = applySheet(
+      [row('Tea, strong', TEA.category, copy)],
+      on(emptyStore()),
+      'merge',
+      ids(),
+    )
+    expect(next.overrides).toEqual({ [TEA.id]: 'Tea, strong' })
+    expect(next.custom).toEqual([])
+    expect(plan).toMatchObject({ changed: 1, added: 0 })
   })
 
   it('moves a phrase by its ID, the way the editor moves one', () => {

@@ -1,5 +1,5 @@
 // Writing a phrase and rewording one, which in edit mode happens in the message box rather than in a dialog.
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { cleanup, fireEvent, act } from '@testing-library/react'
 import { scrolledIntoView, unmeasuredGrid } from '../setup'
 import {
@@ -24,6 +24,21 @@ import {
   clearMessage,
 } from './harness'
 import { stylesheet } from '../stylesheet'
+
+// Everything Peri ships is in Library, and filing a phrase, following it and
+// moving between tabs need more than one category — so each board here starts
+// with three of its own. A test that writes a store of its own replaces this.
+const SEEDED = {
+  custom: [
+    ['Tea please', 'Drinks'],
+    ['Coffee please', 'Drinks'],
+    ['Toast and jam', 'Food'],
+    ['Soup of the day', 'Food'],
+    ['Hiya there', 'Greetings'],
+    ['Lovely to see you', 'Greetings'],
+  ].map(([text, category], i) => ({ id: `custom-seed-${i}`, text, category })),
+}
+beforeEach(() => localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringify(SEEDED)))
 
 // Regression guard, and the destructive kind: the editor used to open on
 // `phrase.text`, which has had its slots resolved into labels. Opening a
@@ -366,7 +381,7 @@ describe('edit mode', () => {
       writePhrase(KITCHEN.text)
       expect(iconBtn('Save phrase')?.disabled).toBe(true)
 
-      chooseCategory('Food')
+      chooseCategory('Library')
       expect(iconBtn('Save phrase')?.disabled).toBe(false)
     })
 
@@ -994,8 +1009,8 @@ describe('showing where the new phrase went', () => {
   // what is rendered, and a cell that does not exist is nothing to scroll to.
   it('reaches a phrase past the end of what is rendered', () => {
     renderApp()
-    // One of the longest categories the board ships with.
-    click(tab('Information'))
+    // Everything the board ships with.
+    click(tab('Library'))
     enterEditMode()
 
     addPhrase('One at the very end')
@@ -1005,8 +1020,9 @@ describe('showing where the new phrase went', () => {
     expect(scrolledIntoView).toContain(cell)
   })
 
-  // Forty-two categories is several screens of tabs, so a board that changed
-  // tabs by itself would otherwise be showing one whose tab is off the end.
+  // A board with many categories is several screens of tabs, so a board that
+  // changed tabs by itself would otherwise be showing one whose tab is off the
+  // end.
   it('brings the tab it moved to into the middle of the bar', () => {
     const { elsewhere } = standingOn()
 
@@ -1177,17 +1193,24 @@ describe('going to the phrase the message is', () => {
     expect(marked()).toBeUndefined()
   })
 
-  // The table files "Good morning" under three categories on purpose, because
-  // somebody looks in whichever of the three they think in. The one they are
-  // looking at is the one they mean.
+  // Somebody can file their own copy of a wording Library already has — the
+  // guard is per category — and look in whichever they think in. The one they
+  // are looking at is the one they mean.
+  const goodMorningTwice = () =>
+    localStorage.setItem(
+      'dwellspeak_phrase_store_v2',
+      JSON.stringify({ custom: [{ id: 'custom-gm', text: 'Good morning', category: 'Greetings' }] }),
+    )
+
   it('stays on the copy in front of them where the wording is filed twice', () => {
+    goodMorningTwice()
     renderApp()
-    click(tab('Texting'))
+    click(tab('Greetings'))
     click(cellFor('Good morning')!)
 
     enterEditMode()
 
-    expect(activeTab()).toBe('Texting')
+    expect(activeTab()).toBe('Greetings')
     expect(marked()).toBe('Good morning')
   })
 
@@ -1195,8 +1218,17 @@ describe('going to the phrase the message is', () => {
   // anybody's gaze, so refusing their next dwell would cost them one for
   // nothing — in edit mode, the phrase they were reaching for to reword.
   it('is still listening where the board stayed put', () => {
+    localStorage.setItem(
+      'dwellspeak_phrase_store_v2',
+      JSON.stringify({
+        custom: [
+          { id: 'custom-gm', text: 'Good morning', category: 'Greetings' },
+          { id: 'custom-gd', text: 'Good day to you', category: 'Greetings' },
+        ],
+      }),
+    )
     renderApp()
-    click(tab('Texting'))
+    click(tab('Greetings'))
     click(cellFor('Good morning')!)
     enterEditMode()
 

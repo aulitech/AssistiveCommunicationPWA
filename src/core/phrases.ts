@@ -372,17 +372,21 @@ function hash(input: string): string {
   return h.toString(36)
 }
 
+/** The id of the phrase these words make under this category — see `makePhrase`. */
+export const phraseId = (category: string, raw: string) => hash(`${category}|${raw}`)
+
 export function makePhrase(
   raw: string,
   category: string,
   seen?: Map<string, number>,
   overlay?: AliasIndex,
+  /** The category the id is made from, where it is not the one the phrase shows under — see `TableRow.was`. */
+  idFrom: string = category,
 ): Phrase {
   const segments = parseSegments(raw, overlay)
   // Hash the source text, not the rendered text, so a phrase keeps its id when
   // one of the user's lists changes what its slots resolve to.
-  const key = `${category}|${raw}`
-  let id = hash(key)
+  let id = phraseId(idFrom, raw)
   if (seen) {
     // Same text twice in one category — disambiguate deterministically.
     const n = seen.get(id) ?? 0
@@ -397,7 +401,37 @@ export function plainPhrase(id: string, text: string, category: string): Phrase 
   return { id, text, source: text, segments: [{ kind: 'text', text }], category }
 }
 
-const PHRASE_ROWS = ((phraseTable.phrases as { txt: string; category: string }[]) ?? []).filter(p => p.txt?.trim())
+/**
+ * A row of the table, as far as Peri reads one.
+ *
+ * **Every phrase Peri ships is filed under Library.** They came in forty-odd
+ * categories — Idioms, Food, Texting — which put the same words on the board
+ * two, three and four times over, and a gaze has to read past every copy to
+ * reach the one it meant. So they were collapsed into one, and each wording
+ * kept once.
+ */
+interface TableRow {
+  txt: string
+  category: string
+  /**
+   * The category the phrase was filed under before that, **kept because its id
+   * is made from it**. An id is the category and the words together, and
+   * everything somebody has done to a phrase — its wording, its voice, hiding
+   * it, how often it is used, where they moved it — is written against that id,
+   * on this device, in their backups and on their other devices. Made from
+   * Library instead, every one of those would have come loose at once.
+   */
+  was?: string
+  /**
+   * The copies of this phrase that were dropped when the categories were
+   * collapsed, each as `category|words` — which is what their ids were made
+   * from. What was written against one of them is moved onto this phrase: see
+   * `FORMER_IDS` and `foldFormerCopies` in `core/board.ts`.
+   */
+  merged?: string[]
+}
+
+const PHRASE_ROWS = ((phraseTable.phrases as TableRow[]) ?? []).filter(p => p.txt?.trim())
 
 /**
  * The phrase table resolved against the user's own lists. Slot options are baked
@@ -407,10 +441,24 @@ const PHRASE_ROWS = ((phraseTable.phrases as { txt: string; category: string }[]
 export function buildPhrases(aliases: AliasStore = EMPTY_ALIASES): Phrase[] {
   const overlay = aliasOverlay(aliases)
   const seen = new Map<string, number>()
-  return PHRASE_ROWS.map(p => makePhrase(p.txt.trim(), p.category, seen, overlay)).filter(
+  return PHRASE_ROWS.map(p => makePhrase(p.txt.trim(), p.category, seen, overlay, p.was)).filter(
     p => p.text.trim() !== '',
   )
 }
+
+/**
+ * The id each dropped copy had → the id of the phrase it was folded into. See
+ * `TableRow.merged`.
+ */
+export const FORMER_IDS: ReadonlyMap<string, string> = new Map(
+  PHRASE_ROWS.flatMap(p => {
+    const into = phraseId(p.was ?? p.category, p.txt.trim())
+    return (p.merged ?? []).map(key => {
+      const bar = key.indexOf('|')
+      return [phraseId(key.slice(0, bar), key.slice(bar + 1)), into] as const
+    })
+  }),
+)
 
 /** The table with none of the user's own lists applied. */
 export const PHRASES: Phrase[] = buildPhrases()

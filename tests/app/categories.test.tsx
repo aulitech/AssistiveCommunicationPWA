@@ -25,6 +25,10 @@ function click(el: Element | null | undefined) {
 // dwells on the edit toggle: auto-speak → edit → composing.
 function renderApp() {
   localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
+  // Everything Peri ships is in Library, and ordering, renaming and moving
+  // between tabs need more than one — so the board is given three of its own,
+  // unless the test has put a store there itself.
+  if (localStorage.getItem(STORE_KEY) === null) localStorage.setItem(STORE_KEY, JSON.stringify(SEEDED))
   localStorage.removeItem('dwellspeak_settings')
   container = render(<App />).container
   settle()
@@ -33,6 +37,17 @@ function renderApp() {
 }
 
 const STORE_KEY = 'dwellspeak_phrase_store_v2'
+const SEEDED = {
+  custom: [
+    ['Tea please', 'Drinks'],
+    ['Coffee please', 'Drinks'],
+    ['Water please', 'Drinks'],
+    ['Toast and jam', 'Food'],
+    ['Soup of the day', 'Food'],
+    ['Hiya there', 'Greetings'],
+    ['Lovely to see you', 'Greetings'],
+  ].map(([text, category], i) => ({ id: `custom-seed-${i}`, text, category })),
+}
 const storedStore = () => JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}')
 
 const cells = () => $$('.phrase-cell')
@@ -322,11 +337,11 @@ describe('deleting a category', () => {
   it('takes every phrase in it — its own hidden, the user’s deleted — and says so', () => {
     localStorage.setItem(
       STORE_KEY,
-      JSON.stringify({ custom: [{ id: 'custom-mine', text: 'Written by me', category: 'Humor' }] }),
+      JSON.stringify({ custom: [{ id: 'custom-mine', text: 'Written by me', category: 'Library' }] }),
     )
     renderApp()
     enterEditMode()
-    renameTab('Humor')
+    renameTab('Library')
     const shipped = cells()
       .map(c => c.getAttribute('data-phrase'))
       .filter(id => id && id !== 'custom-mine')
@@ -334,10 +349,10 @@ describe('deleting a category', () => {
 
     confirmDelete()
 
-    expect(tabLabels()).not.toContain('Humor')
+    expect(tabLabels()).not.toContain('Library')
     expect(storedStore().custom).toEqual([])
     expect(storedStore().hidden).toEqual(expect.arrayContaining(shipped))
-    expect($('.toast')?.textContent).toMatch(/Deleted Humor and its \d+ phrases/)
+    expect($('.toast')?.textContent).toMatch(/Deleted Library and its \d+ phrases/)
     click(tabNamed('All'))
     expect(cells().some(c => c.textContent === 'Written by me')).toBe(false)
   })
@@ -347,22 +362,22 @@ describe('deleting a category', () => {
   it('forgets a rename that pointed at it', () => {
     renderApp()
     enterEditMode()
-    renameTab('Humor')
-    type(nameField(), 'Jokes')
+    renameTab('Library')
+    type(nameField(), 'Everything')
     saveModal()
-    expect(storedStore().categoryRenames).toEqual({ Humor: 'Jokes' })
+    expect(storedStore().categoryRenames).toEqual({ Library: 'Everything' })
 
-    renameTab('Jokes')
+    renameTab('Everything')
     confirmDelete()
 
     expect(storedStore().categoryRenames).toEqual({})
-    expect(tabLabels()).not.toContain('Humor')
+    expect(tabLabels()).not.toContain('Library')
   })
 
   it('lets go of a phrase open in the box that has just gone', () => {
     renderApp()
     enterEditMode()
-    click(tabNamed('Humor'))
+    click(tabNamed('Food'))
     click(cells()[0])
     const opened = box().value
     expect(opened).not.toBe('')
@@ -380,15 +395,15 @@ describe('deleting a category', () => {
     enterEditMode()
     const filed = () => $('.category-trigger .picker-trigger-label')?.textContent
     writePhrase('Not yet saved')
-    chooseCategory('Humor')
-    expect(filed()).toBe('Humor')
+    chooseCategory('Food')
+    expect(filed()).toBe('Food')
 
-    click(tabNamed('Humor'))
+    click(tabNamed('Food'))
     click(renameBtn())
     confirmDelete()
 
     expect(box().value).toBe('Not yet saved')
-    expect(filed()).not.toBe('Humor')
+    expect(filed()).not.toBe('Food')
     expect(filed()).toBeTruthy()
   })
 })
@@ -691,9 +706,9 @@ describe('ordering categories', () => {
 
     // Anyone who reordered before the toggle existed has an order and no flag.
     it('shows the order of a store written before the flag existed', () => {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ categoryOrder: ['Food', 'Feelings'] }))
+      localStorage.setItem(STORE_KEY, JSON.stringify({ ...SEEDED, categoryOrder: ['Greetings', 'Food'] }))
       renderApp()
-      expect(names().slice(0, 2)).toEqual(['Food', 'Feelings'])
+      expect(names().slice(0, 2)).toEqual(['Greetings', 'Food'])
     })
   })
 
