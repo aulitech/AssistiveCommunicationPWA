@@ -52,6 +52,13 @@ function renderApp(custom = [MINE, ALSO]) {
   settle()
 }
 
+/** The app again, over whatever the test has just put in storage. */
+function cleanupAndRender() {
+  cleanup()
+  container = render(<App />).container
+  settle()
+}
+
 function openBackup() {
   click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
   click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Backup & sharing'))
@@ -277,6 +284,23 @@ describe('bringing a spreadsheet back', () => {
     expect($$('.emergency-btn').map(b => b.textContent)).not.toContain('Call 911')
     click($$('.filter-tab').find(t => t.textContent === 'Kitchen'))
     expect(cellTexts()).toEqual(['Open the window'])
+  })
+
+  // Replacing took both of Kitchen's phrases, and a tab for a category with
+  // nothing in it is one more thing to read past.
+  it('leaves no category behind that the sheet emptied', async () => {
+    renderApp()
+    localStorage.setItem(STORE_KEY, JSON.stringify({ custom: [MINE, ALSO], categories: ['Kitchen'] }))
+    cleanupAndRender()
+    openBackup()
+    const csv = csvOf(savedCsv().table.filter(r => r[0] !== 'Kitchen'))
+
+    await choose('no-kitchen.csv', csv)
+    click(btn('Replace phrases and lists'))
+    await flush()
+
+    expect($$('.filter-tab').map(t => t.textContent)).not.toContain('Kitchen')
+    expect(JSON.parse(localStorage.getItem(STORE_KEY)!).categories).not.toContain('Kitchen')
   })
 
   /**

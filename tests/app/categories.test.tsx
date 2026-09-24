@@ -408,6 +408,75 @@ describe('deleting a category', () => {
   })
 })
 
+// A category goes with its last phrase: a tab that opens onto a blank grid is
+// one more thing to read past. One made a moment ago and not yet filled stays.
+describe('a category left with nothing in it', () => {
+  const ONE = {
+    ...SEEDED,
+    custom: [...SEEDED.custom, { id: 'custom-solo', text: 'Only me in here', category: 'Solo' }],
+    categories: ['Drinks', 'Food', 'Greetings', 'Solo'],
+    categoryOrder: ['Solo', 'Drinks', 'Food', 'Greetings'],
+    categorySort: 'custom',
+  }
+  const openSolo = () => {
+    localStorage.setItem(STORE_KEY, JSON.stringify(ONE))
+    renderApp()
+    enterEditMode()
+    click(tabNamed('Solo'))
+    click(cells().find(c => c.textContent === 'Only me in here'))
+  }
+
+  it('goes when its last phrase is deleted', () => {
+    openSolo()
+    click(iconBtn('Delete phrase'))
+
+    expect(tabLabels()).not.toContain('Solo')
+    expect(storedStore().categories).not.toContain('Solo')
+    expect(storedStore().categoryOrder).not.toContain('Solo')
+  })
+
+  it('comes back where it was when the delete is undone', () => {
+    openSolo()
+    click(iconBtn('Delete phrase'))
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo deleting')))
+
+    expect(catLabels()[0]).toBe('Solo')
+    expect(storedStore().categories).toContain('Solo')
+    expect(storedStore().categoryOrder[0]).toBe('Solo')
+  })
+
+  it('goes when its last phrase is moved out', () => {
+    openSolo()
+    chooseCategory('Drinks')
+    click(iconBtn('Save phrase'))
+
+    expect(tabLabels()).not.toContain('Solo')
+    expect(storedStore().categories).not.toContain('Solo')
+  })
+
+  it('stays while it still has a phrase in it', () => {
+    openSolo()
+    click(tabNamed('Drinks'))
+    click(cells()[0])
+    click(iconBtn('Delete phrase'))
+
+    expect(tabLabels()).toContain('Drinks')
+  })
+
+  // Made first and filled afterwards, which is why an empty one is ever kept.
+  it('leaves one made a moment ago, and not yet filled, when a phrase goes elsewhere', () => {
+    openSolo()
+    click($('.add-category-tab'))
+    type(nameField(), 'Not yet')
+    saveModal()
+    click(tabNamed('Drinks'))
+    click(cells()[0])
+    click(iconBtn('Delete phrase'))
+
+    expect(tabLabels()).toContain('Not yet')
+  })
+})
+
 describe('the phrase editor', () => {
   it('files a phrase under a category invented on the spot', () => {
     renderApp()

@@ -12,7 +12,13 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { buildPhrases, type Phrase, type AliasStore } from '../core/phrases'
 import { stripMarkdown } from '../core/markdown'
-import { buildPhrase, categoryIndex, emergencyPhrasesOf, shownCategory } from '../core/board'
+import {
+  buildPhrase,
+  categoryIndex,
+  emergencyPhrasesOf,
+  shownCategory,
+  withoutEmptyCategories,
+} from '../core/board'
 import { audioKey, warmAudio } from '../voice/audio-cache'
 import { remoteVoiceId } from '../voice/elevenlabs'
 import { useSettings } from '../ui/settings'
@@ -51,7 +57,17 @@ export interface Removed {
   emergencyAt: number
   /** Where it was in its category's hand arrangement, if it had one. */
   arranged: { category: string; at: number } | null
+  /**
+   * The category it emptied, and where that stood in the two lists of them —
+   * a category goes with its last phrase, and an undo brings it back to the
+   * place it had rather than the end of the bar.
+   */
+  emptied: { category: string; listedAt: number; orderAt: number } | null
 }
+
+/** A list with this name put back at this place, if it is not there already. */
+const putBack = (list: string[], name: string, at: number) =>
+  at < 0 || list.includes(name) ? list : [...list.slice(0, at), name, ...list.slice(at)]
 
 /** Every category's arrangement with one phrase taken out, dropping any left empty. */
 function withoutPhrase(order: Record<string, string[]>, id: string): Record<string, string[]> {
@@ -272,10 +288,15 @@ export function useBoard() {
       if (!isEmergency && category && category !== phrase.category) {
         patch.categoryOverrides = { ...store.categoryOverrides, [phrase.id]: category }
         patch.categories = [...new Set([...store.categories, category])]
+        // Moved out of the last category it was in, that category goes.
+        const next = withoutEmptyCategories(tablePhrases, { ...store, ...patch }, [phrase.category])
+        patch.categories = next.categories
+        patch.categoryOrder = next.categoryOrder
+        patch.phraseOrder = next.phraseOrder
       }
       updateStore(patch)
     },
-    [store, updateStore],
+    [store, updateStore, tablePhrases],
   )
 
   /** Deletes one the user wrote; hides one that came with the app. */
@@ -287,7 +308,8 @@ export function useBoard() {
     (id: string): Removed => {
       const customAt = store.custom.findIndex(p => p.id === id)
       const arranged = Object.entries(store.phraseOrder).find(([, ids]) => ids.includes(id))
-      updateStore({
+      const category = mainPhrases.find(p => p.id === id)?.category
+      const patch: Partial<PhraseStore> = {
         ...(id.startsWith('custom-')
           ? { custom: store.custom.filter(p => p.id !== id) }
           : { hidden: [...store.hidden, id] }),
@@ -300,15 +322,34 @@ export function useBoard() {
         // a handful of short lists — and a category whose arrangement empties
         // out loses the key rather than keeping an empty one.
         phraseOrder: withoutPhrase(store.phraseOrder, id),
+      }
+      // The last phrase in a category takes the category with it.
+      const next = withoutEmptyCategories(tablePhrases, { ...store, ...patch }, category ? [category] : [])
+      const gone = (list: string[], after: string[]) =>
+        !!category && list.includes(category) && !after.includes(category)
+      const emptied = gone(store.categories, next.categories) || gone(store.categoryOrder, next.categoryOrder)
+      updateStore({
+        ...patch,
+        categories: next.categories,
+        categoryOrder: next.categoryOrder,
+        phraseOrder: next.phraseOrder,
       })
       return {
         id,
         custom: id.startsWith('custom-') && customAt >= 0 ? { entry: store.custom[customAt], at: customAt } : null,
         emergencyAt: store.emergencyOrder.indexOf(id),
         arranged: arranged ? { category: arranged[0], at: arranged[1].indexOf(id) } : null,
+        emptied:
+          emptied && category
+            ? {
+                category,
+                listedAt: store.categories.indexOf(category),
+                orderAt: store.categoryOrder.indexOf(category),
+              }
+            : null,
       }
     },
-    [store, updateStore],
+    [store, updateStore, mainPhrases, tablePhrases],
   )
 
   /**
@@ -334,6 +375,10 @@ export function useBoard() {
               }
           : { hidden: store.hidden.filter(i => i !== r.id) }),
         emergencyOrder: at(store.emergencyOrder, r.emergencyAt),
+        ...(r.emptied && {
+          categories: putBack(store.categories, r.emptied.category, r.emptied.listedAt),
+          categoryOrder: putBack(store.categoryOrder, r.emptied.category, r.emptied.orderAt),
+        }),
         ...(r.arranged && {
           phraseOrder: {
             ...store.phraseOrder,
@@ -437,14 +482,19 @@ export function useBoard() {
    * moment where the grid is showing half of somebody's backup.
    */
   const restore = useCallback(
-    (nextStore: PhraseStore, nextAliases: AliasStore) => {
+    (nextStore: PhraseStore, nextAliases: AliasStore, imported = false) => {
       // From a backup or another device, either of which may be from before
       // the table was collapsed — so the ids are moved on, but nothing hidden
       // is brought back: that is for this board's own first look.
-      updateStore(foldFormerCopies(nextStore))
+      const folded = foldFormerCopies(nextStore)
+      // **An import leaves no empty category behind** — a file or a sheet
+      // somebody else made can name categories this board has nothing in, and
+      // replacing can empty the ones it had. Not what another device sends: a
+      // category made there a moment ago and not yet filled is theirs to fill.
+      updateStore(imported ? withoutEmptyCategories(tablePhrases, folded) : folded)
       changeAliases(nextAliases)
     },
-    [updateStore, changeAliases],
+    [updateStore, changeAliases, tablePhrases],
   )
 
   return {

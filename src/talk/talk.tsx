@@ -882,7 +882,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // the user sees rather than the screen they restored it from.
   const handleRestore = useCallback(
     (next: AppState, message: string) => {
-      board.restore(next.store, next.aliases)
+      board.restore(next.store, next.aliases, true)
       update(next.settings)
       setMenuOpen(false)
       flashToast(message)

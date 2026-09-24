@@ -61,3 +61,50 @@ export function categoryIndex(table: Phrase[], store: PhraseStore): Map<string, 
   for (const c of store.custom) map.set(c.id, shownCategory(store, c.id, c.category))
   return map
 }
+
+/**
+ * The categories that have a phrase in them — the ones a tab has something to
+ * show under. The emergency bar is not one.
+ */
+export function categoriesInUse(table: Phrase[], store: PhraseStore): Set<string> {
+  const hidden = new Set(store.hidden)
+  const used = new Set<string>()
+  for (const p of table) if (!hidden.has(p.id)) used.add(shownCategory(store, p.id, p.category))
+  for (const c of store.custom) {
+    if (c.category !== 'Emergency' && !hidden.has(c.id)) used.add(shownCategory(store, c.id, c.category))
+  }
+  return used
+}
+
+/**
+ * The store with a category taken away **where nothing is left in it** —
+ * `names`, or every one when none are named.
+ *
+ * A category somebody made is kept while it is empty, so one can be made first
+ * and filled afterwards. But once the last phrase has gone from it, or an
+ * import has left it holding nothing, it is a tab that opens onto a blank grid:
+ * one more thing to read past on the way to something that says anything. So
+ * a delete or a move drops the one category it emptied — and only that one, so
+ * a category made a moment ago and not yet filled is not taken with it — and
+ * an import drops every one.
+ *
+ * Its place in the hand-made order and its arrangement go with it; a phrase
+ * put back into it later brings the tab back at the end.
+ */
+export function withoutEmptyCategories(table: Phrase[], store: PhraseStore, names?: string[]): PhraseStore {
+  const used = categoriesInUse(table, store)
+  const empty = new Set(
+    (names ?? [...store.categories, ...store.categoryOrder, ...Object.keys(store.phraseOrder)]).filter(
+      name => !used.has(name),
+    ),
+  )
+  if (empty.size === 0) return store
+  const phraseOrder = { ...store.phraseOrder }
+  for (const name of empty) delete phraseOrder[name]
+  return {
+    ...store,
+    categories: store.categories.filter(c => !empty.has(c)),
+    categoryOrder: store.categoryOrder.filter(c => !empty.has(c)),
+    phraseOrder,
+  }
+}
