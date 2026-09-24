@@ -1364,6 +1364,26 @@ describe('the suggested reply', () => {
     expect(messageBox().value).toBe('Tea please')
   })
 
+  // An answer is a whole one, like a phrase: one chosen after it goes after it
+  // rather than finishing its last word — here "apple", which the board holds
+  // a phrase for, the case where finishing it would have been an overwrite.
+  it('keeps a chosen answer whole when a phrase follows it', async () => {
+    vi.stubGlobal('fetch', suggests('I would like an apple'))
+    withKey()
+    hear('What would you like?')
+    click(suggestBtn())
+    await act(async () => {})
+    chooseAnswer('I would like an apple')
+    // Listening put the board in auto-speak, where a phrase is said rather than
+    // added; building on the answer is composing.
+    click(speakToggle())
+
+    click($$('.filter-tab').find(t => t.textContent === 'Sorted'))
+    click($$('.phrase-cell').find(c => c.textContent === 'Apple'))
+
+    expect(messageBox().value).toBe('I would like an apple Apple')
+  })
+
   it('says so when the service will not answer, and leaves the box alone', async () => {
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
     withKey()
