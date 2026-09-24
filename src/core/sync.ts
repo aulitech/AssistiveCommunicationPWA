@@ -198,9 +198,9 @@ export function hasOwnBoard(backup: Backup): boolean {
     backup.added.length > 0 ||
     backup.edited.length > 0 ||
     backup.removed.length > 0 ||
-    backup.categories.created.length > 0 ||
-    Object.keys(backup.categories.renamed).length > 0 ||
+    Object.keys(backup.members ?? {}).length > 0 ||
     backup.categories.order.length > 0 ||
+    (backup.libraryOrder?.length ?? 0) > 0 ||
     (backup.emergencyOrder?.length ?? 0) > 0 ||
     Object.keys(backup.aliases?.lists ?? {}).length > 0 ||
     (backup.aliases?.hidden?.length ?? 0) > 0

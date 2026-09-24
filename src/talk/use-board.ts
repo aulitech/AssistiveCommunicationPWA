@@ -1,24 +1,21 @@
 // What is on the board, and every way of changing it.
 //
-// The stored form is a diff — overrides, hidden ids, renames — and the app needs
-// whole phrases in whole categories, so almost everything here is the same
-// derivation seen from a different angle. Each one is memoised because the grid
-// renders every phrase in the table and a stray recomputation is felt.
+// **Every phrase lives in Library, and a category is a list of references to
+// Library phrases**, in an order of its own — see
+// docs/decisions/categories-as-references.md. The stored form is a diff —
+// overrides, hidden ids, the references — and the app needs whole phrases, so
+// almost everything here is the same derivation seen from a different angle.
+// Each one is memoised because the grid renders every phrase in the table and a
+// stray recomputation is felt.
 //
 // Announcements are not this hook's job. Operations report what they did and the
 // screen decides what to say, so the same operation can be silent when the
 // screen already shows the result.
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
-import { buildPhrases, type Phrase, type AliasStore } from '../core/phrases'
+import { LIBRARY, buildPhrases, type Phrase, type AliasStore } from '../core/phrases'
 import { stripMarkdown } from '../core/markdown'
-import {
-  buildPhrase,
-  categoryIndex,
-  emergencyPhrasesOf,
-  shownCategory,
-  withoutEmptyCategories,
-} from '../core/board'
+import { emergencyPhrasesOf, libraryOf, phrasesIn, withoutEmptyCategories } from '../core/board'
 import { audioKey, warmAudio } from '../voice/audio-cache'
 import { remoteVoiceId } from '../voice/elevenlabs'
 import { useSettings } from '../ui/settings'
@@ -34,48 +31,61 @@ import {
   setVoiceOverride,
   voiceOverrideFor,
   newPhraseId,
-  phraseKey,
   wordingKey,
   type PhraseStore,
   type StoredPhrase,
 } from '../core/store'
 
+const EMERGENCY = 'Emergency'
+
 /**
- * Everything a delete takes, so it can be put back.
+ * Everything a delete or a removal takes, so it can be put back.
  *
  * **Deleting was the one change the app offered no way back from**, and the bin
- * sits a dwell's breadth from Save. Only these four things go: the phrase's own
- * entry (or, for one Peri ships, it is hidden), and its places on the emergency
- * bar and in its category's arrangement. Its wording, voice and any category it
- * was moved to stay in the store, which is what lets this be so small.
+ * sits a dwell's breadth from Save. On Library the bin deletes the phrase: its
+ * own entry goes (or, for one Peri ships, it is hidden), and with it its places
+ * on the emergency bar, in Library's arrangement and in every category that
+ * referred to it. On a category it only takes the phrase out of that category.
+ * Its wording and voice stay in the store either way, which is what lets this
+ * be so small.
  */
 export interface Removed {
   id: string
+  /** Only taken out of this category — the phrase itself is still in Library. */
+  from: string | null
   /** A phrase somebody wrote: its entry, and where it was among the others. Null for one Peri ships. */
   custom: { entry: StoredPhrase; at: number } | null
   /** Where it was on the emergency bar's arrangement, or -1. */
   emergencyAt: number
-  /** Where it was in its category's hand arrangement, if it had one. */
-  arranged: { category: string; at: number } | null
+  /** Where it was in Library's arrangement, or -1. */
+  libraryAt: number
+  /** Every category that referred to it, and where in each. */
+  referredBy: { category: string; at: number }[]
   /**
-   * The category it emptied, and where that stood in the two lists of them —
-   * a category goes with its last phrase, and an undo brings it back to the
-   * place it had rather than the end of the bar.
+   * The categories it emptied, and where each stood in the tabs' order — a
+   * category goes with its last phrase, and an undo brings it back to the place
+   * it had rather than the end of the bar.
    */
-  emptied: { category: string; listedAt: number; orderAt: number } | null
+  emptied: { category: string; orderAt: number }[]
 }
 
-/** A list with this name put back at this place, if it is not there already. */
-const putBack = (list: string[], name: string, at: number) =>
-  at < 0 || list.includes(name) ? list : [...list.slice(0, at), name, ...list.slice(at)]
+/** A list with this item put back at this place, if it is not there already. */
+const putBack = (list: string[], item: string, at: number) =>
+  at < 0 || list.includes(item) ? list : [...list.slice(0, at), item, ...list.slice(at)]
 
-/** Every category's arrangement with one phrase taken out, dropping any left empty. */
-function withoutPhrase(order: Record<string, string[]>, id: string): Record<string, string[]> {
+/** The references with one phrase in these categories set to exactly these. */
+function withMemberships(
+  members: Record<string, string[]>,
+  id: string,
+  categories: string[],
+): Record<string, string[]> {
   const next: Record<string, string[]> = {}
-  for (const [category, ids] of Object.entries(order)) {
-    const kept = ids.filter(i => i !== id)
-    if (kept.length > 0) next[category] = kept
+  for (const [category, ids] of Object.entries(members)) {
+    const wanted = categories.includes(category)
+    // Where it is already referred to it keeps its place; new, it goes last.
+    next[category] = wanted ? (ids.includes(id) ? ids : [...ids, id]) : ids.filter(i => i !== id)
   }
+  for (const category of categories) if (!(category in next) && category !== LIBRARY) next[category] = [id]
   return next
 }
 
@@ -112,41 +122,37 @@ export function useBoard() {
   // user's own lists change — a few milliseconds, and only on an alias edit.
   const tablePhrases = useMemo(() => buildPhrases(aliases), [aliases])
 
-  // Where each phrase shows — see `shownCategory` in `core/board.ts`.
-  const shownIn = useCallback((id: string, source: string) => shownCategory(store, id, source), [store])
-
-  const mainPhrases = useMemo(() => {
-    const base = tablePhrases
-      .filter(p => !store.hidden.includes(p.id))
-      .map(p =>
-        store.overrides[p.id]
-          ? buildPhrase(p.id, store.overrides[p.id], shownIn(p.id, p.category))
-          : { ...p, category: shownIn(p.id, p.category) },
-      )
-    const custom = store.custom
-      .filter(c => c.category !== 'Emergency' && !store.hidden.includes(c.id))
-      .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, shownIn(c.id, c.category)))
-    return [...base, ...custom]
-  }, [store, tablePhrases, shownIn])
+  /** Library: every phrase on the board — see `libraryOf` in `core/board.ts`. */
+  const mainPhrases = useMemo(() => libraryOf(tablePhrases, store), [tablePhrases, store])
 
   const emergencyPhrases = useMemo(() => emergencyPhrasesOf(store), [store])
 
   const allCategories = useMemo(
-    // User-created categories are listed even while empty, so one can be made
-    // first and filled afterwards — until its last phrase goes, or an import
-    // lands: see `withoutEmptyCategories`.
+    // Every category somebody made — listed even while empty, so one can be
+    // made first and filled afterwards, until its last phrase goes or an import
+    // lands: see `withoutEmptyCategories`. **Library is not among them**: it is
+    // where every phrase lives, and has a tab of its own pinned in front.
     () =>
       orderCategories(
-        [...new Set([...mainPhrases.map(p => p.category), ...store.categories])],
+        Object.keys(store.members),
         // The custom arrangement is kept while A–Z is showing; it just is not
         // the one being applied.
         store.categorySort === 'custom' ? store.categoryOrder : [],
       ),
-    [mainPhrases, store.categories, store.categoryOrder, store.categorySort],
+    [store.members, store.categoryOrder, store.categorySort],
   )
 
-  // The category every phrase belongs to — see `categoryIndex` in `core/board.ts`.
-  const categoryById = useMemo(() => categoryIndex(tablePhrases, store), [tablePhrases, store])
+  /** A category's phrases, in its own order. */
+  const phrasesOf = useCallback(
+    (category: string) => phrasesIn(category, mainPhrases, store),
+    [mainPhrases, store],
+  )
+
+  /** The categories that refer to a phrase — never Library, which holds them all. */
+  const categoriesOf = useCallback(
+    (id: string) => Object.keys(store.members).filter(category => store.members[category].includes(id)),
+    [store.members],
+  )
 
   /**
    * The voice a phrase is said in when it has one of its own **for the language
@@ -186,88 +192,75 @@ export function useBoard() {
   }, [store.voiceOverrides, mainPhrases, emergencyPhrases, language])
 
   /**
-   * What is already on the board, by category and wording — the check behind
-   * refusing a duplicate.
-   *
-   * **Within a category only.** The table lists "Good morning" under
-   * Interpersonal, Texting and Time of Day, and that is the point: somebody
-   * looking for it looks in whichever of the three they think in. What is
-   * useless is the same words twice in the same place.
+   * What is already on the board, by wording — the check behind refusing a
+   * duplicate. **Library holds each wording once**; the emergency bar is its
+   * own place and is checked on its own.
    *
    * Keyed on the source, folded to lower case with its spaces collapsed, so
-   * "Thank  you" and "thank you" are the one phrase. The separator is the one
-   * character neither a category nor a phrase can hold, written as an escape —
-   * a literal NUL makes this file binary to grep.
+   * "Thank  you" and "thank you" are the one phrase.
    */
-  const phraseKeys = useMemo(() => {
-    const keys = new Map<string, string>()
-    for (const p of [...mainPhrases, ...emergencyPhrases]) keys.set(phraseKey(p.source, p.category), p.id)
-    return keys
-  }, [mainPhrases, emergencyPhrases])
+  const libraryKeys = useMemo(() => new Map(mainPhrases.map(p => [wordingKey(p.source), p.id])), [mainPhrases])
+  const emergencyKeys = useMemo(
+    () => new Map(emergencyPhrases.map(p => [wordingKey(p.source), p.id])),
+    [emergencyPhrases],
+  )
 
   /**
-   * The id of the phrase this wording would duplicate, if there is one.
+   * The id of the phrase this wording would duplicate, if there is one — in
+   * Library, or on the emergency bar where that is where it is going.
    * `exceptId` is the phrase being edited, which does not duplicate itself.
    */
   const duplicateOf = useCallback(
-    (text: string, category: string, exceptId?: string) => {
-      const found = phraseKeys.get(phraseKey(text, category))
+    (text: string, onBar: boolean, exceptId?: string) => {
+      const found = (onBar ? emergencyKeys : libraryKeys).get(wordingKey(text))
       return found && found !== exceptId ? found : undefined
     },
-    [phraseKeys],
+    [libraryKeys, emergencyKeys],
   )
 
   /**
    * The phrase on the board saying this, if one does — what the message box is
-   * asked about on the way into edit mode.
-   *
-   * `prefer` is the tab in front of them, and it decides between copies: the
-   * same wording is filed under several categories on purpose, and the one
-   * already on screen is the one they are looking at. Otherwise the first in
-   * board order.
-   *
-   * **The grid only**, not the emergency bar: what this answers is where to
-   * take somebody, and the bar is on screen under every tab already.
+   * asked about on the way into edit mode. **The grid only**, not the emergency
+   * bar: what this answers is where to take somebody, and the bar is on screen
+   * under every tab already.
    */
   const phraseSaying = useCallback(
-    (text: string, prefer?: string) => {
-      const key = wordingKey(text)
-      const saying = mainPhrases.filter(p => wordingKey(p.source) === key)
-      return saying.find(p => p.category === prefer) ?? saying[0]
+    (text: string) => {
+      const id = libraryKeys.get(wordingKey(text))
+      return id ? mainPhrases.find(p => p.id === id) : undefined
     },
-    [mainPhrases],
+    [libraryKeys, mainPhrases],
   )
 
   const phraseCountByCategory = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const p of mainPhrases) counts.set(p.category, (counts.get(p.category) ?? 0) + 1)
+    const live = new Set(mainPhrases.map(p => p.id))
+    const counts = new Map<string, number>([[LIBRARY, mainPhrases.length]])
+    for (const [category, ids] of Object.entries(store.members)) {
+      counts.set(category, ids.filter(id => live.has(id)).length)
+    }
     return counts
-  }, [mainPhrases])
+  }, [mainPhrases, store.members])
 
   // ── Changing what is on it ─────────────────────────────────────────────────
 
   /**
-   * Adds a phrase and hands back its id, which is the only way the caller can
+   * Adds a phrase to Library — or to the emergency bar — and to each category
+   * named, at its end. Hands back its id, which is the only way the caller can
    * give a brand-new phrase a voice of its own: the id is made here, and until
    * the phrase exists there is nothing to hang one on.
    */
   const addPhrase = useCallback(
-    (text: string, category: string, isEmergency: boolean) => {
+    (text: string, categories: string[], isEmergency: boolean) => {
       const id = newPhraseId()
       updateStore({
-        custom: [...store.custom, { id, text, category: isEmergency ? 'Emergency' : category }],
-        categories: isEmergency ? store.categories : [...new Set([...store.categories, category])],
+        custom: [...store.custom, { id, text, category: isEmergency ? EMERGENCY : LIBRARY }],
+        ...(!isEmergency && { members: withMemberships(store.members, id, categories) }),
       })
       return id
     },
     [store, updateStore],
   )
 
-  /**
-   * Give a phrase a voice **for the language the board is speaking**, or take
-   * that language's away. The other languages' are left alone, which is the
-   * whole point: choosing a Spanish voice must not throw away the English one.
-   */
   /**
    * Give a phrase a voice **for the language the board is speaking**, or take
    * that language's away. The arithmetic is `setVoiceOverride`, in core, so the
@@ -281,110 +274,111 @@ export function useBoard() {
     [store.voiceOverrides, updateStore, language],
   )
 
+  /**
+   * Rewords a phrase and sets which categories refer to it. One it stays in
+   * keeps its place there; one it joins has it at the end; one it leaves goes
+   * if that was the last thing in it.
+   */
   const editPhrase = useCallback(
-    (phrase: Phrase, text: string, category: string, isEmergency: boolean) => {
+    (phrase: Phrase, text: string, categories: string[], isEmergency: boolean) => {
       const patch: Partial<PhraseStore> = { overrides: { ...store.overrides, [phrase.id]: text } }
-      // The editor has always shown a category for existing phrases; until
-      // now, changing it was silently discarded.
-      if (!isEmergency && category && category !== phrase.category) {
-        patch.categoryOverrides = { ...store.categoryOverrides, [phrase.id]: category }
-        patch.categories = [...new Set([...store.categories, category])]
-        // Moved out of the last category it was in, that category goes.
-        const next = withoutEmptyCategories(tablePhrases, { ...store, ...patch }, [phrase.category])
-        patch.categories = next.categories
+      if (!isEmergency) {
+        const left = Object.keys(store.members).filter(
+          c => store.members[c].includes(phrase.id) && !categories.includes(c),
+        )
+        const next = withoutEmptyCategories(
+          tablePhrases,
+          { ...store, ...patch, members: withMemberships(store.members, phrase.id, categories) },
+          left,
+        )
+        patch.members = next.members
         patch.categoryOrder = next.categoryOrder
-        patch.phraseOrder = next.phraseOrder
       }
       updateStore(patch)
     },
     [store, updateStore, tablePhrases],
   )
 
-  /** Deletes one the user wrote; hides one that came with the app. */
   /**
-   * Takes a phrase off the board, and hands back everything that took — see
-   * `Removed` — so an undo can put it back exactly where it was.
+   * Takes a phrase off the board, or — `from` a category — out of that category
+   * alone, and hands back everything that took (see `Removed`) so an undo can
+   * put it back exactly where it was.
    */
   const removePhrase = useCallback(
-    (id: string): Removed => {
+    (id: string, from: string | null = null): Removed => {
+      const referredBy = Object.entries(store.members)
+        .filter(([category, ids]) => ids.includes(id) && (from === null || category === from))
+        .map(([category, ids]) => ({ category, at: ids.indexOf(id) }))
       const customAt = store.custom.findIndex(p => p.id === id)
-      const arranged = Object.entries(store.phraseOrder).find(([, ids]) => ids.includes(id))
-      const category = mainPhrases.find(p => p.id === id)?.category
-      const patch: Partial<PhraseStore> = {
-        ...(id.startsWith('custom-')
-          ? { custom: store.custom.filter(p => p.id !== id) }
-          : { hidden: [...store.hidden, id] }),
-        // Harmless to leave — an id naming nothing is skipped when the bar is
-        // arranged — but a store that only ever accumulates is one nobody can
-        // read later. A non-emergency id was never in here anyway.
-        emergencyOrder: store.emergencyOrder.filter(i => i !== id),
-        // The same tidying for the grid's arrangements. Only one category can
-        // hold it, but which one is not worth working out to save a pass over
-        // a handful of short lists — and a category whose arrangement empties
-        // out loses the key rather than keeping an empty one.
-        phraseOrder: withoutPhrase(store.phraseOrder, id),
+      const members = { ...store.members }
+      for (const { category } of referredBy) members[category] = members[category].filter(i => i !== id)
+      const patch: Partial<PhraseStore> = { members }
+      if (from === null) {
+        Object.assign(patch, {
+          ...(id.startsWith('custom-')
+            ? { custom: store.custom.filter(p => p.id !== id) }
+            : { hidden: [...store.hidden, id] }),
+          // Harmless to leave — an id naming nothing is skipped when either is
+          // arranged — but a store that only ever accumulates is one nobody can
+          // read later.
+          emergencyOrder: store.emergencyOrder.filter(i => i !== id),
+          libraryOrder: store.libraryOrder.filter(i => i !== id),
+        })
       }
       // The last phrase in a category takes the category with it.
-      const next = withoutEmptyCategories(tablePhrases, { ...store, ...patch }, category ? [category] : [])
-      const gone = (list: string[], after: string[]) =>
-        !!category && list.includes(category) && !after.includes(category)
-      const emptied = gone(store.categories, next.categories) || gone(store.categoryOrder, next.categoryOrder)
-      updateStore({
-        ...patch,
-        categories: next.categories,
-        categoryOrder: next.categoryOrder,
-        phraseOrder: next.phraseOrder,
-      })
+      const next = withoutEmptyCategories(
+        tablePhrases,
+        { ...store, ...patch },
+        referredBy.map(r => r.category),
+      )
+      updateStore({ ...patch, members: next.members, categoryOrder: next.categoryOrder })
       return {
         id,
-        custom: id.startsWith('custom-') && customAt >= 0 ? { entry: store.custom[customAt], at: customAt } : null,
-        emergencyAt: store.emergencyOrder.indexOf(id),
-        arranged: arranged ? { category: arranged[0], at: arranged[1].indexOf(id) } : null,
-        emptied:
-          emptied && category
-            ? {
-                category,
-                listedAt: store.categories.indexOf(category),
-                orderAt: store.categoryOrder.indexOf(category),
-              }
+        from,
+        custom:
+          from === null && id.startsWith('custom-') && customAt >= 0
+            ? { entry: store.custom[customAt], at: customAt }
             : null,
+        emergencyAt: from === null ? store.emergencyOrder.indexOf(id) : -1,
+        libraryAt: from === null ? store.libraryOrder.indexOf(id) : -1,
+        referredBy,
+        emptied: referredBy
+          .filter(r => !(r.category in next.members))
+          .map(r => ({ category: r.category, orderAt: store.categoryOrder.indexOf(r.category) })),
       }
     },
-    [store, updateStore, mainPhrases, tablePhrases],
+    [store, updateStore, tablePhrases],
   )
 
   /**
    * Puts back what `removePhrase` took, **where it was**: among the phrases
-   * somebody wrote, on the emergency bar, and in its category's arrangement.
-   * Its wording, its voice and any category it was moved to were never taken —
-   * a delete leaves those in the store — so this is the whole of the phrase.
+   * somebody wrote, on the emergency bar, in Library's arrangement, in every
+   * category that referred to it, and each category it emptied back in its
+   * place among the tabs.
    */
   const restorePhrase = useCallback(
     (r: Removed) => {
-      const at = (list: string[], index: number) =>
-        index < 0 || list.includes(r.id) ? list : [...list.slice(0, index), r.id, ...list.slice(index)]
+      const members = { ...store.members }
+      for (const { category, at } of r.referredBy) members[category] = putBack(members[category] ?? [], r.id, at)
+      let categoryOrder = store.categoryOrder
+      for (const { category, orderAt } of r.emptied) categoryOrder = putBack(categoryOrder, category, orderAt)
       updateStore({
-        ...(r.custom
-          ? store.custom.some(p => p.id === r.id)
-            ? {}
-            : {
-                custom: [
-                  ...store.custom.slice(0, r.custom.at),
-                  r.custom.entry,
-                  ...store.custom.slice(r.custom.at),
-                ],
-              }
-          : { hidden: store.hidden.filter(i => i !== r.id) }),
-        emergencyOrder: at(store.emergencyOrder, r.emergencyAt),
-        ...(r.emptied && {
-          categories: putBack(store.categories, r.emptied.category, r.emptied.listedAt),
-          categoryOrder: putBack(store.categoryOrder, r.emptied.category, r.emptied.orderAt),
-        }),
-        ...(r.arranged && {
-          phraseOrder: {
-            ...store.phraseOrder,
-            [r.arranged.category]: at(store.phraseOrder[r.arranged.category] ?? [], r.arranged.at),
-          },
+        members,
+        categoryOrder,
+        ...(r.from === null && {
+          ...(r.custom
+            ? store.custom.some(p => p.id === r.id)
+              ? {}
+              : {
+                  custom: [
+                    ...store.custom.slice(0, r.custom.at),
+                    r.custom.entry,
+                    ...store.custom.slice(r.custom.at),
+                  ],
+                }
+            : { hidden: store.hidden.filter(i => i !== r.id) }),
+          emergencyOrder: putBack(store.emergencyOrder, r.id, r.emergencyAt),
+          libraryOrder: putBack(store.libraryOrder, r.id, r.libraryAt),
         }),
       })
     },
@@ -392,8 +386,11 @@ export function useBoard() {
   )
 
   const addCategory = useCallback(
-    (name: string) => updateStore({ categories: [...new Set([...store.categories, name])] }),
-    [store.categories, updateStore],
+    (name: string) => {
+      if (name === LIBRARY || name in store.members) return
+      updateStore({ members: { ...store.members, [name]: [] } })
+    },
+    [store.members, updateStore],
   )
 
   const renameCategoryTo = useCallback(
@@ -402,30 +399,16 @@ export function useBoard() {
   )
 
   /**
-   * Takes a category off the board **and every phrase in it** — the dialog has
-   * asked by now, and said how many. Each goes the way a single delete does: one
-   * somebody wrote is removed, one Peri ships is hidden. A rename or a move that
-   * pointed at the category goes too, or a category made later under the same
-   * name would inherit what this one was.
+   * Takes a category off the board. **Its phrases stay in Library** — a
+   * category only ever referred to them — so this deletes nothing anybody said.
    */
   const removeCategory = useCallback(
     (name: string) => {
-      const going = new Set(mainPhrases.filter(p => p.category === name).map(p => p.id))
-      const phraseOrder = { ...store.phraseOrder }
-      delete phraseOrder[name]
-      updateStore({
-        custom: store.custom.filter(p => !going.has(p.id)),
-        hidden: [...store.hidden, ...[...going].filter(id => !id.startsWith('custom-'))],
-        categories: store.categories.filter(c => c !== name),
-        categoryOrder: store.categoryOrder.filter(c => c !== name),
-        categoryRenames: Object.fromEntries(Object.entries(store.categoryRenames).filter(([, to]) => to !== name)),
-        categoryOverrides: Object.fromEntries(
-          Object.entries(store.categoryOverrides).filter(([, to]) => to !== name),
-        ),
-        phraseOrder,
-      })
+      const members = { ...store.members }
+      delete members[name]
+      updateStore({ members, categoryOrder: store.categoryOrder.filter(c => c !== name) })
     },
-    [mainPhrases, store, updateStore],
+    [store.members, store.categoryOrder, updateStore],
   )
 
   // A drag or a drop writes the whole arrangement, so a move made while A–Z is
@@ -438,7 +421,8 @@ export function useBoard() {
   )
 
   /**
-   * Arrange the phrases inside one category by hand.
+   * Arrange the phrases inside one category by hand — Library's arrangement, or
+   * a category's own order of references.
    *
    * `shown` is the order the user could see at the time, and the move is applied
    * to that — exactly as a category move is. So arranging while A–Z is showing
@@ -448,9 +432,17 @@ export function useBoard() {
    * an arrangement nobody is looking at is not an arrangement.
    */
   const reorderPhrases = useCallback(
-    (category: string, shown: string[], from: string, to: string) =>
-      updateStore({ phraseOrder: { ...store.phraseOrder, [category]: moveInOrder(shown, from, to) } }),
-    [store.phraseOrder, updateStore],
+    (category: string, shown: string[], from: string, to: string) => {
+      const order = moveInOrder(shown, from, to)
+      if (category === LIBRARY) updateStore({ libraryOrder: order })
+      else if (category in store.members) {
+        // What is shown is every reference, in edit mode where arranging is;
+        // any it did not show keep their place behind.
+        const rest = store.members[category].filter(id => !order.includes(id))
+        updateStore({ members: { ...store.members, [category]: [...order, ...rest] } })
+      }
+    },
+    [store.members, updateStore],
   )
 
   // The whole arrangement again rather than a step of one, so an order built
@@ -507,7 +499,8 @@ export function useBoard() {
     mainPhrases,
     emergencyPhrases,
     allCategories,
-    categoryById,
+    phrasesOf,
+    categoriesOf,
     phraseCountByCategory,
     voiceFor,
     duplicateOf,

@@ -8,8 +8,8 @@
 // two chances for the emergency bar to come out differently on the one screen
 // where it has to be right.
 
-import { EMERGENCY_PHRASES, compose, parseSegments, type Phrase } from './phrases'
-import { displayCategory, orderByIds, type PhraseStore } from './store'
+import { EMERGENCY_PHRASES, LIBRARY, compose, parseSegments, type Phrase } from './phrases'
+import { orderByIds, type PhraseStore } from './store'
 
 /**
  * A phrase from what it was written as. Overrides and phrases the user wrote
@@ -22,11 +22,32 @@ export function buildPhrase(id: string, raw: string, category: string): Phrase {
 }
 
 /**
- * Where a phrase shows. One moved on its own keeps that category; otherwise it
- * follows any rename applied to the one it came in.
+ * **Library: every phrase on the board**, in the board's order — the table's,
+ * then the ones somebody wrote — each as it reads now. The emergency bar is not
+ * in it. A category is a list of references into this.
  */
-export const shownCategory = (store: PhraseStore, id: string, source: string): string =>
-  store.categoryOverrides[id] ?? displayCategory(source, store.categoryRenames)
+export function libraryOf(table: Phrase[], store: PhraseStore): Phrase[] {
+  const hidden = new Set(store.hidden)
+  const shipped = table
+    .filter(p => !hidden.has(p.id))
+    .map(p =>
+      store.overrides[p.id] ? buildPhrase(p.id, store.overrides[p.id], LIBRARY) : { ...p, category: LIBRARY },
+    )
+  const mine = store.custom
+    .filter(c => c.category !== 'Emergency' && !hidden.has(c.id))
+    .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, LIBRARY))
+  return [...shipped, ...mine]
+}
+
+/**
+ * The Library phrases a category refers to, in its own order — ids naming a
+ * phrase that is not on the board skipped rather than leaving a hole.
+ */
+export function phrasesIn(category: string, library: Phrase[], store: PhraseStore): Phrase[] {
+  if (category === LIBRARY) return library
+  const byId = new Map(library.map(p => [p.id, p]))
+  return (store.members[category] ?? []).flatMap(id => byId.get(id) ?? [])
+}
 
 /**
  * The emergency bar, as the person using it arranged it.
@@ -46,34 +67,17 @@ export function emergencyPhrasesOf(store: PhraseStore): Phrase[] {
 }
 
 /**
- * The category every phrase belongs to, hidden ones included.
- *
- * Exporting a few categories needs a category for phrases that are not on
- * screen: one the user removed still belongs to the category it came from, and
- * that is the only way to tell whether their removal is part of what they asked
- * to export. A whole backup needs it too, to file a phrase somebody moved under
- * the category they moved it to.
- */
-export function categoryIndex(table: Phrase[], store: PhraseStore): Map<string, string> {
-  const map = new Map<string, string>()
-  for (const p of table) map.set(p.id, shownCategory(store, p.id, p.category))
-  for (const p of EMERGENCY_PHRASES) map.set(p.id, 'Emergency')
-  for (const c of store.custom) map.set(c.id, shownCategory(store, c.id, c.category))
-  return map
-}
-
-/**
- * The categories that have a phrase in them — the ones a tab has something to
- * show under. The emergency bar is not one.
+ * The categories that refer to a phrase on the board — the ones a tab has
+ * something to show under. Library is not asked: it is where every phrase
+ * lives, and is never empty in the sense that matters here.
  */
 export function categoriesInUse(table: Phrase[], store: PhraseStore): Set<string> {
-  const hidden = new Set(store.hidden)
-  const used = new Set<string>()
-  for (const p of table) if (!hidden.has(p.id)) used.add(shownCategory(store, p.id, p.category))
-  for (const c of store.custom) {
-    if (c.category !== 'Emergency' && !hidden.has(c.id)) used.add(shownCategory(store, c.id, c.category))
-  }
-  return used
+  const live = new Set(libraryOf(table, store).map(p => p.id))
+  return new Set(
+    Object.entries(store.members)
+      .filter(([, ids]) => ids.some(id => live.has(id)))
+      .map(([category]) => category),
+  )
 }
 
 /**
@@ -86,25 +90,15 @@ export function categoriesInUse(table: Phrase[], store: PhraseStore): Set<string
  * one more thing to read past on the way to something that says anything. So
  * a delete or a move drops the one category it emptied — and only that one, so
  * a category made a moment ago and not yet filled is not taken with it — and
- * an import drops every one.
- *
- * Its place in the hand-made order and its arrangement go with it; a phrase
- * put back into it later brings the tab back at the end.
+ * an import drops every one. Its place in the hand-made order goes with it.
  */
 export function withoutEmptyCategories(table: Phrase[], store: PhraseStore, names?: string[]): PhraseStore {
   const used = categoriesInUse(table, store)
   const empty = new Set(
-    (names ?? [...store.categories, ...store.categoryOrder, ...Object.keys(store.phraseOrder)]).filter(
-      name => !used.has(name),
-    ),
+    (names ?? Object.keys(store.members)).filter(name => name in store.members && !used.has(name)),
   )
   if (empty.size === 0) return store
-  const phraseOrder = { ...store.phraseOrder }
-  for (const name of empty) delete phraseOrder[name]
-  return {
-    ...store,
-    categories: store.categories.filter(c => !empty.has(c)),
-    categoryOrder: store.categoryOrder.filter(c => !empty.has(c)),
-    phraseOrder,
-  }
+  const members = { ...store.members }
+  for (const name of empty) delete members[name]
+  return { ...store, members, categoryOrder: store.categoryOrder.filter(c => !empty.has(c)) }
 }

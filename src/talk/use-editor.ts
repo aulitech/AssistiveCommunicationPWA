@@ -13,10 +13,16 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { cancelAllDwells } from '../ui/dwell'
-import { type Phrase } from '../core/phrases'
+import { LIBRARY, type Phrase } from '../core/phrases'
 import { SENT_CATEGORY } from './use-sent'
 import { TRANSLATED_CATEGORY } from './use-translated'
 import { SUGGEST_CATEGORY } from './suggestions'
+
+/** None of the three is a category on the board, so a phrase off one is kept rather than edited. */
+const keepingOf = (phrase: Phrase | null) =>
+  phrase?.category === SENT_CATEGORY ||
+  phrase?.category === TRANSLATED_CATEGORY ||
+  phrase?.category === SUGGEST_CATEGORY
 
 /** What the editor is pointed at. Null is a phrase being written from nothing. */
 interface Target {
@@ -27,7 +33,7 @@ interface Target {
 /** Only what has been changed, so everything else follows the phrase itself. */
 interface Edits {
   text?: string
-  category?: string
+  categories?: string[]
   voice?: string
 }
 
@@ -40,7 +46,11 @@ export interface Draft {
    * labels — "red/blue" — and saving that back flattens the slot for good.
    */
   text: string
-  category: string
+  /**
+   * The categories that will refer to it. **It is in Library whatever this
+   * says** — every phrase is — so an empty list is a phrase in Library alone.
+   */
+  categories: string[]
   /** Empty means the voice everything else is said in. */
   voice: string
   /**
@@ -65,10 +75,10 @@ export interface Draft {
   isNew: boolean
   canSave: boolean
   /**
-   * The board already holds these words in this category. A second copy is
-   * nothing but a cell somebody has to read past to reach the one they meant,
-   * so it cannot be saved — and the strip says so, since a control that has
-   * gone quiet explains nothing by itself.
+   * Library already holds these words — or the emergency bar does, for one
+   * going there. A second copy is nothing but a cell somebody has to read past
+   * to reach the one they meant, so it cannot be saved — and the strip says so,
+   * since a control that has gone quiet explains nothing by itself.
    */
   duplicate: boolean
 }
@@ -78,17 +88,20 @@ export function useEditor({
   recent,
   voiceFor,
   duplicateOf,
+  categoriesOf,
 }: {
   allCategories: string[]
   /**
    * Where a new phrase starts from: the last voice used, and the category
    * either last filed under or last looked at — `talk.tsx` writes the tab there
-   * on the way into edit mode, where that tab is a category at all.
+   * on the way into edit mode, where that tab is a category of somebody's own.
    */
   recent: { category?: string; voice?: string }
   voiceFor: (id: string) => string | undefined
-  /** Whether the board already holds this wording under this category. */
-  duplicateOf: (text: string, category: string, exceptId?: string) => string | undefined
+  /** Whether Library, or the emergency bar, already holds this wording. */
+  duplicateOf: (text: string, onBar: boolean, exceptId?: string) => string | undefined
+  /** The categories that refer to a phrase already on the board. */
+  categoriesOf: (id: string) => string[]
 }) {
   const [target, setTarget] = useState<Target | null>(null)
   const [edits, setEdits] = useState<Edits>({})
@@ -115,40 +128,36 @@ export function useEditor({
   }, [])
 
   const setText = useCallback((text: string) => setEdits(e => ({ ...e, text })), [])
-  const setCategory = useCallback((category: string) => setEdits(e => ({ ...e, category })), [])
+  const setCategories = useCallback((categories: string[]) => setEdits(e => ({ ...e, categories })), [])
   const setVoice = useCallback((voice: string) => setEdits(e => ({ ...e, voice })), [])
 
   const draft = useMemo<Draft>(() => {
     const phrase = target?.phrase ?? null
     const isEmergency = target?.isEmergency ?? false
 
-    // A phrase whose category is not one of the real ones — a sent message — has
-    // to land somewhere the user actually keeps things, and the likeliest
-    // somewhere is wherever the last one went.
-    const filedUnder = () => {
-      if (phrase && allCategories.includes(phrase.category)) return phrase.category
-      if (recent.category && allCategories.includes(recent.category)) return recent.category
-      return allCategories[0] ?? ''
+    // A phrase on the board is in the categories that refer to it. One being
+    // written — or kept off a record, which is in none — starts in the category
+    // last filed under or looked at, where that is still one of somebody's own.
+    const startsIn = () => {
+      if (phrase && !keepingOf(phrase)) return categoriesOf(phrase.id)
+      return recent.category && recent.category !== LIBRARY && allCategories.includes(recent.category)
+        ? [recent.category]
+        : []
     }
 
     const text = edits.text ?? phrase?.source ?? ''
-    const category = edits.category ?? filedUnder()
-    // Against the category it would be filed under, which for an emergency
-    // phrase is the bar rather than whatever the picker last showed.
-    const duplicate =
-      text.trim() !== '' && duplicateOf(text, isEmergency ? 'Emergency' : category, phrase?.id) !== undefined
+    const categories = (edits.categories ?? startsIn()).filter(c => allCategories.includes(c) && c !== LIBRARY)
+    // Against Library, or the bar for a phrase going there.
+    const duplicate = text.trim() !== '' && duplicateOf(text, isEmergency, phrase?.id) !== undefined
     return {
       phrase,
       isEmergency,
       text,
-      category,
+      categories,
       voice: edits.voice ?? (phrase ? (voiceFor(phrase.id) ?? '') : (recent.voice ?? '')),
       // None of the three is a category on the board, so what Save does with one
       // is keep it as a new phrase rather than edit the record it came off.
-      keeping:
-        phrase?.category === SENT_CATEGORY ||
-        phrase?.category === TRANSLATED_CATEGORY ||
-        phrase?.category === SUGGEST_CATEGORY,
+      keeping: keepingOf(phrase),
       kept:
         phrase?.category === TRANSLATED_CATEGORY
           ? 'translation'
@@ -159,16 +168,15 @@ export function useEditor({
               : null,
       isNew: phrase === null,
       duplicate,
-      // A phrase has to be filed somewhere; the emergency bar is the somewhere
-      // for the ones on it.
-      canSave: text.trim().length > 0 && (isEmergency || category.trim().length > 0) && !duplicate,
+      // Every phrase is in Library, so there is always somewhere for it to go.
+      canSave: text.trim().length > 0 && !duplicate,
     }
-  }, [target, edits, allCategories, recent, voiceFor, duplicateOf])
+  }, [target, edits, allCategories, recent, voiceFor, duplicateOf, categoriesOf])
 
   /** Whether anything would be lost by starting again. */
-  const isUntouched = target === null && !edits.text && !edits.category && !edits.voice
+  const isUntouched = target === null && !edits.text && !edits.categories && !edits.voice
 
-  return { draft, isUntouched, open, startNew, setText, setCategory, setVoice }
+  return { draft, isUntouched, open, startNew, setText, setCategories, setVoice }
 }
 
 export type Editor = ReturnType<typeof useEditor>

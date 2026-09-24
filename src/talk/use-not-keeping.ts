@@ -36,9 +36,9 @@ export function useNotKeeping(board: Board, settings: Settings) {
    * the ones at risk. The same file the Backup panel writes.
    */
   const keepInFile = useCallback(() => {
-    const backup = buildBackup({ store, aliases: board.aliases, settings, categoryById: board.categoryById })
+    const backup = buildBackup({ store, aliases: board.aliases, settings })
     setKeptInFile(downloadBackup(backup).ok)
-  }, [store, board.aliases, board.categoryById, settings])
+  }, [store, board.aliases, settings])
 
   return { notKeeping, keptInFile, keepInFile }
 }

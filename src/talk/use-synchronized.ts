@@ -94,10 +94,9 @@ export function useSynchronized({
         // turning the text size up is not a change to the board at all. See
         // `portableSettings`.
         settings: portableSettings(settings),
-        categoryById: board.categoryById,
         now: SYNC_EPOCH,
       }),
-    [store, board.aliases, settings, board.categoryById],
+    [store, board.aliases, settings],
   )
 
   /** Everything sync carries: the board, and what a backup file may not hold. */

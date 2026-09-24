@@ -114,8 +114,8 @@ export function SheetSection({
    * offers go and come back together.
    */
   const table = useCallback(
-    () => rowsToTable([...boardRows(phrases, categories, store.phraseOrder), ...listRows(aliases)]),
-    [phrases, categories, store.phraseOrder, aliases],
+    () => rowsToTable([...boardRows(phrases, categories, store), ...listRows(aliases)]),
+    [phrases, categories, store, aliases],
   )
 
   const saveExcel = useCallback(() => {

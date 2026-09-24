@@ -11,7 +11,7 @@ import { loadTranslations } from '../core/translation'
 import { cancelAllDwells, holdDwellsUntilMoved, RestingContext } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
-import { compose, composeWithBlank, hasChoices, parseSegments, type Phrase } from '../core/phrases'
+import { LIBRARY, compose, composeWithBlank, hasChoices, parseSegments, type Phrase } from '../core/phrases'
 import { soleLink, stripMarkdown } from '../core/markdown'
 import { openLink } from '../core/links'
 import {
@@ -78,7 +78,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const { toast, flashToast } = useToast()
 
   const [menuOpen, setMenuOpen] = useState(false)
-  const [activeFilter, setActiveFilter] = useState('all')
+  const [activeFilter, setActiveFilter] = useState(LIBRARY)
   const [editMode, setEditMode] = useState(false)
   // Three reorder modes, one for each surface that can be arranged. Sharing a
   // flag would mean arming the bar somebody speaks with every time they set
@@ -116,12 +116,18 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   )
   const [recent, setRecent] = useState(loadRecent)
 
-  const { store, allCategories, voiceFor, phraseSaying } = board
+  const { store, allCategories, voiceFor, phraseSaying, categoriesOf } = board
 
   // The phrase being written, which in edit mode is what the message box holds.
   // There is always one — pointing it at a phrase is what choosing a cell does
   // in edit mode, and there is nothing to open and nothing to close.
-  const editor = useEditor({ allCategories, recent, voiceFor, duplicateOf: board.duplicateOf })
+  const editor = useEditor({
+    allCategories,
+    recent,
+    voiceFor,
+    duplicateOf: board.duplicateOf,
+    categoriesOf: board.categoriesOf,
+  })
   const { draft, startNew, open: openPhrase } = editor
   // Anything written or opened after a delete takes the offer to undo it away:
   // the blank the bin left is the only draft a phrase can be put back into
@@ -203,16 +209,18 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // fully-hidden categories lose theirs.
   const tabs = useMemo(
     () => [
-      // None of the three is a category: they cannot be renamed, and the custom
-      // order cannot move them out of the places a user learns to look. Two are
-      // pinned at the front and one at the very end — Translations is the tab
-      // nobody reaches for mid-sentence, and it is the one tab whose cells are
-      // not in the language the rest of the board is written in.
+      // None of these is a category somebody made: they cannot be renamed, and
+      // the custom order cannot move them out of the places a user learns to
+      // look. Two are pinned at the front and one at the very end —
+      // Translations is the tab nobody reaches for mid-sentence, and it is the
+      // one tab whose cells are not in the language the rest of the board is
+      // written in. **Library is where every phrase lives**, second, where All
+      // used to be; the categories refer to its phrases.
       { id: SENT_FILTER, label: SENT_CATEGORY, fixed: true },
-      { id: 'all', label: 'All', fixed: true },
+      { id: LIBRARY, label: LIBRARY, fixed: true },
       // Third, from the first question answered on: the most recent answers
       // stay until newer ones replace them, and somebody may want to go back to
-      // one after the box is closed. Sent and All keep the places they are
+      // one after the box is closed. Sent and Library keep the places they are
       // found in without looking; what gives way is the first category.
       ...(offering ? [{ id: SUGGEST_FILTER, label: SUGGEST_CATEGORY, fixed: true }] : []),
       ...allCategories.map(c => ({ id: c, label: c })),
@@ -262,18 +270,18 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
 
   // Emergency has no tab of its own, so it would otherwise be the one set of
   // phrases that could not be exported on its own.
-  const backupCategories = useMemo(() => [...allCategories, 'Emergency'], [allCategories])
+  const backupCategories = useMemo(() => [LIBRARY, ...allCategories, 'Emergency'], [allCategories])
 
   // Deleting the last phrase in a category takes its tab away; fall back to
-  // "All" rather than showing an empty grid under a tab that no longer exists.
+  // Library rather than showing an empty grid under a tab that no longer exists.
   const effectiveFilter =
-    activeFilter === 'all' ||
+    activeFilter === LIBRARY ||
     activeFilter === SENT_FILTER ||
     activeFilter === TRANSLATED_FILTER ||
     (activeFilter === SUGGEST_FILTER && offering) ||
     allCategories.includes(activeFilter)
       ? activeFilter
-      : 'all'
+      : LIBRARY
 
   const showingSent = effectiveFilter === SENT_FILTER
   const showingTranslated = effectiveFilter === TRANSLATED_FILTER
@@ -286,11 +294,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   }, [showingSuggestions, listener.suggestions])
 
   /**
-   * Whether this tab is a category of its own: somewhere a hand arrangement can
-   * be built, and so somewhere Custom order means anything. None of All, Sent
-   * and Translations is one.
+   * Whether this tab holds phrases in an order of its own — Library or a
+   * category: somewhere a hand arrangement can be built, and so somewhere Custom
+   * order means anything. None of Sent, the answers and Translations is one.
    */
-  const canArrange = effectiveFilter !== 'all' && !showingSent && !showingTranslated && !showingSuggestions
+  const canArrange = !showingSent && !showingTranslated && !showingSuggestions
 
   // Sent messages and translations are their own lists rather than part of the
   // board: both are a record of what was said, not phrases anybody added.
@@ -489,13 +497,15 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * Where the board has to go to put a phrase in front of somebody, or null
    * where it is in front of them already.
    *
-   * **All shows every category at once**, so a phrase filed anywhere is on it
-   * already and moving would only take somebody off the tab they chose. The
-   * three pinned records are not categories and show none of it, so those move
-   * like any other tab.
+   * **Library holds every phrase**, so a phrase is on it already and moving
+   * would only take somebody off the tab they chose; so is a category that
+   * refers to it. Anywhere else it goes to the first category it is in, or to
+   * Library where it is in none. The three pinned records show none of it, so
+   * those move like any other tab.
    */
   const moveToShow = useCallback(
-    (category: string) => (effectiveFilter !== 'all' && effectiveFilter !== category ? category : null),
+    (categories: string[]) =>
+      effectiveFilter === LIBRARY || categories.includes(effectiveFilter) ? null : (categories[0] ?? LIBRARY),
     [effectiveFilter],
   )
 
@@ -512,7 +522,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const chooseTab = useCallback(
     (tab: string) => {
       setActiveFilter(tab)
-      if (editMode && editor.isUntouched && allCategories.includes(tab)) fileUnder(tab)
+      // Library files a new phrase in Library alone.
+      if (editMode && editor.isUntouched && (tab === LIBRARY || allCategories.includes(tab)))
+        fileUnder(tab === LIBRARY ? '' : tab)
     },
     [editMode, editor.isUntouched, allCategories, fileUnder],
   )
@@ -534,7 +546,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    */
   const handleSave = useCallback(() => {
     if (!draft.canSave) return
-    const { phrase, isEmergency, category, keeping } = draft
+    const { phrase, isEmergency, categories, keeping } = draft
     const text = draft.text.trim()
     const voice = draft.voice || undefined
 
@@ -544,7 +556,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     if (voice) void warmVoice(compose(parseSegments(text)), voice)
     // Where the next one starts from.
     setRecent(current => {
-      const next = { category: isEmergency ? current.category : category, voice }
+      const next = { category: isEmergency ? current.category : (categories[0] ?? ''), voice }
       saveRecent(next)
       return next
     })
@@ -561,17 +573,18 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
      * they get for having written one is a line of text that fades.
      *
      * Three cases do not move, and none of them is an exception to that: on
-     * **All** the phrase is already there, the **emergency bar** is on screen
+     * **Library**, or a category it is in, the phrase is already there, the
+     * **emergency bar** is on screen
      * under every tab, and a phrase being **reworded** is one somebody is
      * moving out of where they are — refiling several out of one category is a
      * run they would be thrown out of after the first.
      */
-    const movesTo = making && !isEmergency ? moveToShow(category) : null
+    const movesTo = making && !isEmergency ? moveToShow(categories) : null
 
     if (making) {
       // The id comes back so a brand-new phrase can be given the voice chosen
       // for it — there is no id to hang one on until the phrase exists.
-      const id = board.addPhrase(text, category, isEmergency)
+      const id = board.addPhrase(text, categories, isEmergency)
       if (voice) board.setVoice(id, voice)
       // Which cell it is, for the board to point at — see `pointing`.
       // Nothing for the emergency bar, whose phrases are never in the grid and
@@ -582,7 +595,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // in that voice without waiting — including on the emergency bar, which
       // never waits.
       board.setVoice(phrase.id, voice)
-      board.editPhrase(phrase, text, category, isEmergency)
+      board.editPhrase(phrase, text, categories, isEmergency)
       // Nothing to point at: rewording puts no new cell anywhere, and the mark
       // on the last one is already gone — every dwell clears it, this one
       // included.
@@ -593,10 +606,21 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       keeping
         ? 'Kept as a phrase'
         : phrase === null
-          ? `Added to ${isEmergency ? 'Emergency' : category}`
+          ? `Added to ${isEmergency ? 'Emergency' : [LIBRARY, ...categories].join(', ')}`
           : 'Saved',
     )
   }, [draft, board, startNew, flashToast, moveToShow, showTab])
+
+  /**
+   * **On a category somebody made, the bin takes the phrase out of it** rather
+   * than off the board: a category only refers to Library's phrases, and the
+   * phrase is still there, and in any other category it is in. On Library it
+   * deletes.
+   */
+  const removingFrom =
+    draft.phrase && !draft.keeping && store.members[effectiveFilter]?.includes(draft.phrase.id)
+      ? effectiveFilter
+      : null
 
   const handleDelete = useCallback(() => {
     const { phrase, keeping } = draft
@@ -609,6 +633,10 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       if (phrase.category === TRANSLATED_CATEGORY) forgetTranslated(phrase.id)
       else if (phrase.category === SUGGEST_CATEGORY) forgetSuggestion(phrase.id)
       else sent.forget(phrase.id)
+    } else if (removingFrom) {
+      // On a category, the bin takes the phrase out of it and no further: it is
+      // still in Library, with its count.
+      setLastDeleted({ phrase, removed: board.removePhrase(phrase.id, removingFrom) })
     } else {
       const removed = board.removePhrase(phrase.id)
       // Its count goes with it, so the record stays the size of the board —
@@ -617,8 +645,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       setLastDeleted({ phrase, removed, use })
     }
     startNew()
-    flashToast(keeping ? 'Forgotten' : 'Deleted — undo is at the lower left')
-  }, [draft, board, sent, forgetTranslated, forgetSuggestion, forgetUsed, startNew, flashToast])
+    flashToast(
+      keeping
+        ? 'Forgotten'
+        : removingFrom
+          ? `Taken out of ${removingFrom} — undo is at the lower left`
+          : 'Deleted — undo is at the lower left',
+    )
+  }, [draft, board, sent, forgetTranslated, forgetSuggestion, forgetUsed, startNew, flashToast, removingFrom])
 
   /**
    * Put back the phrase just deleted, **as it was**: on the board where it
@@ -657,14 +691,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
         board.addCategory(name)
         // Invented from the editor: the phrase in the box goes into it, which
         // is the whole reason it was invented.
-        if (editingCategory?.forDraft) editor.setCategory(name)
+        if (editingCategory?.forDraft) editor.setCategories([...draft.categories, name])
       } else {
         board.renameCategoryTo(current, name)
         setActiveFilter(f => (f === current ? name : f))
       }
       setEditingCategory(null)
     },
-    [editingCategory, board, editor],
+    [editingCategory, board, editor, draft.categories],
   )
 
   const handleCategoryDelete = useCallback(() => {
@@ -672,18 +706,16 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     if (!name) return
     const count = board.phraseCountByCategory.get(name) ?? 0
     board.removeCategory(name)
-    setActiveFilter(f => (f === name ? 'all' : f))
-    // The box must not go on holding a phrase that has just gone, where Save
-    // would write to it, nor filing new words under a category that is not
-    // there. What was typed into a new one is kept; it only needs a home.
-    if (draft.phrase?.category === name) startNew()
-    else if (draft.category === name) {
-      if (draft.phrase) openPhrase(draft.phrase, draft.isEmergency)
-      else startNew(draft.text)
-    }
+    setActiveFilter(f => (f === name ? LIBRARY : f))
+    // Nothing to do to the draft: a category that is gone drops out of the
+    // ones it is ticked into by itself — see `useEditor`.
     setEditingCategory(null)
-    flashToast(count > 0 ? `Deleted ${name} and its ${count} phrase${count === 1 ? '' : 's'}` : `Deleted ${name}`)
-  }, [editingCategory, board, draft, startNew, openPhrase, flashToast])
+    flashToast(
+      count > 0
+        ? `Deleted ${name} — its ${count} phrase${count === 1 ? ' is' : 's are'} still in Library`
+        : `Deleted ${name}`,
+    )
+  }, [editingCategory, board, flashToast])
 
   // The tabs land where the pointer is either way, and the control that sorted
   // them looks the same in both states, so both have to be said out loud.
@@ -745,33 +777,28 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // draft later is not coming back to the moment after the bin.
       setLastDeleted(null)
       const carried = mode === 'edit' ? message.trim() : ''
-      // Asked about the tab in front of them as well, which is what decides it
-      // where the same wording is filed under more than one category.
-      const already = carried ? phraseSaying(carried, effectiveFilter) : undefined
+      const already = carried ? phraseSaying(carried) : undefined
       // The phrase itself, or a new one carrying whatever was composed. What
       // the box shows changes with it — the phrase's **source**, brackets and
       // markup and all, rather than the one filling of it that was said.
       if (already) openPhrase(already)
       else startNew(carried)
       if (already) {
-        // **Including off All**, unlike a phrase just saved, and the difference
-        // is the question being answered. A save's is *did it go, and where* —
-        // which the toast answers, and All was already showing it. This one's
-        // is *which category is this phrase in*, and All is the one tab that
-        // cannot answer it, since not showing categories is the whole of what
-        // it is for.
-        const movedTo = already.category === effectiveFilter ? null : already.category
+        // Where it is in front of them already — Library, or a category that
+        // refers to it — the board stays; anywhere else it goes to Library,
+        // which holds every phrase.
+        const movedTo =
+          effectiveFilter === LIBRARY || categoriesOf(already.id).includes(effectiveFilter) ? null : LIBRARY
         if (movedTo) showTab(movedTo)
         setPointing({ id: already.id, movedTo })
       }
-      // Its category if there is one, since that is where the next phrase
-      // belongs too — otherwise the tab, and **only where the tab is a
-      // category.** Four of them are not: All, and the three pinned records,
-      // Sent, the answers and Translations. Nothing can be filed under any of
-      // those, so they leave the last choice standing rather than throwing it
-      // away and asking again.
-      const filing = already?.category ?? (allCategories.includes(effectiveFilter) ? effectiveFilter : null)
-      if (mode === 'edit' && filing) fileUnder(filing)
+      // The tab, **only where the tab is Library or a category.** The three
+      // pinned records are not: nothing can be filed under any of those, so they
+      // leave the last choice standing rather than throwing it away and asking
+      // again. Library files the next phrase in Library alone.
+      const filing =
+        effectiveFilter === LIBRARY ? '' : allCategories.includes(effectiveFilter) ? effectiveFilter : null
+      if (mode === 'edit' && filing !== null) fileUnder(filing)
       // Reordering is a mode within edit mode; leaving it should not leave
       // either of them armed for next time.
       setReordering(false)
@@ -786,7 +813,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             ? // Which is not the phrase they last said but the one they were
               // holding, and the box now holds it as it was written.
               already
-              ? `Editing this phrase, in ${already.category}`
+              ? `Editing this phrase, in ${effectiveFilter === LIBRARY || !categoriesOf(already.id).includes(effectiveFilter) ? LIBRARY : effectiveFilter}`
               : 'Edit mode — choose a phrase to change it'
             : 'Auto-speak off — phrases build a message',
       )
@@ -802,6 +829,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       fileUnder,
       phraseSaying,
       showTab,
+      categoriesOf,
     ],
   )
 
@@ -972,6 +1000,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             onSavePhrase={handleSave}
             onDeletePhrase={handleDelete}
             undoDelete={lastDeleted && { words: stripMarkdown(lastDeleted.phrase.text), undo: handleUndoDelete }}
+            removingFrom={removingFrom}
             onSpeak={handleSpeak}
             onCopy={handleCopy}
             onPasted={reportPaste}
@@ -1063,7 +1092,6 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             store={store}
             phrases={boardPhrases}
             categories={backupCategories}
-            categoryById={board.categoryById}
             onRestore={handleRestore}
             sync={sync}
             account={account}

@@ -1,7 +1,7 @@
 // Part of `core/store.ts` — see there for what the store is, and AGENTS.md for
 // the rules each part keeps.
 
-import { FORMER_IDS } from '../phrases'
+import { FORMER_IDS, LIBRARY, PHRASES } from '../phrases'
 import { PHRASE_STORE_KEY, writeKey } from './keys'
 import { storageKey } from './owner'
 
@@ -9,26 +9,33 @@ import { storageKey } from './owner'
 // v2: ids are content-derived rather than array indices, so saved edits no
 // longer reattach to a neighbouring phrase when phrasetable.json changes.
 
+/**
+ * A phrase somebody wrote. **`category` is where it lives, not a tab it is
+ * filed under**: Library for anything on the board, Emergency for a button on
+ * the bar. Which categories show it is `PhraseStore.members`.
+ */
 export interface StoredPhrase {
   id: string
   text: string
   category: string
 }
 
+/**
+ * **Every phrase lives in Library**, and a category is a list of references to
+ * Library phrases, in an order of its own — see
+ * [Categories as references](docs/decisions/categories-as-references.md).
+ */
 export interface PhraseStore {
   custom: StoredPhrase[] // user-added phrases
   overrides: Record<string, string> // id → new text
   hidden: string[] // ids removed by user
   /**
-   * Source category name → the name to show. A single entry renames a whole
-   * category, including the built-in phrases in it, which per-phrase overrides
-   * could not do.
+   * Category name → the Library phrases it holds, by id, **in its own order**
+   * — which is the category's Custom order. A category with none is an empty
+   * list, kept so one can be made first and filled afterwards. Library is not
+   * one of these: it holds everything, in `libraryOrder`.
    */
-  categoryRenames: Record<string, string>
-  /** Categories the user created. Kept so one can exist before it has phrases. */
-  categories: string[]
-  /** id → category, for a single phrase moved out of the one it came in. */
-  categoryOverrides: Record<string, string>
+  members: Record<string, string[]>
   /**
    * id → language → the voice that phrase is said in, overriding the one in
    * settings. A board can then carry more than one voice: somebody quoting
@@ -48,11 +55,13 @@ export interface PhraseStore {
    */
   voiceOverrides: Record<string, Record<string, string>>
   /**
-   * The user's own arrangement of the category tabs. Kept whether or not it is
-   * the one on show, so switching to A–Z and back returns the tabs to exactly
-   * where they were rather than making the user rebuild it. Names missing from
-   * it sit at the end, alphabetically, so a category added later has a settled
-   * place without every addition having to rewrite the order.
+   * The user's own arrangement of the category tabs — the ones somebody made;
+   * Library is pinned in front of them and is not arranged. Kept
+   * whether or not it is the one on show, so switching to A–Z and back returns
+   * the tabs to exactly where they were rather than making the user rebuild it.
+   * Names missing from it sit at the end, alphabetically, so a category added
+   * later has a settled place without every addition having to rewrite the
+   * order.
    */
   categoryOrder: string[]
   /** Which of the two arrangements is in effect. */
@@ -68,35 +77,24 @@ export interface PhraseStore {
    */
   emergencyOrder: string[]
   /**
-   * The user's own arrangement of the phrases **inside one category**, by
-   * phrase id, keyed by the category's shown name.
-   *
-   * Per category rather than one list for the whole board, because that is the
-   * unit somebody actually arranges — "put the food I ask for most at the top
-   * of Food" — and because one flat list would have to name every phrase in the
-   * table the first time anything moved. It is why **All** cannot be arranged:
-   * its phrases come from every category at once, and ranking them against each
-   * other's arrangements would interleave orders that were never about one
-   * another.
-   *
-   * Ids, so rewording a phrase leaves it where it was put — the same reason
-   * `emergencyOrder` is ids.
+   * Library's own arrangement, by phrase id — its Custom order. Ids it has
+   * never heard of sit at the end in the board's order, so a phrase added
+   * later lands after the ones already arranged. Ids, so rewording a phrase
+   * leaves it where it was put.
    */
-  phraseOrder: Record<string, string[]>
+  libraryOrder: string[]
 }
 
 export const emptyStore = (): PhraseStore => ({
   custom: [],
   overrides: {},
   hidden: [],
-  categoryRenames: {},
-  categories: [],
-  categoryOverrides: {},
+  members: {},
   voiceOverrides: {},
   categoryOrder: [],
   categorySort: 'alpha',
   emergencyOrder: [],
-  phraseOrder: {},
+  libraryOrder: [],
 })
 
 /**
@@ -211,6 +209,23 @@ const isStoredPhrase = (v: unknown): v is StoredPhrase =>
   typeof (v as StoredPhrase).category === 'string'
 
 /**
+ * Each category's references out of whatever was stored: names to lists of
+ * ids, **an empty list kept** — an empty category is one somebody made and has
+ * not filled yet. A list is held to strings, and an id listed twice once.
+ */
+export function readMembers(raw: unknown): Record<string, string[]> | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null
+  const members: Record<string, string[]> = {}
+  for (const [category, ids] of Object.entries(raw as Record<string, unknown>)) {
+    if (!category || category === LIBRARY || category === EMERGENCY || !Array.isArray(ids)) continue
+    members[category] = [...new Set(ids.filter((id): id is string => typeof id === 'string' && id !== ''))]
+  }
+  return members
+}
+
+const EMERGENCY = 'Emergency'
+
+/**
  * The phrase store, **every part of it checked**.
  *
  * Whatever is in storage may not have been written by this release: an older
@@ -220,20 +235,18 @@ const isStoredPhrase = (v: unknown): v is StoredPhrase =>
  * the crash screen would only have started the crash again. So each list and
  * record keeps the entries of the right shape and drops the rest: one damaged
  * phrase costs that phrase, never the board.
+ *
+ * **A store written before categories were references is turned into one** —
+ * see `fromFiled`.
  */
 export function loadPhraseStore(): PhraseStore {
   try {
     const raw = JSON.parse(localStorage.getItem(storageKey(PHRASE_STORE_KEY)) ?? '{}')
-    const base = emptyStore()
-    const categoryOrder = stringList(raw.categoryOrder) ?? base.categoryOrder
-    const store: PhraseStore = {
-      custom: Array.isArray(raw.custom) ? raw.custom.filter(isStoredPhrase) : base.custom,
-      overrides: stringRecord(raw.overrides) ?? base.overrides,
-      hidden: stringList(raw.hidden) ?? base.hidden,
-      categoryRenames: stringRecord(raw.categoryRenames) ?? base.categoryRenames,
-      categories: stringList(raw.categories) ?? base.categories,
-      categoryOverrides: stringRecord(raw.categoryOverrides) ?? base.categoryOverrides,
-      voiceOverrides: readVoiceOverrides(raw.voiceOverrides) ?? base.voiceOverrides,
+    const categoryOrder = stringList(raw.categoryOrder) ?? []
+    const shared = {
+      overrides: stringRecord(raw.overrides) ?? {},
+      hidden: stringList(raw.hidden) ?? [],
+      voiceOverrides: readVoiceOverrides(raw.voiceOverrides) ?? {},
       categoryOrder,
       // Stores written before the two arrangements were told apart have an
       // order and no flag; an order they took the trouble to make is the one
@@ -242,30 +255,113 @@ export function loadPhraseStore(): PhraseStore {
         raw.categorySort === 'alpha' || raw.categorySort === 'custom'
           ? raw.categorySort
           : categoryOrder.length > 0
-            ? 'custom'
-            : 'alpha',
-      emergencyOrder: stringList(raw.emergencyOrder) ?? base.emergencyOrder,
-      phraseOrder: readPhraseOrder(raw.phraseOrder) ?? base.phraseOrder,
+            ? ('custom' as const)
+            : ('alpha' as const),
+      emergencyOrder: stringList(raw.emergencyOrder) ?? [],
     }
+    const custom: StoredPhrase[] = Array.isArray(raw.custom) ? raw.custom.filter(isStoredPhrase) : []
+    const store: PhraseStore =
+      raw.members !== undefined
+        ? {
+            ...shared,
+            custom: custom.map(c => (c.category === EMERGENCY ? c : { ...c, category: LIBRARY })),
+            members: readMembers(raw.members) ?? {},
+            libraryOrder: stringList(raw.libraryOrder) ?? [],
+          }
+        : fromFiled({
+            ...shared,
+            custom,
+            categoryRenames: stringRecord(raw.categoryRenames) ?? {},
+            categories: stringList(raw.categories) ?? [],
+            categoryOverrides: stringRecord(raw.categoryOverrides) ?? {},
+            phraseOrder: readPhraseOrder(raw.phraseOrder) ?? {},
+          })
     // Written before the table was collapsed, so this is the first look at it
     // since — see `foldFormerCopies`, and `TABLE` for why that can be told.
-    return foldFormerCopies(store, FORMER_IDS, raw.table !== TABLE)
+    return foldFormerCopies(store, FORMER_IDS, typeof raw.table !== 'number')
   } catch {
     return emptyStore()
   }
 }
 
 /**
- * Which phrase table the store was last written against. **2 is the one with
- * every phrase in Library**; a store without it was written against the one
- * before, with forty-odd categories and the same words in several of them.
+ * A store as it was before categories were references: each phrase **filed
+ * under one category** — its own, one it was moved to, or the one a rename
+ * showed its category as — and each category's arrangement kept on the side.
+ * Still read, from storage and from a file.
+ */
+export interface FiledStore extends Omit<PhraseStore, 'members' | 'libraryOrder'> {
+  categoryRenames: Record<string, string>
+  categories: string[]
+  categoryOverrides: Record<string, string>
+  phraseOrder: Record<string, string[]>
+}
+
+/**
+ * **A filed store as references.** Every phrase goes to Library, where it
+ * always showed as well; each one filed under another category is referred to
+ * by that category, in the order the tab showed them — its arrangement first,
+ * then the board's order — so nothing on any tab moves. A category somebody
+ * made and left empty stays, empty. Library's arrangement is Library's order.
+ *
+ * A move written against a copy dropped when the table was collapsed counts
+ * for the phrase it became, unless that phrase was moved itself.
+ */
+export function fromFiled(filed: FiledStore): PhraseStore {
+  const rename = (name: string) => filed.categoryRenames[name] ?? name
+  const moved = new Map<string, string>()
+  for (const [id, category] of Object.entries(filed.categoryOverrides)) {
+    const into = FORMER_IDS.get(id) ?? id
+    if (into === id || !moved.has(into)) moved.set(into, category)
+  }
+  const hidden = new Set(filed.hidden)
+  const members: Record<string, string[]> = {}
+  const refer = (category: string, id: string) => {
+    if (category === LIBRARY || category === EMERGENCY || hidden.has(id)) return
+    ;(members[category] ??= []).push(id)
+  }
+  for (const name of filed.categories) if (name !== LIBRARY && name !== EMERGENCY) members[name] ??= []
+  for (const p of PHRASES) {
+    const category = moved.get(p.id)
+    if (category) refer(category, p.id)
+  }
+  for (const c of filed.custom) {
+    if (c.category === EMERGENCY) continue
+    refer(moved.get(c.id) ?? rename(c.category), c.id)
+  }
+  for (const [category, ids] of Object.entries(members)) {
+    const arranged = filed.phraseOrder[category] ?? []
+    const rank = new Map(arranged.map((id, i) => [id, i]))
+    members[category] = [
+      ...ids.filter(id => rank.has(id)).sort((a, b) => rank.get(a)! - rank.get(b)!),
+      ...ids.filter(id => !rank.has(id)),
+    ]
+  }
+  return {
+    custom: filed.custom.map(c => (c.category === EMERGENCY ? c : { ...c, category: LIBRARY })),
+    overrides: filed.overrides,
+    hidden: filed.hidden,
+    voiceOverrides: filed.voiceOverrides,
+    members,
+    categoryOrder: filed.categoryOrder.filter(name => name in members),
+    categorySort: filed.categorySort,
+    emergencyOrder: filed.emergencyOrder,
+    libraryOrder: filed.phraseOrder[LIBRARY] ?? [],
+  }
+}
+
+/**
+ * Which phrase table the store was last written against, and in which shape.
+ * **2 is the one with every phrase in Library**; a store without a number was
+ * written against the one before, with forty-odd categories and the same words
+ * in several of them. **3 holds categories as references** — see `fromFiled`.
  *
  * Stamped on the way out rather than kept in `PhraseStore`, because nothing
  * but `loadPhraseStore` has any use for it: it says whether the store has been
  * read since the collapse, which is the one thing `foldFormerCopies` cannot
  * work out from the store itself.
  */
-const TABLE = 2
+const TABLE = 3
 
 export function savePhraseStore(s: PhraseStore) {
   writeKey(storageKey(PHRASE_STORE_KEY), JSON.stringify({ ...s, table: TABLE }))
@@ -279,11 +375,11 @@ const holds = (record: object, key: string) => Object.prototype.hasOwnProperty.c
  * table was collapsed, **moved onto the phrase it was folded into** — see
  * `TableRow.merged` in `core/phrases.ts`.
  *
- * The phrase's own entry wins wherever both have one: its wording, its
- * category, its voice for a language. What only a dropped copy had comes
- * across, so a copy somebody reworded or gave a voice is not undone by the
- * collapse. Every source of a store passes through here — storage, a backup, a
- * sheet, another device — so an id from before is never left naming nothing.
+ * The phrase's own entry wins wherever both have one: its wording, its voice
+ * for a language. What only a dropped copy had comes across, so a copy
+ * somebody reworded or gave a voice is not undone by the collapse. Every source
+ * of a store passes through here — storage, a backup, a sheet, another device —
+ * so an id from before is never left naming nothing.
  *
  * **Hiding is the one that needs to know when.** Somebody who deleted one
  * copy of a phrase and kept another still had it on their board, and
@@ -317,12 +413,10 @@ export function foldFormerCopies(
   return {
     ...store,
     overrides: fold(store.overrides, kept => kept),
-    categoryOverrides: fold(store.categoryOverrides, kept => kept),
     voiceOverrides: fold(store.voiceOverrides, (kept, from) => ({ ...from, ...kept })),
     hidden: store.hidden.filter(id => !former.has(id) && !showing.has(id)),
     emergencyOrder: folded(store.emergencyOrder),
-    phraseOrder: Object.fromEntries(
-      Object.entries(store.phraseOrder).map(([category, ids]) => [category, folded(ids)]),
-    ),
+    libraryOrder: folded(store.libraryOrder),
+    members: Object.fromEntries(Object.entries(store.members).map(([category, ids]) => [category, folded(ids)])),
   }
 }

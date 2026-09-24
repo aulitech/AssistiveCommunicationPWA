@@ -145,7 +145,6 @@ export function TopPanel({
   store,
   phrases,
   categories,
-  categoryById,
   onRestore,
   sync,
   account,
@@ -164,7 +163,6 @@ export function TopPanel({
   /** Every phrase on the board, for a spreadsheet of it. */
   phrases: Phrase[]
   categories: string[]
-  categoryById: Map<string, string>
   onRestore: (next: AppState, message: string) => void
   /** Driven in `talk`, where the board it synchronizes lives. */
   sync: SyncControl
@@ -267,7 +265,6 @@ export function TopPanel({
               <SettingsPanel
                 store={store}
                 aliases={aliases}
-                categoryById={categoryById}
                 sync={sync}
                 account={account}
                 onAccountChange={onAccountChange}
@@ -283,7 +280,6 @@ export function TopPanel({
                 aliases={aliases}
                 phrases={phrases}
                 categories={categories}
-                categoryById={categoryById}
                 onRestore={onRestore}
               />
             )}

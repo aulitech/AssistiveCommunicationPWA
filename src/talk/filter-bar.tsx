@@ -11,6 +11,7 @@ import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
 import { CustomOrderIcon, EditIcon, PageIcon, PlusIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
+import { LIBRARY } from '../core/phrases'
 
 function FilterTab({
   label,
@@ -362,7 +363,8 @@ export function FilterBar({
               )}
 
           {/* Renaming the tab that is showing. **Quiet rather than away** where
-              that tab is not a category — All and the three records — or while
+              that tab is not one somebody made — Library, which holds every
+              phrase, and the three records — or while
               the tabs are being arranged: the tools are aimed at by position,
               and one that came and went would move the one beside it. */}
           {onEditCategory && (
@@ -373,7 +375,9 @@ export function FilterBar({
                   ? 'Finish reordering to rename a category'
                   : renameable
                     ? `Rename category: ${showing?.label}`
-                    : `${showing?.label ?? 'This tab'} is not a category, so it cannot be renamed`
+                    : showing?.id === LIBRARY
+                      ? 'Library holds every phrase, so it cannot be renamed'
+                      : `${showing?.label ?? 'This tab'} is not a category, so it cannot be renamed`
               }
               disabled={reordering || !renameable}
               onActivate={() => showing && onEditCategory(showing.id)}
