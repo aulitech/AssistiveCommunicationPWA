@@ -422,7 +422,7 @@ function GridScrollBar({
 
           These two are the pair that goes on a short screen: six controls in a
           column need vertical room the grid has more use for, and a nudge held
-          down crosses the same distance. See `.scroll-btn-page` in `index.css`. */}
+          down crosses the same distance. See `.scroll-btn-page` in `styles/grid.css`. */}
       <ScrollBtn onAction={() => scrollPage(-1)} repeat className="scroll-btn-page" label="Previous page">
         <PageIcon direction="up" />
       </ScrollBtn>

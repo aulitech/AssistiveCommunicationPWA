@@ -1,0 +1,67 @@
+/* The emergency bar.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Emergency bar ── */
+.emergency-bar {
+  display: flex;
+  flex-shrink: 0;
+  gap: 1.5rem;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--urgent) 12%, var(--bg));
+  border-top: 1px solid color-mix(in srgb, var(--urgent) 30%, transparent);
+}
+
+.emergency-btn {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  background: color-mix(in srgb, var(--urgent) 18%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--urgent) 40%, transparent);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: default;
+}
+
+.emergency-btn.dwelling {
+  background: color-mix(in srgb, var(--urgent) 30%, var(--surface));
+}
+
+.emergency-btn.flashed {
+  background: var(--urgent);
+}
+
+.emergency-label {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--urgent);
+  pointer-events: none;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.emergency-btn.flashed .emergency-label {
+  color: #fff;
+}
+
+.emergency-dwell-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: var(--urgent);
+}
+
+.emergency-btn.dwelling .emergency-dwell-bar {
+  animation: dwellFillH var(--dwell-duration, 1500ms) linear forwards;
+}

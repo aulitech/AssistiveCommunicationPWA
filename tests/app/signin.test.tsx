@@ -1,10 +1,9 @@
 // Getting in: the sign-in page, what it can be worked with before anybody has signed in, and the two documents it links to.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { fireEvent, act } from '@testing-library/react'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { DEFAULT_SETTINGS } from '../../src/core/store'
 import { $$, $, settle, click, mount } from './harness'
+import { stylesheet } from '../stylesheet'
 
 describe('sign-in', () => {
   it('shows the sign-in page when nobody is signed in', () => {
@@ -99,7 +98,7 @@ describe('reaching the whole sign-in page', () => {
     setGeometry(0, 400, 900)
     const scroller = $('.signin-page > .scroll-pane')!
     expect(scroller.lastElementChild?.className, 'the rail is not after the content').toBe('pane-rail')
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const css = stylesheet()
     const rule = css.slice(css.indexOf('.scroll-pane {'))
     expect(rule.slice(0, rule.indexOf('}')), 'the pane stacks its controls again').not.toMatch(
       /flex-direction: *column/,

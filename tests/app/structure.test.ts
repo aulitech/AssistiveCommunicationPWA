@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, normalize, relative, resolve } from 'node:path'
+import { stylesheet } from '../stylesheet'
 
 // The source tree is layered, and the layering is the only thing keeping this
 // app navigable: every import points down the list below, never up and never
@@ -137,7 +138,7 @@ describe('the shape of the source tree', () => {
   // bundle; the `source(none)` is what makes it an allowlist rather than a
   // guess at what to exclude.
   it('generates utilities only from files that can carry a class', () => {
-    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const css = stylesheet()
     expect(css).toMatch(/@import ['"]tailwindcss['"] source\(none\)/)
     expect(css).toMatch(/@source ["']\.\/\*\*\/\*\.tsx["']/)
   })
@@ -205,7 +206,7 @@ describe('the shape of the source tree', () => {
   // Checked here rather than by eye: it is 77 declarations and a diff shows
   // nothing.
   it('sizes every piece of text in rem', () => {
-    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const css = stylesheet()
     const inPixels = [...css.matchAll(/font-size:[^;]+/g)].map(m => m[0]).filter(rule => rule.includes('px'))
     expect(inPixels).toEqual([])
 
@@ -228,7 +229,7 @@ describe('the shape of the source tree', () => {
   // they may be a metre from, and the dim colour is the one that carries every
   // sublabel and hint in the app.
   it('keeps every colour of text readable on every surface', () => {
-    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const css = stylesheet()
     const token = (name: string) => {
       const hex = css.match(new RegExp(`--${name}: *(#[0-9a-fA-F]{3,6})`))?.[1]
       if (!hex) throw new Error(`the palette no longer defines --${name}`)
@@ -404,7 +405,7 @@ describe('the shape of the source tree', () => {
       '.scroll-row-inner': 'ScrollRow’s arrows',
       '.scroll-pane-inner': 'ScrollPane’s controls above and below',
     }
-    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const css = stylesheet()
     const scrolling = [...css.matchAll(/([^{}]+)\{[^{}]*overflow(?:-x|-y)?: *(?:auto|scroll)[^{}]*\}/g)].map(m =>
       m[1]!.replace(/\/\*[\s\S]*?\*\//g, '').trim(),
     )
@@ -453,7 +454,7 @@ describe('the shape of the source tree', () => {
    */
   it('draws a focused field once, on its own border', () => {
     // Comments out first, or the one above a rule reads as part of its first selector.
-    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
     const rule = (selector: string) => {
       const found = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(m =>
         m[1]!.split(',').some(sel => sel.trim() === selector),
@@ -483,7 +484,7 @@ describe('the shape of the source tree', () => {
    * build, the types or the tests would have said so.
    */
   it('animates nothing by a name it has not defined', () => {
-    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const css = stylesheet()
 
     const defined = new Set([...css.matchAll(/@keyframes +([\w-]+)/g)].map(m => m[1]))
     expect(defined.size, 'the stylesheet defines no keyframes at all — did they move?').toBeGreaterThan(0)
@@ -509,7 +510,7 @@ describe('the shape of the source tree', () => {
    * border it rides.
    */
   it('caps either box from one number rather than two', () => {
-    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const css = stylesheet()
 
     const cap = css.match(/--box-max-height: *([^;]+);/)?.[1]
     expect(cap, 'the stylesheet no longer names how tall a box may get').toBeDefined()
@@ -533,7 +534,7 @@ describe('the shape of the source tree', () => {
    * that size.
    */
   it('keeps the stylesheet and the topbar agreeing on what a wide screen is', () => {
-    const css = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const css = stylesheet()
     const topbar = readFileSync(resolve(SRC, 'talk/topbar.tsx'), 'utf8')
 
     const inCode = topbar.match(/WIDE_ENOUGH = '\(min-width: (\d+)px\)'/)?.[1]
@@ -708,6 +709,21 @@ describe('the shape of the source tree', () => {
 
     expect(missingPaths, 'AGENTS.md names a file that is not there').toEqual([])
     expect(missingNames, 'AGENTS.md names something the code does not have').toEqual([])
+  })
+
+  /**
+   * **Every part of the stylesheet is in it, once.** It is in parts under
+   * `src/styles/`, each imported by `index.css` in its place — and a part that
+   * is not imported is styles missing from the build with nothing to say so,
+   * while one imported twice is the cascade run through twice.
+   */
+  it('imports every part of the stylesheet, once each', () => {
+    const index = readFileSync(resolve(SRC, 'index.css'), 'utf8')
+    const imported = [...index.matchAll(/@import '\.\/styles\/([\w-]+\.css)';/g)].map(m => m[1]!)
+    const parts = readdirSync(resolve(SRC, 'styles')).filter(f => f.endsWith('.css'))
+
+    expect(new Set(imported).size, 'a part is imported twice').toBe(imported.length)
+    expect([...imported].sort()).toEqual([...parts].sort())
   })
 
   it('offers no script whose command it has not installed', () => {

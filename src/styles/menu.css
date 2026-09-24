@@ -1,0 +1,275 @@
+/* The menu button, the scrim, and the panel that slides down.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md. */
+
+/* ── Menu button ── */
+.icon-btn.menu-btn {
+  margin-left: 0;
+  margin-right: 4px;
+}
+
+/* Beside the menu, and lit while the keyboard is up — the same cue the mode
+   toggles use, because it is the same kind of claim: a surface is showing. */
+.icon-btn.keyboard-btn { margin-right: 4px; }
+.icon-btn.keyboard-btn.is-on { color: var(--accent); border-color: var(--accent); }
+
+/* ── Top panel scrim ── */
+.panel-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+.panel-scrim.open {
+  opacity: 1;
+  pointer-events: auto;
+  /* Don't cover the panel itself — panel is z-index 101, scrim is 100 */
+}
+
+/* ── Top panel ── */
+.top-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 101;
+  background: #141414;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+  transform: translateY(-110%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+.top-panel.open {
+  transform: translateY(0);
+}
+
+/* Settings, the guide and Backup & sharing fill the screen; the menu and
+   Aliases hang down only as far as they need to. All three of those are long
+   enough to be scrolled whatever height they get, and a taller pane is fewer
+   dwells on the scroll arrows — which is the whole cost of reading anything
+   here.
+
+   `dvh` rather than `vh`: on a phone `vh` is the viewport with the browser's
+   chrome *hidden*, so a panel sized in it runs under the address bar and the
+   last row of it cannot be reached. The `vh` line before is for anything that
+   does not know `dvh` yet. */
+.top-panel.is-tall {
+  height: 100vh;
+  height: 100dvh;
+  border-radius: 0;
+}
+
+/* User row: who, the app and its version, and Back — three columns, so the
+   middle one is centred on the row rather than on whatever space the other two
+   leave it.
+
+   **Back's column is never narrower than Back.** The two outer columns share the
+   slack equally, which is what centres the title; when there is not enough of it
+   — a phone at a large text size — Back keeps its width and the name gives way,
+   ending in an ellipsis. Back is the only way out of the menu that does not need
+   a keyboard, and a title laid over it would take that away. */
+.panel-user-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.panel-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.panel-title-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.panel-version {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.panel-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* Takes the slack so Back keeps the corner, and gives it up rather than
+     pushing Back off the edge when an email is long. */
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-user-name,
+.panel-user-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The way out of a panel. Top right of every one of them, in the row that is
+   already there, so it is in the same place whatever the panel below it is
+   doing — a target that moves with the content is one a gaze user has to find
+   again each time. */
+.panel-back {
+  justify-self: end;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 10px 15px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.panel-back:hover,
+.panel-back.dwelling {
+  background: var(--cell-hover);
+  border-color: var(--accent);
+}
+
+.panel-back .dwell-bar { background: var(--accent); }
+.panel-back.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
+
+.panel-user-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.panel-user-email {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Nav */
+.panel-nav {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  /* Each item is only as wide as what is written on it. Stretched to the
+     column — which is the whole viewport, since the panel spans it — a row of
+     text a few centimetres long answered to a gaze anywhere along a metre of
+     empty space beside it, and the five of them tiled the panel with no gap
+     between one and the next. Shrunk to their content they are five targets
+     with somewhere safe to look in between. */
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  overflow: hidden;
+
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.nav-item:hover,
+.nav-item.dwelling {
+  background: var(--cell-hover);
+  border-color: var(--border);
+}
+
+.nav-item.flashed {
+  background: var(--selected-flash);
+  border-color: var(--accent);
+}
+
+.nav-item-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.nav-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+.nav-item-label {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.nav-item-sub {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.nav-item .dwell-bar {
+  border-radius: 0 0 0 10px;
+}
+
+.nav-item.dwelling .dwell-bar {
+  animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
+}
+
+/* Handle */
+.panel-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 8px auto 12px;
+}

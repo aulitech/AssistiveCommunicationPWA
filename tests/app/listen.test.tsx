@@ -7,8 +7,7 @@ import { PROSE_ICONS } from '../../src/ui/prose-icons'
 import { KEY_NOTICE } from '../../src/talk/use-listen'
 import { spoken } from '../setup'
 import { FakeRecognition, installRecognition, removeRecognition } from '../listen/fake-recognition'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { stylesheet } from '../stylesheet'
 
 // Listen mode, driven through the real board.
 //
@@ -224,7 +223,7 @@ describe('the control', () => {
     const live = $('.heard-live')!
     expect(live.tagName).toBe('SPAN')
     expect(live.hasAttribute('tabindex')).toBe(false)
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
     const rule = css.slice(css.indexOf('.heard-live {'))
     expect(rule.slice(0, rule.indexOf('}'))).toMatch(/pointer-events: *none/)
   })
@@ -244,7 +243,7 @@ describe('the control', () => {
     settle()
     expect($('.heard-live .mic-level'), 'no level in the capsule').not.toBeNull()
 
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
     const block = (selector: string) => {
       const rule = css.slice(css.indexOf(`${selector} {`))
       return rule.slice(0, rule.indexOf('}'))
@@ -544,7 +543,7 @@ describe('the control', () => {
    * two rules two hundred lines apart, and a diff shows nothing.
    */
   it('is the message box twin, in type and in the numbers that bound it', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const css = stylesheet()
     const WANTED = [
       'font-family',
       'font-size',
@@ -577,7 +576,7 @@ describe('the control', () => {
   // would be wider than the pane the wide-screen split gives this box — and the
   // same ground every other control on either box's border stands on.
   it('paints a ground under each of them', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+    const css = stylesheet()
     const rule = css.slice(css.indexOf('.heard-btn {'))
     expect(rule.slice(0, rule.indexOf('}'))).toMatch(/background: *var\(--border-ground\)/)
   })

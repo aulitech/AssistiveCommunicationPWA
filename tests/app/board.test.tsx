@@ -4,8 +4,6 @@ import { cleanup, fireEvent, act } from '@testing-library/react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import App from '../../src/App'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { PHRASES, composeWithBlank, hasBlank } from '../../src/core/phrases'
 import { DEFAULT_SETTINGS } from '../../src/core/store'
 import { lastUtterance, spoken, unmeasuredGrid } from '../setup'
@@ -25,6 +23,7 @@ import {
   slotCell,
   box,
 } from './harness'
+import { stylesheet } from '../stylesheet'
 
 describe('resting', () => {
   const rest = () => $('.rest-btn')!
@@ -369,7 +368,7 @@ describe('the scroll rail', () => {
       const named = $$('.scroll-btn-page').map(b => b.getAttribute('aria-label'))
       expect(named).toEqual(['Previous page', 'Next page'])
 
-      const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+      const css = stylesheet()
       // Height alone, and no orientation clause — see the rule for why.
       expect(css).toMatch(/@media \(max-height: 700px\) \{\s*\.scroll-btn-page \{\s*display: none;/)
     })

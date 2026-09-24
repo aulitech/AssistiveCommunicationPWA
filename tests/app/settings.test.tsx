@@ -1,11 +1,10 @@
 // Settings: the values somebody sets, putting them back, and the row that synchronizes two devices.
 import { describe, it, expect, vi } from 'vitest'
 import { fireEvent, act } from '@testing-library/react'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { DEFAULT_SETTINGS } from '../../src/core/store'
 import { downloads } from '../setup'
 import { $$, $, settle, click, mount, renderApp, writeIn } from './harness'
+import { stylesheet } from '../stylesheet'
 
 // How fast a held control fires again — the scroll nudges, the filter arrows, the
 // settings spinners. The wait before the *first* fire is the action dwell, the
@@ -318,7 +317,7 @@ describe('putting settings back', () => {
     // The + and the reset line up down the list rather than each row's sitting
     // where its own widest value put it: a column is a place to aim at.
     it('is never narrower than a time, so every row lines up', () => {
-      const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+      const css = stylesheet()
       const rule = css.slice(css.indexOf('.setting-formatted {'))
       expect(rule.slice(0, rule.indexOf('}'))).toMatch(/min-width: *6\.5ch/)
     })
