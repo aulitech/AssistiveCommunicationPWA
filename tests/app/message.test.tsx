@@ -1058,6 +1058,12 @@ describe('choosing one phrase after another', () => {
     typeInto('Once in a blue moon')
 
     expect(tab('Manners'), 'a typed word was read as a phrase').toBeUndefined()
+    // The whole word, not the one letter typed back.
+    expect(cells().map(c => c.textContent)).toContain('Moonlight becomes you')
+    expect(
+      cells().map(c => c.textContent),
+      'searched for the letter alone',
+    ).not.toContain('No way!')
   })
 
   /**
@@ -1133,6 +1139,16 @@ describe('choosing one phrase after another', () => {
     typeInto('Once in a blue moon moonl')
 
     expect(cells().map(c => c.textContent)).toEqual(['Moonlight becomes you'])
+  })
+
+  // Cleared, the phrase is gone with the words: what is typed next is all new.
+  it('searches everything typed after the box is cleared', () => {
+    seeded()
+    click(cellFor('Once in a blue moon'))
+    clearMessage()
+    typeInto('Once in a blue moon moonl')
+
+    expect(cells().map(c => c.textContent)).not.toContain('Moonlight becomes you')
   })
 
   // And finishing that word is still finishing it.
