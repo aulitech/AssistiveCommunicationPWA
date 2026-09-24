@@ -1054,6 +1054,33 @@ describe('choosing one phrase after another', () => {
     expect(tab('Manners'), 'a typed word was read as a phrase').toBeUndefined()
   })
 
+  /**
+   * Regression guard, found in a browser. A box without focus does not keep its
+   * caret: Chrome put it back to the start when a category tab was rested on,
+   * with no event and no call on the box — and the next phrase went in before
+   * the one before it. Done here the way Chrome does it: the node's caret moved
+   * and nothing told.
+   */
+  it('adds the next phrase at the end when the box has lost its caret', () => {
+    seeded()
+    click(cellFor('Once in a blue moon'))
+    click(tab('Manners'))
+    // Back at the start, silently; what the app sets afterwards still sticks.
+    const node = box()
+    const caret = { selectionStart: 0, selectionEnd: 0 }
+    for (const edge of ['selectionStart', 'selectionEnd'] as const) {
+      Object.defineProperty(node, edge, {
+        configurable: true,
+        get: () => caret[edge],
+        set: (at: number) => void (caret[edge] = at),
+      })
+    }
+
+    click(cellFor('Thank you'))
+
+    expect(message()).toBe('Once in a blue moon Thank you')
+  })
+
   // A phrase is finished; a word somebody types is not. Typing after one is
   // typing a new word, and the board narrows to it again.
   it('narrows again to a word typed after it', () => {
