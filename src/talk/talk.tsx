@@ -640,6 +640,24 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     [effectiveFilter],
   )
 
+  /**
+   * A tab somebody dwelled on.
+   *
+   * **In edit mode, a blank draft follows it** — the rule entering edit mode on
+   * a category already follows, applied to arriving at one. Tabs go to their
+   * category in edit mode now, and somebody moving between them before they
+   * write anything is looking for where the next phrase goes. A draft with
+   * anything in it stays where it is: words written, or a category picked, and
+   * refiling it would move a phrase somebody had already started.
+   */
+  const chooseTab = useCallback(
+    (tab: string) => {
+      setActiveFilter(tab)
+      if (editMode && editor.isUntouched && allCategories.includes(tab)) fileUnder(tab)
+    },
+    [editMode, editor.isUntouched, allCategories, fileUnder],
+  )
+
   /** Show a tab the board chose itself, rather than one somebody dwelled on. */
   const showTab = useCallback((tab: string) => {
     setActiveFilter(tab)
@@ -1197,7 +1215,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             <FilterBar
               categories={tabs}
               activeFilter={effectiveFilter}
-              onSelect={setActiveFilter}
+              onSelect={chooseTab}
               onEditCategory={editMode ? openCategory : undefined}
               onAddCategory={editMode ? () => openCategory(null) : undefined}
               reordering={editMode && reordering}

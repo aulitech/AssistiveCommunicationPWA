@@ -54,6 +54,12 @@ const catLabels = () => catTabs().map(t => t.textContent)
 const pinnedTabs = () => [...tabs().slice(0, LEADING_TABS), ...tabs().slice(-TRAILING_TABS)]
 const pinnedLabels = () => pinnedTabs().map(t => t.textContent)
 const tabNamed = (name: string) => tabs().find(t => t.textContent === name)
+const renameBtn = () => $('.rename-category-tab')
+/** Goes to a category and opens it for renaming: the pencil acts on the tab that is showing. */
+const renameTab = (name: string) => {
+  click(tabNamed(name))
+  click(renameBtn())
+}
 const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
 const saveModal = () => click(action('Save'))
 const type = (el: Element, value: string) => {
@@ -93,20 +99,51 @@ describe('outside edit mode', () => {
 })
 
 describe('in edit mode', () => {
-  it('turns category tabs into rename targets', () => {
+  /**
+   * **A tab goes to its category in every mode.** It opened the category for
+   * renaming in edit mode, which left edit mode unable to move between
+   * categories at all — editing a phrase under another tab meant leaving the
+   * mode, going there and coming back.
+   */
+  it('goes to a category from its tab', () => {
     renderApp()
     enterEditMode()
-    expect($('.add-category-tab')).not.toBeNull()
-    expect(catTabs()[0].getAttribute('aria-label')).toMatch(/^Rename category:/)
+    const name = catTabs()[1].textContent!
+
+    click(tabNamed(name))
+
+    expect(tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent).toBe(name)
+    expect($('.edit-modal'), 'the tab opened for renaming').toBeNull()
   })
 
-  it('leaves the tabs that are not categories alone', () => {
+  it('renames the tab that is showing with the pencil among the tools', () => {
     renderApp()
     enterEditMode()
-    expect(pinnedLabels()).toEqual(['Sent', 'All', 'Translations'])
-    for (const tab of pinnedTabs()) {
-      expect(tab.getAttribute('aria-label')).not.toMatch(/rename/i)
-    }
+    const name = catTabs()[1].textContent!
+
+    click(tabNamed(name))
+
+    expect(renameBtn()?.getAttribute('aria-label')).toBe(`Rename category: ${name}`)
+    click(renameBtn())
+    expect($('.edit-modal')?.getAttribute('aria-label')).toBe('Rename category')
+  })
+
+  // All and the three records are not categories. The pencil goes quiet on
+  // them rather than away: the tools are aimed at by position.
+  it('goes quiet on a tab that is not a category', () => {
+    renderApp()
+    enterEditMode()
+
+    expect(tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent).toBe('All')
+    expect(renameBtn()?.getAttribute('aria-disabled')).toBe('true')
+    expect(renameBtn()?.getAttribute('aria-label')).toMatch(/not a category/i)
+    click(renameBtn())
+    expect($('.edit-modal')).toBeNull()
+  })
+
+  it('offers no pencil outside edit mode', () => {
+    renderApp()
+    expect(renameBtn()).toBeNull()
   })
 })
 
@@ -148,7 +185,7 @@ describe('renaming a category', () => {
     enterEditMode()
     const original = catTabs()[0].textContent!
 
-    click(tabNamed(original))
+    renameTab(original)
     type(nameField(), 'Renamed')
     saveModal()
 
@@ -166,7 +203,7 @@ describe('renaming a category', () => {
     const original = catTabs()[0].textContent!
     click(tabNamed(original)) // select it first
     enterEditMode()
-    click(tabNamed(original))
+    click(renameBtn())
     type(nameField(), 'Followed')
     saveModal()
 
@@ -178,10 +215,10 @@ describe('renaming a category', () => {
     enterEditMode()
     const original = catTabs()[0].textContent!
 
-    click(tabNamed(original))
+    renameTab(original)
     type(nameField(), 'Once')
     saveModal()
-    click(tabNamed('Once'))
+    click(renameBtn())
     type(nameField(), 'Twice')
     saveModal()
 
@@ -194,7 +231,7 @@ describe('renaming a category', () => {
     renderApp()
     enterEditMode()
     const original = catTabs()[0].textContent!
-    click(tabNamed(original))
+    renameTab(original)
     type(nameField(), 'Mapped')
     saveModal()
 
@@ -210,7 +247,7 @@ describe('deleting a category', () => {
     type(nameField(), 'Temporary')
     saveModal()
 
-    click(tabNamed('Temporary'))
+    renameTab('Temporary')
     expect(action('Delete')).toBeDefined()
     click(action('Delete'))
 
@@ -222,7 +259,7 @@ describe('deleting a category', () => {
   it('refuses one that holds phrases, and says why', () => {
     renderApp()
     enterEditMode()
-    click(catTabs()[0])
+    renameTab(catTabs()[0].textContent!)
 
     expect(action('Delete')).toBeUndefined()
     expect($('.edit-modal-note')?.textContent).toMatch(/will move with it/i)
@@ -356,12 +393,14 @@ describe('ordering categories', () => {
 
   // Add and sort share a slot, so the toolbar does not change width — and with
   // it the reorder button's position — as the mode is toggled.
-  it('keeps the toolbar to two controls in either mode', () => {
+  // Three — add or sort, the pencil, reorder — and three either way: the tools
+  // are aimed at by position, and one that came and went would move the rest.
+  it('keeps the toolbar to three controls in either mode', () => {
     renderApp()
     enterEditMode()
-    expect($$('.filter-bar-tools .filter-bar-btn')).toHaveLength(2)
+    expect($$('.filter-bar-tools .filter-bar-btn')).toHaveLength(3)
     click(reorderBtn())
-    expect($$('.filter-bar-tools .filter-bar-btn')).toHaveLength(2)
+    expect($$('.filter-bar-tools .filter-bar-btn')).toHaveLength(3)
   })
 
   it('leaves no empty toolbar outside edit mode', () => {
@@ -559,7 +598,7 @@ describe('ordering categories', () => {
     const at = names().indexOf(target)
 
     click(reorderBtn()) // back to renaming
-    click(tabNamed(target))
+    renameTab(target)
     type(nameField(), 'Renamed')
     saveModal()
 
@@ -579,7 +618,7 @@ describe('ordering categories', () => {
     expect(storedStore().categoryOrder).toContain('Temporary')
 
     click(reorderBtn())
-    click(tabNamed('Temporary'))
+    renameTab('Temporary')
     click(action('Delete'))
 
     expect(storedStore().categoryOrder).not.toContain('Temporary')
@@ -604,8 +643,15 @@ describe('ordering categories', () => {
     renderApp()
     startReordering()
     click(reorderBtn())
-    click(catTabs()[0])
+    renameTab(catTabs()[0].textContent!)
     expect($('.edit-modal')?.getAttribute('aria-label')).toBe('Rename category')
+  })
+
+  // Renaming mid-arrangement would drop whatever is in the air.
+  it('keeps the pencil quiet while reordering', () => {
+    renderApp()
+    startReordering()
+    expect(renameBtn()?.getAttribute('aria-disabled')).toBe('true')
   })
 
   it('reorders rather than renames while reordering is on', () => {
