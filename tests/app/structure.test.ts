@@ -575,7 +575,9 @@ describe('the shape of the source tree', () => {
         .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
     /** The device's own: who is signed in, who owned it first, the sign-in page, and Apple's names. */
     const DEVICE_WIDE: Record<string, string[]> = {
-      'core/store.ts': ['USER_KEY', 'FIRST_OWNER_KEY', 'SETTINGS_KEY + NOBODY'],
+      'core/store/user.ts': ['USER_KEY'],
+      'core/store/owner.ts': ['FIRST_OWNER_KEY'],
+      'core/store/settings.ts': ['SETTINGS_KEY + NOBODY'],
       'signin/auth.ts': ['APPLE_NAME_KEY', 'nameKey'],
     }
     // `writeKey` is where every write goes now, so what its callers hand it is
@@ -583,7 +585,7 @@ describe('the shape of the source tree', () => {
     const STORED =
       /(?:localStorage\.(?:get|set|remove)Item|indexedDB\.open|(?<!function )writeKey)\(\s*([^,)]+?)\s*[,)]/g
     /** The one writer, which is handed a name already made: its callers are what is checked. */
-    const isTheWriter = (file: string, name: string) => file === 'core/store.ts' && name === 'key'
+    const isTheWriter = (file: string, name: string) => file === 'core/store/keys.ts' && name === 'key'
 
     const found = sources().flatMap(path => {
       const file = relative(SRC, path)
@@ -615,7 +617,7 @@ describe('the shape of the source tree', () => {
     const writers = sources().flatMap(path =>
       [...code(path).matchAll(/localStorage\.setItem\(/g)].map(() => relative(SRC, path)),
     )
-    expect(writers).toEqual(['core/store.ts'])
+    expect(writers).toEqual(['core/store/keys.ts'])
   })
 
   /**
