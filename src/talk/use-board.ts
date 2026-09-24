@@ -133,7 +133,8 @@ export function useBoard() {
 
   const allCategories = useMemo(
     // User-created categories are listed even while empty, so one can be made
-    // first and filled afterwards.
+    // first and filled afterwards — until its last phrase goes, or an import
+    // lands: see `withoutEmptyCategories`.
     () =>
       orderCategories(
         [...new Set([...mainPhrases.map(p => p.category), ...store.categories])],
