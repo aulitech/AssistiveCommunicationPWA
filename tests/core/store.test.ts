@@ -315,8 +315,9 @@ describe('the model behind a suggested reply', () => {
     expect(loadSettings().replyModel).toBe('claude-opus-5-5')
   })
 
-  // What is looked up came out of storage or a file.
-  it('is not fooled by a name every object answers to', () => {
+  // What is looked up came out of storage or a file, and every JavaScript
+  // object answers to these.
+  it('reads a name every object answers to as the default', () => {
     for (const raw of ['constructor', 'toString', '__proto__']) {
       expect(readReplyModel(raw), raw).toBe(DEFAULT_REPLY_MODEL)
     }

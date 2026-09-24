@@ -173,9 +173,9 @@ export const DEFAULT_REPLY_MODEL = REPLY_MODELS[0].id
  * **Moved up, never down.** Anything this build does not know falls back to
  * the default, which is the quickest — so without this, somebody who had
  * chosen Opus would be moved to Haiku the day Opus moved on, silently, and so
- * would every backup and every synchronized board naming it. A Map rather than
- * an object, because what is looked up here came out of storage or a file, and
- * `'constructor'` on a plain object is a function.
+ * would every backup and every synchronized board naming it. Whatever this
+ * hands back is still checked against the list below, so a name out of a file
+ * can only ever land on a model this build offers.
  */
 const SUCCEEDED_BY = new Map([['claude-opus-5', 'claude-opus-5-5']])
 
