@@ -118,17 +118,17 @@ for (const [what, viewport] of [
   test.describe(what, () => {
     test.use({ viewport })
     test('asks to delete a category with nothing that deletes under the pointer', async ({ page }) => {
-      const { errors } = await openBoard(page)
+      const { errors } = await openBoard(page, { phrases: categories(['Food']) })
       // Straight to the toggle: on a phone the microphone's hit area covers the
       // edit toggle's centre, and a click there lands on the microphone.
       await page.locator('.edit-toggle').dispatchEvent('click')
-      await tab(page, 'Library').click()
+      await tab(page, 'Food').click()
       await page.locator('.rename-category-tab').click()
       const del = page.locator('.edit-action-btn', { hasText: 'Delete' })
       const at = (await del.boundingBox())!
       await del.click()
 
-      await expect(page.locator('.edit-modal[role="alertdialog"]')).toContainText('Delete Library?')
+      await expect(page.locator('.edit-modal[role="alertdialog"]')).toContainText('Delete Food?')
       const confirm = (await del.boundingBox())!
       const x = at.x + at.width / 2
       const y = at.y + at.height / 2
@@ -140,3 +140,31 @@ for (const [what, viewport] of [
     })
   })
 }
+
+// A category refers to Library's phrases: one phrase ticked into two shows in
+// both, and the bin on one takes it out of that one alone.
+test('puts a phrase in two categories, and takes it out of one', async ({ page }) => {
+  const { errors } = await openBoard(page, { phrases: categories(['Food', 'Drinks']) })
+  await tab(page, 'Food').click()
+  await editMode(page)
+  await messageBox(page).fill('Tea and toast')
+  await page.locator('.category-trigger').click()
+  await page
+    .locator('.picker-tile')
+    .filter({ has: page.locator('.picker-tile-name', { hasText: /^Drinks$/ }) })
+    .click()
+  await page.locator('.picker-modal-actions .panel-btn[aria-label="Done"]').click()
+  await expect(draftCategory(page)).toHaveText('Food, Drinks')
+  await page.locator('.icon-btn[aria-label="Save phrase"]').click()
+
+  await expect(cell(page, 'Tea and toast')).toHaveCount(1)
+  await tab(page, 'Drinks').click()
+  await expect(cell(page, 'Tea and toast')).toHaveCount(1)
+
+  await cell(page, 'Tea and toast').click()
+  await page.locator('.icon-btn[aria-label="Take out of Drinks"]').click()
+  await expect(cell(page, 'Tea and toast')).toHaveCount(0)
+  await tab(page, 'Food').click()
+  await expect(cell(page, 'Tea and toast')).toHaveCount(1)
+  expect(errors).toEqual([])
+})

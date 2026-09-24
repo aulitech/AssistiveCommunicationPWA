@@ -595,7 +595,7 @@ describe('whose board', () => {
     saveTranslated([{ id: `t${dwell}`, text: `dit ${dwell}`, source: `said ${dwell}`, tag: 'fr' }])
     saveRecent({ category: `Cat ${dwell}` })
     saveUsage({ [`p${dwell}`]: { count: 1, at: 1 } })
-    savePhraseSorts({ all: 'alpha' })
+    savePhraseSorts({ Library: 'alpha' })
     saveElevenLabs({ apiKey: `eleven-${dwell}`, voices: [] })
     saveReplyKey(`sk-ant-${dwell}`)
     saveReplyContext([{ question: `asked ${dwell}`, reply: 'yes', at: Date.now() }])
@@ -643,7 +643,7 @@ describe('whose board', () => {
       translated: ['dit 2000'],
       recent: 'Cat 2000',
       usage: ['p2000'],
-      sorts: { all: 'alpha' },
+      sorts: { Library: 'alpha' },
       eleven: 'eleven-2000',
       reply: 'sk-ant-2000',
       context: ['asked 2000'],

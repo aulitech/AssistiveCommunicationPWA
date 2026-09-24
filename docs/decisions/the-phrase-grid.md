@@ -6,7 +6,7 @@
 The grid is the app's heaviest surface — over two thousand cells, at roughly twenty microseconds each to create. Two things keep it usable, and they solve different halves of the problem:
 
 - **`content-visibility: auto`** on `.phrase-cell` lets the browser skip layout and paint for cells scrolled out of view. That is the browser's half.
-- **`core/virtual.ts`** limits how many cells React creates at all. Switching back to **All** cost ~95ms of pure reconciliation before it and ~12ms after.
+- **`core/virtual.ts`** limits how many cells React creates at all. Switching back to the whole table — **All** then, **Library** now — cost ~95ms of pure reconciliation before it and ~12ms after.
 
 The window **grows from the top and is never repositioned by arithmetic**. Rows are not a uniform height — a phrase long enough to wrap three times makes its whole row taller, and about one row in five does — so anything that multiplied a row height by an index would put the grid in the wrong place a fifth of the time. Rendering the first *n* in normal flow cannot.
 

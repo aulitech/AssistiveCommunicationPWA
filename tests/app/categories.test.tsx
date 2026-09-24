@@ -46,6 +46,7 @@ const SEEDED = {
     ['Soup of the day', 'Food'],
     ['Hiya there', 'Greetings'],
     ['Lovely to see you', 'Greetings'],
+    ['Time for bed', 'Evening'],
   ].map(([text, category], i) => ({ id: `custom-seed-${i}`, text, category })),
 }
 const storedStore = () => JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}')
@@ -93,6 +94,13 @@ const savePhrase = () => click(iconBtn('Save phrase'))
 const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
 const pickerBtn = (label: string) =>
   inDoc('.picker-modal-actions .panel-btn').find(b => b.getAttribute('aria-label') === label)
+/** Ticks or unticks each of these in the editor's category grid, then Done. */
+const toggleCategories = (...names: string[]) => {
+  click($('.category-trigger'))
+  for (const name of names)
+    click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === name))
+  click(pickerBtn('Done'))
+}
 const chooseCategory = (name: string) => {
   click($('.category-trigger'))
   click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === name))
@@ -148,9 +156,9 @@ describe('in edit mode', () => {
     renderApp()
     enterEditMode()
 
-    expect(tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent).toBe('All')
+    expect(tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent).toBe('Library')
     expect(renameBtn()?.getAttribute('aria-disabled')).toBe('true')
-    expect(renameBtn()?.getAttribute('aria-label')).toMatch(/not a category/i)
+    expect(renameBtn()?.getAttribute('aria-label')).toMatch(/holds every phrase, so it cannot be renamed/i)
     click(renameBtn())
     expect($('.edit-modal')).toBeNull()
   })
@@ -170,7 +178,7 @@ describe('adding a category', () => {
     saveModal()
 
     expect(tabLabels()).toContain('Physio')
-    expect(storedStore().categories).toEqual(['Physio'])
+    expect(storedStore().members.Physio).toEqual([])
   })
 
   it('refuses a name another category already uses, whatever the casing', () => {
@@ -241,15 +249,19 @@ describe('renaming a category', () => {
     expect(tabLabels()).not.toContain(original)
   })
 
-  it('stores the rename against the source name, not per phrase', () => {
+  // A category is its references, so they go with its name, in their order.
+  it('takes its phrases, in their order, to the new name', () => {
     renderApp()
     enterEditMode()
     const original = catTabs()[0].textContent!
-    renameTab(original)
+    click(tabNamed(original))
+    const held = cells().map(c => c.getAttribute('data-phrase'))
+    click(renameBtn())
     type(nameField(), 'Mapped')
     saveModal()
 
-    expect(storedStore().categoryRenames[original]).toBe('Mapped')
+    expect(storedStore().members.Mapped).toEqual(held)
+    expect(storedStore().members).not.toHaveProperty(original)
   })
 })
 
@@ -277,7 +289,7 @@ describe('deleting a category', () => {
     confirmDelete()
 
     expect(tabLabels()).not.toContain('Temporary')
-    expect(storedStore().categories).toEqual([])
+    expect(storedStore().members).not.toHaveProperty('Temporary')
   })
 
   it('offers to delete one that holds phrases, and asks first, saying how many go with it', () => {
@@ -334,47 +346,31 @@ describe('deleting a category', () => {
     expect(storedStore().hidden ?? []).toEqual([])
   })
 
-  it('takes every phrase in it — its own hidden, the user’s deleted — and says so', () => {
-    localStorage.setItem(
-      STORE_KEY,
-      JSON.stringify({ custom: [{ id: 'custom-mine', text: 'Written by me', category: 'Library' }] }),
+  // A category only ever referred to Library's phrases, so deleting one
+  // deletes nothing anybody said.
+  it('leaves every phrase in it in Library, and says so', () => {
+    renderApp()
+    enterEditMode()
+    renameTab('Food')
+    confirmDelete()
+
+    expect(tabLabels()).not.toContain('Food')
+    expect(storedStore().custom.map((c: { text: string }) => c.text)).toEqual(
+      expect.arrayContaining(['Toast and jam', 'Soup of the day']),
     )
-    renderApp()
-    enterEditMode()
-    renameTab('Library')
-    const shipped = cells()
-      .map(c => c.getAttribute('data-phrase'))
-      .filter(id => id && id !== 'custom-mine')
-    expect(shipped.length).toBeGreaterThan(0)
-
-    confirmDelete()
-
-    expect(tabLabels()).not.toContain('Library')
-    expect(storedStore().custom).toEqual([])
-    expect(storedStore().hidden).toEqual(expect.arrayContaining(shipped))
-    expect($('.toast')?.textContent).toMatch(/Deleted Library and its \d+ phrases/)
-    click(tabNamed('All'))
-    expect(cells().some(c => c.textContent === 'Written by me')).toBe(false)
+    expect(storedStore().hidden ?? []).toEqual([])
+    expect($('.toast')?.textContent).toBe('Deleted Food — its 2 phrases are still in Library')
   })
 
-  // A category made later under the same name must not inherit what this one
-  // was: a rename pointing at it, or a phrase moved into it.
-  it('forgets a rename that pointed at it', () => {
+  // Library is where every phrase lives, so it is neither renamed nor deleted.
+  it('offers nothing to delete Library with', () => {
     renderApp()
     enterEditMode()
-    renameTab('Library')
-    type(nameField(), 'Everything')
-    saveModal()
-    expect(storedStore().categoryRenames).toEqual({ Library: 'Everything' })
-
-    renameTab('Everything')
-    confirmDelete()
-
-    expect(storedStore().categoryRenames).toEqual({})
-    expect(tabLabels()).not.toContain('Library')
+    click(tabNamed('Library'))
+    expect(renameBtn()?.getAttribute('aria-disabled')).toBe('true')
   })
 
-  it('lets go of a phrase open in the box that has just gone', () => {
+  it('keeps a phrase open in the box, in the categories it has left', () => {
     renderApp()
     enterEditMode()
     click(tabNamed('Food'))
@@ -385,7 +381,8 @@ describe('deleting a category', () => {
     click(renameBtn())
     confirmDelete()
 
-    expect(box().value).toBe('')
+    expect(box().value).toBe(opened)
+    expect($('.category-trigger .picker-trigger-label')?.textContent).toBe('Library only')
   })
 
   // Filed there by hand, rather than following the tab: the draft holds the
@@ -426,39 +423,65 @@ describe('a category left with nothing in it', () => {
     click(cells().find(c => c.textContent === 'Only me in here'))
   }
 
-  it('goes when its last phrase is deleted', () => {
+  // On a category the bin takes the phrase out of it; the last one out takes
+  // the category with it.
+  it('goes when its last phrase is taken out', () => {
     openSolo()
+    click(iconBtn('Take out of Solo'))
+
+    expect(tabLabels()).not.toContain('Solo')
+    expect(storedStore().members).not.toHaveProperty('Solo')
+    expect(storedStore().categoryOrder).not.toContain('Solo')
+    // Taken out, not deleted: it is still in Library.
+    expect(storedStore().custom.map((c: { id: string }) => c.id)).toContain('custom-solo')
+  })
+
+  // On Library the bin deletes the phrase, from every category it was in.
+  it('goes when its last phrase is deleted from Library', () => {
+    openSolo()
+    click(tabNamed('Library'))
     click(iconBtn('Delete phrase'))
 
     expect(tabLabels()).not.toContain('Solo')
-    expect(storedStore().categories).not.toContain('Solo')
-    expect(storedStore().categoryOrder).not.toContain('Solo')
+    expect(storedStore().custom.map((c: { id: string }) => c.id)).not.toContain('custom-solo')
   })
 
-  it('comes back where it was when the delete is undone', () => {
+  it('comes back where it was when the removal is undone', () => {
     openSolo()
+    click(iconBtn('Take out of Solo'))
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo deleting')))
+
+    expect(catLabels()[0]).toBe('Solo')
+    expect(storedStore().members.Solo).toEqual(['custom-solo'])
+    expect(storedStore().categoryOrder[0]).toBe('Solo')
+  })
+
+  it('comes back, with the phrase in it, when a delete on Library is undone', () => {
+    openSolo()
+    click(tabNamed('Library'))
     click(iconBtn('Delete phrase'))
     click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo deleting')))
 
     expect(catLabels()[0]).toBe('Solo')
-    expect(storedStore().categories).toContain('Solo')
-    expect(storedStore().categoryOrder[0]).toBe('Solo')
+    expect(storedStore().members.Solo).toEqual(['custom-solo'])
   })
 
   it('goes when its last phrase is moved out', () => {
     openSolo()
-    chooseCategory('Drinks')
+    // Out of Solo and into Drinks, which the grid does as two ticks.
+    toggleCategories('Solo', 'Drinks')
     click(iconBtn('Save phrase'))
 
     expect(tabLabels()).not.toContain('Solo')
-    expect(storedStore().categories).not.toContain('Solo')
+    expect(storedStore().members).not.toHaveProperty('Solo')
+    expect(storedStore().members.Drinks).toContain('custom-solo')
   })
 
   it('stays while it still has a phrase in it', () => {
     openSolo()
     click(tabNamed('Drinks'))
     click(cells()[0])
-    click(iconBtn('Delete phrase'))
+    click(iconBtn('Take out of Drinks'))
 
     expect(tabLabels()).toContain('Drinks')
   })
@@ -471,7 +494,7 @@ describe('a category left with nothing in it', () => {
     saveModal()
     click(tabNamed('Drinks'))
     click(cells()[0])
-    click(iconBtn('Delete phrase'))
+    click(iconBtn('Take out of Drinks'))
 
     expect(tabLabels()).toContain('Not yet')
   })
@@ -789,12 +812,12 @@ describe('ordering categories', () => {
   it('leaves the three tabs that are not categories pinned and unmovable', () => {
     renderApp()
     startReordering()
-    expect(pinnedLabels()).toEqual(['Sent', 'All', 'Translations'])
+    expect(pinnedLabels()).toEqual(['Sent', 'Library', 'Translations'])
     for (const tab of pinnedTabs()) expect(tab.getAttribute('draggable')).toBeNull()
 
     const arranged = names()
     dwellDrag(arranged[arranged.length - 1], arranged[0])
-    expect(pinnedLabels()).toEqual(['Sent', 'All', 'Translations'])
+    expect(pinnedLabels()).toEqual(['Sent', 'Library', 'Translations'])
   })
 
   // Renames are stored against the source name, so the order — stored against
@@ -961,7 +984,7 @@ describe('a category that runs out of phrases', () => {
   // Deleting the last phrase in a category takes its tab away. The filter still
   // named it, which left the grid empty under a tab that no longer existed and
   // no way back to it.
-  it('falls back to All rather than leaving an empty grid', () => {
+  it('falls back to Library rather than leaving an empty grid', () => {
     localStorage.setItem(
       STORE_KEY,
       JSON.stringify({ custom: [{ id: 'custom-solo', text: 'Only one', category: 'Solo' }] }),
@@ -973,10 +996,10 @@ describe('a category that runs out of phrases', () => {
 
     enterEditMode()
     click(cells()[0])
-    click(iconBtn('Delete phrase'))
+    click(iconBtn('Take out of Solo'))
 
     expect(tabNamed('Solo')).toBeUndefined()
-    expect(tabNamed('All')?.getAttribute('aria-selected')).toBe('true')
+    expect(tabNamed('Library')?.getAttribute('aria-selected')).toBe('true')
     expect(cells().length).toBeGreaterThan(1)
   })
 })

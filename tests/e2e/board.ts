@@ -69,13 +69,17 @@ export const activeTab = (page: Page) => page.locator('.filter-tab[aria-selected
 export const draftCategory = (page: Page) => page.locator('.category-trigger .picker-trigger-label')
 export const marked = (page: Page) => page.locator('.phrase-cell[aria-current="true"]')
 
-/** Files the draft under a category, through the grid the strip opens. */
+/** Puts the draft in this one category, and no other, through the grid the strip opens. */
 export async function fileUnder(page: Page, category: string) {
   await page.locator('.category-trigger').click()
-  await page
-    .locator('.picker-tile')
-    .filter({ has: page.locator('.picker-tile-name', { hasText: new RegExp(`^${category}$`) }) })
-    .click()
+  const named = (name: string) =>
+    page
+      .locator('.picker-tile')
+      .filter({ has: page.locator('.picker-tile-name', { hasText: new RegExp(`^${name}$`) }) })
+  for (const ticked of await page.locator('.picker-tile[aria-selected="true"]').all()) {
+    if ((await ticked.locator('.picker-tile-name').textContent()) !== category) await ticked.click()
+  }
+  if ((await named(category).getAttribute('aria-selected')) !== 'true') await named(category).click()
   await page.locator('.picker-modal-actions .panel-btn[aria-label="Done"]').click()
 }
 

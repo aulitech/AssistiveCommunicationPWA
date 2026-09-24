@@ -323,9 +323,21 @@ describe('which order each tab is showing', () => {
    * order. It was chosen while looking at some tab, and All is the one the board
    * opens on, so that is where it lands rather than being thrown away.
    */
-  it('carries a single order written for the whole board onto All', () => {
+  it('carries a single order written for the whole board onto Library, where the board opens', () => {
     localStorage.setItem('peri_phrase_sort', 'recent')
-    expect(loadPhraseSorts()).toEqual({ all: 'recent' })
+    expect(loadPhraseSorts()).toEqual({ Library: 'recent' })
+  })
+
+  // All showed every phrase, as Library does, and its order is Library's —
+  // though never a Custom order, which All could not have, and never over one
+  // Library has of its own.
+  it('reads the order All was in as Library’s', () => {
+    localStorage.setItem('peri_phrase_sort', JSON.stringify({ all: 'alpha', Food: 'recent' }))
+    expect(loadPhraseSorts()).toEqual({ Library: 'alpha', Food: 'recent' })
+    localStorage.setItem('peri_phrase_sort', JSON.stringify({ all: 'custom' }))
+    expect(loadPhraseSorts()).toEqual({})
+    localStorage.setItem('peri_phrase_sort', JSON.stringify({ Library: 'recent', all: 'alpha' }))
+    expect(loadPhraseSorts()).toEqual({ Library: 'recent' })
   })
 
   it('carries nothing forward from a board that was on the default', () => {
@@ -333,8 +345,8 @@ describe('which order each tab is showing', () => {
     expect(loadPhraseSorts()).toEqual({})
   })
 
-  // All is where a single order lands, and All offers no Custom order — so that
-  // one is dropped rather than written somewhere it could not be got back from.
+  // The board's own order was never Library's hand arrangement, so it is
+  // dropped rather than taken for one.
   it('carries nothing forward from a board that was on the board’s own order', () => {
     localStorage.setItem('peri_phrase_sort', 'custom')
     expect(loadPhraseSorts()).toEqual({})
@@ -342,10 +354,10 @@ describe('which order each tab is showing', () => {
 })
 
 /**
- * A hand arrangement belongs to one category, and All shows every category at
- * once — so All offers no Custom order, and neither does Sent. Hiding a tile
- * that is also a tab's way home is how you strand somebody, which is the whole
- * of why `sortFor` has to answer for a stored one too.
+ * A record is in the order it happened, so Sent, the answers and Translations
+ * offer no Custom order. Hiding a tile that is also a tab's way home is how you
+ * strand somebody, which is the whole of why `sortFor` has to answer for a
+ * stored one too.
  */
 describe('the tabs that are not a category', () => {
   it('offers all four under a category', () => {
@@ -364,11 +376,11 @@ describe('the tabs that are not a category', () => {
   })
 
   it('shows the default where a stored Custom order could not be got back from', () => {
-    expect(sortFor({ all: 'custom' }, 'all', false)).toBe('frequent')
+    expect(sortFor({ ' sent': 'custom' }, ' sent', false)).toBe('frequent')
   })
 
   it('leaves every other stored order alone there', () => {
-    expect(sortFor({ all: 'alpha' }, 'all', false)).toBe('alpha')
+    expect(sortFor({ ' sent': 'alpha' }, ' sent', false)).toBe('alpha')
   })
 
   it('keeps a stored Custom order for a tab that can be arranged', () => {

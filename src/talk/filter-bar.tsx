@@ -22,7 +22,7 @@ function FilterTab({
   label: string
   active: boolean
   onSelect: () => void
-  /** Present only in reorder mode, and never on "All". */
+  /** Present only in reorder mode, and never on a pinned tab. */
   reorder?: ReorderProps
 }) {
   const { settings } = useSettings()

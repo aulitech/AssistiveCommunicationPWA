@@ -375,14 +375,17 @@ describe('edit mode', () => {
 
     // The table lists "Good morning" under three categories on purpose, and
     // somebody looks in whichever of them they think in.
-    it('is allowed again under another category', () => {
+    // Library holds each wording once, and a category only refers to it, so
+    // which categories are ticked makes no difference.
+    it('is refused whatever categories it is put in', () => {
       seed()
       chooseCategory('Kitchen')
       writePhrase(KITCHEN.text)
       expect(iconBtn('Save phrase')?.disabled).toBe(true)
 
-      chooseCategory('Library')
-      expect(iconBtn('Save phrase')?.disabled).toBe(false)
+      // Out of Kitchen again, which is Library alone: still the same wording.
+      chooseCategory('Kitchen')
+      expect(iconBtn('Save phrase')?.disabled).toBe(true)
     })
 
     // The bar is a category like any other for this purpose.
@@ -547,9 +550,18 @@ const categoryChoices = () => {
   click(pickerBtn('Cancel'))
   return names
 }
+/**
+ * Makes this the one category the phrase is in — Library, which every phrase is
+ * in, being none at all — the way a person using the grid for one would.
+ */
 const chooseCategory = (name: string) => {
   click(categoryTrigger())
-  click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === name))
+  const tile = (n: string) =>
+    inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === n)
+  for (const ticked of inDoc('.picker-tile[aria-selected="true"]')) {
+    if (ticked.querySelector('.picker-tile-name')?.textContent !== name) click(ticked)
+  }
+  if (name !== 'Library' && tile(name)?.getAttribute('aria-selected') !== 'true') click(tile(name))
   click(pickerBtn('Done'))
 }
 /** A category that is not the one the editor starts on. */
@@ -566,8 +578,7 @@ const addPhrase = (text: string, category?: string) => {
 const standingOn = () => {
   renderApp()
   enterEditMode()
-  const here = shownCategory()!
-  const elsewhere = categoryChoices().find(name => name !== here)!
+  const [here, elsewhere] = categoryChoices()
   leaveEditMode()
   click(tab(here))
   enterEditMode()
@@ -662,7 +673,7 @@ describe('starting from the last choice made', () => {
       addPhrase('One for over there', chosen)
       leaveEditMode()
 
-      click(tab('All'))
+      click(tab('Library'))
       enterEditMode()
 
       expect(shownCategory()).toBe(chosen)
@@ -713,7 +724,7 @@ describe('starting from the last choice made', () => {
       const elsewhere = goElsewhere()
       enterEditMode()
 
-      click(tab('All'))
+      click(tab('Library'))
 
       expect(shownCategory()).toBe(elsewhere)
     })
@@ -765,7 +776,7 @@ describe('starting from the last choice made', () => {
     // category at once, and the other three are records of what was said. So
     // they leave the last choice standing rather than throwing it away and
     // making somebody pick again.
-    for (const notACategory of ['All', 'Sent', 'Translations']) {
+    for (const notACategory of ['Library', 'Sent', 'Translations']) {
       it(`leaves it standing under ${notACategory}`, () => {
         renderApp()
         enterEditMode()
@@ -817,8 +828,8 @@ describe('starting from the last choice made', () => {
 
     const choices = categoryChoices()
     expect(choices).not.toContain('Somewhere Deleted')
-    expect(shownCategory(), 'the editor started on nothing').not.toBe('')
-    expect(choices).toContain(shownCategory())
+    // Every phrase is in Library, so that is where one with nowhere else starts.
+    expect(shownCategory()).toBe('Library only')
   })
 
   it('starts a new phrase from the last voice, and an existing one from its own', async () => {
@@ -897,7 +908,7 @@ describe('following a new phrase to where it was filed', () => {
 
     addPhrase('One for over there', elsewhere)
 
-    expect(activeTab()).toBe('All')
+    expect(activeTab()).toBe('Library')
   })
 
   // A phrase being reworded is one somebody is moving *out* of where they are.
@@ -964,7 +975,8 @@ describe('following a new phrase to where it was filed', () => {
   // moves at all.
   it('takes the board to where a kept message was filed', () => {
     renderApp()
-    click(plainCell())
+    // Words of their own: a phrase off the board is already in Library.
+    writeIn(box(), 'Nobody has said this here before')
     click(iconBtn('Speak'))
     clearMessage()
     clearMessage()
@@ -976,7 +988,8 @@ describe('following a new phrase to where it was filed', () => {
     click(iconBtn('Keep this message as a phrase'))
 
     expect(filedUnder).not.toBe('Sent')
-    expect(activeTab()).toBe(filedUnder)
+    // In no category it is in Library alone, which is where the board goes.
+    expect(activeTab()).toBe(filedUnder === 'Library only' ? 'Library' : filedUnder)
   })
 })
 
@@ -1076,21 +1089,39 @@ describe('going to the phrase the message is', () => {
   const marked = () => $('.phrase-cell[aria-current="true"]')?.textContent
   const cellFor = (text: string) => $$('.phrase-cell').find(c => c.textContent === text)
 
-  /** A phrase of the board in the message box, with the board still on All. */
+  /**
+   * A phrase of the board in the message box, chosen on Drinks — and the board
+   * then on Food, a tab that does not hold it.
+   */
   const composeAPhrase = () => {
     renderApp()
+    click(tab('Drinks'))
     const cell = plainCell()
     const text = cell.textContent!
     click(cell)
+    click(tab('Food'))
     return text
   }
 
-  it('takes the board to the category it is filed under', () => {
+  // Library holds every phrase, so that is where the board goes to show it.
+  it('takes the board to Library from a tab that does not hold it', () => {
     const text = composeAPhrase()
 
     enterEditMode()
 
-    expect(activeTab()).not.toBe('All')
+    expect(activeTab()).toBe('Library')
+    expect(marked()).toBe(text)
+  })
+
+  it('stays on a tab that holds it', () => {
+    renderApp()
+    click(tab('Drinks'))
+    const text = plainCell().textContent!
+    click(plainCell())
+
+    enterEditMode()
+
+    expect(activeTab()).toBe('Drinks')
     expect(marked()).toBe(text)
   })
 
@@ -1143,14 +1174,14 @@ describe('going to the phrase the message is', () => {
     expect($('.toast')?.textContent).toMatch(new RegExp(`editing this phrase.*${activeTab()}`, 'i'))
   })
 
-  // All is the one tab that cannot answer *which category is this in*, not
-  // showing categories being the whole of what it is for.
-  it('names the category it went to, on the tab and on the strip alike', () => {
+  // The strip says which categories it is in; the toast says where it is.
+  it('says where it is, and the strip which categories it is in', () => {
     composeAPhrase()
 
     enterEditMode()
 
-    expect(activeTab()).toBe(shownCategory())
+    expect($('.toast')?.textContent).toBe('Editing this phrase, in Library')
+    expect(shownCategory()).toBe('Drinks')
   })
 
   it('brings the phrase into view and the tab to the middle of the bar', () => {
@@ -1174,7 +1205,7 @@ describe('going to the phrase the message is', () => {
     leaveEditMode()
     // Emptied, so the same phrase goes in again as the whole of the message.
     clearMessage()
-    click(tab('All'))
+    click(tab('Library'))
     click(cellFor(text))
 
     enterEditMode()
@@ -1189,7 +1220,7 @@ describe('going to the phrase the message is', () => {
 
     enterEditMode()
 
-    expect(activeTab()).toBe('All')
+    expect(activeTab()).toBe('Library')
     expect(marked()).toBeUndefined()
   })
 
@@ -1298,16 +1329,19 @@ describe('putting back a phrase just deleted', () => {
         phraseOrder: { Kitchen: ['custom-c', 'custom-b', 'custom-a'] },
       }),
     )
+    // The whole of Library on screen, to find one among thousands on it.
+    unmeasuredGrid()
     renderApp()
-    click(tab('Kitchen'))
+    click(tab('Library'))
     enterEditMode()
     click(cells().find(c => c.textContent === 'Make me a sandwich'))
     deletePhrase()
+    expect(stored().members.Kitchen).toEqual(['custom-c', 'custom-a'])
 
     click(undoButton())
 
     expect(stored().custom.map((p: { id: string }) => p.id)).toEqual(['custom-a', 'custom-b', 'custom-c'])
-    expect(stored().phraseOrder.Kitchen).toEqual(['custom-c', 'custom-b', 'custom-a'])
+    expect(stored().members.Kitchen).toEqual(['custom-c', 'custom-b', 'custom-a'])
   })
 
   it('puts an emergency phrase back in its place on the bar', () => {
