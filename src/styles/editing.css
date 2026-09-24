@@ -226,8 +226,8 @@
 .edit-action-btn.save   { background: var(--accent); color: #000; border-color: var(--accent); }
 .edit-action-btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); margin-right: auto; }
 .edit-action-btn.is-disabled { opacity: 0.4; cursor: default; }
-/* Asking whether to delete: the way back where Delete was, the delete at the far
-   end where Save was — see `CategoryModal`. */
+/* Asking whether to delete: the delete that confirms at the far end, where Save
+   was, and the way back at Delete's end — see `CategoryModal`. */
 .edit-modal-actions.is-confirming { justify-content: space-between; }
 .edit-modal-actions.is-confirming .edit-action-btn.danger { margin-right: 0; }
 

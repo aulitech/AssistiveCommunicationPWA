@@ -243,6 +243,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         'Choose any phrase to bring it into the box and change its wording.',
         'A new phrase starts in the category and voice you last used, so adding several in a row takes one choice rather than one each.',
+        ':edit: among the tools at the end of the category tabs renames the category that is showing. Delete in the same box removes the category and every phrase in it — it asks first, and says how many phrases will go.',
         'Use :add: at the end of the blue bar to add an emergency phrase.',
         ':arrange: beside it rearranges the blue bar: choose a phrase to pick it up, then choose where it should go. Choosing it again puts it back.',
       ),

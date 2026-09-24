@@ -285,7 +285,7 @@ describe('deleting a category', () => {
 
   // The dialog changes under a pointer resting where Delete was, so the delete
   // that confirms is at the far end and nothing arms until the pointer moves.
-  it('puts the way back where Delete was, and waits for the pointer to move', () => {
+  it('puts the delete that confirms at the far end, and waits for the pointer to move', () => {
     renderApp()
     enterEditMode()
     const name = catTabs()[0].textContent!

@@ -231,10 +231,11 @@ export function CategoryModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  // The dialog changes under a pointer resting where Delete was. **What lands
-  // there is the way back**, and the delete that confirms sits at the other end
-  // of the row, where Save was — and nothing arms until the pointer has moved,
-  // so a gaze still on the first Delete cannot answer the question it raised.
+  // The dialog changes under a pointer resting where Delete was, so **the
+  // delete that confirms sits at the other end of the row**, where Save was,
+  // with the way back at Delete's end — and nothing arms until the pointer has
+  // moved, so a gaze still on the first Delete cannot answer the question it
+  // raised.
   const ask = (asking: boolean) => {
     holdDwellsUntilMoved()
     setConfirming(asking)
