@@ -452,7 +452,7 @@ describe('a phrase with a blank', () => {
 /**
  * **Measuring needs something rendered to measure.** So the grid renders a
  * screenful first and windows from what that measures, rather than mounting all
- * two and a half thousand cells on the way — which it did on every load, and
+ * two thousand-odd cells on the way — which it did on every load, and
  * which was most of what this suite spent its time on.
  *
  * Asked of the document before the effects have run, because that is the only

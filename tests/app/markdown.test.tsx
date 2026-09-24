@@ -61,7 +61,7 @@ const marked = () => cellFor('Help me up')!
 
 /**
  * Narrows the grid to the seeded category, which every test here starts from.
- * The board also holds the two and a half thousand phrases Peri ships, several
+ * The board also holds the two thousand-odd phrases Peri ships, several
  * of which begin with "Help" — so anything about what is on screen, or in what
  * order, has to be asked of a grid holding only the phrases the test put there.
  * And the grid renders a windowful rather than the table, so a phrase filed

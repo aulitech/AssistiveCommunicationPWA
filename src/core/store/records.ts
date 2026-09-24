@@ -265,7 +265,7 @@ export type PhraseSorts = Record<string, PhraseSort>
 /**
  * Where every tab starts: **what gets used most, first.**
  *
- * A board arrives with two and a half thousand phrases in the order a table
+ * A board arrives with over two thousand phrases in the order a table
  * happens to list them, and the one somebody wants next is nearly always one
  * they have wanted before. Nothing is lost by starting here — a phrase nobody
  * has used keeps the place the board gave it, so a board that has not been used

@@ -1,6 +1,6 @@
 // How much of a long grid to actually render.
 //
-// The phrase grid is up to two and a half thousand cells, and every one costs
+// The phrase grid is over two thousand cells, and every one costs
 // about twenty microseconds to create — fifty milliseconds a keystroke, on the
 // path where somebody is typing to narrow it down. Rendering only what is near
 // the viewport takes that to nothing.

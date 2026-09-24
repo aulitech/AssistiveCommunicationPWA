@@ -301,7 +301,7 @@ describe('taking the markup back off', () => {
   })
 })
 
-// The board is two and a half thousand phrases and search re-scores all of them
+// The board is over two thousand phrases and search re-scores all of them
 // on every keystroke, so the answer for a phrase with no markup has to be cheap
 // rather than merely correct.
 describe('the cost of asking', () => {
