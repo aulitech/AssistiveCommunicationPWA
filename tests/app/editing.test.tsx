@@ -976,10 +976,8 @@ describe('showing where the new phrase went', () => {
 // for reaching for edit mode was a copy of it, filed wherever they happened to
 // be standing, that could not be saved and said only "Already on the board".
 //
-// **Composed on All**, which is where this happens: choosing a phrase narrows
-// the board to the word at the caret and takes the category bar away with it,
-// so the tab somebody is standing on when they reach for edit mode is the one
-// they chose the phrase from — All, or the phrase's own.
+// **Composed on All**, the commonest case: where the board opens, and where a
+// phrase is most often chosen without knowing which category it is in.
 describe('going to the phrase the message is', () => {
   const marked = () => $('.phrase-cell[aria-current="true"]')?.textContent
   const cellFor = (text: string) => $$('.phrase-cell').find(c => c.textContent === text)
@@ -1080,8 +1078,7 @@ describe('going to the phrase the message is', () => {
     enterEditMode()
     const home = activeTab()
     leaveEditMode()
-    // The box has to be emptied to reach the tabs at all: a composed phrase
-    // narrows the board and the bar goes with it.
+    // Emptied, so the same phrase goes in again as the whole of the message.
     clearMessage()
     click(tab('All'))
     click(cellFor(text))

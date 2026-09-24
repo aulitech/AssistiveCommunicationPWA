@@ -939,3 +939,98 @@ describe('the keyboard Peri draws', () => {
     expect($('.emergency-bar')).not.toBeNull()
   })
 })
+
+/**
+ * Building a sentence out of phrases from more than one category — the whole
+ * of what composing is for.
+ *
+ * Choosing a phrase used to leave the caret against its last word, which the
+ * board then read as a word being typed: it narrowed the grid to that word and
+ * took the category bar away, and the next phrase chosen replaced the word as
+ * if finishing it. So "Once in a blue moon" followed by "Thank you" became
+ * "Once in a blue Thank you".
+ */
+describe('choosing one phrase after another', () => {
+  const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
+  const cellFor = (text: string) => cells().find(c => c.textContent === text)
+
+  const seeded = () => {
+    localStorage.setItem(
+      'dwellspeak_phrase_store_v2',
+      JSON.stringify({
+        custom: [
+          { id: 'custom-moon', text: 'Once in a blue moon', category: 'Sayings' },
+          { id: 'custom-moonlight', text: 'Moonlight becomes you', category: 'Sayings' },
+          { id: 'custom-thanks', text: 'Thank you', category: 'Manners' },
+        ],
+      }),
+    )
+    renderApp()
+    click(tab('Sayings'))
+  }
+  /** Written into the box as a person types it, caret at the end. */
+  const typeInto = (value: string) => {
+    fireEvent.change(box(), { target: { value, selectionStart: value.length } })
+    fireEvent.select(box(), { target: { selectionStart: value.length, selectionEnd: value.length } })
+    settle()
+  }
+
+  it('keeps the category tabs after a phrase is chosen', () => {
+    seeded()
+
+    click(cellFor('Once in a blue moon'))
+
+    expect(message()).toBe('Once in a blue moon')
+    expect(tab('Manners'), 'the tabs went with the phrase').toBeDefined()
+    // And the whole tab, not the phrases matching its last word.
+    expect(cells().map(c => c.textContent)).toEqual(['Once in a blue moon', 'Moonlight becomes you'])
+  })
+
+  it('reaches a second category for the next phrase', () => {
+    seeded()
+    click(cellFor('Once in a blue moon'))
+
+    click(tab('Manners'))
+    click(cellFor('Thank you'))
+
+    expect(message()).toBe('Once in a blue moon Thank you')
+  })
+
+  /**
+   * Regression guard. The last word of a phrase just chosen was read as a word
+   * being typed, so the next phrase chosen replaced it as if finishing it —
+   * "Once in a blue moon" and then "Moonlight becomes you" came out as "Once in
+   * a blue Moonlight becomes you".
+   */
+  it('never writes over the last word of the phrase before', () => {
+    seeded()
+    click(cellFor('Once in a blue moon'))
+
+    click(cellFor('Moonlight becomes you'))
+
+    expect(message()).toBe('Once in a blue moon Moonlight becomes you')
+  })
+
+  // A phrase is finished; a word somebody types is not. Typing after one is
+  // typing a new word, and the board narrows to it again.
+  it('narrows again to a word typed after it', () => {
+    seeded()
+    click(cellFor('Once in a blue moon'))
+
+    typeInto('Once in a blue moon moonl')
+
+    expect(cells().map(c => c.textContent)).toEqual(['Moonlight becomes you'])
+    expect(tab('Manners'), 'the tabs stayed over a narrowed board').toBeUndefined()
+  })
+
+  // And finishing that word is still finishing it.
+  it('finishes a word typed after it', () => {
+    seeded()
+    click(cellFor('Once in a blue moon'))
+    typeInto('Once in a blue moon moonl')
+
+    click(cellFor('Moonlight becomes you'))
+
+    expect(message()).toBe('Once in a blue moon Moonlight becomes you')
+  })
+})
