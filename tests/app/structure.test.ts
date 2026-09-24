@@ -652,6 +652,62 @@ describe('the shape of the source tree', () => {
     }
   })
 
+  /**
+   * **What the guide for agents names has to exist.** AGENTS.md is the map
+   * every session starts from, and a map pointing at something that has moved
+   * sends it looking for what is not there. It went stale the quiet way: a test
+   * file split into nine and still named as one in six places, three paths from
+   * before the source was layered, and two names renamed the day after they
+   * were written down.
+   *
+   * **A name in backticks is a claim that it exists.** Every path must be a
+   * file — from the root, from `src/`, or from `tests/`, or for a bare filename
+   * somewhere in the tree — and every identifier must be a word the code uses.
+   * A name that no longer exists and is mentioned only as history is written
+   * without backticks.
+   */
+  it('names nothing in the agents guide that the project does not have', () => {
+    const guide = readFileSync(resolve(process.cwd(), 'AGENTS.md'), 'utf8')
+    const root = process.cwd()
+    const walk = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
+        ['node_modules', '.git', 'dist'].includes(entry.name)
+          ? []
+          : entry.isDirectory()
+            ? walk(resolve(dir, entry.name))
+            : [resolve(dir, entry.name)],
+      )
+    const files = walk(root)
+    const basenames = new Set(files.map(f => f.split('/').pop()!))
+    const code = files
+      .filter(f => /\.(ts|tsx|css|js|html|yml|json|toml|yaml)$/.test(f) && !f.includes('/core/imports/'))
+      .map(f => readFileSync(f, 'utf8'))
+      .join('\n')
+    const words = new Set(code.match(/[A-Za-z_]\w*/g))
+    /** Names that are real and are not this project's own: events, an attribute, an API field, pnpm's error. */
+    const NOT_OURS = new Set(['audiostart', 'audioend', 'inputmode', 'language_code', 'ERR_PNPM_IGNORED_BUILDS'])
+
+    const quoted = [...guide.matchAll(/`([^`\s]+)`/g)].map(m => m[1]!)
+    const missingPaths = quoted.filter(
+      name =>
+        /\.(ts|tsx|css|json|md|html|toml|yaml|js)$/.test(name) &&
+        !name.startsWith('.') &&
+        !/[<*]/.test(name) &&
+        (name.includes('/')
+          ? !['', 'src', 'tests'].some(base => existsSync(resolve(root, base, name)))
+          : !basenames.has(name)),
+    )
+    const missingNames = quoted.filter(
+      name =>
+        /^[A-Za-z_]\w*(\.[A-Za-z_]\w*)?$/.test(name) &&
+        !NOT_OURS.has(name) &&
+        !name.split('.').every(part => words.has(part)),
+    )
+
+    expect(missingPaths, 'AGENTS.md names a file that is not there').toEqual([])
+    expect(missingNames, 'AGENTS.md names something the code does not have').toEqual([])
+  })
+
   it('offers no script whose command it has not installed', () => {
     const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')) as {
       scripts: Record<string, string>
