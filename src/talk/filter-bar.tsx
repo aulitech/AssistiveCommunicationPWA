@@ -9,20 +9,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
-import { CustomOrderIcon, PageIcon, PlusIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
+import { CustomOrderIcon, EditIcon, PageIcon, PlusIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 
 function FilterTab({
   label,
   active,
   onSelect,
-  onEdit,
   reorder,
 }: {
   label: string
   active: boolean
   onSelect: () => void
-  onEdit?: () => void
   /** Present only in reorder mode, and never on "All". */
   reorder?: ReorderProps
 }) {
@@ -35,19 +33,19 @@ function FilterTab({
       reorder.onLiftOrDrop()
       return
     }
-    // In edit mode a tab opens for renaming, the same way a phrase cell does.
-    if (onEdit) {
-      onEdit()
-      return
-    }
+    // **A tab goes to its category in every mode.** In edit mode it used to
+    // open the category for renaming instead, which left edit mode unable to
+    // move between categories at all: editing a phrase under another tab meant
+    // leaving the mode, going there and coming back. Renaming is the pencil
+    // among the bar's own tools now, acting on the tab that is showing.
     onSelect()
     setFlash(true)
     setTimeout(() => setFlash(false), 300)
-  }, [onSelect, onEdit, reorder])
+  }, [onSelect, reorder])
   const { active: dwelling, props } = useDwellControl(settings.actionDwellMs, handleActivate, {
     // A dwell landing mid-drag would lift a second tab out from under the one
     // already in the pointer's hand.
-    disabled: reorder ? reorder.dragging : active && !onEdit,
+    disabled: reorder ? reorder.dragging : active,
   })
 
   return (
@@ -57,7 +55,6 @@ function FilterTab({
         active && 'active',
         dwelling && 'dwelling',
         flash && 'flashed',
-        onEdit && !reorder && 'edit-mode',
         reorder && 'reorderable',
         reorder?.held && 'is-held',
         // Somewhere the held tab could go — every other category, while one is
@@ -68,9 +65,7 @@ function FilterTab({
       style={dwellVar(settings.actionDwellMs)}
       role="tab"
       aria-selected={active}
-      aria-label={
-        reorder ? reorderLabel(reorder, label, 'category') : onEdit ? `Rename category: ${label}` : label
-      }
+      aria-label={reorder ? reorderLabel(reorder, label, 'category') : label}
       draggable={reorder ? true : undefined}
       onDragStart={reorder?.onDragStart}
       onDragOver={
@@ -213,6 +208,9 @@ export function FilterBar({
   pointing?: { movedTo: string | null } | null
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  /** The tab that is showing, and whether it is a category somebody can rename. */
+  const showing = categories.find(c => c.id === activeFilter)
+  const renameable = showing !== undefined && !showing.fixed
   // A category is named by itself, so a key here is already something to say.
   const { propsFor, release } = useReorder({ onReorder, onLift })
 
@@ -290,7 +288,6 @@ export function FilterBar({
             label={c.label}
             active={activeFilter === c.id}
             onSelect={() => onSelect(c.id)}
-            onEdit={onEditCategory && !c.fixed ? () => onEditCategory(c.id) : undefined}
             reorder={reordering && !c.fixed ? propsFor(c.id) : undefined}
           />
         ))}
@@ -337,7 +334,7 @@ export function FilterBar({
           Adding and sorting share the first slot: adding a category mid-reorder
           would drop whatever is in the air, so the two are never offered at
           once, and the pair keeps a constant width either way. */}
-      {(onAddCategory || onToggleReorder) && (
+      {(onAddCategory || onEditCategory || onToggleReorder) && (
         <div className="filter-bar-tools">
           {reordering
             ? onToggleSort && (
@@ -363,6 +360,27 @@ export function FilterBar({
                   <PlusIcon />
                 </FilterBarButton>
               )}
+
+          {/* Renaming the tab that is showing. **Quiet rather than away** where
+              that tab is not a category — All and the three records — or while
+              the tabs are being arranged: the tools are aimed at by position,
+              and one that came and went would move the one beside it. */}
+          {onEditCategory && (
+            <FilterBarButton
+              className="rename-category-tab"
+              label={
+                reordering
+                  ? 'Finish reordering to rename a category'
+                  : renameable
+                    ? `Rename category: ${showing?.label}`
+                    : `${showing?.label ?? 'This tab'} is not a category, so it cannot be renamed`
+              }
+              disabled={reordering || !renameable}
+              onActivate={() => showing && onEditCategory(showing.id)}
+            >
+              <EditIcon />
+            </FilterBarButton>
+          )}
 
           {onToggleReorder && (
             <FilterBarButton

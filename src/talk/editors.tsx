@@ -9,11 +9,12 @@
 // in this file is that strip, the grid a category is chosen from, and the one
 // dialog that survives, which is about a category rather than a phrase.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
 import { DwellInput, PickerModal, PickerTile } from '../ui/controls'
 import { cx, dwellVar } from '../ui/style'
+import { usePendingChoice } from '../ui/pending-choice'
 import { type Draft } from './use-editor'
 
 function EditAction({
@@ -68,21 +69,18 @@ function CategoryPicker({
   onCreate: () => void
 }) {
   const { settings } = useSettings()
-  const [open, setOpen] = useState(false)
-  /** What to put back if they leave without settling on one. */
-  const [before, setBefore] = useState(value)
+  /**
+   * **Held until Done, not applied and put back.** Every tile rested on used to
+   * be written into the draft at once, and Cancel wrote the category it opened
+   * on back — so just looking at the grid and leaving it marked the draft as
+   * started: *Start a new phrase* woke up with nothing to start again from, an
+   * offer to undo a delete went away, and a blank draft stopped following the
+   * tab. A rest is how somebody looks at a tile as well as how they pick one —
+   * see `ui/pending-choice.ts`, which the other grids here already use.
+   */
+  const { open, pending, mark, begin, done, cancel } = usePendingChoice(value, onChange)
 
-  const openPicker = useCallback(() => {
-    setBefore(value)
-    setOpen(true)
-  }, [value])
-
-  const { active, props } = useDwellControl(settings.actionDwellMs, openPicker)
-
-  const cancel = useCallback(() => {
-    onChange(before)
-    setOpen(false)
-  }, [onChange, before])
+  const { active, props } = useDwellControl(settings.actionDwellMs, begin)
 
   return (
     <>
@@ -113,19 +111,14 @@ function CategoryPicker({
       </div>
 
       {open && (
-        <PickerModal
-          title="Choose a category"
-          hint="Where this phrase is filed"
-          onDone={() => setOpen(false)}
-          onCancel={cancel}
-        >
+        <PickerModal title="Choose a category" hint="Where this phrase is filed" onDone={done} onCancel={cancel}>
           {categories.map(name => (
             <PickerTile
               key={name}
               name={name}
               detail={`${countFor(name)} ${countFor(name) === 1 ? 'phrase' : 'phrases'}`}
-              selected={name === value}
-              onSelect={() => onChange(name)}
+              selected={name === pending}
+              onSelect={() => mark(name)}
             />
           ))}
           {/* Last, and it leaves the grid: naming it is a keyboard job, and the
@@ -135,7 +128,7 @@ function CategoryPicker({
             className="is-new"
             selected={false}
             onSelect={() => {
-              setOpen(false)
+              cancel()
               onCreate()
             }}
           />

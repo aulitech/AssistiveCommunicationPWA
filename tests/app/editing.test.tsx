@@ -654,10 +654,46 @@ describe('starting from the last choice made', () => {
       expect(shownCategory()).toBe(chosen)
     })
 
-    // Only on the way *in*. A draft that refiled itself every time somebody
-    // looked at another tab would change where a phrase goes without being
-    // asked — including one they had already chosen a category for.
-    it('leaves the draft where it is when the tab changes under it', () => {
+    /**
+     * Regression guard. Resting on a tile is how somebody looks at it, and the
+     * grid wrote each one into the draft as it was rested on, then wrote the
+     * old one back on Cancel — so looking and leaving marked the draft as
+     * started, and a blank draft stopped following the tab.
+     */
+    it('changes nothing about the draft when the category grid is looked at and left', () => {
+      renderApp()
+      enterEditMode()
+      const here = shownCategory()!
+      click(categoryTrigger())
+      click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent !== here))
+
+      click(pickerBtn('Cancel'))
+
+      expect(shownCategory()).toBe(here)
+      expect(iconBtn('Start a new phrase')?.disabled, 'the draft counts as started').toBe(true)
+    })
+
+    it('files the draft under a tile only on Done', () => {
+      renderApp()
+      enterEditMode()
+      const here = shownCategory()!
+      click(categoryTrigger())
+      const other = inDoc('.picker-tile').find(t => {
+        const name = t.querySelector('.picker-tile-name')?.textContent
+        return name && name !== here && name !== 'New category…'
+      })!
+      const name = other.querySelector('.picker-tile-name')!.textContent!
+      click(other)
+      expect(shownCategory(), 'a rest on a tile filed the draft').toBe(here)
+
+      click(pickerBtn('Done'))
+
+      expect(shownCategory()).toBe(name)
+    })
+
+    // All is not a category, so arriving at it says nothing about where the
+    // next phrase goes.
+    it('leaves the draft where it is when the tab changes to All', () => {
       renderApp()
       enterEditMode()
       const elsewhere = goElsewhere()
@@ -666,6 +702,49 @@ describe('starting from the last choice made', () => {
       click(tab('All'))
 
       expect(shownCategory()).toBe(elsewhere)
+    })
+
+    /**
+     * **A blank draft follows the tab it arrives at**, now that tabs go to their
+     * category in edit mode: somebody moving between them before writing
+     * anything is looking for where the next phrase goes.
+     */
+    it('files a blank draft under a category tab arrived at in edit mode', () => {
+      renderApp()
+      enterEditMode()
+      const here = shownCategory()!
+      const elsewhere = categoryChoices().find(name => name !== here)!
+
+      click(tab(elsewhere))
+
+      expect(activeTab(), 'the tab never changed').toBe(elsewhere)
+      expect(shownCategory()).toBe(elsewhere)
+    })
+
+    // A draft somebody has started stays where it is: refiling it would move
+    // a phrase they are part way through writing.
+    it('leaves a draft with words in it where it is', () => {
+      renderApp()
+      enterEditMode()
+      const here = shownCategory()!
+      const elsewhere = categoryChoices().find(name => name !== here)!
+      writePhrase('Part way through')
+
+      click(tab(elsewhere))
+
+      expect(shownCategory()).toBe(here)
+    })
+
+    it('leaves a draft whose category was picked where it is', () => {
+      renderApp()
+      enterEditMode()
+      const choices = categoryChoices()
+      const picked = choices[1]
+      chooseCategory(picked)
+
+      click(tab(choices[2]))
+
+      expect(shownCategory()).toBe(picked)
     })
 
     // None of the four is somewhere a phrase can be filed: All is every

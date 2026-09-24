@@ -377,7 +377,11 @@ describe('in edit mode', () => {
     click(action('Keep this translation as a phrase'))
 
     expect(stored()).toHaveLength(1)
-    click(tab('Sorted'))
+    // On the board, under whichever category it was filed — the board goes
+    // there with it. It went to the first one: Translations is not a category,
+    // so entering edit mode on it chose none. This clicked Sorted once, which
+    // in edit mode opened a rename and left the board where it was; a tab goes
+    // to its category now, and Cereza was never filed there.
     expect(cellFor('Cereza')).toBeDefined()
   })
 })

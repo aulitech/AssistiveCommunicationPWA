@@ -4040,12 +4040,6 @@ body {
   color: var(--text-muted);
 }
 
-/* A tab that is about to be renamed rather than selected. */
-.filter-tab.edit-mode {
-  border-style: dashed;
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-}
-
 /* Ordering controls, parked past the scroll arrows so they hold still while
    the tabs move under them. Bigger than the pills in the scroller, since these
    are the ones a user has to find. */
