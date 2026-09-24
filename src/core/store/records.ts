@@ -1,6 +1,7 @@
 // Part of `core/store.ts` — see there for what the store is, and AGENTS.md for
 // the rules each part keeps.
 
+import { FORMER_IDS } from '../phrases'
 import { PHRASE_SORT_KEY, RECENT_KEY, SENT_KEY, TRANSLATED_KEY, USAGE_KEY, writeKey } from './keys'
 import { storageKey } from './owner'
 
@@ -208,7 +209,13 @@ export function loadUsage(): PhraseUsage {
       // damage; either would sort above a phrase that has actually been used.
       if (typeof count !== 'number' || !Number.isFinite(count) || count <= 0) continue
       if (typeof at !== 'number' || !Number.isFinite(at)) continue
-      usage[id] = { count: Math.floor(count), at }
+      // A copy dropped when the table was collapsed counts towards the phrase
+      // it was folded into — see `foldFormerCopies`.
+      const into = FORMER_IDS.get(id) ?? id
+      const was = usage[into]
+      usage[into] = was
+        ? { count: was.count + Math.floor(count), at: Math.max(was.at, at) }
+        : { count: Math.floor(count), at }
     }
     return usage
   } catch {

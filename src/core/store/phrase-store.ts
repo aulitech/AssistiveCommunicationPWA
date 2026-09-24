@@ -1,6 +1,7 @@
 // Part of `core/store.ts` — see there for what the store is, and AGENTS.md for
 // the rules each part keeps.
 
+import { FORMER_IDS } from '../phrases'
 import { PHRASE_STORE_KEY, writeKey } from './keys'
 import { storageKey } from './owner'
 
@@ -225,7 +226,7 @@ export function loadPhraseStore(): PhraseStore {
     const raw = JSON.parse(localStorage.getItem(storageKey(PHRASE_STORE_KEY)) ?? '{}')
     const base = emptyStore()
     const categoryOrder = stringList(raw.categoryOrder) ?? base.categoryOrder
-    return {
+    const store: PhraseStore = {
       custom: Array.isArray(raw.custom) ? raw.custom.filter(isStoredPhrase) : base.custom,
       overrides: stringRecord(raw.overrides) ?? base.overrides,
       hidden: stringList(raw.hidden) ?? base.hidden,
@@ -246,11 +247,82 @@ export function loadPhraseStore(): PhraseStore {
       emergencyOrder: stringList(raw.emergencyOrder) ?? base.emergencyOrder,
       phraseOrder: readPhraseOrder(raw.phraseOrder) ?? base.phraseOrder,
     }
+    // Written before the table was collapsed, so this is the first look at it
+    // since — see `foldFormerCopies`, and `TABLE` for why that can be told.
+    return foldFormerCopies(store, FORMER_IDS, raw.table !== TABLE)
   } catch {
     return emptyStore()
   }
 }
 
+/**
+ * Which phrase table the store was last written against. **2 is the one with
+ * every phrase in Library**; a store without it was written against the one
+ * before, with forty-odd categories and the same words in several of them.
+ *
+ * Stamped on the way out rather than kept in `PhraseStore`, because nothing
+ * but `loadPhraseStore` has any use for it: it says whether the store has been
+ * read since the collapse, which is the one thing `foldFormerCopies` cannot
+ * work out from the store itself.
+ */
+const TABLE = 2
+
 export function savePhraseStore(s: PhraseStore) {
-  writeKey(storageKey(PHRASE_STORE_KEY), JSON.stringify(s))
+  writeKey(storageKey(PHRASE_STORE_KEY), JSON.stringify({ ...s, table: TABLE }))
+}
+
+/** Whether a record holds this key itself, rather than by inheritance. */
+const holds = (record: object, key: string) => Object.prototype.hasOwnProperty.call(record, key)
+
+/**
+ * Everything written against a copy of a phrase that was dropped when the
+ * table was collapsed, **moved onto the phrase it was folded into** — see
+ * `TableRow.merged` in `core/phrases.ts`.
+ *
+ * The phrase's own entry wins wherever both have one: its wording, its
+ * category, its voice for a language. What only a dropped copy had comes
+ * across, so a copy somebody reworded or gave a voice is not undone by the
+ * collapse. Every source of a store passes through here — storage, a backup, a
+ * sheet, another device — so an id from before is never left naming nothing.
+ *
+ * **Hiding is the one that needs to know when.** Somebody who deleted one
+ * copy of a phrase and kept another still had it on their board, and
+ * collapsing the two must not take it away — so the first time a store written
+ * before the collapse is read (`unhide`), a phrase comes back if any copy of it
+ * was showing. Only that once: afterwards it is hidden because they hid it, and
+ * a copy that no longer exists is not a reason to bring it back.
+ */
+export function foldFormerCopies(
+  store: PhraseStore,
+  former: ReadonlyMap<string, string> = FORMER_IDS,
+  unhide = false,
+): PhraseStore {
+  const into = (id: string) => former.get(id) ?? id
+  const fold = <T>(record: Record<string, T>, merge: (kept: T, from: T) => T): Record<string, T> => {
+    const out: Record<string, T> = {}
+    for (const [id, value] of Object.entries(record)) if (!former.has(id)) out[id] = value
+    for (const [id, value] of Object.entries(record)) {
+      if (!former.has(id)) continue
+      const kept = into(id)
+      out[kept] = holds(out, kept) ? merge(out[kept], value) : value
+    }
+    return out
+  }
+  const folded = (ids: string[]) => [...new Set(ids.map(into))]
+
+  const hidden = new Set(store.hidden)
+  const showing = new Set<string>()
+  if (unhide) for (const [copy, kept] of former) if (!hidden.has(copy)) showing.add(kept)
+
+  return {
+    ...store,
+    overrides: fold(store.overrides, kept => kept),
+    categoryOverrides: fold(store.categoryOverrides, kept => kept),
+    voiceOverrides: fold(store.voiceOverrides, (kept, from) => ({ ...from, ...kept })),
+    hidden: store.hidden.filter(id => !former.has(id) && !showing.has(id)),
+    emergencyOrder: folded(store.emergencyOrder),
+    phraseOrder: Object.fromEntries(
+      Object.entries(store.phraseOrder).map(([category, ids]) => [category, folded(ids)]),
+    ),
+  }
 }

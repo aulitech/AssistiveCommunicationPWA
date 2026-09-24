@@ -17,6 +17,7 @@ import { audioKey, warmAudio } from '../voice/audio-cache'
 import { remoteVoiceId } from '../voice/elevenlabs'
 import { useSettings } from '../ui/settings'
 import {
+  foldFormerCopies,
   loadPhraseStore,
   loadAliases,
   moveInOrder,
@@ -437,7 +438,10 @@ export function useBoard() {
    */
   const restore = useCallback(
     (nextStore: PhraseStore, nextAliases: AliasStore) => {
-      updateStore(nextStore)
+      // From a backup or another device, either of which may be from before
+      // the table was collapsed — so the ids are moved on, but nothing hidden
+      // is brought back: that is for this board's own first look.
+      updateStore(foldFormerCopies(nextStore))
       changeAliases(nextAliases)
     },
     [updateStore, changeAliases],

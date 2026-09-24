@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { cleanup, fireEvent, act } from '@testing-library/react'
 import { parseBackup } from '../../src/core/backup'
+import { PHRASES, phraseId } from '../../src/core/phrases'
 import { downloads, setClipboardText, unmeasuredGrid } from '../setup'
 import { $$, $, settle, click, renderApp, cells } from './harness'
 
@@ -186,6 +187,31 @@ describe('backup & sharing', () => {
 
     expect(cellTexts()).toContain(MINE.text)
     expect(JSON.parse(localStorage.getItem(STORE_KEY)!).custom).toContainEqual(MINE)
+  })
+
+  // A backup made before the table was collapsed names a reworded copy by the
+  // copy's own id. It lands on the phrase the copy was folded into.
+  it('brings a backup from before Library onto the phrase each copy became', async () => {
+    const kept = PHRASES.find(p => p.source === 'Good morning')!
+    const copy = phraseId('Texting', 'Good morning')
+    seed({ overrides: { [kept.id]: 'Morning, all' } })
+    renderApp()
+    openBackup()
+    // What an older release wrote: the same file, naming the copy.
+    const file = saved().text.split(kept.id).join(copy)
+    expect(file).toContain(copy)
+
+    cleanup()
+    localStorage.removeItem(STORE_KEY)
+    renderApp()
+    openBackup()
+    setClipboardText(file)
+    click(btn('Paste a backup'))
+    await flush()
+    click(btn("Add to what's here"))
+    await flush()
+
+    expect(JSON.parse(localStorage.getItem(STORE_KEY)!).overrides).toEqual({ [kept.id]: 'Morning, all' })
   })
 
   it('brings in a backup chosen from a file', async () => {

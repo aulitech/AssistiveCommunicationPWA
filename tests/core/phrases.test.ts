@@ -12,6 +12,8 @@ import {
   plainPhrase,
   aliasOverlay,
   tableAliases,
+  FORMER_IDS,
+  phraseId,
 } from '../../src/core/phrases'
 import table from '../../src/core/imports/phrasetable.json'
 
@@ -263,34 +265,55 @@ describe("the user's own alias lists", () => {
 })
 
 // What the panel is seeded from.
-// A phrase listed twice in one category is a cell somebody has to read past to
-// reach the one they meant. Four of them shipped for years, differing only in
-// the table's own `id` field, which this app ignores — and the disambiguating
-// suffix in `makePhrase` hid them by giving the second copy a working id.
-//
-// The same wording in *different* categories is deliberate and stays: "Good
-// morning" is under Interpersonal, Texting and Time of Day, and somebody looks
-// in whichever of the three they think in.
+// Every phrase Peri ships is under Library, once. They came in forty-odd
+// categories with the same words in two, three and four of them — "Good
+// morning" was under Interpersonal, Texting and Time of Day — and a gaze has to
+// read past every copy to reach the one it meant.
 describe('the shipped table', () => {
-  it('lists no phrase twice in the same category', () => {
-    const seen = new Map<string, number>()
-    for (const p of PHRASES) {
-      const key = `${p.category}\u0000${p.source.trim().toLowerCase().replace(/\s+/g, ' ')}`
-      seen.set(key, (seen.get(key) ?? 0) + 1)
-    }
-    const repeated = [...seen].filter(([, n]) => n > 1).map(([key]) => key.replace('\u0000', ' — '))
-    expect(repeated).toEqual([])
+  const rows = (
+    table as { phrases: { txt: string; category: string; was?: string; merged?: string[] }[] }
+  ).phrases.filter(r => r.txt?.trim())
+
+  it('files every phrase under Library', () => {
+    expect([...new Set(PHRASES.map(p => p.category))]).toEqual(['Library'])
   })
 
-  // The rule above is about a category, not about the board: taking every
-  // repeat out would empty three categories of their most-used phrases.
-  it('still lists the same wording under more than one category', () => {
-    const categories = new Map<string, Set<string>>()
-    for (const p of PHRASES) {
-      const text = p.text.toLowerCase()
-      categories.set(text, (categories.get(text) ?? new Set()).add(p.category))
-    }
-    expect([...categories.values()].filter(c => c.size > 1).length).toBeGreaterThan(50)
+  // Compared as shown, and without regard to case: "No Way" and "No way", or
+  // "What is next ?" and "What is next?", are one cell read twice.
+  it('lists each wording once', () => {
+    const seen = new Map<string, number>()
+    for (const p of PHRASES) seen.set(p.text.toLowerCase(), (seen.get(p.text.toLowerCase()) ?? 0) + 1)
+    expect([...seen].filter(([, n]) => n > 1).map(([text]) => text)).toEqual([])
+  })
+
+  // Everything somebody has done to a phrase is written against its id, which
+  // is the category and the words together — made from Library, every one of
+  // those would have come loose at once.
+  it('keeps the id each phrase had under the category it came in', () => {
+    const byText = new Map(PHRASES.map(p => [p.source, p.id]))
+    const moved = rows.filter(r => byText.get(r.txt.trim()) !== phraseId(r.was ?? r.category, r.txt.trim()))
+    expect(moved.map(r => r.txt)).toEqual([])
+    expect(byText.get("It's not my cup of tea")).toBe(phraseId('Idioms', "It's not my cup of tea"))
+  })
+
+  it('says where each phrase came from', () => {
+    expect(rows.filter(r => !r.was).map(r => r.txt)).toEqual([])
+  })
+
+  it('points every copy it dropped at a phrase that is on the board', () => {
+    const ids = new Set(PHRASES.map(p => p.id))
+    expect(FORMER_IDS.size).toBe(rows.reduce((n, r) => n + (r.merged?.length ?? 0), 0))
+    expect(FORMER_IDS.size).toBeGreaterThan(200)
+    expect([...FORMER_IDS.values()].filter(id => !ids.has(id))).toEqual([])
+    // A former id that is also a current one would fold a phrase into another.
+    expect([...FORMER_IDS.keys()].filter(id => ids.has(id))).toEqual([])
+  })
+
+  it('folds the copies of one wording into the first, and a differently written copy too', () => {
+    const idOf = (text: string) => PHRASES.find(p => p.source === text)?.id
+    expect(FORMER_IDS.get(phraseId('Texting', 'Good morning'))).toBe(idOf('Good morning'))
+    expect(FORMER_IDS.get(phraseId('Interpersonal', 'Good morning'))).toBe(idOf('Good morning'))
+    expect(FORMER_IDS.get(phraseId('Exclamations', 'No Way'))).toBe(idOf('No way'))
   })
 })
 

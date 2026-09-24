@@ -32,6 +32,7 @@ export {
 } from './store/settings'
 export {
   emptyStore,
+  foldFormerCopies,
   loadPhraseStore,
   type PhraseStore,
   readPhraseOrder,

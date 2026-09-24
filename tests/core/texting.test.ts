@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { PHRASES } from '../../src/core/phrases'
+import table from '../../src/core/imports/phrasetable.json'
 import { search } from '../../src/core/search'
 
-// The Texting category is the expansions of the acronyms below, and this is the
+// The Texting category was the expansions of the acronyms below, and this is the
 // only place the pairing is written down — the table holds "Be right back" with
 // nothing to say it came from BRB. Without this, dropping one is invisible.
 //
@@ -290,7 +291,14 @@ const TEXTING: Record<string, string> = {
   WTH: 'What the hell',
 }
 
-const texting = PHRASES.filter(p => p.category === 'Texting')
+// Every phrase is in Library now, so "the Texting category" is the phrases the
+// table says were filed there — under it, or as a copy folded into another.
+const wasTexting = new Set(
+  (table as { phrases: { txt: string; was?: string; merged?: string[] }[] }).phrases
+    .filter(r => r.was === 'Texting' || r.merged?.some(m => m.startsWith('Texting|')))
+    .map(r => r.txt.trim()),
+)
+const texting = PHRASES.filter(p => wasTexting.has(p.source))
 const byText = new Set(texting.map(p => p.text))
 
 // Acronyms that are also the initials of what they stand for, so typing the
@@ -464,14 +472,14 @@ describe('the texting acronyms', () => {
   // which is what a grid narrowed to a handful of cells needs.
   it('finds the common ones by typing the acronym', () => {
     const missed = FOUND_BY_INITIALS.filter(
-      acronym => !search(texting, 'Texting', acronym).some(p => p.text === TEXTING[acronym]),
+      acronym => !search(texting, 'all', acronym).some(p => p.text === TEXTING[acronym]),
     )
     expect(missed).toEqual([])
   })
 
   it('reaches most of the rest that way too', () => {
     const reachable = Object.entries(TEXTING).filter(([acronym, expansion]) =>
-      search(texting, 'Texting', acronym).some(p => p.text === expansion),
+      search(texting, 'all', acronym).some(p => p.text === expansion),
     )
     expect(reachable.length).toBeGreaterThanOrEqual(REACHABLE_BY_ACRONYM)
   })
@@ -489,7 +497,7 @@ describe('the texting acronyms', () => {
 
   it('still finds the cut ones by their acronym', () => {
     const missed = CENSORED.filter(
-      acronym => !search(texting, 'Texting', acronym).some(p => p.text === TEXTING[acronym]),
+      acronym => !search(texting, 'all', acronym).some(p => p.text === TEXTING[acronym]),
     )
     // "F you" is f-y by initials, not f-u; it is reached by typing the words.
     expect(missed).toEqual(['FU'])

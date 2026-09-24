@@ -500,9 +500,25 @@ describe('rendering only part of a long grid', () => {
   // supplied before it does anything at all.
   //
   // These work inside one category rather than the whole table. It is the same
-  // mechanism either way, and mounting two and a half thousand cells eight more
-  // times costs the build machine more memory than the coverage is worth.
-  const CATEGORY = 'Texting'
+  // mechanism either way, and mounting two thousand cells eight more times
+  // costs the build machine more memory than the coverage is worth — so the
+  // board is given a long category of its own, and a short one to leave it for.
+  const CATEGORY = 'Long'
+  beforeEach(() =>
+    localStorage.setItem(
+      'dwellspeak_phrase_store_v2',
+      JSON.stringify({
+        custom: [
+          ...Array.from({ length: 250 }, (_, i) => ({
+            id: `custom-long-${i}`,
+            text: `Long list line ${i}`,
+            category: 'Long',
+          })),
+          { id: 'custom-short', text: 'Only one here', category: 'Short' },
+        ],
+      }),
+    ),
+  )
   const tabNamed = (name: string) => $$('.filter-tab[role="tab"]').find(el => el.textContent === name)
   const rendered = () => cells().length
 
@@ -606,7 +622,7 @@ describe('rendering only part of a long grid', () => {
     click($$('.scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll to bottom'))
     expect(rendered()).toBe(total)
 
-    click(tabNamed('Food'))
+    click(tabNamed('Short'))
     click(tabNamed(CATEGORY))
 
     expect(rendered()).toBe(60)
@@ -689,24 +705,27 @@ describe('settling after the screen moves', () => {
   })
 })
 
-describe('the texting category', () => {
+// The texting acronyms' expansions came in a category of their own, and are in
+// Library with everything else now — found by typing the acronym, which is what
+// made a category that size usable in the first place.
+describe('the texting expansions', () => {
   const tabs = () => $$('.filter-tab[role="tab"]')
   const tabNamed = (name: string) => tabs().find(el => el.textContent === name)
 
-  it('has a tab of its own', () => {
+  it('are in Library rather than a tab of their own', () => {
     renderApp()
-    expect(tabNamed('Texting')).toBeDefined()
+    expect(tabNamed('Texting')).toBeUndefined()
+    expect(tabNamed('Library')).toBeDefined()
   })
 
-  it('fills the grid with expansions rather than acronyms', () => {
+  it('fill the grid as expansions rather than acronyms', () => {
     // Looks for a phrase among the table's thousands, so the board has to be
     // holding all of them rather than the windowful it renders when measured.
     unmeasuredGrid()
     renderApp()
-    click(tabNamed('Texting'))
+    click(tabNamed('Library'))
 
     const texts = cells().map(c => c.textContent)
-    expect(texts.length).toBeGreaterThanOrEqual(200)
     expect(texts).toContain('Be right back')
     expect(texts).toContain('Talk to you later')
     // Spoken aloud, "B R B" is not a sentence.
@@ -716,9 +735,9 @@ describe('the texting category', () => {
   // Adults swear, and an AAC board that cannot is a board that puts its user in
   // a register they did not choose. The word is cut to its first letter, which
   // is also the letter its acronym uses.
-  it('carries the profane ones cut to a letter', () => {
+  it('carry the profane ones cut to a letter', () => {
     renderApp()
-    click(tabNamed('Texting'))
+    click(tabNamed('Library'))
 
     fireEvent.change($('.text-display')!, { target: { value: 'wtf' } })
     settle()
@@ -726,11 +745,9 @@ describe('the texting category', () => {
     expect(cells().map(c => c.textContent)).toContain('What the f')
   })
 
-  // Typing the acronym narrows the grid to it, which is what makes a category
-  // this size usable at all.
-  it('narrows to a phrase when its acronym is typed', () => {
+  it('narrow to a phrase when its acronym is typed', () => {
     renderApp()
-    click(tabNamed('Texting'))
+    click(tabNamed('Library'))
 
     fireEvent.change($('.text-display')!, { target: { value: 'ttyl' } })
     settle()

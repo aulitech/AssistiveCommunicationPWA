@@ -13,6 +13,7 @@ import {
   editToggle,
   plainCell,
   box,
+  writeIn,
   iconBtn,
   writePhrase,
   editTitle,
@@ -291,8 +292,11 @@ describe('sent messages', () => {
 
   describe('in edit mode', () => {
     const enterEditMode = () => click(editToggle())
+    // Written rather than chosen off the board: everything Peri ships is in
+    // Library, where a message kept from one of its phrases is already on the
+    // board and cannot be kept twice.
     const sendOne = () => {
-      click(plainCell())
+      writeIn(box(), 'Nobody has said this here before')
       const said = message()
       click(iconBtn('Speak'))
       clearMessage()
