@@ -860,6 +860,11 @@ describe('the spoken language', () => {
       inDoc('.picker-modal-actions .panel-btn').find(b => b.getAttribute('aria-label') === label)
     const stored = () => JSON.parse(localStorage.getItem('dwellspeak_settings') ?? '{}').language ?? ''
     const openGrid = () => {
+      // Languages the device has voices for, which is all the grid offers.
+      voices.push(
+        { voiceURI: 'uri-Paulina', name: 'Paulina', lang: 'es-MX' } as SpeechSynthesisVoice,
+        { voiceURI: 'uri-Thomas', name: 'Thomas', lang: 'fr-FR' } as SpeechSynthesisVoice,
+      )
       renderApp()
       openSettings()
       click(languageRow()!.querySelector('.picker-trigger'))

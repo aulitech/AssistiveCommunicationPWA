@@ -17,7 +17,6 @@
 // exactly as it always has.
 
 import { reportFailure } from '../core/report'
-import { speechTag } from '../core/translation'
 
 /**
  * The two names this API goes by.
@@ -96,10 +95,7 @@ function describe(error: string): string {
 /**
  * Start listening, and hand back the way to stop.
  *
- * **The tag is the one the synthesiser would be told**, not the one the setting
- * holds — `speechTag` again. There is no Patois recogniser any more than there
- * is a Patois voice, so Patois is listened for as Jamaican English, and a board
- * set to it hears something rather than nothing.
+ * **The tag is the board's language**, the one the synthesiser is told too.
  *
  * Interim results are on, because a gaze user needs to see that the thing is
  * working: a box that stays empty for four seconds and then fills is
@@ -119,8 +115,8 @@ export function listen(tag: string, { onHeard, onDone, onSound }: Listening): ()
   }
 
   // An empty tag is what the API itself means by "the device decides", so it is
-  // set either way rather than guarded — `speechTag('')` is `''`.
-  recognition.lang = speechTag(tag)
+  // set either way rather than guarded.
+  recognition.lang = tag
   // A question is a sentence or two, and a recogniser left to decide for itself
   // stops at the first pause — which in a room is somebody drawing breath.
   recognition.continuous = true

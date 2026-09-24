@@ -51,26 +51,20 @@ async function translateBatch(texts: string[], target: string, key: string): Pro
 }
 
 async function main() {
-  // The tag Peri stores, not the code the service wants — `es-PR` is asked for
-  // as `es` and written to `es-419.json`, and the mapping lives in one place
-  // rather than in a person's head at the command line.
+  // The tag Peri stores — `es-MX` is asked for as `es` and written to
+  // `es.json` — and the mapping lives in one place rather than in a person's
+  // head at the command line.
   const tag = process.argv[2]
   const key = process.env.GOOGLE_TRANSLATE_KEY ?? ''
   if (!tag || !key) {
-    console.error('usage: GOOGLE_TRANSLATE_KEY=… pnpm translate <language>   (e.g. es, fr, es-PR)')
+    console.error('usage: GOOGLE_TRANSLATE_KEY=… pnpm translate <language>   (e.g. es, fr, vi)')
     process.exit(2)
   }
 
   const table = tableFor(tag)
   const target = translationTarget(tag)
-  if (!table) {
+  if (!table || !target) {
     console.error(`${tag} needs no translating.`)
-    process.exit(2)
-  }
-  if (!target) {
-    console.error(
-      `Nothing translates into ${tag}. Its table is written by hand and read by somebody who speaks it — see src/core/imports/translations/${table}.json`,
-    )
     process.exit(2)
   }
 

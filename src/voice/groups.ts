@@ -5,8 +5,6 @@
 // ElevenLabs account files each voice under a collection. One row of chips
 // serves both, because a voice only ever belongs to one of them.
 
-import { VARIETIES, varietyLabel } from '../core/translation'
-
 export interface VoiceChoice {
   voiceURI: string
   name: string
@@ -108,21 +106,16 @@ export function voiceLabel(v: VoiceChoice) {
 export function languageLabel(tag: string, voices: SpeechSynthesisVoice[]): string {
   if (!tag) return 'Device default'
   const known = speechLanguages(voices).find(l => l.tag === tag)
-  return known?.label ?? varietyLabel(tag) ?? languageName(tag)
+  return known?.label ?? languageName(tag)
 }
 
 /**
- * What the device can speak, and what Peri can translate into.
+ * The languages the board can be set to: the ones this device has voices for.
  *
- * The rule was once "only languages this device has voices for", on the grounds
- * that offering one it cannot speak is offering silence. That is true of a
- * language with nothing behind it and false of one Peri ships a table for: no
- * device has a Puerto Rican or a Patois voice, and both of those are the point.
- * A variety Peri knows leads the list, since a device offering sixty voices
- * offers none of these.
+ * Peri once led the list with two it knew something extra about, Spanish (Puerto
+ * Rico) and Jamaican Patois, which no device has a voice of its own for. They
+ * were taken out; every language here now has a voice behind it.
  */
 export function offeredLanguages(voices: SpeechSynthesisVoice[]) {
-  const own = VARIETIES.map(v => ({ tag: v.tag, label: v.label, count: 0 }))
-  const device = speechLanguages(voices).filter(l => !own.some(o => o.tag === l.tag))
-  return [...own, ...device]
+  return speechLanguages(voices)
 }

@@ -24,6 +24,7 @@
 import { EMPTY_ALIASES, type AliasStore, type Aliases } from './phrases'
 import {
   readPhraseOrder,
+  readLanguage,
   readReplyModel,
   readVoiceOverrides,
   DEFAULT_SETTINGS,
@@ -313,7 +314,7 @@ function readSettings(v: unknown): Settings | undefined {
     // wrote it may have voices this one has never had — but a language tag is a
     // language tag, and anything that is not one would only ever be handed
     // straight to the synthesiser.
-    language: LANGUAGE_TAG.test(str(v.language)) ? str(v.language) : DEFAULT_SETTINGS.language,
+    language: LANGUAGE_TAG.test(str(v.language)) ? readLanguage(str(v.language)) : DEFAULT_SETTINGS.language,
     voiceURI: str(v.voiceURI),
     // Same shape check, once per key. `''` is a real key — the board following
     // the device — so it is allowed through where a tag is otherwise required.

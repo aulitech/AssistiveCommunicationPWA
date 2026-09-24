@@ -317,7 +317,7 @@ One file each under `docs/decisions/`, moved out of this file whole — read the
 - [Waiting](docs/decisions/waiting.md) — the busy indicator, and the quarter-second it waits
 - [Settings](docs/decisions/settings.md) — the text size, putting a value back, and the factory reset
 - [Synchronizing](docs/decisions/synchronizing.md) — two devices and one board: the envelope, the passphrase as the address, the last change winning, and what travels
-- [Speaking another language](docs/decisions/speaking-another-language.md) — translating in front of `speak()`, the varieties, the shipped tables, the app's key, and the Translations tab
+- [Speaking another language](docs/decisions/speaking-another-language.md) — translating in front of `speak()`, the shipped tables, the app's key, and the Translations tab
 - [Listen mode](docs/decisions/listen-mode.md) — the question box, the suggested answers and every rule that keeps one from being spoken, and filling the silence
 - [Backups](docs/decisions/backups.md) — a backup as a diff, merging against replacing, and clamping what a file sets
 - [The board as a spreadsheet](docs/decisions/the-board-as-a-spreadsheet.md) — the board as rows in Excel, CSV and Sheets, and a sheet back onto the board

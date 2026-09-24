@@ -731,6 +731,13 @@ describe('the spoken language in a file', () => {
   it('keeps a tag it has never seen, since another device may well speak it', () => {
     expect(settingsFrom({ ...DEFAULT_SETTINGS, language: 'cy-GB' })?.language).toBe('cy-GB')
   })
+
+  // A file from before Jamaican Patois and Puerto Rican Spanish were taken out.
+  // Patois read as a tag is Japanese, which is the one answer worse than none.
+  it('reads a language Peri no longer offers as what it speaks now', () => {
+    expect(settingsFrom({ ...DEFAULT_SETTINGS, language: 'jam' })?.language).toBe('')
+    expect(settingsFrom({ ...DEFAULT_SETTINGS, language: 'es-PR' })?.language).toBe('es')
+  })
 })
 
 // An arrangement somebody built by hand inside a category. It is as much a thing

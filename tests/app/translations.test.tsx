@@ -150,12 +150,12 @@ describe('what lands in it', () => {
   })
 
   it('keeps the language it was said in', () => {
-    renderApp({ language: 'es-PR' })
-    seedTranslations('es-PR', { Cherry: 'Cereza' })
+    renderApp({ language: 'es-MX' })
+    seedTranslations('es-MX', { Cherry: 'Cereza' })
     showSorted()
     click(cellFor('Cherry'))
 
-    expect(stored().map(t => t.tag)).toEqual(['es-PR'])
+    expect(stored().map(t => t.tag)).toEqual(['es-MX'])
   })
 
   it('survives a reload', () => {
@@ -194,12 +194,12 @@ describe('what lands in it', () => {
     expect(stored()).toEqual([])
   })
 
-  // Patois is the case with no service behind it at all: a phrase outside the
-  // shipped table is spoken as it was written, so there is no translation to
-  // keep — while one inside the table is kept like any other.
+  // With no translation key built in there is no service behind it at all: a
+  // phrase outside the shipped table is spoken as it was written, so there is no
+  // translation to keep — while one inside the table is kept like any other.
   it('keeps nothing for a phrase that fell back to the original', () => {
-    renderApp({ language: 'jam' })
-    seedTranslations('jam', { Cherry: 'Cherry dem' })
+    renderApp({ language: 'fr' })
+    seedTranslations('fr', { Cherry: 'Cerise' })
     showSorted()
 
     click(cellFor('Apple'))
@@ -281,7 +281,7 @@ describe('saying one again', () => {
   it('says them as their own language after the board has moved on', () => {
     localStorage.setItem(
       'peri_translated',
-      JSON.stringify([{ id: 't1', source: 'Cherry', text: 'Cereza', tag: 'es-PR' }]),
+      JSON.stringify([{ id: 't1', source: 'Cherry', text: 'Cereza', tag: 'es-MX' }]),
     )
     renderApp()
     showTranslations()
@@ -289,19 +289,19 @@ describe('saying one again', () => {
     click(cells()[0])
 
     expect(spoken).toEqual(['Cereza'])
-    expect(lastUtterance?.lang).toBe('es-PR')
+    expect(lastUtterance?.lang).toBe('es-MX')
   })
 
   it('says them as that language', () => {
-    renderApp({ language: 'es-PR' })
-    seedTranslations('es-PR', { Cherry: 'Cereza' })
+    renderApp({ language: 'es-MX' })
+    seedTranslations('es-MX', { Cherry: 'Cereza' })
     showSorted()
     click(cellFor('Cherry'))
     showTranslations()
 
     click(cells()[0])
 
-    expect(lastUtterance?.lang).toBe('es-PR')
+    expect(lastUtterance?.lang).toBe('es-MX')
   })
 
   /**

@@ -12,13 +12,7 @@ import { loadElevenLabs, type ElevenLabsAccount } from '../core/store'
 import { remoteVoiceId, synthesize } from './elevenlabs'
 import { audioKey, cachedAudio } from './audio-cache'
 import { reportFailure } from '../core/report'
-import {
-  needsTranslation,
-  rememberTranslation,
-  speechTag,
-  translationFor,
-  translationTarget,
-} from '../core/translation'
+import { needsTranslation, rememberTranslation, translationFor, translationTarget } from '../core/translation'
 import { hasTranslateKey, translate } from '../translate/client'
 
 export interface VoiceSettings {
@@ -115,9 +109,7 @@ function speakOnDevice(text: string, settings: VoiceSettings) {
   // `voiceURI` is a platform string, and one that travelled here from another
   // device may name nothing at all. This is what stops that falling all the way
   // back to whatever the *system* speaks.
-  // The tag the synthesiser is told is not always the one the setting holds:
-  // there is no Patois voice anywhere, so Patois is spoken as Jamaican English.
-  if (!utterance.voice && settings.language) utterance.lang = speechTag(settings.language)
+  if (!utterance.voice && settings.language) utterance.lang = settings.language
   speechSynthesis.speak(utterance)
 }
 
@@ -170,12 +162,9 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
     return say(known, settings, options)
   }
 
-  // Nothing to translate with, nothing that *can* translate it, or no time to
-  // do it in. The words go out as they were written: a listener who has to work
-  // at it is recoverable, and silence is not.
-  //
-  // The middle case is Patois, which no service offers at all — so a phrase
-  // outside the shipped table is spoken as it was written and nothing is sent.
+  // Nothing to translate with, nothing to translate into, or no time to do it
+  // in. The words go out as they were written: a listener who has to work at it
+  // is recoverable, and silence is not.
   //
   // Asked here rather than left to the client to refuse, because all three of
   // these have to speak **in the same tick**. A promise that resolves into the

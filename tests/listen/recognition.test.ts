@@ -73,18 +73,8 @@ describe('listening', () => {
   })
 
   it('listens in the language the board is set to', () => {
-    listen('es-PR', handlers)
-    expect(FakeRecognition.last!.lang).toBe('es-PR')
-  })
-
-  /**
-   * There is no Patois recogniser any more than there is a Patois voice, so it
-   * is listened for as Jamaican English — the same `speechTag` the synthesiser
-   * is told, and for the same reason.
-   */
-  it('listens for Patois as Jamaican English', () => {
-    listen('jam', handlers)
-    expect(FakeRecognition.last!.lang).toBe('en-JM')
+    listen('es-MX', handlers)
+    expect(FakeRecognition.last!.lang).toBe('es-MX')
   })
 
   it('leaves the language to the device when none is set', () => {
