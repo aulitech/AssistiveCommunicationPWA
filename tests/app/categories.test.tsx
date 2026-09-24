@@ -373,14 +373,17 @@ describe('deleting a category', () => {
     expect(box().value).toBe('')
   })
 
+  // Filed there by hand, rather than following the tab: the draft holds the
+  // name itself, and has to be told it has gone.
   it('keeps new words being filed under it, and finds them another home', () => {
     renderApp()
-    click(tabNamed('Humor'))
     enterEditMode()
     const filed = () => $('.category-trigger .picker-trigger-label')?.textContent
-    expect(filed()).toBe('Humor')
     writePhrase('Not yet saved')
+    chooseCategory('Humor')
+    expect(filed()).toBe('Humor')
 
+    click(tabNamed('Humor'))
     click(renameBtn())
     confirmDelete()
 
