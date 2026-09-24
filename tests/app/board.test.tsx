@@ -740,3 +740,55 @@ describe('the texting category', () => {
     expect(cells().length).toBeLessThan(20)
   })
 })
+
+/**
+ * The line that says what just happened. It went after two seconds, and for a
+ * save, a refused paste or a blocked link it is the only thing that says
+ * anything — a gaze on the board rather than on the corner could miss all of
+ * it. So it stays until the next dwell, the rule the mark on the last phrase
+ * said follows.
+ */
+describe('the line that says what just happened', () => {
+  const toast = () => $('.toast')?.textContent
+  const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
+
+  it('is still there after the two seconds it used to last', () => {
+    renderApp()
+    expect(toast()).toMatch(/auto-speak off/i)
+
+    act(() => void vi.advanceTimersByTime(5000))
+
+    expect(toast()).toMatch(/auto-speak off/i)
+  })
+
+  it('goes on the next dwell, whatever it is', () => {
+    renderApp()
+    expect(toast()).toBeTruthy()
+
+    // Sent rather than All: All is where the board opens, and the tab already
+    // showing does not answer to a dwell at all.
+    click(tab('Sent'))
+
+    expect(toast()).toBeUndefined()
+  })
+
+  // Every control tells its listeners before its own action, so the dwell
+  // that raises a message is not the one that takes it away.
+  it('stays for the dwell that raised it', () => {
+    renderApp()
+
+    click(speakToggle())
+
+    expect(toast()).toMatch(/auto-speak on/i)
+  })
+
+  // A board somebody has walked away from should not greet them with news
+  // about whatever they do next.
+  it('goes by itself on a board nobody is working', () => {
+    renderApp()
+
+    act(() => void vi.advanceTimersByTime(10_500))
+
+    expect(toast()).toBeUndefined()
+  })
+})
