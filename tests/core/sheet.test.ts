@@ -540,6 +540,19 @@ describe('replacing the board with a sheet', () => {
     expect(plan.removed).toBe(boardOf(store()).phrases.length - 2)
   })
 
+  // Replacing makes a category hold what the rows say: a phrase whose row no
+  // longer names a category it was in is taken out of it, even where another
+  // row still names that category.
+  it('takes a phrase out of a category its row no longer names', () => {
+    const rows = [
+      row(OTHER.source, 'Drinks', OTHER.id),
+      row('My tea', 'Old', 'custom-1'),
+      row(TEA.source, 'Old', TEA.id),
+    ]
+    const { store: next } = applySheet(rows, on(store()), 'replace', ids())
+    expect(next.members).toEqual({ Drinks: [OTHER.id], Old: [TEA.id, 'custom-1'] })
+  })
+
   // A category keeps its own order: the rows are not read for it.
   it('keeps each category’s own order, and adds what is new at its end', () => {
     const sheet = boardRows(boardOf(store()).phrases, ['Old', 'Drinks'], store())
