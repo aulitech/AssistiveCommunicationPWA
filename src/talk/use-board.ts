@@ -354,17 +354,31 @@ export function useBoard() {
     [store, updateStore],
   )
 
+  /**
+   * Takes a category off the board **and every phrase in it** — the dialog has
+   * asked by now, and said how many. Each goes the way a single delete does: one
+   * somebody wrote is removed, one Peri ships is hidden. A rename or a move that
+   * pointed at the category goes too, or a category made later under the same
+   * name would inherit what this one was.
+   */
   const removeCategory = useCallback(
     (name: string) => {
+      const going = new Set(mainPhrases.filter(p => p.category === name).map(p => p.id))
       const phraseOrder = { ...store.phraseOrder }
       delete phraseOrder[name]
       updateStore({
+        custom: store.custom.filter(p => !going.has(p.id)),
+        hidden: [...store.hidden, ...[...going].filter(id => !id.startsWith('custom-'))],
         categories: store.categories.filter(c => c !== name),
         categoryOrder: store.categoryOrder.filter(c => c !== name),
+        categoryRenames: Object.fromEntries(Object.entries(store.categoryRenames).filter(([, to]) => to !== name)),
+        categoryOverrides: Object.fromEntries(
+          Object.entries(store.categoryOverrides).filter(([, to]) => to !== name),
+        ),
         phraseOrder,
       })
     },
-    [store.categories, store.categoryOrder, store.phraseOrder, updateStore],
+    [mainPhrases, store, updateStore],
   )
 
   // A drag or a drop writes the whole arrangement, so a move made while A–Z is

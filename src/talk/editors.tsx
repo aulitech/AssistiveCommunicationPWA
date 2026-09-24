@@ -10,7 +10,7 @@
 // dialog that survives, which is about a category rather than a phrase.
 
 import { useEffect, useState } from 'react'
-import { useDwellControl } from '../ui/dwell'
+import { holdDwellsUntilMoved, useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
 import { DwellInput, PickerModal, PickerTile } from '../ui/controls'
 import { cx, dwellVar } from '../ui/style'
@@ -213,14 +213,15 @@ export function CategoryModal({
   onClose: () => void
 }) {
   const [value, setValue] = useState(name ?? '')
+  // Deleting asks first. It takes every phrase in the category with it, and
+  // the bin is one dwell from Save — so the dwell on Delete only asks.
+  const [confirming, setConfirming] = useState(false)
   const isNew = name === null
   const trimmed = value.trim()
 
   const clash = existing.some(c => c !== name && c.toLowerCase() === trimmed.toLowerCase())
   const canSave = trimmed !== '' && trimmed !== name && !clash
-  // Only a category with nothing in it can go; otherwise deleting it would
-  // silently take phrases with it.
-  const canDelete = !isNew && phraseCount === 0
+  const phrases = `${phraseCount} phrase${phraseCount === 1 ? '' : 's'}`
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -229,6 +230,39 @@ export function CategoryModal({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  // The dialog changes under a pointer resting where Delete was. **What lands
+  // there is the way back**, and the delete that confirms sits at the other end
+  // of the row, where Save was — and nothing arms until the pointer has moved,
+  // so a gaze still on the first Delete cannot answer the question it raised.
+  const ask = (asking: boolean) => {
+    holdDwellsUntilMoved()
+    setConfirming(asking)
+  }
+
+  if (confirming && name !== null) {
+    return (
+      <div
+        className="edit-modal-scrim"
+        onPointerDown={e => {
+          if (e.target === e.currentTarget) onClose()
+        }}
+      >
+        <div className="edit-modal" role="alertdialog" aria-modal="true" aria-label={`Delete ${name}`}>
+          <div className="edit-modal-title">Delete {name}?</div>
+          <p className="edit-modal-note">
+            {phraseCount > 0
+              ? `Its ${phrases} will be deleted with it. This cannot be undone.`
+              : 'It has no phrases in it.'}
+          </p>
+          <div className="edit-modal-actions is-confirming">
+            <EditAction kind="cancel" label="Keep it" onActivate={() => ask(false)} />
+            <EditAction kind="danger" label="Delete" onActivate={onDelete} />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -265,15 +299,10 @@ export function CategoryModal({
         />
 
         {clash && <p className="edit-modal-note">A category is already called that.</p>}
-        {!isNew && phraseCount > 0 && (
-          <p className="edit-modal-note">
-            {phraseCount} phrase{phraseCount === 1 ? '' : 's'} will move with it. Empty a category before deleting
-            it.
-          </p>
-        )}
+        {!isNew && phraseCount > 0 && <p className="edit-modal-note">{phrases} will move with it.</p>}
 
         <div className="edit-modal-actions">
-          {canDelete && <EditAction kind="danger" label="Delete" onActivate={onDelete} />}
+          {!isNew && <EditAction kind="danger" label="Delete" onActivate={() => ask(true)} />}
           <EditAction kind="cancel" label="Cancel" onActivate={onClose} />
           <EditAction kind="save" label="Save" onActivate={() => onSave(trimmed)} disabled={!canSave} />
         </div>
