@@ -554,25 +554,49 @@ export function readPhraseOrder(raw: unknown): Record<string, string[]> | null {
   return order
 }
 
+/** A list of strings, anything else in it dropped. */
+const stringList = (v: unknown): string[] | null =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null
+
+/** A record of strings, anything else in it dropped. */
+const stringRecord = (v: unknown): Record<string, string> | null =>
+  v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(
+        Object.entries(v).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+      )
+    : null
+
+/** A phrase somebody wrote, whole, or not at all. */
+const isStoredPhrase = (v: unknown): v is StoredPhrase =>
+  !!v &&
+  typeof v === 'object' &&
+  typeof (v as StoredPhrase).id === 'string' &&
+  typeof (v as StoredPhrase).text === 'string' &&
+  typeof (v as StoredPhrase).category === 'string'
+
+/**
+ * The phrase store, **every part of it checked**.
+ *
+ * Whatever is in storage may not have been written by this release: an older
+ * one, a hand-edited file, another device synchronizing. A phrase whose words
+ * were not words used to reach the parser while the board was drawn, and the
+ * board threw — on every load, since the damage stays put, so *Start again* on
+ * the crash screen would only have started the crash again. So each list and
+ * record keeps the entries of the right shape and drops the rest: one damaged
+ * phrase costs that phrase, never the board.
+ */
 export function loadPhraseStore(): PhraseStore {
   try {
     const raw = JSON.parse(localStorage.getItem(storageKey(PHRASE_STORE_KEY)) ?? '{}')
     const base = emptyStore()
-    const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null)
-    const categoryOrder = strings(raw.categoryOrder) ?? base.categoryOrder
+    const categoryOrder = stringList(raw.categoryOrder) ?? base.categoryOrder
     return {
-      custom: Array.isArray(raw.custom) ? raw.custom : base.custom,
-      overrides: raw.overrides && typeof raw.overrides === 'object' ? raw.overrides : base.overrides,
-      hidden: Array.isArray(raw.hidden) ? raw.hidden : base.hidden,
-      categoryRenames:
-        raw.categoryRenames && typeof raw.categoryRenames === 'object'
-          ? raw.categoryRenames
-          : base.categoryRenames,
-      categories: strings(raw.categories) ?? base.categories,
-      categoryOverrides:
-        raw.categoryOverrides && typeof raw.categoryOverrides === 'object'
-          ? raw.categoryOverrides
-          : base.categoryOverrides,
+      custom: Array.isArray(raw.custom) ? raw.custom.filter(isStoredPhrase) : base.custom,
+      overrides: stringRecord(raw.overrides) ?? base.overrides,
+      hidden: stringList(raw.hidden) ?? base.hidden,
+      categoryRenames: stringRecord(raw.categoryRenames) ?? base.categoryRenames,
+      categories: stringList(raw.categories) ?? base.categories,
+      categoryOverrides: stringRecord(raw.categoryOverrides) ?? base.categoryOverrides,
       voiceOverrides: readVoiceOverrides(raw.voiceOverrides) ?? base.voiceOverrides,
       categoryOrder,
       // Stores written before the two arrangements were told apart have an
@@ -584,7 +608,7 @@ export function loadPhraseStore(): PhraseStore {
           : categoryOrder.length > 0
             ? 'custom'
             : 'alpha',
-      emergencyOrder: strings(raw.emergencyOrder) ?? base.emergencyOrder,
+      emergencyOrder: stringList(raw.emergencyOrder) ?? base.emergencyOrder,
       phraseOrder: readPhraseOrder(raw.phraseOrder) ?? base.phraseOrder,
     }
   } catch {

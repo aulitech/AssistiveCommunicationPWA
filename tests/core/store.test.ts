@@ -898,3 +898,54 @@ describe('writing it down', () => {
     expect(told).toEqual([])
   })
 })
+
+/**
+ * **One damaged phrase costs that phrase, never the board.** What is in storage
+ * may not have been written by this release — an older one, a hand-edited file,
+ * another device — and a phrase whose words were not words reached the parser
+ * while the board was drawn, on every load, since the damage stays put.
+ */
+describe('reading back a damaged phrase store', () => {
+  const stored = (value: unknown) => localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringify(value))
+
+  it('keeps the phrases that are whole and drops the ones that are not', () => {
+    stored({
+      custom: [
+        { id: 'custom-good', text: 'Put the kettle on', category: 'Kitchen' },
+        { id: 'custom-number', text: 123, category: 'Kitchen' },
+        { id: 'custom-nameless', text: 'No category' },
+        null,
+        'a bare string',
+        { text: 'No id', category: 'Kitchen' },
+      ],
+    })
+    expect(loadPhraseStore().custom).toEqual([
+      { id: 'custom-good', text: 'Put the kettle on', category: 'Kitchen' },
+    ])
+  })
+
+  it('keeps only the wordings that are words', () => {
+    stored({ overrides: { 'em-0': 'Help me, please!', 'em-1': 42, 'em-2': null, 'em-3': { text: 'x' } } })
+    expect(loadPhraseStore().overrides).toEqual({ 'em-0': 'Help me, please!' })
+  })
+
+  it('keeps only the names that are names', () => {
+    stored({
+      hidden: ['em-0', 7, null],
+      categoryRenames: { Food: 'Meals', Drink: 3 },
+      categoryOverrides: { 'custom-a': 'Kitchen', 'custom-b': false },
+    })
+    const store = loadPhraseStore()
+    expect(store.hidden).toEqual(['em-0'])
+    expect(store.categoryRenames).toEqual({ Food: 'Meals' })
+    expect(store.categoryOverrides).toEqual({ 'custom-a': 'Kitchen' })
+  })
+
+  // An array where a record belongs is not a record, whatever it holds.
+  it('reads a list where a record belongs as nothing at all', () => {
+    stored({ overrides: ['em-0', 'Help'], categoryRenames: [] })
+    const store = loadPhraseStore()
+    expect(store.overrides).toEqual({})
+    expect(store.categoryRenames).toEqual({})
+  })
+})
