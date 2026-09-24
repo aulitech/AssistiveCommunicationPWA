@@ -240,16 +240,6 @@
             "count": 0
         },
         {
-            "txt": "Come talk with me",
-            "id": 8,
-            "image": "",
-            "category": "Library",
-            "was": "Social Requests",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
             "txt": "I want a hug.",
             "id": 9,
             "image": "",
@@ -824,19 +814,6 @@
             "was": "Continuations",
             "merged": [
                 "Texting|Okay"
-            ],
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "Really",
-            "id": 66,
-            "image": "",
-            "category": "Library",
-            "was": "Continuations",
-            "merged": [
-                "Responses|Really"
             ],
             "language": "en",
             "audio": {},
@@ -1524,6 +1501,9 @@
             "image": "",
             "category": "Library",
             "was": "Ice Breakers",
+            "merged": [
+                "Texting|By the way"
+            ],
             "language": "en",
             "audio": {},
             "count": 0
@@ -1554,6 +1534,9 @@
             "image": "",
             "category": "Library",
             "was": "Ice Breakers",
+            "merged": [
+                "Social Requests|Come talk with me"
+            ],
             "language": "en",
             "audio": {},
             "count": 0
@@ -1672,6 +1655,9 @@
             "image": "",
             "category": "Library",
             "was": "Ice Breakers",
+            "merged": [
+                "Texting|How have you been"
+            ],
             "language": "en",
             "audio": {},
             "count": 0
@@ -2231,7 +2217,8 @@
             "was": "Phone Conversation",
             "merged": [
                 "Social Amenities|How are you?",
-                "Responses|How are you?"
+                "Responses|How are you?",
+                "Texting|How are you"
             ],
             "language": "en",
             "audio": {},
@@ -3531,6 +3518,10 @@
             "image": "",
             "category": "Library",
             "was": "Exclamations",
+            "merged": [
+                "Continuations|Really",
+                "Responses|Really"
+            ],
             "language": "en",
             "audio": {},
             "count": 0
@@ -4608,7 +4599,9 @@
             "category": "Library",
             "was": "Conversation Modifiers",
             "merged": [
-                "Agree-Disagree|No way!"
+                "Agree-Disagree|No way!",
+                "Responses|No way",
+                "Exclamations|No Way"
             ],
             "language": "en",
             "audio": {},
@@ -4726,6 +4719,9 @@
             "image": "",
             "category": "Library",
             "was": "Conversation Modifiers",
+            "merged": [
+                "Texting|What do you mean"
+            ],
             "language": "en",
             "audio": {},
             "count": 0
@@ -5066,7 +5062,8 @@
             "category": "Library",
             "was": "Interpersonal",
             "merged": [
-                "Conversation Control|What's up?"
+                "Conversation Control|What's up?",
+                "Texting|What's up"
             ],
             "language": "en",
             "audio": {},
@@ -8372,6 +8369,9 @@
             "image": "",
             "category": "Library",
             "was": "Information",
+            "merged": [
+                "Self Determination|How will I {}"
+            ],
             "language": "en",
             "audio": {},
             "count": 0
@@ -8565,6 +8565,9 @@
             "image": "",
             "category": "Library",
             "was": "Information",
+            "merged": [
+                "Texting|What about you"
+            ],
             "language": "en",
             "audio": {},
             "count": 0
@@ -8595,6 +8598,9 @@
             "image": "",
             "category": "Library",
             "was": "Information",
+            "merged": [
+                "Texting|What are you doing"
+            ],
             "language": "en",
             "audio": {},
             "count": 0
@@ -9595,7 +9601,8 @@
             "category": "Library",
             "was": "Information",
             "merged": [
-                "Conversation Control|You know what I think?"
+                "Conversation Control|You know what I think?",
+                "Responses|You know what I think"
             ],
             "language": "en",
             "audio": {},
@@ -10438,6 +10445,9 @@
             "image": "",
             "category": "Library",
             "was": "Conversation Control",
+            "merged": [
+                "Texting|How about you"
+            ],
             "language": "en",
             "audio": {},
             "count": 0
@@ -11010,6 +11020,9 @@
             "image": "",
             "category": "Library",
             "was": "Conversation Control",
+            "merged": [
+                "Texting|What do you think"
+            ],
             "language": "en",
             "audio": {},
             "count": 0
@@ -11737,16 +11750,6 @@
         {
             "txt": "At least it isn't any worse",
             "id": 1170,
-            "image": "",
-            "category": "Library",
-            "was": "Responses",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "Change the subject please",
-            "id": 1171,
             "image": "",
             "category": "Library",
             "was": "Responses",
@@ -14107,19 +14110,6 @@
             "count": 0
         },
         {
-            "txt": "No way",
-            "id": 1441,
-            "image": "",
-            "category": "Library",
-            "was": "Responses",
-            "merged": [
-                "Exclamations|No Way"
-            ],
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
             "txt": "Nobody told me that",
             "id": 1442,
             "image": "",
@@ -15245,16 +15235,6 @@
         {
             "txt": "You know what I mean",
             "id": 1570,
-            "image": "",
-            "category": "Library",
-            "was": "Responses",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "You know what I think",
-            "id": 1571,
             "image": "",
             "category": "Library",
             "was": "Responses",
@@ -19288,6 +19268,9 @@
             "image": "",
             "category": "Library",
             "was": "Self Determination",
+            "merged": [
+                "Responses|Change the subject please"
+            ],
             "language": "en",
             "audio": {},
             "count": 0
@@ -19295,16 +19278,6 @@
         {
             "txt": "Get the hell away from me",
             "id": 1988,
-            "image": "",
-            "category": "Library",
-            "was": "Self Determination",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "How will I {}",
-            "id": 1990,
             "image": "",
             "category": "Library",
             "was": "Self Determination",
@@ -20773,88 +20746,8 @@
             "count": 0
         },
         {
-            "txt": "How are you",
-            "id": 2205,
-            "image": "",
-            "category": "Library",
-            "was": "Texting",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "How about you",
-            "id": 2206,
-            "image": "",
-            "category": "Library",
-            "was": "Texting",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "What about you",
-            "id": 2207,
-            "image": "",
-            "category": "Library",
-            "was": "Texting",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "What's up",
-            "id": 2208,
-            "image": "",
-            "category": "Library",
-            "was": "Texting",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "What are you doing",
-            "id": 2209,
-            "image": "",
-            "category": "Library",
-            "was": "Texting",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
             "txt": "What are you up to",
             "id": 2210,
-            "image": "",
-            "category": "Library",
-            "was": "Texting",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "How have you been",
-            "id": 2211,
-            "image": "",
-            "category": "Library",
-            "was": "Texting",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "What do you think",
-            "id": 2212,
-            "image": "",
-            "category": "Library",
-            "was": "Texting",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "What do you mean",
-            "id": 2213,
             "image": "",
             "category": "Library",
             "was": "Texting",
@@ -21225,16 +21118,6 @@
         {
             "txt": "For what it's worth",
             "id": 2268,
-            "image": "",
-            "category": "Library",
-            "was": "Texting",
-            "language": "en",
-            "audio": {},
-            "count": 0
-        },
-        {
-            "txt": "By the way",
-            "id": 2269,
             "image": "",
             "category": "Library",
             "was": "Texting",
