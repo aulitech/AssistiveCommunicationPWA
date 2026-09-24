@@ -23,10 +23,34 @@ export function useComposer({
   onTranslated?: SpeakOptions['onTranslated']
 } = {}) {
   const { settings } = useSettings()
-  const [text, setText] = useState('')
+  const [text, setTextState] = useState('')
   const [history, setHistory] = useState<string[]>([])
   const [cursorPos, setCursorPos] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  /**
+   * Where the caret sits right after a phrase was put in the box, **while
+   * nothing has been typed since** — null otherwise.
+   *
+   * A phrase is finished; a word somebody is typing is not, and the two look
+   * the same to anything that reads only the text. The caret left against a
+   * phrase's last word was read as a word being typed: the board narrowed to
+   * it and took the category bar away, and the next phrase chosen replaced it
+   * as if finishing it — "Once in a blue moon" and then "Moonlight becomes you"
+   * came out as "Once in a blue Moonlight becomes you". Building a sentence
+   * out of more than one category, which is what composing is for, could not
+   * be done without typing a space first.
+   */
+  const [afterPhrase, setAfterPhrase] = useState<number | null>(null)
+
+  /**
+   * Text the person wrote themselves — typed, pasted, or from Peri's own keys.
+   * Whatever it is, it is not a phrase just chosen any more.
+   */
+  const setText = useCallback((next: string) => {
+    setTextState(next)
+    setAfterPhrase(null)
+  }, [])
 
   /** Clear when there is something to clear; otherwise put the last one back. */
   const showUndo = !text && history.length > 0
@@ -45,9 +69,11 @@ export function useComposer({
 
   /** The partial word left of the cursor, which the grid narrows itself to. */
   const currentWord = useMemo(() => {
+    // Against the end of a phrase just chosen there is no word being typed.
+    if (cursorPos === afterPhrase) return ''
     const before = text.slice(0, cursorPos)
     return before.match(/\S+$/)?.[0] ?? ''
-  }, [text, cursorPos])
+  }, [text, cursorPos, afterPhrase])
 
   /**
    * Replace the partial word left of the cursor with `phraseText`.
@@ -64,13 +90,16 @@ export function useComposer({
       const pos = el?.selectionStart ?? text.length
       const before = text.slice(0, pos)
       const after = text.slice(pos)
-      const stripped = before.replace(/\S+$/, '')
+      // The word being finished is replaced — unless the caret is against the
+      // end of a phrase, which is not a word being typed but a phrase that
+      // ended there, and is kept whole.
+      const stripped = pos === afterPhrase ? before : before.replace(/\S+$/, '')
       const separator = stripped.length > 0 && !stripped.endsWith(' ') ? ' ' : ''
       const inserted = stripped + separator + phraseText
       const newText = inserted + (after.startsWith(' ') || after === '' ? '' : ' ') + after
 
       setHistory(h => [...h, text])
-      setText(newText)
+      setTextState(newText)
 
       // Land the cursor in the first unfilled blank if there is one, so the word
       // can be typed straight into the gap; otherwise sit at the end of what was
@@ -89,9 +118,11 @@ export function useComposer({
           }
         }
         setCursorPos(at >= 0 ? at : inserted.length)
+        // In a blank, a word is exactly what comes next.
+        setAfterPhrase(at >= 0 ? null : inserted.length)
       }, 0)
     },
-    [text],
+    [text, afterPhrase],
   )
 
   /**
@@ -106,12 +137,14 @@ export function useComposer({
    * whatever mode the board is in.
    */
   const propose = useCallback((suggestion: string, blankAt = -1) => {
-    setText(suggestion)
+    setTextState(suggestion)
     // Into the first gap where there is one, so the fact the model was not told
     // is typed straight into the hole it left — the same landing a
     // fill-in-the-blank phrase gets. The end of the text otherwise.
     const at = blankAt >= 0 ? blankAt : suggestion.length
     setCursorPos(at)
+    // An answer is a whole one, like a phrase: nothing at its end is being typed.
+    setAfterPhrase(blankAt >= 0 ? null : at)
     const el = textareaRef.current
     // After the render that wrote the text, or the box is still holding the old
     // value and the caret lands in the middle of it.
@@ -125,11 +158,12 @@ export function useComposer({
   const clearOrUndo = useCallback(() => {
     if (text) {
       setHistory(h => [...h, text])
-      setText('')
+      setTextState('')
     } else if (history.length) {
-      setText(history[history.length - 1])
+      setTextState(history[history.length - 1])
       setHistory(h => h.slice(0, -1))
     }
+    setAfterPhrase(null)
   }, [text, history])
 
   /** Resolves to whether the clipboard took it, which is worth saying out loud. */

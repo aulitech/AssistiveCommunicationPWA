@@ -43,9 +43,10 @@ const BOARD = [
 ]
 
 /**
- * For the tests about the board moving under a gaze. They share a word, so
- * choosing one narrows the grid to all three rather than to itself — which is
- * the board moving under somebody who has not moved.
+ * For the tests about the board moving under a gaze. They share a word, which
+ * is what made choosing one narrow the grid to all three before a phrase just
+ * chosen stopped counting as a word being typed — and is what lets a second one
+ * be chosen after the first, to see that the first is kept whole.
  */
 const SHARE_A_WORD = [
   { id: 'custom-j1', text: 'Apple juice', category: 'Sorted' },
@@ -571,10 +572,12 @@ describe('the rendered window when the order changes', () => {
 /**
  * **The pointer is somebody's gaze, and it rests where it last fired.** The
  * board no longer rearranges on the dwell that chose a phrase — see *when the
- * board takes a new order* — but composing still moves it: the phrase goes into
- * the message box, the grid narrows to the word at the caret, and the browser
- * gives whatever lands under the gaze a `pointerenter` of its own, which is an
- * instruction nobody gave.
+ * board takes a new order* — nor narrows to its last word, but composing can
+ * still move it: the phrase goes into the message box, the box grows to hold
+ * it and pushes the grid down, and the browser gives whatever lands under the
+ * gaze a `pointerenter` of its own, which is an instruction nobody gave.
+ * jsdom lays nothing out, so no box grows here, and what these hold to is the
+ * guard itself.
  *
  * Nothing may be chosen until the gaze is aimed somewhere else. A second of
  * deafness is the wrong shape for this one: too long for somebody who has
@@ -633,8 +636,8 @@ describe('the board moving under a resting gaze', () => {
     fireEvent.pointerMove(document.body, { clientX: 400, clientY: 400 })
     arrivesUnderThePointer(1)
 
-    // The word at the caret is what a phrase chosen while composing replaces.
-    expect(message()).toBe('Apple Orange juice')
+    // After the first, whole — a phrase chosen is not a word being finished.
+    expect(message()).toBe('Apple juice Orange juice')
   })
 
   // A gaze drifts a pixel or two while somebody holds as still as they can, and
@@ -681,7 +684,7 @@ describe('the board moving under a resting gaze', () => {
     fireEvent.click(cells()[1])
     settle()
 
-    expect(message()).toBe('Apple Orange juice')
+    expect(message()).toBe('Apple juice Orange juice')
   })
 
   // Nothing moved, so nothing is held back: the board is still under auto-speak
@@ -797,16 +800,20 @@ describe('the mark on the last phrase said', () => {
     expect(marked()).toEqual([])
   })
 
-  // Composing narrows the board to the word at the caret as the phrase is
-  // marked, so the cell moves under the mark — which is the whole reason the
-  // mark is on the cell rather than on a place in the grid.
+  // The cell moves under the mark when a word typed after it narrows the
+  // board — which is the whole reason the mark is on the cell rather than on a
+  // place in the grid. Typing is not a dwell, so the mark is still there.
   it('stays on the phrase when the board moves under it', () => {
     renderApp()
     showSorted()
     click($('.edit-toggle'))
     click($('.edit-toggle'))
-
     click(cellFor('Banana'))
+
+    const typed = 'Banana b'
+    fireEvent.change($('.text-display')!, { target: { value: typed } })
+    fireEvent.select($('.text-display')!, { target: { selectionStart: typed.length, selectionEnd: typed.length } })
+    settle()
 
     expect(onBoard(), 'the board did not move, so nothing was proved').toEqual(['Banana'])
     expect(marked()).toEqual(['Banana'])
