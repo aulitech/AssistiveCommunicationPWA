@@ -2,9 +2,9 @@
 // window. The board has to go on working from memory, and has to say, and stay
 // saying, that what is changed now will not survive a reload.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { act } from '@testing-library/react'
+import { act, fireEvent } from '@testing-library/react'
 import { downloads } from '../setup'
-import { $, click, editToggle, renderApp, savePhrase, writePhrase } from './harness'
+import { $, box, cells, click, editToggle, renderApp, savePhrase, writePhrase } from './harness'
 
 let refused: ReturnType<typeof vi.spyOn> | null = null
 /** Every write from here on refused, the way a full store refuses them. */
@@ -82,6 +82,22 @@ describe('when this device stops saving', () => {
     expect(downloads).toHaveLength(1)
     expect(downloads[0].text).toContain('Written while nothing could be kept')
     expect(keepButton()?.getAttribute('aria-label')).toBe('Backup saved')
+  })
+
+  /**
+   * The strip arrives at the top and moves every cell down under a pointer
+   * that has not moved, and in edit mode the one that lands underneath would
+   * open for rewording on nobody's say-so.
+   */
+  it('holds the dwells as the strip arrives', () => {
+    renderApp()
+    storageRefuses()
+    click(editToggle())
+
+    fireEvent.pointerEnter(cells()[0])
+    act(() => void vi.advanceTimersByTime(1600))
+
+    expect(box().value, 'a phrase opened under a pointer that had not moved').toBe('')
   })
 
   it('says nothing while the device is saving', () => {
