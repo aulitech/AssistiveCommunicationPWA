@@ -101,8 +101,11 @@ This is the canonical project structure. Start with task-relevant files below. O
 
 **talk/** — **the usual starting point for UI work**
 
-- `talk/talk.tsx` - The screen: which category is showing, which mode is on, and what to say when an operation finishes
+- `talk/talk.tsx` - The screen: which category is showing, which mode is on, and what to say when an operation finishes. **What is left in it coordinates**: `setMode` alone reaches a dozen things across the screen, which is why it stays here rather than in a hook of its own — a hook taking everything it touches as arguments would only move the file, not divide it. The concerns with a narrow way in and out have been moved out, into the three `use-…` hooks below that say so
 - `talk/use-board.ts` - What is on the board and every way of changing it
+- `talk/use-grid-order.ts` - **What order the grid is in, and what it shows** — see *Ordering the grid*. The four arrangements per tab, the snapshot of the usage record the board is ordered by, the order Sent is held in, and the one list those and a typed word make. The tab, the three records and the counts go in; the list the grid draws and the two ways of changing its order come out
+- `talk/use-synchronized.ts` - The board going to the user's other devices and what arrives from them — the account, the payload, landing a board — wired to `sync/use-sync.ts`. See *Synchronizing*
+- `talk/use-not-keeping.ts` - Whether this device has stopped keeping what is changed, and the backup from memory that answers it — the strip at the top of the talk screen. See *Saying when something failed*
 - `talk/use-composer.ts` - The message being built: its text, its history, and the caret
 - `talk/use-editor.ts` - The phrase being written or reworded, which in edit mode is what the message box holds. There is **always a draft** — choosing a phrase points it at one, and nothing opens or closes. Only the fields actually touched are kept; the rest are derived from the phrase each render, so a draft cannot go stale against a store that changed underneath it. `open` is stable across renders on purpose: it reaches every one of a couple of thousand memoised phrase cells
 - `talk/use-sent.ts` - The messages already spoken or copied
