@@ -214,6 +214,31 @@ describe('backup & sharing', () => {
     expect(JSON.parse(localStorage.getItem(STORE_KEY)!).overrides).toEqual({ [kept.id]: 'Morning, all' })
   })
 
+  // A file somebody else made can name a category this board would have
+  // nothing in. A tab onto a blank grid is one more thing to read past.
+  it('brings in no category that has nothing in it', async () => {
+    seed({ custom: [MINE] })
+    renderApp()
+    openBackup()
+    const backup = JSON.parse(saved().text)
+    backup.categories.created = [...backup.categories.created, 'Ghost']
+    const file = JSON.stringify(backup)
+
+    cleanup()
+    localStorage.removeItem(STORE_KEY)
+    renderApp()
+    openBackup()
+    setClipboardText(file)
+    click(btn('Paste a backup'))
+    await flush()
+    click(btn("Add to what's here"))
+    await flush()
+
+    expect($$('.filter-tab').map(t => t.textContent)).toContain('Kitchen')
+    expect($$('.filter-tab').map(t => t.textContent)).not.toContain('Ghost')
+    expect(JSON.parse(localStorage.getItem(STORE_KEY)!).categories).not.toContain('Ghost')
+  })
+
   it('brings in a backup chosen from a file', async () => {
     // Looks for a phrase among the table's thousands, so the board has to be
     // holding all of them rather than the windowful it renders when measured.
