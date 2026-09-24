@@ -566,7 +566,7 @@ describe('the shape of the source tree', () => {
    * the binary a script reaches for is one this project actually installs.
    */
   // A board is somebody's, and all that keeps it theirs is that every read and
-  // write names whose — see *Whose board* in `core/store.ts`. A key read under
+  // write names whose — see docs/decisions/whose-board.md. A key read under
   // its bare name is one every account on the device shares, which is what
   // every key here was until that existed.
   it('stores everything under the name of whose it is', () => {
@@ -670,8 +670,14 @@ describe('the shape of the source tree', () => {
    * without backticks.
    */
   it('names nothing in the agents guide that the project does not have', () => {
-    const guide = readFileSync(resolve(process.cwd(), 'AGENTS.md'), 'utf8')
     const root = process.cwd()
+    // The guide and the decisions it moved out into their own files.
+    const guide = [
+      resolve(root, 'AGENTS.md'),
+      ...readdirSync(resolve(root, 'docs/decisions')).map(f => resolve(root, 'docs/decisions', f)),
+    ]
+      .map(f => readFileSync(f, 'utf8'))
+      .join('\n')
     const walk = (dir: string): string[] =>
       readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
         ['node_modules', '.git', 'dist'].includes(entry.name)
@@ -724,6 +730,39 @@ describe('the shape of the source tree', () => {
 
     expect(new Set(imported).size, 'a part is imported twice').toBe(imported.length)
     expect([...imported].sort()).toEqual([...parts].sort())
+  })
+
+  /**
+   * **Every link between the guide and its decisions goes somewhere.** The
+   * decisions were moved out of AGENTS.md into `docs/decisions/`, one file a
+   * topic, and every reference between them became a link — which is only worth
+   * having while it lands. A file, and the heading the anchor names in it.
+   */
+  it('links nothing in the guide or its decisions to somewhere that is not there', () => {
+    const root = process.cwd()
+    const docs = ['AGENTS.md', ...readdirSync(resolve(root, 'docs/decisions')).map(f => `docs/decisions/${f}`)]
+    const anchorOf = (heading: string) =>
+      heading
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s/g, '-')
+    const headings = (file: string) =>
+      new Set([...readFileSync(resolve(root, file), 'utf8').matchAll(/^#{1,4} (.*)$/gm)].map(m => anchorOf(m[1]!)))
+
+    const broken: string[] = []
+    for (const doc of docs) {
+      // Code is not a link: the markdown decision shows `[label](url)` as syntax.
+      const text = readFileSync(resolve(root, doc), 'utf8')
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/`[^`\n]*`/g, '')
+      for (const [, target] of text.matchAll(/\]\((?!https?:|mailto:)([^)]+)\)/g)) {
+        const [path, anchor] = target!.split('#')
+        const file = path ? join(dirname(doc), path) : doc
+        if (!existsSync(resolve(root, file))) broken.push(`${doc} → ${target}`)
+        else if (anchor && !headings(file).has(anchor)) broken.push(`${doc} → ${target} (no such heading)`)
+      }
+    }
+    expect(broken).toEqual([])
   })
 
   it('offers no script whose command it has not installed', () => {
