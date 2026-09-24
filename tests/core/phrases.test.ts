@@ -278,12 +278,33 @@ describe('the shipped table', () => {
     expect([...new Set(PHRASES.map(p => p.category))]).toEqual(['Library'])
   })
 
-  // Compared as shown, and without regard to case: "No Way" and "No way", or
-  // "What is next ?" and "What is next?", are one cell read twice.
-  it('lists each wording once', () => {
-    const seen = new Map<string, number>()
-    for (const p of PHRASES) seen.set(p.text.toLowerCase(), (seen.get(p.text.toLowerCase()) ?? 0) + 1)
-    expect([...seen].filter(([, n]) => n > 1).map(([text]) => text)).toEqual([])
+  // Compared as shown, by the words alone: "No Way" and "No way", "What is
+  // next ?" and "What is next?", and "How are you" and "How are you?" are one
+  // cell read twice. A blank is part of the wording, so it is kept in the key.
+  it('lists each wording once, whatever its case or punctuation', () => {
+    const words = (p: (typeof PHRASES)[number]) =>
+      p.text
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .trim() + (hasBlank(p.segments) ? ' {}' : '')
+    const seen = new Map<string, string[]>()
+    for (const p of PHRASES) seen.set(words(p), [...(seen.get(words(p)) ?? []), p.text])
+    expect([...seen.values()].filter(texts => texts.length > 1)).toEqual([])
+  })
+
+  // Of two that differ only in punctuation, the one that has it stays: the
+  // mark is how a voice knows to ask rather than tell.
+  it('keeps the punctuated one of two that differed only in punctuation', () => {
+    const texts = new Set(PHRASES.map(p => p.text))
+    for (const [kept, gone] of [
+      ['How are you?', 'How are you'],
+      ['Really?', 'Really'],
+      ['Come, talk with me', 'Come talk with me'],
+      ['By the way,', 'By the way'],
+    ]) {
+      expect(texts.has(kept), kept).toBe(true)
+      expect(texts.has(gone), gone).toBe(false)
+    }
   })
 
   // Everything somebody has done to a phrase is written against its id, which
@@ -313,7 +334,8 @@ describe('the shipped table', () => {
     const idOf = (text: string) => PHRASES.find(p => p.source === text)?.id
     expect(FORMER_IDS.get(phraseId('Texting', 'Good morning'))).toBe(idOf('Good morning'))
     expect(FORMER_IDS.get(phraseId('Interpersonal', 'Good morning'))).toBe(idOf('Good morning'))
-    expect(FORMER_IDS.get(phraseId('Exclamations', 'No Way'))).toBe(idOf('No way'))
+    expect(FORMER_IDS.get(phraseId('Exclamations', 'No Way'))).toBe(idOf('No way!'))
+    expect(FORMER_IDS.get(phraseId('Responses', 'No way'))).toBe(idOf('No way!'))
   })
 })
 
