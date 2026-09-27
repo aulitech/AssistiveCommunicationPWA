@@ -47,6 +47,15 @@ describe('what is typed', () => {
     expect(texts(search(quoted, 'uiet', {}))).toEqual([])
   })
 
+  it('takes a word as beginning after a hyphen', () => {
+    const board = [P('h', 'A well-known face'), P('d', 'Yes - now'), P('s', 'Twenty-(one)')]
+    expect(texts(search(board, 'known', {}))).toEqual(['A well-known face'])
+    expect(texts(search(board, 'known fa', {}))).toEqual(['A well-known face'])
+    expect(texts(search(board, 'nown', {}))).toEqual([])
+    expect(texts(search(board, '- now', {}))).toEqual(['Yes - now'])
+    expect(texts(search(board, 'one', {}))).toEqual(['Twenty-(one)'])
+  })
+
   it('lists a phrase once, in the first group it belongs to', () => {
     const found = search([P('x', 'tt tt')], 'tt', {})
     expect(texts(found)).toEqual(['tt tt'])
