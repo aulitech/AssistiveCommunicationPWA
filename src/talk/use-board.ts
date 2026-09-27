@@ -88,7 +88,7 @@ function withSentKept(store: PhraseStore, aliases: AliasStore): PhraseStore {
   if (sent.length === 0) return store
   const said = [...sent].reverse().map(m => ({ id: newPhraseId(), text: m.text }))
   const next = keepingSaid(buildPhrases(aliases), store, said)
-  if (next === store || savePhraseStore(next)) forgetSent()
+  if (savePhraseStore(next)) forgetSent()
   return next
 }
 

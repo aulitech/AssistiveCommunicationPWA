@@ -42,6 +42,32 @@ const saveWhileRefused = (text: string) => {
 
 describe('when this device stops saving', () => {
   /**
+   * **A Sent list from before goes only once Library holding it is kept** —
+   * taken away sooner, a reload would find it in neither place.
+   */
+  it('keeps a Sent list from before until Library holding it can be kept', () => {
+    localStorage.setItem('peri_sent', JSON.stringify([{ id: 's0', text: 'Said before the store filled up' }]))
+    const setItem = Storage.prototype.setItem
+    refused = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string,
+    ) {
+      if (key.startsWith('dwellspeak_phrase_store_v2')) {
+        throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+      }
+      setItem.call(this, key, value)
+    })
+    renderApp()
+
+    expect(localStorage.getItem('peri_sent')).not.toBeNull()
+    // Brought in all the same, in memory, which is where the board is read from.
+    fireEvent.change(box(), { target: { value: 'said before the store' } })
+    act(() => void vi.advanceTimersByTime(50))
+    expect(cells().map(c => c.textContent)).toEqual(['Said before the store filled up'])
+  })
+
+  /**
    * Regression guard, and the reason for all of it: a refused write threw from
    * inside a state update and unmounted the app — a blank page, the emergency
    * bar with it.
