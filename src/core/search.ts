@@ -18,7 +18,7 @@ const initials = (text: string) =>
     .join('')
 
 /** A quote or bracket in front of a word's first letter or digit. */
-const PAST_PUNCTUATION = /[^\p{L}\p{N} -]+(?=[\p{L}\p{N}])/uy
+const PAST_PUNCTUATION = /[^\p{L}\p{N} ]+/uy
 
 /**
  * Where each word begins: after a space or a hyphen — so "known" is a word of
