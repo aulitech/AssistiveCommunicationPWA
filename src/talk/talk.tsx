@@ -39,7 +39,6 @@ import { TopPanel } from '../menu/menu'
 import { useBoard, type Removed } from './use-board'
 import { useComposer } from './use-composer'
 import { useEditor } from './use-editor'
-import { SENT_CATEGORY, SENT_FILTER, useSent } from './use-sent'
 import { useListen } from './use-listen'
 import { TRANSLATED_CATEGORY, TRANSLATED_FILTER, useTranslated, voiceForTranslated } from './use-translated'
 import { SUGGEST_CATEGORY, SUGGEST_FILTER } from './suggestions'
@@ -53,7 +52,6 @@ import { useToast } from './use-toast'
 export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const { settings, update } = useSettings()
   const board = useBoard()
-  const sent = useSent()
   // Before the composer, which speaks into it: a message said in another
   // language is the one translation that is nowhere on the board.
   const translated = useTranslated()
@@ -166,8 +164,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * The board apologising for itself while a reply is being written — see
    * `listen/apology.ts`.
    *
-   * **Said, and not otherwise treated as anything.** It goes nowhere near the
-   * Sent list, counts towards no phrase, and is not in the conversation the
+   * **Said, and not otherwise treated as anything.** It is not kept in
+   * Library, counts towards no phrase, and is not in the conversation the
    * next reply is written against: it is the board's sentence, not theirs.
    * `instant` for the reason the emergency bar has it — this fills a wait, so
    * it cannot start one of its own.
@@ -211,17 +209,16 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     () => [
       // None of these is a category somebody made: they cannot be renamed, and
       // the custom order cannot move them out of the places a user learns to
-      // look. Two are pinned at the front and one at the very end —
+      // look. One is pinned at the front and one at the very end —
       // Translations is the tab nobody reaches for mid-sentence, and it is the
       // one tab whose cells are not in the language the rest of the board is
-      // written in. **Library is where every phrase lives**, second; the
-      // categories refer to its phrases.
-      { id: SENT_FILTER, label: SENT_CATEGORY, fixed: true },
+      // written in. **Library is where every phrase lives**, first; the
+      // categories refer to its phrases, and what is said is kept in it.
       { id: LIBRARY, label: LIBRARY, fixed: true },
-      // Third, from the first question answered on: the most recent answers
+      // Second, from the first question answered on: the most recent answers
       // stay until newer ones replace them, and somebody may want to go back to
-      // one after the box is closed. Sent and Library keep the places they are
-      // found in without looking; what gives way is the first category.
+      // one after the box is closed. Library keeps the place it is found in
+      // without looking; what gives way is the first category.
       ...(offering ? [{ id: SUGGEST_FILTER, label: SUGGEST_CATEGORY, fixed: true }] : []),
       ...allCategories.map(c => ({ id: c, label: c })),
       { id: TRANSLATED_FILTER, label: TRANSLATED_CATEGORY, fixed: true },
@@ -276,14 +273,12 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   // Library rather than showing an empty grid under a tab that no longer exists.
   const effectiveFilter =
     activeFilter === LIBRARY ||
-    activeFilter === SENT_FILTER ||
     activeFilter === TRANSLATED_FILTER ||
     (activeFilter === SUGGEST_FILTER && offering) ||
     allCategories.includes(activeFilter)
       ? activeFilter
       : LIBRARY
 
-  const showingSent = effectiveFilter === SENT_FILTER
   const showingTranslated = effectiveFilter === TRANSLATED_FILTER
   const showingSuggestions = effectiveFilter === SUGGEST_FILTER
 
@@ -296,12 +291,12 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   /**
    * Whether this tab holds phrases in an order of its own — Library or a
    * category: somewhere a hand arrangement can be built, and so somewhere Custom
-   * order means anything. None of Sent, the answers and Translations is one.
+   * order means anything. Neither the answers nor Translations is one.
    */
-  const canArrange = !showingSent && !showingTranslated && !showingSuggestions
+  const canArrange = !showingTranslated && !showingSuggestions
 
-  // Sent messages and translations are their own lists rather than part of the
-  // board: both are a record of what was said, not phrases anybody added.
+  // Translations are their own list rather than part of the board: a record of
+  // what was said in another language, not phrases anybody added.
   /**
    * Only what is being *composed* narrows the grid. In edit mode the box holds a
    * phrase being written, and narrowing the board to a word of it would take
@@ -347,15 +342,30 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     board,
     tab: effectiveFilter,
     canArrange,
-    showingSent,
     showingTranslated,
     showingSuggestions,
-    sentPhrases: sent.phrases,
     translatedPhrases: translated.phrases,
     suggestions: listener.suggestions,
     counts: usage.counts,
     filterWord,
   })
+
+  /**
+   * **What is said is kept in Library** — every message spoken or copied, as a
+   * phrase in no category, unless Library says it already — and counted as used
+   * the moment it is, so it is first under Recently used and first among what
+   * typing finds. There was a Sent tab for this; see
+   * docs/decisions/sent-messages.md. One Library already says is not counted
+   * again: choosing it off the board counted it.
+   */
+  const { keepSaid: keepInLibrary } = board
+  const keepSaid = useCallback(
+    (text: string) => {
+      const id = keepInLibrary(text)
+      if (id) recordUsed(id)
+    },
+    [keepInLibrary, recordUsed],
+  )
 
   // ── Choosing a phrase ──────────────────────────────────────────────────────
 
@@ -381,12 +391,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
           // again is silent here without needing a second guard.
           onTranslated: recordTranslated,
         })
-        sent.record(phraseText)
+        // Not a cell off Translations, which is in another language and is
+        // kept there already.
+        if (!alreadyIn) keepSaid(phraseText)
       } else {
         insertPhrase(phraseText, blankAt)
       }
     },
-    [settings, insertPhrase, sent, recordTranslated],
+    [settings, insertPhrase, keepSaid, recordTranslated],
   )
 
   const handleSelectPhrase = useCallback(
@@ -416,11 +428,11 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       // phrase is *chosen* — whatever it then does, speak, compose or open a
       // link. Edit mode never reaches here: a cell opens the editor instead.
       //
-      // Not under Sent, Translations or the answers. Those ids name a message,
-      // a translation or something a model offered a minute ago rather than a
-      // phrase on the board, so counting them would fill the record with ids
-      // that can never match anything and never fall out.
-      if (!showingSent && !showingTranslated && !showingSuggestions) recordUsed(phrase.id)
+      // Not under Translations or the answers. Those ids name a translation or
+      // something a model offered a minute ago rather than a phrase on the
+      // board, so counting them would fill the record with ids that can never
+      // match anything and never fall out.
+      if (!showingTranslated && !showingSuggestions) recordUsed(phrase.id)
       // **Composing moves the board**: the phrase goes into the box, and the
       // grid narrows to the word at the caret, under a pointer resting on the
       // cell that did it. Nothing may be chosen until the gaze is aimed
@@ -464,7 +476,6 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       deliverPhrase,
       voiceFor,
       flashToast,
-      showingSent,
       showingTranslated,
       showingSuggestions,
       proposeMessage,
@@ -629,8 +640,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     // this path.
     if (keeping) {
       if (phrase.category === TRANSLATED_CATEGORY) forgetTranslated(phrase.id)
-      else if (phrase.category === SUGGEST_CATEGORY) forgetSuggestion(phrase.id)
-      else sent.forget(phrase.id)
+      else forgetSuggestion(phrase.id)
     } else if (removingFrom) {
       // On a category, the bin takes the phrase out of it and no further: it is
       // still in Library, with its count.
@@ -650,7 +660,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
           ? `Taken out of ${removingFrom} — undo is at the lower left`
           : 'Deleted — undo is at the lower left',
     )
-  }, [draft, board, sent, forgetTranslated, forgetSuggestion, forgetUsed, startNew, flashToast, removingFrom])
+  }, [draft, board, forgetTranslated, forgetSuggestion, forgetUsed, startNew, flashToast, removingFrom])
 
   /**
    * Put back the phrase just deleted, **as it was**: on the board where it
@@ -873,8 +883,8 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   const handleSpeak = useCallback(() => {
     if (!message.trim()) return
     speakMessage()
-    sent.record(message)
-  }, [message, speakMessage, sent])
+    keepSaid(message)
+  }, [message, speakMessage, keepSaid])
 
   // Copying is the other way a message leaves — into a text, an email, someone
   // else's screen. It was still said.
@@ -882,9 +892,9 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
     if (!message) return
     copyMessage().then(ok => {
       flashToast(ok ? 'Copied to clipboard' : 'Could not copy — clipboard unavailable')
-      if (ok) sent.record(message)
+      if (ok) keepSaid(message)
     })
-  }, [message, copyMessage, flashToast, sent])
+  }, [message, copyMessage, flashToast, keepSaid])
 
   /**
    * Both text boxes offer a paste, and both can be refused. Reading the clipboard
@@ -1034,31 +1044,27 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             listKey={`${effectiveFilter}\u0000${filterWord}`}
             pointing={pointing}
             emptyMessage={
-              showingSent
-                ? 'Nothing said yet. Messages you speak or copy are kept here.'
-                : showingTranslated
-                  ? 'Nothing translated yet. Set a spoken language in Settings, and what you say in it is kept here.'
-                  : showingSuggestions
-                    ? listener.heard.asking
-                      ? 'Thinking of some answers…'
-                      : 'No answers came back. Try asking again.'
-                    : undefined
+              showingTranslated
+                ? 'Nothing translated yet. Set a spoken language in Settings, and what you say in it is kept here.'
+                : showingSuggestions
+                  ? listener.heard.asking
+                    ? 'Thinking of some answers…'
+                    : 'No answers came back. Try asking again.'
+                  : undefined
             }
             // The wait stands where the answers will, which is the whole reason
             // the tab appears before they do.
             busy={showingSuggestions && listener.heard.asking}
             sort={phraseSort}
             // Neither of these is a category. Both are a record in the order it
-            // happened, newest first, and that is the whole of what they are
-            // for — so the order is not the user's to change under either.
+            // happened, and that is the whole of what they are for — so the
+            // order is not the user's to change under either.
             orderFixed={
-              showingSent
-                ? 'Sent messages are always newest first'
-                : showingTranslated
-                  ? 'Translations are always newest first'
-                  : showingSuggestions
-                    ? 'Answers are in the order they were offered'
-                    : undefined
+              showingTranslated
+                ? 'Translations are always newest first'
+                : showingSuggestions
+                  ? 'Answers are in the order they were offered'
+                  : undefined
             }
             canArrange={canArrange}
             onChooseSort={chooseSort}

@@ -15,8 +15,8 @@
 //     so an answer chosen off the board lands with the caret in its gap exactly
 //     as a fill-in-the-blank phrase off the grid does.
 //   * **They are not a category.** `SUGGEST_FILTER` begins with a space, as
-//     `SENT_FILTER` does, and for the same reason: names are trimmed before
-//     they are saved, so no category anybody makes can collide with it.
+//     `TRANSLATED_FILTER` does, and for the same reason: names are trimmed
+//     before they are saved, so no category anybody makes can collide with it.
 //   * **They are kept by the day's rules.** The most recent set is written down
 //     on this device — as the words, not as these phrases — so it is still there
 //     to go back to after the question has gone or Peri has been reopened; but

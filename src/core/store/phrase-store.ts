@@ -363,8 +363,9 @@ export function fromFiled(filed: FiledStore): PhraseStore {
  */
 const TABLE = 3
 
+/** Whether it was kept — see `writeKey`. */
 export function savePhraseStore(s: PhraseStore) {
-  writeKey(storageKey(PHRASE_STORE_KEY), JSON.stringify({ ...s, table: TABLE }))
+  return writeKey(storageKey(PHRASE_STORE_KEY), JSON.stringify({ ...s, table: TABLE }))
 }
 
 /** Whether a record holds this key itself, rather than by inheritance. */

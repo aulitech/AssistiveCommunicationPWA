@@ -23,12 +23,12 @@ import {
   saveAnswers,
   loadAnswers,
   saveReplyKey,
-  saveSent,
   saveSettings,
   changesWhoIsSignedIn,
   emptySync,
   loadAliasSort,
   onWriteFailure,
+  storageKey,
   writeKey,
   loadAliases,
   loadElevenLabs,
@@ -53,8 +53,15 @@ import {
   leaveForSignIn,
   settingsOnArrival,
   type ReplyTurn,
+  type SentMessage,
   type User,
 } from '../../src/core/store'
+
+/**
+ * The Sent list as a board from before kept it — read once now, to bring it into
+ * Library, and so still somebody's own like every other piece of a board.
+ */
+const saveSent = (messages: SentMessage[]) => writeKey(storageKey('peri_sent'), JSON.stringify(messages))
 
 // The arithmetic behind arranging things by hand. The two bars that use it are
 // driven through the DOM — the tabs in categories.test.tsx, the emergency bar in

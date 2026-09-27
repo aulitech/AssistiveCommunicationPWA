@@ -14,15 +14,12 @@
 import { useCallback, useMemo, useState } from 'react'
 import { cancelAllDwells } from '../ui/dwell'
 import { LIBRARY, type Phrase } from '../core/phrases'
-import { SENT_CATEGORY } from './use-sent'
 import { TRANSLATED_CATEGORY } from './use-translated'
 import { SUGGEST_CATEGORY } from './suggestions'
 
-/** None of the three is a category on the board, so a phrase off one is kept rather than edited. */
+/** Neither is a category on the board, so a phrase off one is kept rather than edited. */
 const keepingOf = (phrase: Phrase | null) =>
-  phrase?.category === SENT_CATEGORY ||
-  phrase?.category === TRANSLATED_CATEGORY ||
-  phrase?.category === SUGGEST_CATEGORY
+  phrase?.category === TRANSLATED_CATEGORY || phrase?.category === SUGGEST_CATEGORY
 
 /** What the editor is pointed at. Null is a phrase being written from nothing. */
 interface Target {
@@ -54,7 +51,7 @@ export interface Draft {
   /** Empty means the voice everything else is said in. */
   voice: string
   /**
-   * A record of something already said — a sent message, or a translation.
+   * A record of something already said, or offered — a translation, or an answer.
    * Saving keeps what is in the box as a phrase of the user's own; deleting
    * forgets having said it. Neither edits the record itself.
    *
@@ -68,10 +65,9 @@ export interface Draft {
    * Which record it came off, for the labels that have to name it.
    *
    * Null unless `keeping`. Three controls read it — Save, the bin, and the line
-   * that says what the strip is for — and all three said "message" before there
-   * was a second record to come off.
+   * that says what the strip is for.
    */
-  kept: 'message' | 'translation' | 'answer' | null
+  kept: 'translation' | 'answer' | null
   isNew: boolean
   canSave: boolean
   /**
@@ -155,7 +151,7 @@ export function useEditor({
       text,
       categories,
       voice: edits.voice ?? (phrase ? (voiceFor(phrase.id) ?? '') : (recent.voice ?? '')),
-      // None of the three is a category on the board, so what Save does with one
+      // Neither is a category on the board, so what Save does with one
       // is keep it as a new phrase rather than edit the record it came off.
       keeping: keepingOf(phrase),
       kept:
@@ -163,9 +159,7 @@ export function useEditor({
           ? 'translation'
           : phrase?.category === SUGGEST_CATEGORY
             ? 'answer'
-            : phrase?.category === SENT_CATEGORY
-              ? 'message'
-              : null,
+            : null,
       isNew: phrase === null,
       duplicate,
       // Every phrase is in Library, so there is always somewhere for it to go.

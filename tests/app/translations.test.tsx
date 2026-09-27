@@ -77,14 +77,14 @@ afterEach(() => {
 
 describe('where the tab sits', () => {
   /**
-   * Two tabs are pinned at the front and this one at the very end. It is the tab
+   * Library is pinned at the front and this one at the very end. It is the tab
    * nobody reaches for mid-sentence, and the one tab whose cells are not in the
    * language the rest of the board is written in.
    */
   it('is always the last tab, whatever the categories do', () => {
     renderApp()
     expect(tabLabels().at(-1)).toBe('Translations')
-    expect(tabLabels().slice(0, 2)).toEqual(['Sent', 'Library'])
+    expect(tabLabels()[0]).toBe('Library')
   })
 
   it('is there before anything has been translated, and says so', () => {
@@ -95,7 +95,7 @@ describe('where the tab sits', () => {
   })
 
   // A record in the order it happened, so the order is not the user's to change
-  // — the same as Sent, and the control says which tab it is on.
+  // — the same as the answers, and the control says which tab it is on.
   it('keeps an order of its own, and the control goes quiet and says why', () => {
     renderApp()
     showTranslations()

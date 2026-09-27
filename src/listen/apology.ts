@@ -16,7 +16,7 @@
 //     in the background, and `SHIPPED` is what answers when it is empty, when
 //     there is no key, and when there is no network.
 //   * **It is not something the person said.** The caller says it without
-//     recording it: it is not in the Sent list, it is not counted towards any
+//     keeping it: it is not kept in Library, it is not counted towards any
 //     phrase, and it is not in the conversation the next reply is written
 //     against. The board apologised for itself.
 

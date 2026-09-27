@@ -2,7 +2,7 @@
 // else's**: another account signing in on the same device, or a guest, gets a
 // board of its own and never sees this one. They all shared one until this was
 // written — every account signed in on a device opened the same phrases, lists,
-// keys and Sent list.
+// keys and messages.
 //
 // `core/store.test.ts` drives every piece of a board through storage under two
 // accounts; this drives the screens, which is where somebody would actually see
@@ -56,24 +56,33 @@ function loadAs(user: User | null) {
 }
 
 const cells = () => $$('.phrase-cell')
-const tab = (name: string) => $$('.filter-tab[role="tab"]').find(el => el.textContent === name)
 const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
 const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
 const panelBtn = (label: string) => inBody('.panel-btn').find(b => b.getAttribute('aria-label') === label)
 
-/**
- * Says a phrase off the board, as the board opens — in auto-speak, where one
- * dwell says it and it goes under Sent. A different one for each person, so
- * whose Sent list it landed in cannot be mistaken.
- */
-function sayOne(nth: number): string {
-  const plain = cells().filter(c => !c.querySelector('.phrase-slot'))
-  click(plain[nth])
-  return spoken.at(-1)!
+const write = (value: string) => {
+  fireEvent.change($('.text-display')!, { target: { value } })
+  settle()
 }
+
+/**
+ * Says something nobody else here has, which Library keeps — each person their
+ * own words, so whose board they landed on cannot be mistaken.
+ */
+function sayOne(who: string): string {
+  const said = `Said by ${who}`
+  write(said)
+  click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak'))
+  expect(spoken.at(-1)).toBe(said)
+  write('')
+  return said
+}
+/** What this board has kept of what was said: what typing the words they all begin with finds. */
 const sent = () => {
-  click(tab('Sent'))
-  return cells().map(c => c.textContent)
+  write('Said by')
+  const found = cells().map(c => c.textContent)
+  write('')
+  return found
 }
 
 const continueAsGuest = () =>
@@ -88,13 +97,12 @@ function signOut() {
 describe('two people on one device', () => {
   it('each open their own board, and never the other’s', () => {
     loadAs(ada)
-    const adaSaid = sayOne(0)
+    const adaSaid = sayOne('Ada')
     expect(sent()).toEqual([adaSaid])
 
     loadAs(bob)
     expect(sent(), 'the second account opened the first one’s board').toEqual([])
-    click(tab('Library'))
-    expect(sayOne(1)).not.toBe(adaSaid)
+    sayOne('Bob')
 
     loadAs(ada)
     expect(sent(), 'the second account’s board reached the first one’s').toEqual([adaSaid])
@@ -104,12 +112,11 @@ describe('two people on one device', () => {
   // guest's: anybody at all can continue as one.
   it('keep the guest’s board apart from an account’s', () => {
     loadAs(ada)
-    const adaSaid = sayOne(0)
+    const adaSaid = sayOne('Ada')
 
     loadAs(guest)
     expect(sent(), 'a guest opened an account’s board').toEqual([])
-    click(tab('Library'))
-    sayOne(1)
+    sayOne('a guest')
 
     loadAs(ada)
     expect(sent(), 'the guest’s board reached an account’s').toEqual([adaSaid])
@@ -118,9 +125,9 @@ describe('two people on one device', () => {
   // The board on the device from before boards were kept apart. Whoever was
   // using it is signed in as the new release first runs, and it is theirs.
   it('leaves the board already on the device with whoever was using it', () => {
-    localStorage.setItem('peri_sent', JSON.stringify([{ id: 's0', text: 'Said before the update' }]))
+    localStorage.setItem('peri_sent', JSON.stringify([{ id: 's0', text: 'Said by whoever was here first' }]))
     loadAs(ada)
-    expect(sent()).toEqual(['Said before the update'])
+    expect(sent()).toEqual(['Said by whoever was here first'])
     loadAs(bob)
     expect(sent()).toEqual([])
   })
@@ -139,7 +146,7 @@ describe('signing out', () => {
   // Reloaded or not, signing in opens the board of whoever signed in.
   it('leaves the next person to sign in their own board', () => {
     loadAs(ada)
-    const adaSaid = sayOne(0)
+    const adaSaid = sayOne('Ada')
     expect(sent()).toEqual([adaSaid])
     signOut()
     continueAsGuest()

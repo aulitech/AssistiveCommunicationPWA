@@ -36,8 +36,7 @@ export function useApologies(language: string) {
   }, [])
 
   /**
-   * Read back from storage rather than held in state, for the reason the Sent
-   * list is: two apologies can be said without a render in between, and the
+   * Read back from storage rather than held in state: two apologies can be said without a render in between, and the
    * second would be written against a cache that no longer exists.
    */
   const fill = useCallback(() => {

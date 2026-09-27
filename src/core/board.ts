@@ -9,7 +9,7 @@
 // where it has to be right.
 
 import { EMERGENCY_PHRASES, LIBRARY, compose, parseSegments, type Phrase } from './phrases'
-import { orderByIds, type PhraseStore } from './store'
+import { orderByIds, wordingKey, type PhraseStore } from './store'
 
 /**
  * A phrase from what it was written as. Overrides and phrases the user wrote
@@ -37,6 +37,28 @@ export function libraryOf(table: Phrase[], store: PhraseStore): Phrase[] {
     .filter(c => c.category !== 'Emergency' && !hidden.has(c.id))
     .map(c => buildPhrase(c.id, store.overrides[c.id] ?? c.text, LIBRARY))
   return [...shipped, ...mine]
+}
+
+/**
+ * **What was said, kept in Library** — each message a phrase of its own, in no
+ * category, unless Library already says it. Handed the ids to give them, so the
+ * caller knows which to count as used; one whose wording is here already — or
+ * earlier in the same list — is left out, and so is one that is only spaces.
+ */
+export function keepingSaid(
+  table: Phrase[],
+  store: PhraseStore,
+  said: { id: string; text: string }[],
+): PhraseStore {
+  const known = new Set(libraryOf(table, store).map(p => wordingKey(p.source)))
+  const custom = [...store.custom]
+  for (const { id, text } of said) {
+    const words = text.trim()
+    if (!words || known.has(wordingKey(words))) continue
+    known.add(wordingKey(words))
+    custom.push({ id, text: words, category: LIBRARY })
+  }
+  return custom.length === store.custom.length ? store : { ...store, custom }
 }
 
 /**

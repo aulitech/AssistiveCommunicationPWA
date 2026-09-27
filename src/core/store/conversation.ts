@@ -15,9 +15,9 @@ import { storageKey } from './owner'
 // on the way *out* as well as on the way in, so a board left open overnight
 // forgets on its own rather than waiting for the next question to notice.
 //
-// It is a record of what somebody was actually asked, so it follows the Sent
-// list's rules exactly: its own key, never in a backup, never in a snapshot, and
-// cleared by a factory reset.
+// It is a record of what somebody was actually asked, so it follows the
+// Translations list's rules exactly: its own key, never in a backup, never in a
+// snapshot, and cleared by a factory reset.
 
 /** One exchange: what was asked, and what was offered back. */
 export interface ReplyTurn {
