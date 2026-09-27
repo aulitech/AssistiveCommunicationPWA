@@ -10,10 +10,14 @@ import { type PhraseUsage } from './store'
 /** Case folded and spaces collapsed, so what is compared is only the words. */
 const fold = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim()
 
-/** The first letter or digit of each word — a word's first character, past any quote or bracket. */
+/**
+ * The first letter or digit of each word — a word's first character, past any
+ * quote or bracket — where a hyphen splits words as a space does, so "well-known
+ * face" spells "wkf".
+ */
 const initials = (text: string) =>
   text
-    .split(' ')
+    .split(/[ -]/)
     .map(word => word.match(/[\p{L}\p{N}]/u)?.[0] ?? '')
     .join('')
 

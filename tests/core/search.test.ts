@@ -71,6 +71,13 @@ describe('what is typed', () => {
     expect(texts(search([P('q', '"Quiet" until now')], 'qun', {}))).toEqual(['"Quiet" until now'])
   })
 
+  it('spells a hyphenated word as the words either side of it', () => {
+    const board = [P('h', 'Well-known face'), P('d', 'Yes - now')]
+    expect(texts(search(board, 'wkf', {}))).toEqual(['Well-known face'])
+    expect(texts(search(board, 'wf', {}))).toEqual([])
+    expect(texts(search(board, 'yn', {}))).toEqual(['Yes - now'])
+  })
+
   it('orders each group by when its phrases were last used, the unused after in the order given', () => {
     const usage = { e: { count: 1, at: 300 }, c: { count: 9, at: 100 } }
     expect(texts(search(BOARD, 'ta', usage))).toEqual([
