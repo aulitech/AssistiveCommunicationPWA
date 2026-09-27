@@ -86,7 +86,7 @@
    rather than read and the scrolling controls are one thing.
 
    Quiet rather than gone where they do not apply: a control that came and went
-   would move the five below it every time somebody looked at the Sent tab. */
+   would move the five below it every time somebody looked at the Translations tab. */
 .rail-tools {
   display: flex;
   flex-direction: column;

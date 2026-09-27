@@ -782,9 +782,9 @@ describe('the line that says what just happened', () => {
     renderApp()
     expect(toast()).toBeTruthy()
 
-    // Sent rather than All: All is where the board opens, and the tab already
-    // showing does not answer to a dwell at all.
-    click(tab('Sent'))
+    // Translations rather than Library: Library is where the board opens, and
+    // the tab already showing does not answer to a dwell at all.
+    click(tab('Translations'))
 
     expect(toast()).toBeUndefined()
   })

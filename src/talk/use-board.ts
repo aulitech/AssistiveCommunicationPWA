@@ -15,13 +15,15 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { LIBRARY, buildPhrases, type Phrase, type AliasStore } from '../core/phrases'
 import { stripMarkdown } from '../core/markdown'
-import { emergencyPhrasesOf, libraryOf, phrasesIn, withoutEmptyCategories } from '../core/board'
+import { emergencyPhrasesOf, keepingSaid, libraryOf, phrasesIn, withoutEmptyCategories } from '../core/board'
 import { audioKey, warmAudio } from '../voice/audio-cache'
 import { remoteVoiceId } from '../voice/elevenlabs'
 import { useSettings } from '../ui/settings'
 import {
   foldFormerCopies,
+  forgetSent,
   loadPhraseStore,
+  loadSent,
   loadAliases,
   moveInOrder,
   orderCategories,
@@ -73,6 +75,23 @@ export interface Removed {
 const putBack = (list: string[], item: string, at: number) =>
   at < 0 || list.includes(item) ? list : [...list.slice(0, at), item, ...list.slice(at)]
 
+/**
+ * The board as it was kept, with **the Sent list brought into Library** — once.
+ * There was a Sent tab, every message said under a key of its own; Library
+ * keeps them now, so a board from before has its list moved in, oldest first so
+ * they stand in the order they were said, and the list taken away. Only once
+ * the store is kept: a device refusing the write keeps the list for next time,
+ * and anything already moved is not moved twice.
+ */
+function withSentKept(store: PhraseStore, aliases: AliasStore): PhraseStore {
+  const sent = loadSent()
+  if (sent.length === 0) return store
+  const said = [...sent].reverse().map(m => ({ id: newPhraseId(), text: m.text }))
+  const next = keepingSaid(buildPhrases(aliases), store, said)
+  if (next === store || savePhraseStore(next)) forgetSent()
+  return next
+}
+
 /** The references with one phrase in these categories set to exactly these. */
 function withMemberships(
   members: Record<string, string[]>,
@@ -96,8 +115,8 @@ export function useBoard() {
   // question that is not about the caller.
   const { settings } = useSettings()
   const language = settings.language
-  const [store, setStore] = useState<PhraseStore>(loadPhraseStore)
   const [aliases, setAliases] = useState<AliasStore>(loadAliases)
+  const [store, setStore] = useState<PhraseStore>(() => withSentKept(loadPhraseStore(), aliases))
 
   const updateStore = useCallback((patch: Partial<PhraseStore>) => {
     setStore(s => {
@@ -230,6 +249,27 @@ export function useBoard() {
       return id ? mainPhrases.find(p => p.id === id) : undefined
     },
     [libraryKeys, mainPhrases],
+  )
+
+  /**
+   * **Keeps a message just said in Library**, as a phrase in no category, and
+   * hands back the id it went in under — or nothing, when Library says it
+   * already. See `keepingSaid`. Written against the store as it stands when the
+   * write lands rather than as this render saw it, so two messages said without
+   * a render between them are both kept, and one said twice is kept once.
+   */
+  const keepSaid = useCallback(
+    (text: string) => {
+      if (!text.trim() || libraryKeys.has(wordingKey(text))) return undefined
+      const id = newPhraseId()
+      setStore(s => {
+        const next = keepingSaid(tablePhrases, s, [{ id, text }])
+        if (next !== s) savePhraseStore(next)
+        return next
+      })
+      return id
+    },
+    [libraryKeys, tablePhrases],
   )
 
   const phraseCountByCategory = useMemo(() => {
@@ -505,6 +545,7 @@ export function useBoard() {
     voiceFor,
     duplicateOf,
     phraseSaying,
+    keepSaid,
     setVoice,
     addPhrase,
     editPhrase,

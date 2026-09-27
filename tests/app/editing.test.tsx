@@ -772,11 +772,11 @@ describe('starting from the last choice made', () => {
       expect(shownCategory()).toBe(picked)
     })
 
-    // None of the four is somewhere a phrase can be filed: All is every
-    // category at once, and the other three are records of what was said. So
-    // they leave the last choice standing rather than throwing it away and
-    // making somebody pick again.
-    for (const notACategory of ['Library', 'Sent', 'Translations']) {
+    // Neither is somewhere a phrase can be filed: Library holds every phrase,
+    // and Translations is a record of what was said. So they leave the last
+    // choice standing rather than throwing it away and making somebody pick
+    // again.
+    for (const notACategory of ['Library', 'Translations']) {
       it(`leaves it standing under ${notACategory}`, () => {
         renderApp()
         enterEditMode()
@@ -925,17 +925,17 @@ describe('following a new phrase to where it was filed', () => {
   })
 
   // The bar is on screen under every tab, so a phrase added to it is already
-  // where somebody can see it. Added from Sent, where the draft carries a
-  // category the board is not showing — which is the only way it could move.
+  // where somebody can see it. Added from Translations, where the draft carries
+  // a category the board is not showing — which is the only way it could move.
   it('does not move for a phrase added to the emergency bar', () => {
     standingOn()
-    click(tab('Sent'))
+    click(tab('Translations'))
 
     click($('.emergency-add'))
     writePhrase('Call my sister')
     savePhrase()
 
-    expect(activeTab()).toBe('Sent')
+    expect(activeTab()).toBe('Translations')
   })
 
   /** What the browser does by itself when a cell lands under a motionless pointer. */
@@ -968,28 +968,6 @@ describe('following a new phrase to where it was filed', () => {
     arrivesUnderThePointer()
 
     expect(box().value).not.toBe('')
-  })
-
-  // Keeping a message is the case with the least to show for it otherwise:
-  // the record it came off is unchanged, so without this nothing on screen
-  // moves at all.
-  it('takes the board to where a kept message was filed', () => {
-    renderApp()
-    // Words of their own: a phrase off the board is already in Library.
-    writeIn(box(), 'Nobody has said this here before')
-    click(iconBtn('Speak'))
-    clearMessage()
-    clearMessage()
-
-    click(tab('Sent'))
-    enterEditMode()
-    click(cells()[0])
-    const filedUnder = shownCategory()!
-    click(iconBtn('Keep this message as a phrase'))
-
-    expect(filedUnder).not.toBe('Sent')
-    // In no category it is in Library alone, which is where the board goes.
-    expect(activeTab()).toBe(filedUnder === 'Library only' ? 'Library' : filedUnder)
   })
 })
 
@@ -1405,23 +1383,6 @@ describe('putting back a phrase just deleted', () => {
 
     leaveEditMode()
     enterEditMode()
-
-    expect(undoButton()).toBeUndefined()
-  })
-
-  // Forgetting a sent message takes it off a record, not off the board: there
-  // is nothing there to put back.
-  it('offers nothing for a message forgotten off Sent', () => {
-    renderApp()
-    click(plainCell())
-    click(iconBtn('Speak'))
-    clearMessage()
-    clearMessage()
-    click(tab('Sent'))
-    enterEditMode()
-    click(cells()[0])
-
-    click(iconBtn('Forget this message'))
 
     expect(undoButton()).toBeUndefined()
   })

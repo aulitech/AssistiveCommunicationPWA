@@ -36,7 +36,7 @@ export const PRIVACY: ProseDocument = {
         ),
         text('Everything the app remembers is stored in your browser, on your device:'),
         list(
-          'The phrases you add, edit or hide.',
+          'The phrases you add, edit or hide — and every message you speak or copy, which is kept in Library as a phrase of its own.',
           'Your settings — dwell times, voice, volume and speed.',
           'Your word lists — names, contacts and anything else you add under Aliases.',
           'Which account you last signed in with, if any.',
@@ -45,7 +45,6 @@ export const PRIVACY: ProseDocument = {
           'The audio a linked ElevenLabs account has made for you, so that a phrase you have paid to have spoken is not paid for twice.',
           'Your Synchronize passphrase, if you turned that on.',
           'How often you use each phrase and when you last used one, which is what lets the grid be ordered by what you use.',
-          'The messages you have spoken or copied, under the Sent tab.',
           'What you have said in another language, and which language, under the Translations tab.',
           'Questions you asked for a suggested reply to, and the replies, for a day.',
         ),
@@ -59,7 +58,10 @@ export const PRIVACY: ProseDocument = {
           'None of this leaves your device unless you turn on Synchronize, and what leaves then is encrypted — see the Synchronizing section. No API key and no Synchronize passphrase is ever included in a backup file, so sharing a backup does not share your account or your other devices. The passphrase never leaves your device at all; the keys travel between your own devices, inside the encryption, so what you pay for works on all of them.',
         ),
         text(
-          'Four things on that list go nowhere at all: how often you use each phrase, the messages under the Sent tab, the translations under the Translations tab, and the day of questions kept for suggested answers. All four are a record of what you actually said or were asked, so all four stay on the device that recorded them — none is in a backup file, and none is in what Synchronize sends to your other devices. A factory reset clears them.',
+          'Three things on that list go nowhere at all: how often you use each phrase, the translations under the Translations tab, and the day of questions kept for suggested answers. All three are a record of what you actually said or were asked, so all three stay on the device that recorded them — none is in a backup file, and none is in what Synchronize sends to your other devices. A factory reset clears them.',
+        ),
+        text(
+          'The messages you speak or copy are not among them. Each is kept as a phrase in Library, so it goes wherever your phrases go: into a backup file, to your other devices while Synchronize is on, and to Anthropic with the phrases on your board when you ask for suggested answers. Deleting one in edit mode takes it out of all of those.',
         ),
       ],
     },
@@ -85,7 +87,7 @@ export const PRIVACY: ProseDocument = {
           'All of it is forgotten after a day, forgotten at once if you remove the key, and there is a button in the Settings row to forget it now. None of it is ever in a backup file or sent to your other devices.',
         ),
         text(
-          'Suggested answers send the question to Anthropic, using an API key of your own that you set up under Settings. **With a key set up, this happens on its own**: when the person talking to you stops and your message box is empty, the question goes to be answered without your asking. Leave anything in the message box and it does not. The phrases on your board go with it — the ones Peri comes with and any you wrote yourself, with a name filled in where a phrase has only one to choose from — so that the answers can be your own words; how often you use each one does not. So do the day’s earlier questions and the answers you chose, described above. Nothing else about you goes with it, and nothing is sent by listening alone. What Anthropic does with it is governed by their policy, not this one. Saving the key sends it to Anthropic once, with nothing else, to check that it works. Once an answer has taken more than three seconds, Peri says a short apology out loud so that whoever is waiting is not left in silence; those are asked of Anthropic a few at a time, in a request that carries nothing of yours at all, and the apology itself is not kept as something you said. Remove the key, and nothing is ever sent there. The answers are only ever drawn on the board for you to read, choose between or ignore, and the one you choose goes into the message box to read, change or discard — Peri never speaks one for you.',
+          'Suggested answers send the question to Anthropic, using an API key of your own that you set up under Settings. **With a key set up, this happens on its own**: when the person talking to you stops and your message box is empty, the question goes to be answered without your asking. Leave anything in the message box and it does not. The phrases on your board go with it — the ones Peri comes with, any you wrote yourself and the messages you have spoken or copied, which are kept as phrases, with a name filled in where a phrase has only one to choose from — so that the answers can be your own words; how often you use each one does not. So do the day’s earlier questions and the answers you chose, described above. Nothing else about you goes with it, and nothing is sent by listening alone. What Anthropic does with it is governed by their policy, not this one. Saving the key sends it to Anthropic once, with nothing else, to check that it works. Once an answer has taken more than three seconds, Peri says a short apology out loud so that whoever is waiting is not left in silence; those are asked of Anthropic a few at a time, in a request that carries nothing of yours at all, and the apology itself is not kept as something you said. Remove the key, and nothing is ever sent there. The answers are only ever drawn on the board for you to read, choose between or ignore, and the one you choose goes into the message box to read, change or discard — Peri never speaks one for you.',
         ),
         text(
           'Where answering needs something looked up, Anthropic searches the web for it, so the question reaches a search provider as well. That happens only inside an answer, and only when the question needs it.',

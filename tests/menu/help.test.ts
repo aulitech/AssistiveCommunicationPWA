@@ -47,7 +47,7 @@ describe('the user guide', () => {
     ['offline use', /offline|no internet/i],
     ['backup and import', /backup/i],
     ['linked voices', /ElevenLabs/],
-    ['the sent list', /Sent tab/],
+    ['what is said being kept', /Every message you speak or copy is kept in Library/],
     ['texting acronyms', /texting acronyms stand for/],
     ['every phrase being in Library', /Every phrase is in Library, each one once/],
     ['categories holding phrases from Library', /categories you make hold phrases from Library/],

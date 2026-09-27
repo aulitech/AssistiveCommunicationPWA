@@ -1,4 +1,4 @@
-// The message being built: the caret, the keys, the box that grows with what is in it, the controls on its borders, and the list of what has been said.
+// The message being built: the caret, the keys, the box that grows with what is in it, the controls on its borders, and what is said being kept in Library.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, fireEvent, act } from '@testing-library/react'
 import { setClipboardText, spoken } from '../setup'
@@ -16,7 +16,6 @@ import {
   writeIn,
   iconBtn,
   writePhrase,
-  editTitle,
   clearMessage,
 } from './harness'
 import { stylesheet } from '../stylesheet'
@@ -162,192 +161,147 @@ describe('composing', () => {
   })
 })
 
-describe('sent messages', () => {
-  const SENT_KEY = 'peri_sent'
+/**
+ * **What is said is kept in Library** — every message spoken or copied, as a
+ * phrase in no category, unless Library says it already — and counted as used
+ * the moment it is. There was a Sent tab for this; see
+ * docs/decisions/sent-messages.md.
+ */
+describe('what is said', () => {
   const tabs = () => $$('.filter-tab[role="tab"]')
-  const tabNamed = (name: string) => tabs().find(el => el.textContent === name)
-  // The filter bar hides while a typed word is narrowing the grid, and a phrase
-  // just inserted leaves the caret in one — so empty the box before looking.
-  const sentTexts = () => {
-    clearMessage()
-    click(tabNamed('Sent'))
-    return cells().map(c => c.textContent)
-  }
   const iconBtn = (label: string) => $$('.icon-btn').find(b => b.getAttribute('aria-label') === label)
-  const stored = () => JSON.parse(localStorage.getItem(SENT_KEY) ?? '[]').map((m: { text: string }) => m.text)
-
-  it('puts Sent to the left of All, always', () => {
-    renderApp()
-    expect(
-      tabs()
-        .map(el => el.textContent)
-        .slice(0, 2),
-    ).toEqual(['Sent', 'Library'])
-  })
-
-  it('says so rather than showing a blank panel before anything is said', () => {
-    renderApp()
-    click(tabNamed('Sent'))
-    expect(cells()).toHaveLength(0)
-    expect($('.grid-empty')?.textContent).toMatch(/nothing said yet/i)
-  })
-
-  it('keeps a message that was spoken', () => {
-    renderApp()
-    click(plainCell())
-    const said = message()
+  const store = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}')
+  const kept = (): string[] => (store().custom ?? []).map((c: { text: string }) => c.text)
+  const usage = () => JSON.parse(localStorage.getItem('peri_usage') ?? '{}')
+  const say = (text: string) => {
+    writeIn(box(), text)
     click(iconBtn('Speak'))
-
-    expect(spoken).toEqual([said])
-    expect(sentTexts()).toEqual([said])
-  })
-
-  // Recorded once the clipboard confirms it took it, so a copy that failed is
-  // not filed as something that was said.
-  it('keeps a message that was copied out', async () => {
-    renderApp()
-    click(plainCell())
-    const said = message()
+    clearMessage()
+    clearMessage()
+  }
+  const copied = async () => {
     click(iconBtn('Copy to clipboard'))
     await act(async () => {
       await Promise.resolve()
     })
     settle()
+  }
 
-    expect(sentTexts()).toEqual([said])
+  it('has no tab of its own: Library is first', () => {
+    renderApp()
+    expect(tabs()[0].textContent).toBe('Library')
+    expect(tabs().map(el => el.textContent)).not.toContain('Sent')
+  })
+
+  it('keeps a message that was spoken in Library, in no category', () => {
+    renderApp()
+    say('Nobody has said this here before')
+
+    expect(spoken).toEqual(['Nobody has said this here before'])
+    expect(store().custom).toEqual([
+      expect.objectContaining({ text: 'Nobody has said this here before', category: 'Library' }),
+    ])
+    expect(Object.values(store().members ?? {}).flat()).toEqual([])
+  })
+
+  // Kept once the clipboard confirms it took it, so a copy that failed is not
+  // kept as something that was said.
+  it('keeps a message that was copied out', async () => {
+    renderApp()
+    writeIn(box(), 'Copied and never spoken')
+    await copied()
+    expect(kept()).toEqual(['Copied and never spoken'])
   })
 
   it('keeps nothing when the clipboard refuses', async () => {
     renderApp()
     ;(navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('denied'))
-    click(plainCell())
-    click(iconBtn('Copy to clipboard'))
-    await act(async () => {
-      await Promise.resolve()
-    })
-    settle()
-
-    expect(stored()).toEqual([])
-  })
-
-  // In auto-speak the phrase never reaches the box — it is spoken on the spot,
-  // so that is the moment it counts as said.
-  it('keeps each phrase spoken in auto-speak', () => {
-    renderApp({ autoSpeak: true })
-    const [first, second] = cells()
-      .filter(c => !c.querySelector('.phrase-slot'))
-      .slice(0, 2)
-    const texts = [first.textContent!, second.textContent!]
-    click(first)
-    click(second)
-
-    expect(sentTexts()).toEqual([texts[1], texts[0]])
+    writeIn(box(), 'Refused by the clipboard')
+    await copied()
+    expect(kept()).toEqual([])
   })
 
   it('keeps nothing for an empty message', () => {
     renderApp()
     click(iconBtn('Speak'))
     click(iconBtn('Copy to clipboard'))
-    expect(stored()).toEqual([])
+    expect(kept()).toEqual([])
   })
 
-  // The list is for reaching a sentence again. Ten copies of "yes please" makes
-  // that harder, not easier.
-  it('moves a repeat to the top rather than listing it twice', () => {
+  // Library holds each wording once.
+  it('keeps a message said twice once', () => {
+    renderApp()
+    say('Twice over')
+    say('twice   over ')
+    expect(kept()).toEqual(['Twice over'])
+  })
+
+  // Choosing it off the board counted it, and it is in Library already.
+  it('keeps nothing, and counts nothing again, for a phrase off the board said as it is', () => {
+    renderApp()
+    const cell = plainCell()
+    const id = cell.getAttribute('data-phrase')!
+    click(cell)
+    click(iconBtn('Speak'))
+
+    expect(kept()).toEqual([])
+    expect(Object.keys(usage())).toEqual([id])
+    expect(usage()[id].count).toBe(1)
+  })
+
+  it('keeps nothing for a phrase spoken off the board in auto-speak', () => {
     renderApp({ autoSpeak: true })
-    const [first, second] = cells()
-      .filter(c => !c.querySelector('.phrase-slot'))
-      .slice(0, 2)
-    const texts = [first.textContent!, second.textContent!]
-    click(first)
-    click(second)
-    click(first)
-
-    expect(sentTexts()).toEqual([texts[0], texts[1]])
+    click(plainCell())
+    expect(spoken).toHaveLength(1)
+    expect(kept()).toEqual([])
   })
 
-  it('says a kept message again in one dwell', () => {
+  // Counted as used the moment it is said, so it is first among what typing
+  // finds, and first in Library under Recently used.
+  it('is counted as used, so typing finds the latest first', () => {
     renderApp()
-    click(plainCell())
-    const said = message()
-    click(iconBtn('Speak'))
-    clearMessage()
-    clearMessage()
+    say('Quokka one')
+    act(() => void vi.advanceTimersByTime(1000))
+    say('Quokka two')
 
-    click(tabNamed('Sent'))
-    click(cells()[0])
+    const ids = store().custom.map((c: { id: string }) => c.id)
+    expect(Object.keys(usage()).sort()).toEqual([...ids].sort())
 
-    expect(message()).toBe(said)
+    writeIn(box(), 'quokka')
+    expect(cells().map(c => c.textContent)).toEqual(['Quokka two', 'Quokka one'])
   })
 
-  it('survives a reload', () => {
+  it('survives a reload, as any phrase does', () => {
     renderApp()
-    click(plainCell())
-    const said = message()
-    click(iconBtn('Speak'))
+    say('Still here tomorrow')
+    cleanup()
+    renderApp()
+    writeIn(box(), 'still here tom')
+    expect(cells().map(c => c.textContent)).toEqual(['Still here tomorrow'])
+  })
+
+  /**
+   * **A board from before kept a Sent list**, under a key of its own. It comes
+   * into Library on the first look, oldest first so the phrases stand in the
+   * order they were said, and the list goes — once, so opening the board again
+   * brings nothing in twice.
+   */
+  it('brings a Sent list from before into Library, once', () => {
+    localStorage.setItem(
+      'peri_sent',
+      JSON.stringify([
+        { id: 'sent-2', text: 'Said second' },
+        { id: 'sent-1', text: 'Said first' },
+        { id: 'sent-0', text: 'yes, I can' },
+      ]),
+    )
+    renderApp()
+    expect(kept()).toEqual(['Said first', 'Said second'])
+    expect(localStorage.getItem('peri_sent')).toBeNull()
 
     cleanup()
     renderApp()
-    expect(sentTexts()).toEqual([said])
-  })
-
-  describe('in edit mode', () => {
-    const enterEditMode = () => click(editToggle())
-    // Written rather than chosen off the board: everything Peri ships is in
-    // Library, where a message kept from one of its phrases is already on the
-    // board and cannot be kept twice.
-    const sendOne = () => {
-      writeIn(box(), 'Nobody has said this here before')
-      const said = message()
-      click(iconBtn('Speak'))
-      clearMessage()
-      clearMessage()
-      return said
-    }
-
-    // A sent message is a record, not a phrase. There is nothing in it to edit —
-    // only to keep, or to forget.
-    it('offers keeping it rather than editing it', () => {
-      renderApp()
-      const said = sendOne()
-      click(tabNamed('Sent'))
-      enterEditMode()
-      click(cells()[0])
-
-      expect(editTitle()).toMatch(/keep this message/i)
-      expect(iconBtn('Keep this message as a phrase')).toBeDefined()
-      expect(iconBtn('Forget this message')).toBeDefined()
-      // It must not offer to file it under "Sent", which is not a real category.
-      expect($('.category-trigger')?.textContent).not.toMatch(/Sent/)
-      expect(said).not.toBe('')
-    })
-
-    it('keeps it as a phrase of its own, leaving the record alone', () => {
-      renderApp()
-      const said = sendOne()
-      click(tabNamed('Sent'))
-      enterEditMode()
-      click(cells()[0])
-      click(iconBtn('Keep this message as a phrase'))
-
-      const custom = JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!).custom
-      expect(custom.map((c: { text: string }) => c.text)).toEqual([said])
-      expect(stored()).toEqual([said])
-    })
-
-    // Somebody who has just said something private needs a way to take it off
-    // the screen, and this is the only one.
-    it('forgets it', () => {
-      renderApp()
-      sendOne()
-      click(tabNamed('Sent'))
-      enterEditMode()
-      click(cells()[0])
-      click(iconBtn('Forget this message'))
-
-      expect(stored()).toEqual([])
-      expect(cells()).toHaveLength(0)
-    })
+    expect(kept()).toEqual(['Said first', 'Said second'])
   })
 })
 

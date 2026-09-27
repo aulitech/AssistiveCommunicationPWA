@@ -5,24 +5,18 @@ import { FORMER_IDS, LIBRARY } from '../phrases'
 import { PHRASE_SORT_KEY, RECENT_KEY, SENT_KEY, TRANSLATED_KEY, USAGE_KEY, writeKey } from './keys'
 import { storageKey } from './owner'
 
-// ── Messages already said ─────────────────────────────────────────────────────
-// A conversation repeats itself, and rebuilding a sentence word by word is the
-// slowest thing this app asks of anyone. What was said once is kept so it can be
-// said again in one dwell.
-//
-// Its own key, and deliberately not part of a backup: this is a record of what
-// somebody actually said — what hurts, what they want, who they were asking for
-// — and a backup is a file made to be handed to somebody else. `src/backup.test.ts`
-// holds it to that.
+// ── Messages already said, before Library kept them ──────────────────────────
+// There was a Sent tab: every message spoken or copied, newest first, under a
+// key of its own. Library keeps them now — a message goes in as a phrase the
+// moment it is said — so what is left here is reading that list once, to bring
+// it into Library, and taking it away after. See docs/decisions/sent-messages.md.
 
 export interface SentMessage {
   id: string
   text: string
 }
 
-/** Newest first, so the grid opens on what was just said. */
-const SENT_LIMIT = 200
-
+/** The list as it was kept, newest first, or nothing. */
 export function loadSent(): SentMessage[] {
   try {
     const raw = JSON.parse(localStorage.getItem(storageKey(SENT_KEY)) ?? '[]')
@@ -33,20 +27,19 @@ export function loadSent(): SentMessage[] {
           typeof m === 'object' && m !== null && typeof (m as SentMessage).text === 'string',
       )
       .map((m: SentMessage) => ({ id: String(m.id ?? m.text), text: m.text }))
-      .slice(0, SENT_LIMIT)
   } catch {
     return []
   }
 }
 
-export function saveSent(messages: SentMessage[]) {
-  writeKey(storageKey(SENT_KEY), JSON.stringify(messages))
+/** Takes the old list away, once Library holds what was in it. */
+export function forgetSent() {
+  localStorage.removeItem(storageKey(SENT_KEY))
 }
 
 // ── What was said in another language ─────────────────────────────────────────
-// The Sent list's twin, and shaped after it for the same reasons — see
-// `talk/use-translated.ts`. A record of what somebody actually said, so it has
-// its own key, outside the three things a backup is built from.
+// A record of what somebody actually said — see `talk/use-translated.ts` — so it
+// has its own key, outside the three things a backup is built from.
 
 /** One phrase, as it came out of the speaker. */
 export interface Translated {
@@ -107,12 +100,12 @@ export function saveTranslated(list: Translated[]) {
  * **Keyed by the words and the language together**, so one phrase said in two
  * languages is two entries — which is the whole of what "preserve the language"
  * has to mean here. Saying the same thing again in the same language moves it
- * back to the top rather than listing it twice, exactly as the Sent list does:
- * the tab is for reaching a sentence again, and ten copies makes that harder.
+ * back to the top rather than listing it twice: the tab is for reaching a
+ * sentence again, and ten copies makes that harder.
  *
- * **The order *is* the recency.** No timestamp, for the reason the Sent list
- * keeps none — a list held newest-first already answers the only question asked
- * of it, and a clock in storage is one more thing to be wrong.
+ * **The order *is* the recency.** No timestamp — a list held newest-first
+ * already answers the only question asked of it, and a clock in storage is one
+ * more thing to be wrong.
  */
 export function addTranslated(list: Translated[], source: string, text: string, tag: string): Translated[] {
   const said = text.trim()
@@ -125,22 +118,6 @@ export function addTranslated(list: Translated[], source: string, text: string, 
       : { id: `tr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, source, text: said, tag },
     ...list.filter(t => !same(t)),
   ].slice(0, TRANSLATED_LIMIT)
-}
-
-/**
- * The list after saying `text`. Saying the same thing twice moves it back to the
- * top rather than listing it twice — the list is for reaching a sentence again,
- * and ten copies of "yes please" makes that harder, not easier.
- */
-export function addSent(messages: SentMessage[], text: string): SentMessage[] {
-  const trimmed = text.trim()
-  if (!trimmed) return messages
-  const rest = messages.filter(m => m.text !== trimmed)
-  const existing = messages.find(m => m.text === trimmed)
-  return [
-    existing ?? { id: `sent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: trimmed },
-    ...rest,
-  ].slice(0, SENT_LIMIT)
 }
 
 // ── The last choices made ─────────────────────────────────────────────────────
@@ -174,8 +151,8 @@ export function saveRecent(recent: RecentChoices) {
 // What the board is arranged by when it is arranged by use. Two numbers per
 // phrase: how many times, and when last.
 //
-// Its own key, and deliberately not part of a backup, for the reason the Sent
-// list is not: this is a record of what somebody actually said and how often —
+// Its own key, and deliberately not part of a backup: this is a record of what
+// somebody actually said and how often —
 // which body part hurts, who they keep asking for — and a backup is a file made
 // to be handed to somebody else. `tests/core/backup.test.ts` holds it to that.
 //
@@ -311,7 +288,7 @@ export function savePhraseSorts(sorts: PhraseSorts) {
 /**
  * What a tab is showing. A tab nobody has chosen for shows `DEFAULT_SORT`.
  *
- * **`canArrange` is false for Sent, the answers and Translations**, which offer
+ * **`canArrange` is false for the answers and Translations**, which offer
  * no Custom order: each is a record in the order it happened. A stored `custom`
  * there is read as the default rather than left as a state its own picker could
  * not get back to.

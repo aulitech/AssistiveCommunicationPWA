@@ -55,9 +55,9 @@ export {
   saveAliasSort,
 } from './store/aliases'
 export {
-  addSent,
   addTranslated,
   DEFAULT_SORT,
+  forgetSent,
   forgetUse,
   loadPhraseSorts,
   loadRecent,
@@ -72,7 +72,6 @@ export {
   recordUse,
   savePhraseSorts,
   saveRecent,
-  saveSent,
   saveTranslated,
   saveUsage,
   type SentMessage,

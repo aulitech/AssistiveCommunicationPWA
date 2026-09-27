@@ -1,15 +1,14 @@
 // What order the grid is in, and what it shows.
 //
 // Out of `talk.tsx`: the four arrangements, the snapshot of the usage record
-// the board is ordered by, the order the Sent list is held in, and the one list
-// all of that and a typed word make — see docs/decisions/ordering-the-grid.md.
-// What goes in is the tab, the three records and the counts; what comes out is
+// the board is ordered by, and the one list all of that and a typed word make — see docs/decisions/ordering-the-grid.md.
+// What goes in is the tab, the two records and the counts; what comes out is
 // the list the grid draws and the two ways of changing its order.
 
 import { useCallback, useMemo, useState } from 'react'
 import { LIBRARY, type Phrase } from '../core/phrases'
 import { search } from '../core/search'
-import { heldOrder, sortPhrases } from '../core/sort'
+import { sortPhrases } from '../core/sort'
 import {
   loadPhraseSorts,
   savePhraseSorts,
@@ -28,24 +27,20 @@ export function useGridOrder({
   board,
   tab,
   canArrange,
-  showingSent,
   showingTranslated,
   showingSuggestions,
-  sentPhrases,
   translatedPhrases,
   suggestions,
   counts,
   filterWord,
 }: {
   board: Board
-  /** The tab that is showing — Library, a category, or one of the three records. */
+  /** The tab that is showing — Library, a category, or one of the two records. */
   tab: string
   /** Whether the tab is a category of its own, where Custom order means anything. */
   canArrange: boolean
-  showingSent: boolean
   showingTranslated: boolean
   showingSuggestions: boolean
-  sentPhrases: Phrase[]
   translatedPhrases: Phrase[]
   suggestions: Phrase[]
   /** How much each phrase is used, as it stands now. */
@@ -86,19 +81,11 @@ export function useGridOrder({
    * state that follows a prop — an effect would draw the old order once first.
    */
   const [ranking, setRanking] = useState(counts)
-  /**
-   * And the order the Sent list is shown in, held the same way and for the same
-   * reason: saying a message again moves it to the front of the record, which
-   * on the tab it was said from is the cell just used sliding out from under
-   * the gaze that used it. The record still moves; the screen holds.
-   */
-  const [sentOrder, setSentOrder] = useState(() => sentPhrases.map(p => p.id))
   const showing = `${tab}\u0000${phraseSort}`
   const [rankedFor, setRankedFor] = useState(showing)
   if (rankedFor !== showing) {
     setRankedFor(showing)
     setRanking(counts)
-    setSentOrder(sentPhrases.map(p => p.id))
   }
 
   const arrangedPhrases = useMemo(
@@ -113,29 +100,24 @@ export function useGridOrder({
    */
   const library = board.mainPhrases
 
-  // Both records keep the order they happened in, newest first, and neither is
-  // put through `sortPhrases` at all — which is what "always sorted by recency"
-  // means for the Translations tab, exactly as it does for Sent.
+  // Translations keeps the order it happened in, newest first, and is not put
+  // through `sortPhrases` at all — which is what "always sorted by recency"
+  // means for it.
   const visiblePhrases = useMemo(
     () =>
       filterWord
         ? search(library, filterWord, counts)
-        : showingSent
-          ? heldOrder(sentPhrases, sentOrder)
-          : showingTranslated
-            ? translatedPhrases
-            : showingSuggestions
-              ? suggestions
-              : arrangedPhrases,
+        : showingTranslated
+          ? translatedPhrases
+          : showingSuggestions
+            ? suggestions
+            : arrangedPhrases,
     [
       filterWord,
       library,
       counts,
-      showingSent,
       showingTranslated,
       showingSuggestions,
-      sentPhrases,
-      sentOrder,
       translatedPhrases,
       suggestions,
       arrangedPhrases,

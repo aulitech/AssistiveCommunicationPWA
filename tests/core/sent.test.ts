@@ -1,59 +1,76 @@
 import { describe, it, expect } from 'vitest'
-import { addSent, loadSent, saveSent, type SentMessage } from '../../src/core/store'
+import { plainPhrase } from '../../src/core/phrases'
+import { keepingSaid } from '../../src/core/board'
+import { emptyStore, forgetSent, loadSent } from '../../src/core/store'
 
-// The list of what was said. Driven through the app in App.test.tsx; this is the
-// arithmetic underneath, including the parts the buttons cannot reach because
-// they are disabled when there is nothing to send.
+// What was said, kept in Library. Driven through the app in
+// app/message.test.tsx; this is the rule underneath, and the list a board from
+// before kept, which is read once to bring it in.
 
-const texts = (messages: SentMessage[]) => messages.map(m => m.text)
-const listOf = (...values: string[]) => values.reduce<SentMessage[]>((list, v) => addSent(list, v), [])
+const TABLE = [plainPhrase('s1', 'Hello', 'Library'), plainPhrase('s2', 'Yes please', 'Library')]
+const said = (...texts: string[]) => texts.map((text, i) => ({ id: `custom-${i}`, text }))
 
-describe('adding to the list', () => {
-  it('puts the newest first', () => {
-    expect(texts(listOf('one', 'two', 'three'))).toEqual(['three', 'two', 'one'])
+describe('keeping what was said', () => {
+  it('adds each message to Library as a phrase in no category', () => {
+    const store = { ...emptyStore(), members: { Food: ['s1'] } }
+    const kept = keepingSaid(TABLE, store, said('I am cold', 'Where is Sam'))
+    expect(kept.custom).toEqual([
+      { id: 'custom-0', text: 'I am cold', category: 'Library' },
+      { id: 'custom-1', text: 'Where is Sam', category: 'Library' },
+    ])
+    expect(kept.members).toEqual({ Food: ['s1'] })
   })
 
-  it('gives every message an id of its own', () => {
-    const list = listOf('one', 'two')
-    expect(new Set(list.map(m => m.id)).size).toBe(2)
+  // Library holds each wording once, and "yes please" said a hundred times is
+  // one phrase that gets used a hundred times.
+  it('leaves out what Library says already, whatever the case and the spaces', () => {
+    const store = { ...emptyStore(), custom: [{ id: 'custom-mine', text: 'I am cold', category: 'Library' }] }
+    expect(keepingSaid(TABLE, store, said('  yes   PLEASE ', 'i am cold'))).toBe(store)
   })
 
-  // The list is for reaching a sentence again, and ten copies of "yes please"
-  // makes that harder, not easier.
-  it('moves a repeat to the top rather than listing it twice', () => {
-    expect(texts(listOf('one', 'two', 'one'))).toEqual(['one', 'two'])
+  it('keeps a message said twice in the one list once', () => {
+    expect(keepingSaid(TABLE, emptyStore(), said('Again', 'again')).custom.map(p => p.text)).toEqual(['Again'])
   })
 
-  it('keeps the same id when a message comes back', () => {
-    const once = listOf('one', 'two')
-    const again = addSent(once, 'one')
-    expect(again[0].id).toBe(once[1].id)
+  it('trims a message, and leaves out one that is only spaces', () => {
+    expect(keepingSaid(TABLE, emptyStore(), said('  Hi there ', '   ', '')).custom.map(p => p.text)).toEqual([
+      'Hi there',
+    ])
   })
 
-  it('ignores an empty message, and trims the rest', () => {
-    expect(texts(listOf('', '   ', '\n'))).toEqual([])
-    expect(texts(listOf('  hello  '))).toEqual(['hello'])
-    // Trimmed on the way in, so the same words with a stray space are one entry.
-    expect(texts(listOf('hello', ' hello '))).toEqual(['hello'])
+  // Somebody deleted it, and then said it: that is a phrase they are using.
+  it('keeps what matches only a phrase somebody deleted, or reworded away', () => {
+    const store = { ...emptyStore(), hidden: ['s1'], overrides: { s2: 'Yes thanks' } }
+    expect(keepingSaid(TABLE, store, said('Hello', 'Yes please')).custom.map(p => p.text)).toEqual([
+      'Hello',
+      'Yes please',
+    ])
   })
 
-  // A day of talking would otherwise fill the browser's storage and put a
-  // thousand cells in the grid.
-  it('keeps the last two hundred and drops the rest', () => {
-    let list: SentMessage[] = []
-    for (let i = 0; i < 260; i++) list = addSent(list, `message ${i}`)
+  it('is not fooled by a phrase on the emergency bar, which is not in Library', () => {
+    const store = { ...emptyStore(), custom: [{ id: 'custom-help', text: 'Help me', category: 'Emergency' }] }
+    expect(keepingSaid(TABLE, store, said('Help me')).custom.map(p => p.text)).toEqual(['Help me', 'Help me'])
+  })
 
-    expect(list).toHaveLength(200)
-    expect(list[0].text).toBe('message 259')
-    expect(texts(list)).not.toContain('message 0')
+  it('takes a reworded phrase as saying what it says now', () => {
+    const store = { ...emptyStore(), overrides: { s1: 'Hello there' } }
+    expect(keepingSaid(TABLE, store, said('hello there'))).toBe(store)
   })
 })
 
-describe('reading it back', () => {
-  it('survives a round trip', () => {
-    const list = listOf('one', 'two')
-    saveSent(list)
-    expect(loadSent()).toEqual(list)
+describe('the list a board from before kept', () => {
+  it('reads back what was written, newest first', () => {
+    localStorage.setItem(
+      'peri_sent',
+      JSON.stringify([
+        { id: 'b', text: 'second' },
+        { id: 'a', text: 'first' },
+      ]),
+    )
+    expect(loadSent()).toEqual([
+      { id: 'b', text: 'second' },
+      { id: 'a', text: 'first' },
+    ])
   })
 
   it('starts empty rather than throwing on nonsense', () => {
@@ -68,11 +85,9 @@ describe('reading it back', () => {
     expect(loadSent()).toEqual([{ id: 'a', text: 'kept' }])
   })
 
-  // A list written by a build with a higher limit does not get to make the grid
-  // longer than this one allows.
-  it('holds a stored list to the same limit', () => {
-    const long = Array.from({ length: 300 }, (_, i) => ({ id: `s${i}`, text: `message ${i}` }))
-    localStorage.setItem('peri_sent', JSON.stringify(long))
-    expect(loadSent()).toHaveLength(200)
+  it('is taken away once Library holds it', () => {
+    localStorage.setItem('peri_sent', JSON.stringify([{ id: 'a', text: 'kept' }]))
+    forgetSent()
+    expect(localStorage.getItem('peri_sent')).toBeNull()
   })
 })

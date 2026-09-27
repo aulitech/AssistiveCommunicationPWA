@@ -886,87 +886,29 @@ describe('the mark on the last phrase said', () => {
   })
 })
 
-describe('the Sent tab', () => {
-  const showSent = () => click(tab('Sent'))
-
-  /** Says all three, so the record has something to hold an order of. */
-  const sayEverything = () => {
+/**
+ * **What is said is kept in Library**, counted as used the moment it is — which
+ * is what the Sent tab was for: Library under Recently used is what was said,
+ * newest first. See *Sent messages*.
+ */
+describe('what is said', () => {
+  it('is first in Library under Recently used, from the next look on', () => {
     renderApp()
     showSorted()
     click(cellFor('Cherry'))
-    click(cellFor('Apple'))
-    click(cellFor('Banana'))
-  }
-
-  // The record keeps itself newest first, so saying a message again moves it to
-  // the front — which, on the tab it was said from, is the cell just used
-  // sliding out from under the gaze that used it.
-  it('holds the order it was in while somebody is looking at it', () => {
-    sayEverything()
-    showSent()
-    expect(onBoard()).toEqual(['Banana', 'Apple', 'Cherry'])
-
-    click(cellFor('Cherry'))
-
-    expect(onBoard(), 'the message just said moved under the pointer').toEqual(['Banana', 'Apple', 'Cherry'])
-  })
-
-  it('takes the record’s own order again at the next tab', () => {
-    sayEverything()
-    showSent()
-    click(cellFor('Cherry'))
-
-    showSorted()
-    showSent()
-
-    expect(onBoard()).toEqual(['Cherry', 'Banana', 'Apple'])
-  })
-
-  // Something said while the tab is open is new rather than moved, and it is
-  // what somebody is most likely to be looking for. The box is emptied first
-  // because what is being composed narrows this list as it narrows the board.
-  it('puts a message said since at the front', () => {
-    sayEverything()
-    showSent()
+    click(tab('Library'))
+    chooseOrder('Recently used')
+    expect(onBoard()[0]).toBe('Cherry')
 
     fireEvent.change($('.text-display')!, { target: { value: 'Something new' } })
     settle()
     click(iconBtn('Speak'))
     click(iconBtn('Clear'))
+    expect(onBoard()[0], 'the board moved under the gaze that said it').toBe('Cherry')
 
-    expect(onBoard()).toEqual(['Something new', 'Banana', 'Apple', 'Cherry'])
-  })
-
-  // Sent is not a category. It is a record in the order it happened, newest
-  // first, and that is the whole of what it is for.
-  it('goes quiet rather than away, and says why', () => {
-    renderApp()
-    showSorted()
-    click(cellFor('Apple'))
-    showSent()
-
-    expect(sortBtn().getAttribute('aria-disabled')).toBe('true')
-    expect(sortBtn().getAttribute('aria-label')).toMatch(/Sent messages are always newest first/)
-  })
-
-  it('opens nothing while it is quiet', () => {
-    renderApp()
-    showSent()
-    click(sortBtn())
-    expect(inBody('.picker-modal')).toHaveLength(0)
-  })
-
-  // Those ids name a message rather than a phrase on the board, so counting them
-  // would fill the record with ids that can never match anything again.
-  it('does not count a message chosen from it', () => {
-    renderApp()
-    showSorted()
-    click(cellFor('Apple'))
-    showSent()
-    click(cells()[0])
-
-    const usage = JSON.parse(localStorage.getItem('peri_usage') ?? '{}')
-    expect(Object.keys(usage)).toEqual(['custom-a'])
+    click(tab('Translations'))
+    click(tab('Library'))
+    expect(onBoard().slice(0, 2)).toEqual(['Something new', 'Cherry'])
   })
 })
 
@@ -1097,22 +1039,18 @@ describe('arranging the phrases by hand', () => {
     expect(kept.slice(0, 2)).toEqual([second, first])
   })
 
-  it('goes quiet under Sent', () => {
+  it('goes quiet under Translations', () => {
     renderApp()
-    showSorted()
-    click(cellFor('Apple'))
     click(editToggle())
-    click(tab('Sent'))
+    click(tab('Translations'))
 
     expect(reorderBtn()!.getAttribute('aria-disabled')).toBe('true')
   })
 
   it('opens nothing while it is quiet', () => {
     renderApp()
-    showSorted()
-    click(cellFor('Apple'))
     click(editToggle())
-    click(tab('Sent'))
+    click(tab('Translations'))
     click(reorderBtn())
 
     expect($('.phrase-cell.reorderable')).toBeNull()

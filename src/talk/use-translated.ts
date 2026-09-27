@@ -1,10 +1,8 @@
 // What has been said in another language, as phrases that can be said again.
 //
-// The Sent list's twin, and deliberately built to the same shape. Both are a
-// record of what somebody actually said rather than anything they made, so both
-// have their own storage key, neither is ever in a backup, and neither is a
-// category — a tab pinned where it can be learnt, holding a list in the order
-// it happened.
+// A record of what somebody actually said rather than anything they made, so it
+// has its own storage key, is never in a backup, and is not a category — a tab
+// pinned where it can be learnt, holding a list in the order it happened.
 //
 // What is different is why it is worth having. **The board stays in the user's
 // own words and the translation is what comes out**, so until now a translation
@@ -33,9 +31,8 @@ import { plainPhrase, type Phrase } from '../core/phrases'
 export const TRANSLATED_CATEGORY = 'Translations'
 
 /**
- * The filter id. The leading space keeps it out of reach of a real category,
- * exactly as `SENT_FILTER` does: names are trimmed before they are saved, so
- * none can ever collide with this.
+ * The filter id. The leading space keeps it out of reach of a real category:
+ * names are trimmed before they are saved, so none can ever collide with this.
  */
 export const TRANSLATED_FILTER = ' translations'
 
@@ -57,9 +54,8 @@ export function useTranslated() {
     setList(next)
   }, [])
 
-  // Both of these read storage back rather than closing over `list`, for the
-  // reason the Sent list does: two phrases can be spoken without a render in
-  // between, and the second would otherwise be written against a list that no
+  // Both of these read storage back rather than closing over `list`: two
+  // phrases can be spoken without a render in between, and the second would otherwise be written against a list that no
   // longer exists. It matters more here — the service path resolves whenever it
   // resolves, so two of these can land in any order at all.
   const record = useCallback(

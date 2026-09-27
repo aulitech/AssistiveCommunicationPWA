@@ -364,7 +364,7 @@ export function FilterBar({
 
           {/* Renaming the tab that is showing. **Quiet rather than away** where
               that tab is not one somebody made — Library, which holds every
-              phrase, and the three records — or while
+              phrase, and the two records — or while
               the tabs are being arranged: the tools are aimed at by position,
               and one that came and went would move the one beside it. */}
           {onEditCategory && (

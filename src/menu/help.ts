@@ -100,7 +100,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text('Phrases you have never used sit after the ones you have, in the order the board already had them.'),
       text(
-        'Peri counts what you use on this device only. It is never included in a backup and never sent anywhere, for the same reason the list of what you have said is not.',
+        'Peri counts what you use on this device only. It is never included in a backup and never sent anywhere, because it is a record of what you actually said.',
       ),
       text(
         'Each tab keeps its own order, so you can have one category alphabetical and another by what you use most. Opening a tab brings back the order you left it in, and the button always says which one that is.',
@@ -108,7 +108,6 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'Library and every category can be put in an order of your own. Each keeps its own, so arranging one moves nothing in another.',
       ),
-      text('The Sent tab keeps its own order, newest first, so the button is switched off while it is showing.'),
     ],
   },
   {
@@ -126,9 +125,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'Arranging a category switches it to Custom order and keeps what you built. Whatever order was on screen when you moved something becomes your starting point, so you can sort A to Z first and then move the few you want elsewhere.',
       ),
-      text(
-        'Library and each category have their own arrangement. The Sent tab is in the order things were said, so the arrange button is switched off there.',
-      ),
+      text('Library and each category have their own arrangement.'),
       text(
         'A phrase you add later goes at the end rather than disturbing what you arranged. Rewording a phrase leaves it exactly where you put it.',
       ),
@@ -333,17 +330,19 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Saying something again',
     blocks: [
       text(
-        'The Sent tab, first in the row above the grid, keeps every message you speak or copy. The newest is first. Saying one again moves it to the top of the list — but not while you are looking at it: the tab holds the order you found it in until you go somewhere else and come back.',
+        'Every message you speak or copy is kept in Library as a phrase of its own, unless Library has it already. It counts as just used, so it comes first under Recently used and first among what typing finds.',
       ),
       list(
-        'Rest on one to put it back in the message box, ready to say again.',
-        'The same message said twice moves back to the top rather than appearing twice.',
-        'The last two hundred are kept; older ones drop off the end.',
+        'Type the start of it, or the start of any word in it, to find it again.',
+        'Put Library in Recently used order to see what you said last, newest first.',
+        'Something said twice is kept once.',
       ),
       text(
-        'In edit mode, resting on one brings it into the box to keep as a phrase of your own, or offers the bin to forget it. Forgetting is worth knowing about if you have just said something private.',
+        'It is in no category. In edit mode you can file it under one, like any phrase, or delete it. Deleting is worth knowing about if you have just said something private.',
       ),
-      text('This list stays on your device and is never put in a backup file.'),
+      text(
+        'Because it is a phrase, it goes wherever your phrases go: into a backup file, to your other devices if Synchronize is on, and with the phrases on your board when you ask for suggested answers.',
+      ),
     ],
   },
   {
@@ -447,7 +446,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'If an answer takes more than about three seconds, Peri says a short apology out loud — the sort of thing you would say yourself while you thought — so that whoever asked is not left in silence.',
       ),
       text(
-        'It is never the same one twice in an hour, and it is not kept as something you said: it does not go into the Sent tab, and it is not part of the conversation the next answer is written against.',
+        'It is never the same one twice in an hour, and it is not kept as something you said: it does not go into Library, and it is not part of the conversation the next answer is written against.',
       ),
       text(
         'It asks on its own as soon as the person talking to you stops, so long as the message box is empty — you do not have to ask for it. The board goes to the answers as they come, and back to where you were when the question is done with.',
@@ -467,7 +466,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'It does not answer questions about you: it has never met you, so anything about what you did, felt or want comes back as a gap for you to fill in, with the caret landing in it when you choose that answer.',
       ),
       text(
-        'The question is sent to Anthropic to be answered, on your own account and your own credits, and the phrases on your board go with it — the ones Peri comes with and any you wrote yourself. How often you use each one does not.',
+        'The question is sent to Anthropic to be answered, on your own account and your own credits, and the phrases on your board go with it — the ones Peri comes with, any you wrote yourself, and the messages you have said, which are kept as phrases. How often you use each one does not.',
       ),
       text(
         'Nothing is sent by listening alone — it goes when a reply is being written, which is as soon as a question finishes unless there is already something in the message box.',
@@ -506,7 +505,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'In edit mode, the bin forgets a translation and Save keeps it as a phrase of your own. A kept one is an ordinary phrase, spoken in whatever language the board is set to.',
       ),
       text(
-        'It stays on this device. It is a record of what you actually said, so it is never in a backup file and never sent to your other devices — the same as the list of sent messages. A factory reset clears it.',
+        'It stays on this device. It is a record of what you actually said, so it is never in a backup file and never sent to your other devices — the same as how often you use each phrase. A factory reset clears it.',
       ),
     ],
   },
