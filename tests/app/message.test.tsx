@@ -17,6 +17,8 @@ import {
   iconBtn,
   writePhrase,
   clearMessage,
+  slotCell,
+  fillEverySlot,
 } from './harness'
 import { stylesheet } from '../stylesheet'
 
@@ -256,6 +258,16 @@ describe('what is said', () => {
     expect(kept()).toEqual([])
   })
 
+  // Said on the spot, a phrase with its slots filled is a sentence Library does
+  // not have yet.
+  it('keeps what a phrase with its slots filled said, in auto-speak', () => {
+    renderApp({ autoSpeak: true })
+    click(slotCell())
+    fillEverySlot()
+    expect(spoken).toHaveLength(1)
+    expect(kept()).toEqual([spoken[0]])
+  })
+
   // Counted as used the moment it is said, so it is first among what typing
   // finds, and first in Library under Recently used.
   it('is counted as used, so typing finds the latest first', () => {
@@ -286,6 +298,14 @@ describe('what is said', () => {
    * order they were said, and the list goes — once, so opening the board again
    * brings nothing in twice.
    */
+  // Nothing in it to bring in is still a list to take away.
+  it('takes away a list from before that Library says all of already', () => {
+    localStorage.setItem('peri_sent', JSON.stringify([{ id: 'sent-0', text: 'Yes, I can' }]))
+    renderApp()
+    expect(kept()).toEqual([])
+    expect(localStorage.getItem('peri_sent')).toBeNull()
+  })
+
   it('brings a Sent list from before into Library, once', () => {
     localStorage.setItem(
       'peri_sent',
