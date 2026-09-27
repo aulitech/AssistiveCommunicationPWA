@@ -29,6 +29,24 @@ describe('what is typed', () => {
     expect(texts(search(BOARD, 'ttyl', {}))).toEqual(['Talk to you later', 'Time to yawn loudly'])
   })
 
+  // "at" used to find "that", "what" and "water": letters from the middle of a
+  // word are not what anybody typing them is reaching for.
+  it('finds inside a phrase only where a word begins', () => {
+    expect(texts(search(BOARD, 'alk', {}))).toEqual([])
+    expect(texts(search(BOARD, 'ea', {}))).toEqual([])
+    expect(texts(search(BOARD, 'tea', {}))).toEqual(['Take the tea away'])
+    expect(texts(search(BOARD, 'to you t', {}))).toEqual(['I will talk to you tomorrow'])
+    expect(texts(search([P('w', 'I want water')], 'ater', {}))).toEqual([])
+  })
+
+  it('takes a word as beginning past a quote or bracket in front of it', () => {
+    const quoted = [P('q', 'Say "quiet" please'), P('b', 'A drink (cold)')]
+    expect(texts(search(quoted, 'quiet', {}))).toEqual(['Say "quiet" please'])
+    expect(texts(search(quoted, '"qu', {}))).toEqual(['Say "quiet" please'])
+    expect(texts(search(quoted, 'cold', {}))).toEqual(['A drink (cold)'])
+    expect(texts(search(quoted, 'uiet', {}))).toEqual([])
+  })
+
   it('lists a phrase once, in the first group it belongs to', () => {
     const found = search([P('x', 'tt tt')], 'tt', {})
     expect(texts(found)).toEqual(['tt tt'])

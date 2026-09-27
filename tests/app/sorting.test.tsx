@@ -389,7 +389,7 @@ describe('what each order does', () => {
  */
 /**
  * **What is typed searches Library**, whichever tab is showing, in three groups
- * — phrases beginning with it, then phrases holding it anywhere, then phrases
+ * — phrases beginning with it, then phrases with a word beginning with it, then phrases
  * whose first words' initials it spells — and each group in the order its
  * phrases were last used, the most recent first. Filed under words nothing Peri
  * ships contains, so the groups hold only these.
@@ -415,7 +415,7 @@ describe('what is typed', () => {
       JSON.stringify(Object.fromEntries(Object.entries(at).map(([id, when]) => [id, { count: 1, at: when }]))),
     )
 
-  it('groups what begins with it, then what holds it, then what it spells, each by recency', () => {
+  it('groups what begins with it, then a word beginning with it, then what it spells, each by recency', () => {
     used({ 'custom-q2': 200, 'custom-q1': 100, 'custom-q4': 300 })
     renderApp(QUARK)
     showSorted()
