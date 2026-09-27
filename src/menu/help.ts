@@ -58,7 +58,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         'Rest on any phrase in the grid to add it to the box.',
         'Type in the box to find phrases in Library. After you choose a phrase, what you type next starts a new search.',
-        'Phrases that begin with what you typed come first, then phrases with it anywhere in them. Last are phrases whose first letters it spells, so "ttyl" finds "Talk to you later".',
+        'Phrases that begin with what you typed come first, then phrases with a word that begins with it. Last are phrases whose first letters it spells, so "ttyl" finds "Talk to you later".',
         'In each of those groups, the phrase you used most recently comes first.',
         'Use the tabs above the grid to show one category at a time. Every phrase is in Library, each one once. The categories you make hold phrases from Library, in an order of their own, and a phrase can be in as many as you like.',
         'The buttons on the right scroll the grid: the middle two move a little at a time and keep going while you rest on them, the outer two jump to the very top or bottom.',

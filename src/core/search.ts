@@ -18,10 +18,29 @@ const initials = (text: string) =>
     .join('')
 
 /**
+ * Where each word begins: at its first character, and again at its first letter
+ * or digit when a quote or bracket comes before it — so `"quiet"` is found by
+ * typing "quiet" as well as by typing the quote.
+ */
+const wordStarts = (text: string) => {
+  const starts: number[] = []
+  let at = 0
+  for (const word of text.split(' ')) {
+    starts.push(at)
+    const lead = word.search(/[\p{L}\p{N}]/u)
+    if (lead > 0) starts.push(at + lead)
+    at += word.length + 1
+  }
+  return starts
+}
+
+/**
  * The phrases what has been typed could be, **in three groups**:
  *
  *  1. those that **begin** with it — "i want a dr" finding "I want a drink";
- *  2. those that **hold it anywhere** — "drink" finding "Can I have a drink";
+ *  2. those with **a word beginning with it** — "drink" finding "Can I have a
+ *     drink", "dri" finding it too, but "ink" finding nothing: a stretch from the
+ *     middle of a word is not what anybody typing it is reaching for;
  *  3. those whose **first words' initials** it spells, from the first word on —
  *     "ttyl" finding "Talk to you later", which is what a texting acronym is.
  *
@@ -42,7 +61,7 @@ export function search(phrases: Phrase[], typed: string, usage: PhraseUsage): Ph
   for (const p of phrases) {
     const text = fold(stripMarkdown(p.text))
     if (text.startsWith(q)) groups[0].push(p)
-    else if (text.includes(q)) groups[1].push(p)
+    else if (wordStarts(text).some(i => text.startsWith(q, i))) groups[1].push(p)
     else if (initials(text).startsWith(q)) groups[2].push(p)
   }
 
