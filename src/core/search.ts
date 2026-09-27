@@ -17,19 +17,22 @@ const initials = (text: string) =>
     .map(word => word.match(/[\p{L}\p{N}]/u)?.[0] ?? '')
     .join('')
 
+/** A quote or bracket in front of a word's first letter or digit. */
+const PAST_PUNCTUATION = /[^\p{L}\p{N} -]+(?=[\p{L}\p{N}])/uy
+
 /**
- * Where each word begins: at its first character, and again at its first letter
- * or digit when a quote or bracket comes before it — so `"quiet"` is found by
- * typing "quiet" as well as by typing the quote.
+ * Where each word begins: after a space or a hyphen — so "known" is a word of
+ * "well-known" — and again at its first letter or digit when a quote or bracket
+ * comes before it, so `"quiet"` is found by typing "quiet" as well as by typing
+ * the quote.
  */
 const wordStarts = (text: string) => {
   const starts: number[] = []
-  let at = 0
-  for (const word of text.split(' ')) {
-    starts.push(at)
-    const lead = word.search(/[\p{L}\p{N}]/u)
-    if (lead > 0) starts.push(at + lead)
-    at += word.length + 1
+  for (let i = 0; i < text.length; i++) {
+    if (i > 0 && text[i - 1] !== ' ' && text[i - 1] !== '-') continue
+    starts.push(i)
+    PAST_PUNCTUATION.lastIndex = i
+    if (PAST_PUNCTUATION.test(text)) starts.push(PAST_PUNCTUATION.lastIndex)
   }
   return starts
 }
