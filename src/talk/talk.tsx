@@ -553,72 +553,78 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * to a blank phrase, ready for the next one. So this is the only place that
    * can say the save happened, and it says it out loud.
    */
-  const handleSave = useCallback(() => {
-    if (!draft.canSave) return
-    const { phrase, isEmergency, categories, keeping } = draft
-    const text = draft.text.trim()
-    const voice = draft.voice || undefined
+  const saveDraft = useCallback(
+    /** `chosen` is what the category grid's Done just chose, before the draft has heard of it. */
+    (chosen?: string[]) => {
+      if (!draft.canSave) return
+      const { phrase, isEmergency, keeping } = draft
+      const categories = chosen ?? draft.categories
+      const text = draft.text.trim()
+      const voice = draft.voice || undefined
 
-    // Warmed against what the phrase reads as, not what it is written as: the
-    // editor holds the source, and nobody wants a clip of somebody reading
-    // "open curly bracket, quote, red, quote" aloud.
-    if (voice) void warmVoice(compose(parseSegments(text)), voice)
-    // Where the next one starts from.
-    setRecent(current => {
-      const next = { category: isEmergency ? current.category : (categories[0] ?? ''), voice }
-      saveRecent(next)
-      return next
-    })
+      // Warmed against what the phrase reads as, not what it is written as: the
+      // editor holds the source, and nobody wants a clip of somebody reading
+      // "open curly bracket, quote, red, quote" aloud.
+      if (voice) void warmVoice(compose(parseSegments(text)), voice)
+      // Where the next one starts from.
+      setRecent(current => {
+        const next = { category: isEmergency ? current.category : (categories[0] ?? ''), voice }
+        saveRecent(next)
+        return next
+      })
 
-    /**
-     * Whether this is a phrase somebody is making, as against one they are
-     * rewording — which is what everything below turns on. Keeping a message
-     * is making one: the record it came off is left exactly as it was.
-     */
-    const making = phrase === null || keeping
-    /**
-     * **A phrase somebody has just made is on screen.** Filed anywhere but the
-     * tab in front of them it lands among a couple of thousand cells, and what
-     * they get for having written one is a line of text that fades.
-     *
-     * Three cases do not move, and none of them is an exception to that: on
-     * **Library**, or a category it is in, the phrase is already there, the
-     * **emergency bar** is on screen
-     * under every tab, and a phrase being **reworded** is one somebody is
-     * moving out of where they are — refiling several out of one category is a
-     * run they would be thrown out of after the first.
-     */
-    const movesTo = making && !isEmergency ? moveToShow(categories) : null
+      /**
+       * Whether this is a phrase somebody is making, as against one they are
+       * rewording — which is what everything below turns on. Keeping a message
+       * is making one: the record it came off is left exactly as it was.
+       */
+      const making = phrase === null || keeping
+      /**
+       * **A phrase somebody has just made is on screen.** Filed anywhere but the
+       * tab in front of them it lands among a couple of thousand cells, and what
+       * they get for having written one is a line of text that fades.
+       *
+       * Three cases do not move, and none of them is an exception to that: on
+       * **Library**, or a category it is in, the phrase is already there, the
+       * **emergency bar** is on screen
+       * under every tab, and a phrase being **reworded** is one somebody is
+       * moving out of where they are — refiling several out of one category is a
+       * run they would be thrown out of after the first.
+       */
+      const movesTo = making && !isEmergency ? moveToShow(categories) : null
 
-    if (making) {
-      // The id comes back so a brand-new phrase can be given the voice chosen
-      // for it — there is no id to hang one on until the phrase exists.
-      const id = board.addPhrase(text, categories, isEmergency)
-      if (voice) board.setVoice(id, voice)
-      // Which cell it is, for the board to point at — see `pointing`.
-      // Nothing for the emergency bar, whose phrases are never in the grid and
-      // are on screen under every tab anyway.
-      setPointing(isEmergency ? null : { id, movedTo: movesTo })
-    } else {
-      // Fetched and stored the moment it is assigned, so the phrase can be said
-      // in that voice without waiting — including on the emergency bar, which
-      // never waits.
-      board.setVoice(phrase.id, voice)
-      board.editPhrase(phrase, text, categories, isEmergency)
-      // Nothing to point at: rewording puts no new cell anywhere, and the mark
-      // on the last one is already gone — every dwell clears it, this one
-      // included.
-    }
-    if (movesTo) showTab(movesTo)
-    startNew()
-    flashToast(
-      keeping
-        ? 'Kept as a phrase'
-        : phrase === null
-          ? `Added to ${isEmergency ? 'Emergency' : [LIBRARY, ...categories].join(', ')}`
-          : 'Saved',
-    )
-  }, [draft, board, startNew, flashToast, moveToShow, showTab])
+      if (making) {
+        // The id comes back so a brand-new phrase can be given the voice chosen
+        // for it — there is no id to hang one on until the phrase exists.
+        const id = board.addPhrase(text, categories, isEmergency)
+        if (voice) board.setVoice(id, voice)
+        // Which cell it is, for the board to point at — see `pointing`.
+        // Nothing for the emergency bar, whose phrases are never in the grid and
+        // are on screen under every tab anyway.
+        setPointing(isEmergency ? null : { id, movedTo: movesTo })
+      } else {
+        // Fetched and stored the moment it is assigned, so the phrase can be said
+        // in that voice without waiting — including on the emergency bar, which
+        // never waits.
+        board.setVoice(phrase.id, voice)
+        board.editPhrase(phrase, text, categories, isEmergency)
+        // Nothing to point at: rewording puts no new cell anywhere, and the mark
+        // on the last one is already gone — every dwell clears it, this one
+        // included.
+      }
+      if (movesTo) showTab(movesTo)
+      startNew()
+      flashToast(
+        keeping
+          ? 'Kept as a phrase'
+          : phrase === null
+            ? `Added to ${isEmergency ? 'Emergency' : [LIBRARY, ...categories].join(', ')}`
+            : 'Saved',
+      )
+    },
+    [draft, board, startNew, flashToast, moveToShow, showTab],
+  )
+  const handleSave = useCallback(() => saveDraft(), [saveDraft])
 
   /**
    * **Done on the category grid files a phrase already on the board there and
@@ -628,13 +634,20 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * categories refer to it: its words and its voice, if they are being changed
    * too, still wait for the check.
    *
-   * A phrase being written, or kept off a record, is not on the board yet, so
-   * for those Done only says where the check will file it.
+   * **A phrase being written is saved whole**, words, categories and voice, as
+   * the check would save it — Done on where it goes is somebody finishing it.
+   * Not while there is nothing to save: with no words yet, or words the board
+   * has already, Done only says where the check will file it. Nor for one being
+   * kept off a record, a translation or an answer, which the check keeps.
    */
   const { setCategories: setDraftCategories } = editor
   const chooseCategories = useCallback(
     (names: string[]) => {
-      const { phrase, keeping } = draft
+      const { phrase, keeping, canSave } = draft
+      if (!phrase && canSave) {
+        saveDraft(names)
+        return
+      }
       if (!phrase || keeping) {
         setDraftCategories(names)
         return
@@ -648,7 +661,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
       })
       flashToast(names.length ? `Filed under ${names.join(', ')}` : 'In Library only')
     },
-    [draft, board, setDraftCategories, flashToast],
+    [draft, board, saveDraft, setDraftCategories, flashToast],
   )
 
   /**

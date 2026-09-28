@@ -569,10 +569,11 @@ const someOtherCategory = () => {
   const opening = shownCategory()
   return categoryChoices().find(name => name !== opening)!
 }
+/** Writes a phrase and saves it — by Done on where it goes, where it goes somewhere, which saves it. */
 const addPhrase = (text: string, category?: string) => {
   writePhrase(text)
   if (category) chooseCategory(category)
-  savePhrase()
+  else savePhrase()
 }
 /** In edit mode, on a category tab, with somewhere else to file things. */
 const standingOn = () => {
