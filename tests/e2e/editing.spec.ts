@@ -39,8 +39,8 @@ test('takes the board to a new phrase filed elsewhere, and shows it', async ({ p
   await tab(page, 'Category 01').click()
   await editMode(page)
   await messageBox(page).fill('One for over there')
+  // Done on where it goes saves it.
   await fileUnder(page, 'Category 20')
-  await page.locator('.icon-btn[aria-label="Save phrase"]').click()
 
   await expect(activeTab(page)).toHaveText('Category 20')
   await expect(marked(page)).toHaveText('One for over there')
@@ -153,9 +153,9 @@ test('puts a phrase in two categories, and takes it out of one', async ({ page }
     .locator('.picker-tile')
     .filter({ has: page.locator('.picker-tile-name', { hasText: /^Drinks$/ }) })
     .click()
+  // Done on where it goes saves it.
   await page.locator('.picker-modal-actions .panel-btn[aria-label="Done"]').click()
-  await expect(draftCategory(page)).toHaveText('Food, Drinks')
-  await page.locator('.icon-btn[aria-label="Save phrase"]').click()
+  await expect(page.locator('.toast')).toHaveText('Added to Library, Food, Drinks')
 
   await expect(cell(page, 'Tea and toast')).toHaveCount(1)
   await tab(page, 'Drinks').click()
