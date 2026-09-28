@@ -629,20 +629,17 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    * too, still wait for the check.
    *
    * A phrase being written, or kept off a record, is not on the board yet, so
-   * for those Done only says where the check will file it. So does the
-   * emergency bar, which has no categories.
+   * for those Done only says where the check will file it.
    */
   const { setCategories: setDraftCategories } = editor
   const chooseCategories = useCallback(
     (names: string[]) => {
-      const { phrase, keeping, isEmergency } = draft
-      if (!phrase || keeping || isEmergency) {
+      const { phrase, keeping } = draft
+      if (!phrase || keeping) {
         setDraftCategories(names)
         return
       }
       board.refile(phrase.id, names)
-      // Filed, so the draft follows the store again rather than holding a copy.
-      setDraftCategories(undefined)
       // Where the next one starts from, as the check would have left it.
       setRecent(current => {
         const next = { ...current, category: names[0] ?? '' }

@@ -612,6 +612,34 @@ describe('Done on the category grid', () => {
     expect(members().Food).toContain(added.id)
   })
 
+  // As the check leaves it: the next phrase written starts where this one went.
+  it('starts the next new phrase in the first category chosen', () => {
+    open('Drinks', 'Tea please')
+    toggleCategories('Drinks', 'Food')
+    click(iconBtn('Start a new phrase'))
+
+    expect($('.category-trigger')?.textContent).toBe('Food')
+  })
+
+  // A translation is a record, not a phrase on the board: there is nothing to
+  // file until the check keeps it as one.
+  it('files nothing for a translation until the check keeps it', () => {
+    localStorage.setItem(
+      'peri_translated',
+      JSON.stringify([{ id: 'tr-1', source: 'I am cold', text: "J'ai froid", tag: 'fr' }]),
+    )
+    renderApp()
+    click(tabNamed('Translations'))
+    enterEditMode()
+    // Two lines to a cell there: what was said, and what it was said as.
+    click(cells().find(c => c.textContent?.includes("J'ai froid")))
+    expect($('.edit-bar-title')?.textContent).toBe('Keep this translation')
+    toggleCategories('Food')
+
+    expect(storedStore()).toEqual(SEEDED)
+    expect(toast() ?? '').not.toMatch(/filed/i)
+  })
+
   it('files nothing on Cancel', () => {
     open('Drinks', 'Tea please')
     const before = members()
