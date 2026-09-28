@@ -621,6 +621,40 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
   }, [draft, board, startNew, flashToast, moveToShow, showTab])
 
   /**
+   * **Done on the category grid files a phrase already on the board there and
+   * then.** The check was a second dwell, at the far end of the box, for a
+   * choice the grid's own Done had just made — and one easy to forget, which
+   * left the phrase where it was with nothing on screen to say so. Only which
+   * categories refer to it: its words and its voice, if they are being changed
+   * too, still wait for the check.
+   *
+   * A phrase being written, or kept off a record, is not on the board yet, so
+   * for those Done only says where the check will file it. So does the
+   * emergency bar, which has no categories.
+   */
+  const { setCategories: setDraftCategories } = editor
+  const chooseCategories = useCallback(
+    (names: string[]) => {
+      const { phrase, keeping, isEmergency } = draft
+      if (!phrase || keeping || isEmergency) {
+        setDraftCategories(names)
+        return
+      }
+      board.refile(phrase.id, names)
+      // Filed, so the draft follows the store again rather than holding a copy.
+      setDraftCategories(undefined)
+      // Where the next one starts from, as the check would have left it.
+      setRecent(current => {
+        const next = { ...current, category: names[0] ?? '' }
+        saveRecent(next)
+        return next
+      })
+      flashToast(names.length ? `Filed under ${names.join(', ')}` : 'In Library only')
+    },
+    [draft, board, setDraftCategories, flashToast],
+  )
+
+  /**
    * **On a category somebody made, the bin takes the phrase out of it** rather
    * than off the board: a category only refers to Library's phrases, and the
    * phrase is still there, and in any other category it is in. On Library it
@@ -699,14 +733,14 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
         board.addCategory(name)
         // Invented from the editor: the phrase in the box goes into it, which
         // is the whole reason it was invented.
-        if (editingCategory?.forDraft) editor.setCategories([...draft.categories, name])
+        if (editingCategory?.forDraft) chooseCategories([...draft.categories, name])
       } else {
         board.renameCategoryTo(current, name)
         setActiveFilter(f => (f === current ? name : f))
       }
       setEditingCategory(null)
     },
-    [editingCategory, board, editor, draft.categories],
+    [editingCategory, board, chooseCategories, draft.categories],
   )
 
   const handleCategoryDelete = useCallback(() => {
@@ -1014,6 +1048,7 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
             onToggleListen={toggleListen}
             categories={allCategories}
             countFor={countFor}
+            onChooseCategories={chooseCategories}
             onCreateCategory={openCategoryForDraft}
           />
 
