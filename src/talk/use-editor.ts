@@ -124,7 +124,11 @@ export function useEditor({
   }, [])
 
   const setText = useCallback((text: string) => setEdits(e => ({ ...e, text })), [])
-  const setCategories = useCallback((categories: string[]) => setEdits(e => ({ ...e, categories })), [])
+  /** Undefined goes back to what the store says, once it says what was chosen. */
+  const setCategories = useCallback(
+    (categories: string[] | undefined) => setEdits(e => ({ ...e, categories })),
+    [],
+  )
   const setVoice = useCallback((voice: string) => setEdits(e => ({ ...e, voice })), [])
 
   const draft = useMemo<Draft>(() => {

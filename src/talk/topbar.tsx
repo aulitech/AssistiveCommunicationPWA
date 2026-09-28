@@ -239,6 +239,7 @@ export function Topbar({
   removingFrom,
   categories,
   countFor,
+  onChooseCategories,
   onCreateCategory,
   onSpeak,
   onCopy,
@@ -275,6 +276,8 @@ export function Topbar({
   /** For the strip on the box's lower border: what a phrase can be filed under. */
   categories: string[]
   countFor: (name: string) => number
+  /** Done on the category grid — which, for a phrase on the board, files it there and then. */
+  onChooseCategories: (names: string[]) => void
   onCreateCategory: () => void
   /** Both of these are how a message leaves, which the screen keeps a record of. */
   onSpeak: () => void
@@ -848,7 +851,7 @@ export function Topbar({
           draft={draft}
           categories={categories}
           countFor={countFor}
-          onCategory={editor.setCategories}
+          onCategory={onChooseCategories}
           onCreateCategory={onCreateCategory}
         />
       )}

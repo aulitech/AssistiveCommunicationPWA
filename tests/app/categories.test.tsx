@@ -522,6 +522,108 @@ describe('a category left with nothing in it', () => {
   })
 })
 
+/**
+ * **Done on the category grid files a phrase on the board there and then**, with
+ * no dwell on the check at the far end of the box. Only which categories refer
+ * to it: its words and its voice, if they are being changed too, still wait for
+ * the check. A phrase being written is not on the board yet, so for it Done only
+ * says where the check will file it.
+ */
+describe('Done on the category grid', () => {
+  const toast = () => $('.toast')?.textContent
+  const members = () => storedStore().members as Record<string, string[]>
+  /** In edit mode on this tab, with this phrase open in the box. */
+  const open = (tab: string, text: string) => {
+    renderApp()
+    click(tabNamed(tab))
+    enterEditMode()
+    click(cells().find(c => c.textContent === text))
+  }
+
+  it('files a phrase on the board without the check', () => {
+    open('Drinks', 'Tea please')
+    toggleCategories('Food')
+
+    expect(members().Food).toEqual(['custom-seed-3', 'custom-seed-4', 'custom-seed-0'])
+    expect(members().Drinks).toEqual(['custom-seed-0', 'custom-seed-1', 'custom-seed-2'])
+    expect(toast()).toBe('Filed under Drinks, Food')
+  })
+
+  it('takes it out of what is unticked, and says when that leaves Library alone', () => {
+    open('Evening', 'Time for bed')
+    toggleCategories('Evening')
+
+    // It was the last thing in Evening, which goes with it.
+    expect(members().Evening).toBeUndefined()
+    expect(tabLabels()).not.toContain('Evening')
+    expect(toast()).toBe('In Library only')
+  })
+
+  it('leaves the words being changed for the check', () => {
+    open('Drinks', 'Tea please')
+    writePhrase('Tea please, no sugar')
+    toggleCategories('Food')
+
+    expect(members().Food).toContain('custom-seed-0')
+    expect(storedStore().overrides?.['custom-seed-0']).toBeUndefined()
+    expect(box().value).toBe('Tea please, no sugar')
+
+    savePhrase()
+    expect(storedStore().overrides['custom-seed-0']).toBe('Tea please, no sugar')
+    expect(members().Food).toContain('custom-seed-0')
+  })
+
+  // Filed, the draft follows the store rather than a copy of the choice: a
+  // second trip to the grid opens on what is filed.
+  it('opens the grid again on what was filed', () => {
+    open('Drinks', 'Tea please')
+    toggleCategories('Drinks', 'Food')
+
+    click($('.category-trigger'))
+    const ticked = inDoc('.picker-tile[aria-selected="true"]').map(
+      t => t.querySelector('.picker-tile-name')?.textContent,
+    )
+    click(pickerBtn('Cancel'))
+    expect(ticked).toEqual(['Food'])
+    expect($('.category-trigger')?.textContent).toBe('Food')
+  })
+
+  it('files a phrase on the board under a category made from the grid', () => {
+    open('Drinks', 'Tea please')
+    chooseCategory('New category…')
+    type(nameField(), 'Invented')
+    saveModal()
+
+    expect(members().Invented).toEqual(['custom-seed-0'])
+    expect(members().Drinks).toContain('custom-seed-0')
+  })
+
+  it('files nothing for a phrase being written until the check', () => {
+    renderApp()
+    enterEditMode()
+    writePhrase('Nobody wrote this before')
+    toggleCategories('Food')
+
+    // Nothing written at all: the store on disk is still the one the board opened on.
+    expect(storedStore()).toEqual(SEEDED)
+
+    savePhrase()
+    const added = storedStore().custom.find((p: { text: string }) => p.text === 'Nobody wrote this before')
+    expect(members().Food).toContain(added.id)
+  })
+
+  it('files nothing on Cancel', () => {
+    open('Drinks', 'Tea please')
+    const before = members()
+    click($('.category-trigger'))
+    click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === 'Food'))
+    click(pickerBtn('Cancel'))
+
+    expect(members()).toEqual(before)
+    expect(toast()).toBeUndefined()
+  })
+})
+
 describe('the phrase editor', () => {
   it('files a phrase under a category invented on the spot', () => {
     renderApp()

@@ -92,6 +92,15 @@ function withSentKept(store: PhraseStore, aliases: AliasStore): PhraseStore {
   return next
 }
 
+/**
+ * The store with one phrase referred to by exactly these categories, and any
+ * category it left with nothing else in it gone.
+ */
+function refiled(table: Phrase[], store: PhraseStore, id: string, categories: string[]): PhraseStore {
+  const left = Object.keys(store.members).filter(c => store.members[c].includes(id) && !categories.includes(c))
+  return withoutEmptyCategories(table, { ...store, members: withMemberships(store.members, id, categories) }, left)
+}
+
 /** The references with one phrase in these categories set to exactly these. */
 function withMemberships(
   members: Record<string, string[]>,
@@ -323,20 +332,30 @@ export function useBoard() {
     (phrase: Phrase, text: string, categories: string[], isEmergency: boolean) => {
       const patch: Partial<PhraseStore> = { overrides: { ...store.overrides, [phrase.id]: text } }
       if (!isEmergency) {
-        const left = Object.keys(store.members).filter(
-          c => store.members[c].includes(phrase.id) && !categories.includes(c),
-        )
-        const next = withoutEmptyCategories(
-          tablePhrases,
-          { ...store, ...patch, members: withMemberships(store.members, phrase.id, categories) },
-          left,
-        )
+        const next = refiled(tablePhrases, { ...store, ...patch }, phrase.id, categories)
         patch.members = next.members
         patch.categoryOrder = next.categoryOrder
       }
       updateStore(patch)
     },
     [store, updateStore, tablePhrases],
+  )
+
+  /**
+   * Sets which categories refer to a phrase and nothing else about it — its
+   * words and its voice are left as they are. Against the store as the write
+   * lands, so a category made a moment before, in the same dwell, is there to
+   * be filed under.
+   */
+  const refile = useCallback(
+    (id: string, categories: string[]) => {
+      setStore(s => {
+        const next = refiled(tablePhrases, s, id, categories)
+        savePhraseStore(next)
+        return next
+      })
+    },
+    [tablePhrases],
   )
 
   /**
@@ -549,6 +568,7 @@ export function useBoard() {
     setVoice,
     addPhrase,
     editPhrase,
+    refile,
     removePhrase,
     restorePhrase,
     addCategory,
