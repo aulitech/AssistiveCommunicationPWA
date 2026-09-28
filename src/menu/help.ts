@@ -237,7 +237,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
         ':add: at the bottom left starts a new phrase — where :clear: is the rest of the time.',
         'A strip under the box says what is being edited, and which categories it is in. Tick as many as you like, or none to keep it in Library alone.',
-        'For a phrase already on the board, Done on the categories files it straight away. New words or a new voice still wait for :save:.',
+        'Done on the categories saves straight away. A new phrase is saved whole. For one already on the board only the categories are, and new words or a new voice still wait for :save:.',
         "The two at the bottom right corner become this phrase's own: the voice it is said in, and the language that voice is for.",
       ),
       text('And on the board itself:'),

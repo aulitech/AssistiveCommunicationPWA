@@ -391,8 +391,9 @@ describe('deleting a category', () => {
     renderApp()
     enterEditMode()
     const filed = () => $('.category-trigger .picker-trigger-label')?.textContent
-    writePhrase('Not yet saved')
+    // Chosen before there are words: Done with words to save saves them.
     chooseCategory('Food')
+    writePhrase('Not yet saved')
     expect(filed()).toBe('Food')
 
     click(tabNamed('Food'))
@@ -598,19 +599,37 @@ describe('Done on the category grid', () => {
     expect(members().Drinks).toContain('custom-seed-0')
   })
 
-  it('files nothing for a phrase being written until the check', () => {
+  // Done on where it goes is somebody finishing it.
+  it('saves a phrase being written, words and all', () => {
     renderApp()
     enterEditMode()
     writePhrase('Nobody wrote this before')
     toggleCategories('Food')
 
-    // Nothing written at all: the store on disk is still the one the board opened on.
-    expect(storedStore()).toEqual(SEEDED)
-
-    savePhrase()
     const added = storedStore().custom.find((p: { text: string }) => p.text === 'Nobody wrote this before')
-    expect(members().Food).toContain(added.id)
+    expect(members().Food).toEqual(['custom-seed-3', 'custom-seed-4', added.id])
+    expect(toast()).toBe('Added to Library, Food')
+    // Saved, so the box is ready for the next one.
+    expect(box().value).toBe('')
   })
+
+  // With no words there is nothing to save, and with words the board already
+  // has there is nothing to save either: Done only says where the check will
+  // file it.
+  for (const [what, words] of [
+    ['no words yet', ''],
+    ['words already on the board', 'Tea please'],
+  ]) {
+    it(`saves nothing for a phrase with ${what}, and holds the choice for the check`, () => {
+      renderApp()
+      enterEditMode()
+      writePhrase(words)
+      toggleCategories('Food')
+
+      expect(storedStore()).toEqual(SEEDED)
+      expect($('.category-trigger')?.textContent).toBe('Food')
+    })
+  }
 
   // As the check leaves it: the next phrase written starts where this one went.
   it('starts the next new phrase in the first category chosen', () => {
