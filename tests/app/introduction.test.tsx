@@ -112,6 +112,20 @@ describe('opening', () => {
   })
 })
 
+// The board arrives under a pointer resting where Close was.
+it('is deaf for a moment after giving the board back', () => {
+  signedOut()
+  signIn()
+  click(button('Close'))
+
+  click($('.phrase-cell'))
+  expect(spoken, 'a phrase was chosen by the pointer that closed it').toHaveLength(0)
+
+  pastTheHold()
+  click($('.phrase-cell'))
+  expect(spoken).toHaveLength(1)
+})
+
 describe('turning it off and on', () => {
   it('stays shut at the next sign-in once the box is ticked', () => {
     signedOut()
