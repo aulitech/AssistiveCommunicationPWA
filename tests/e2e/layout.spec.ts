@@ -41,6 +41,36 @@ test.describe('on a phone held upright', () => {
   })
 })
 
+// Wide enough for both, Getting started takes the left half and the board works
+// in the right, down to the emergency bar.
+test.describe('on a wide screen', () => {
+  test.use({ viewport: { width: 1400, height: 900 } })
+
+  test('puts Getting started beside the board, half each', async ({ page }) => {
+    await page.goto('/')
+    await page.locator('.auth-btn[aria-label="Continue as guest"]').click()
+    await expect(page.locator('.introduction')).toBeVisible()
+    await expect(page.locator('.text-display')).toBeVisible()
+
+    const { introduction, board, bar, overflow } = await page.evaluate(() => {
+      const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect()
+      return {
+        introduction: box('.introduction'),
+        board: box('.board-column'),
+        bar: box('.emergency-bar'),
+        overflow: document.documentElement.scrollWidth - window.innerWidth,
+      }
+    })
+    expect(introduction.left).toBe(0)
+    expect(Math.abs(introduction.width - 700)).toBeLessThan(1)
+    expect(Math.abs(board.left - introduction.right)).toBeLessThan(1)
+    expect(Math.abs(board.right - 1400)).toBeLessThan(1)
+    for (const half of [introduction, board]) expect(Math.abs(half.bottom - bar.top)).toBeLessThan(1)
+    expect(overflow).toBeLessThanOrEqual(0)
+    await expect(page.locator('.phrase-cell').first()).toBeInViewport()
+  })
+})
+
 test.describe('on a short screen', () => {
   test.use({ viewport: { width: 1024, height: 640 } })
 

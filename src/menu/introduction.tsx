@@ -7,8 +7,9 @@
 // the board from the wrong one — so there is one, and this is a second way
 // through it: in order, a section a screen, with a note of how far they got.
 //
-// It stands where the message box, the tabs and the grid are while it is open,
-// and **the emergency bar stays under it**, live. Somebody signing in for the
+// It stands where the message box, the tabs and the grid are while it is open —
+// or, on a wide screen, beside them, the board working in the right half — and
+// **the emergency bar stays under it**, live. Somebody signing in for the
 // first time is exactly who might need the bar before they have read a word.
 
 import { useCallback, useEffect, useState } from 'react'
@@ -19,6 +20,15 @@ import { holdDwells, useDwellControl } from '../ui/dwell'
 import { CheckIcon } from '../ui/icons'
 import { useSettings } from '../ui/settings'
 import { cx, dwellVar } from '../ui/style'
+
+/**
+ * **Wide enough for Getting started and the board side by side**, half each, so
+ * what a part says can be tried on the board as it is read. Narrower, it takes
+ * the board's place, since half of a phone is room for neither. Asked in
+ * JavaScript, because on a narrow screen the board is not mounted at all — see
+ * `ui/media.ts`.
+ */
+export const BESIDE_THE_BOARD = '(min-width: 1200px)'
 
 /** Every part, in the guide's order. */
 const PARTS = HELP_SECTIONS

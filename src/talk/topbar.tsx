@@ -43,6 +43,7 @@ import {
 } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { useScrollEdges } from '../ui/scroll-edges'
+import { useMediaQuery } from '../ui/media'
 import { BoxScroll } from '../ui/controls'
 import { PhraseEditBar } from './editors'
 import type { Composer } from './use-composer'
@@ -108,19 +109,6 @@ function ActionButton({
  * every phone for two controls that phone never shows.
  */
 const WIDE_ENOUGH = '(min-width: 1100px)'
-
-function useWideScreen(): boolean {
-  const [wide, setWide] = useState(false)
-  useEffect(() => {
-    const query = window.matchMedia?.(WIDE_ENOUGH)
-    if (!query) return
-    const read = () => setWide(query.matches)
-    read()
-    query.addEventListener('change', read)
-    return () => query.removeEventListener('change', read)
-  }, [])
-  return wide
-}
 
 /**
  * One of the two value controls at the box's upper-right corner.
@@ -294,7 +282,7 @@ export function Topbar({
   onToggleListen: () => void
 }) {
   const { settings, update } = useSettings()
-  const wide = useWideScreen()
+  const wide = useMediaQuery(WIDE_ENOUGH)
 
   // Written through the same two helpers the settings panel uses, so the pair
   // cannot drift about what choosing one does to the other — which matters more
