@@ -30,6 +30,7 @@ export const RECENT_KEY = 'peri_recent'
 export const USAGE_KEY = 'peri_usage'
 export const PHRASE_SORT_KEY = 'peri_phrase_sort'
 export const SYNC_KEY = 'peri_sync'
+export const INTRODUCTION_KEY = 'peri_introduction'
 
 /**
  * Everything this app has ever written down, except who is signed in and who
@@ -59,6 +60,7 @@ export const RESETTABLE_KEYS = [
   USAGE_KEY,
   PHRASE_SORT_KEY,
   SYNC_KEY,
+  INTRODUCTION_KEY,
 ] as const
 
 // ── Writing it down ───────────────────────────────────────────────────────────

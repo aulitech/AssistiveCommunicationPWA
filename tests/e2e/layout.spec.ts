@@ -21,6 +21,24 @@ test.describe('on a phone held upright', () => {
     expect(overflow).toBeLessThanOrEqual(0)
     await expect(page.locator('.emergency-bar')).toBeInViewport()
   })
+
+  // Getting started stands where the box, the tabs and the grid are: down to
+  // the emergency bar and no further, and no wider than the phone.
+  test('opens Getting started on signing in, above the emergency bar', async ({ page }) => {
+    await page.goto('/')
+    await page.locator('.auth-btn[aria-label="Continue as guest"]').click()
+    await expect(page.locator('.introduction')).toBeVisible()
+
+    const { introduction, bar, overflow } = await page.evaluate(() => ({
+      introduction: document.querySelector('.introduction')!.getBoundingClientRect().bottom,
+      bar: document.querySelector('.emergency-bar')!.getBoundingClientRect().top,
+      overflow: document.documentElement.scrollWidth - window.innerWidth,
+    }))
+    expect(Math.abs(introduction - bar)).toBeLessThan(1)
+    expect(overflow).toBeLessThanOrEqual(0)
+    await expect(page.locator('.emergency-bar')).toBeInViewport()
+    await expect(page.locator('.introduction .panel-btn[aria-label="Start"]')).toBeInViewport()
+  })
 })
 
 test.describe('on a short screen', () => {

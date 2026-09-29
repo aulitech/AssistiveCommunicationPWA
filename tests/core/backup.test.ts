@@ -318,6 +318,7 @@ describe('reading a backup back', () => {
           language: 'Klingon, obviously',
           voicesByLanguage: { 'es-PR': 'Monica', 'Klingon, obviously': 'Worf', vi: 42, '': 'Samantha' },
           autoSpeak: 'yes',
+          introduction: 'no',
           zoom: 9,
           // A model this build has never heard of. It is handed to somebody
           // else's API, so a file must not be able to choose one that fails on
@@ -345,6 +346,7 @@ describe('reading a backup back', () => {
       // other nonsense value here — and the default is on.
       autoSpeak: true,
       keyboard: false,
+      introduction: true,
       // A file does not get to make the text nine times its size, which would
       // take the settings panel down with it.
       zoom: 2,
