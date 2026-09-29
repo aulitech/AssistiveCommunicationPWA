@@ -40,6 +40,8 @@ export default function App() {
     return stored
   })
   const [settings, setSettings] = useState<Settings>(loadSettings)
+  /** Whether this page signed somebody in, rather than opening already signed in — see `TalkScreen`. */
+  const [signedInHere, setSignedInHere] = useState(false)
 
   const update = useCallback((patch: Partial<Settings>) => {
     setSettings(s => {
@@ -60,6 +62,7 @@ export default function App() {
       openBoardFor(u)
       setUser(u)
       setSettings(settingsOnArrival(settings))
+      setSignedInHere(true)
     },
     [settings],
   )
@@ -128,7 +131,7 @@ export default function App() {
         {legalDoc ? (
           <LegalPage doc={legalDoc} />
         ) : user ? (
-          <TalkScreen user={user} onSignOut={handleSignOut} />
+          <TalkScreen user={user} onSignOut={handleSignOut} arrivedBySignIn={signedInHere} />
         ) : (
           <SignInPage onSignIn={handleSignIn} />
         )}

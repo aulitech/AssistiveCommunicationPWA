@@ -2,7 +2,15 @@
 // the rules each part keeps.
 
 import { FORMER_IDS, LIBRARY } from '../phrases'
-import { PHRASE_SORT_KEY, RECENT_KEY, SENT_KEY, TRANSLATED_KEY, USAGE_KEY, writeKey } from './keys'
+import {
+  INTRODUCTION_KEY,
+  PHRASE_SORT_KEY,
+  RECENT_KEY,
+  SENT_KEY,
+  TRANSLATED_KEY,
+  USAGE_KEY,
+  writeKey,
+} from './keys'
 import { storageKey } from './owner'
 
 // ── Messages already said, before Library kept them ──────────────────────────
@@ -310,4 +318,30 @@ export function setSortFor(sorts: PhraseSorts, filter: string, sort: PhraseSort)
   if (sort === DEFAULT_SORT) delete next[filter]
   else next[filter] = sort
   return next
+}
+
+// ── How far through Getting started ───────────────────────────────────────────
+// Which of its parts somebody has been through, and when — the ticks in its
+// outline. Keyed by the title of the guide section each part is, since the parts
+// are the guide's sections. Its own key, and in no backup and no snapshot: it is
+// about this person learning the app on this device, which is nothing another
+// device or a file handed to somebody needs. See docs/decisions/getting-started.md.
+
+/** Section title → when it was covered. */
+export type Covered = Record<string, number>
+
+export function loadCovered(): Covered {
+  try {
+    const raw = JSON.parse(localStorage.getItem(storageKey(INTRODUCTION_KEY)) ?? '{}')
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+    return Object.fromEntries(
+      Object.entries(raw).filter(([, at]) => typeof at === 'number' && Number.isFinite(at)),
+    ) as Covered
+  } catch {
+    return {}
+  }
+}
+
+export function saveCovered(covered: Covered) {
+  writeKey(storageKey(INTRODUCTION_KEY), JSON.stringify(covered))
 }

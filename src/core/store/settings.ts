@@ -69,6 +69,14 @@ export interface Settings {
    */
   keyboard: boolean
   /**
+   * Whether **Getting started** opens when somebody signs in — the checkbox on
+   * its first page, and the row in Settings. On until somebody says otherwise:
+   * a person new to the board is exactly who cannot be expected to find a
+   * guide, and one who has learnt it says so once. See
+   * docs/decisions/getting-started.md.
+   */
+  introduction: boolean
+  /**
    * How big the text is, as a multiple of the browser's own default. 1 is
    * normal.
    *
@@ -196,6 +204,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // to say a thing has nothing to find first.
   autoSpeak: true,
   keyboard: false,
+  introduction: true,
   zoom: 1,
   replyModel: DEFAULT_REPLY_MODEL,
 }

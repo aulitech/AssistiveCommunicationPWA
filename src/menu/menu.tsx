@@ -152,6 +152,7 @@ export function TopPanel({
   replyKey,
   onReplyKeyChange,
   onForgetConversation,
+  onOpenIntroduction,
 }: {
   open: boolean
   user: User
@@ -174,6 +175,8 @@ export function TopPanel({
   onReplyKeyChange: (next: string) => void
   /** Today's questions and the answers on the board, which the screen holds too. */
   onForgetConversation: () => void
+  /** Opens Getting started, which stands where the board is — so the screen does it. */
+  onOpenIntroduction: () => void
 }) {
   const [confirmingSignOut, setConfirmingSignOut] = useState(false)
 
@@ -271,6 +274,7 @@ export function TopPanel({
                 replyKey={replyKey}
                 onReplyKeyChange={onReplyKeyChange}
                 onForgetConversation={onForgetConversation}
+                onOpenIntroduction={onOpenIntroduction}
               />
             )}
             {view === 'aliases' && <AliasesPanel aliases={aliases} onChange={onAliasesChange} />}

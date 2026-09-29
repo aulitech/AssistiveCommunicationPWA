@@ -169,6 +169,7 @@ export function SettingsPanel({
   replyKey,
   onReplyKeyChange,
   onForgetConversation,
+  onOpenIntroduction,
 }: {
   /** Only so the reset confirmation can offer a backup before it wipes them. */
   store: PhraseStore
@@ -190,6 +191,8 @@ export function SettingsPanel({
    * are held there and a row that emptied storage alone would leave them up.
    */
   onForgetConversation: () => void
+  /** Getting started, now — which the screen opens, since it stands where the board is. */
+  onOpenIntroduction: () => void
 }) {
   const { settings, update } = useSettings()
   const [confirmingReset, setConfirmingReset] = useState(false)
@@ -310,6 +313,25 @@ export function SettingsPanel({
             label={settings.keyboard ? 'Take it away' : 'Offer it'}
             onActivate={() => update({ keyboard: !settings.keyboard })}
           />
+        </SettingRow>
+        {/* The other half of the box on Getting started's first page: one setting,
+            and either is the way to change it. */}
+        <SettingRow
+          label="Getting started"
+          note={
+            settings.introduction
+              ? 'Opens when you sign in: the guide, one part at a time, with a tick against each part you have been through.'
+              : 'Does not open when you sign in. You can still open it here whenever you like.'
+          }
+        >
+          <div className="sync-actions">
+            <PanelButton
+              kind={settings.introduction ? 'plain' : 'primary'}
+              label={settings.introduction ? "Don't show at sign-in" : 'Show at sign-in'}
+              onActivate={() => update({ introduction: !settings.introduction })}
+            />
+            <PanelButton kind="plain" label="Open it now" onActivate={onOpenIntroduction} />
+          </div>
         </SettingRow>
         <LanguageRow />
         <VoiceRow />

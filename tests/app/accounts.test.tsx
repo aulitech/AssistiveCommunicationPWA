@@ -85,8 +85,19 @@ const sent = () => {
   return found
 }
 
-const continueAsGuest = () =>
+/** The second the app is deaf for after the screen moves under a resting pointer. */
+const pastTheHold = () => act(() => void vi.advanceTimersByTime(1100))
+
+/**
+ * Signs in as a guest. Getting started opens on signing in, and these tests are
+ * about whose board is under it, so it is closed.
+ */
+const continueAsGuest = () => {
   click($$('.auth-btn').find(b => b.getAttribute('aria-label') === 'Continue as guest'))
+  pastTheHold()
+  click($$('.introduction .panel-btn').find(b => b.getAttribute('aria-label') === 'Close'))
+  pastTheHold()
+}
 
 function signOut() {
   openMenu()

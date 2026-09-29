@@ -304,6 +304,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Action dwell — how long to rest on buttons and menus.',
         'Volume and Speed — how the voice sounds.',
         'Voice — opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
+        'Getting started — this guide, one part at a time, with a tick against each part you have been through. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',
       ),
       text(
         'Every setting has a :reset: beside it that puts it back to how it came. It is quiet while the setting is already there.',

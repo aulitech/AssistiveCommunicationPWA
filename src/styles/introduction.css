@@ -1,0 +1,135 @@
+/* ── Getting started ── */
+/* The guide, a part at a time — see `menu/introduction.tsx`. It stands where the
+   message box, the tabs and the grid are, so it takes the room they took and
+   leaves the emergency bar below it. Its reading pane is the guide's own
+   (`.help-scroller`, `.help-body`, `.help-measure`), so a part reads exactly as
+   the section does under Menu → Help. */
+.introduction {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+  padding: 16px;
+}
+
+.introduction-head,
+.introduction-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.introduction-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.introduction-title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.introduction-progress {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* As far apart as the actions on the message box's border, and for the same
+   reason: that much clears the area each answers to. */
+.introduction-actions {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.introduction-aside {
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+/* ── The box on the first page ── */
+.dwell-checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.1rem;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.dwell-checkbox-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 2px solid var(--text-muted);
+  border-radius: 5px;
+  color: #000;
+}
+
+.dwell-checkbox.is-checked .dwell-checkbox-box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.dwell-checkbox-box svg { width: 1rem; height: 1rem; }
+
+.dwell-checkbox.dwelling .dwell-bar,
+.outline-row.dwelling .dwell-bar {
+  animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
+}
+
+/* ── The outline ── */
+/* A list of targets, so each row is sized like one, full width, with the border
+   under it keeping one off the next — the folded guide's shape. */
+.introduction-outline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.outline-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.1rem;
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.outline-number {
+  min-width: 2ch;
+  text-align: right;
+  color: var(--text-muted);
+}
+
+.outline-title { flex: 1; }
+
+/* A tick as well as the colour, as in the pickers: green alone is a poor thing
+   to read a list by. */
+.outline-covered {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+.outline-tick svg { width: 1rem; height: 1rem; }

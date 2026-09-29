@@ -56,9 +56,11 @@ export {
 } from './store/aliases'
 export {
   addTranslated,
+  type Covered,
   DEFAULT_SORT,
   forgetSent,
   forgetUse,
+  loadCovered,
   loadPhraseSorts,
   loadRecent,
   loadSent,
@@ -70,6 +72,7 @@ export {
   type PhraseUse,
   type RecentChoices,
   recordUse,
+  saveCovered,
   savePhraseSorts,
   saveRecent,
   saveTranslated,
