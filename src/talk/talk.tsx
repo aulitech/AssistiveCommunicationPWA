@@ -636,15 +636,16 @@ export function TalkScreen({ user, onSignOut }: { user: User; onSignOut: () => v
    *
    * **A phrase being written is saved whole**, words, categories and voice, as
    * the check would save it — Done on where it goes is somebody finishing it.
-   * Not while there is nothing to save: with no words yet, or words the board
-   * has already, Done only says where the check will file it. Nor for one being
-   * kept off a record, a translation or an answer, which the check keeps.
+   * So is one being kept off a record, a translation or an answer, which is a
+   * phrase being made too. Not while there is nothing to save: with no words
+   * yet, or words the board has already, Done only says where the check will
+   * file it.
    */
   const { setCategories: setDraftCategories } = editor
   const chooseCategories = useCallback(
     (names: string[]) => {
       const { phrase, keeping, canSave } = draft
-      if (!phrase && canSave) {
+      if ((!phrase || keeping) && canSave) {
         saveDraft(names)
         return
       }
