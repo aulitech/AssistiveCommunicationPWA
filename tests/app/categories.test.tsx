@@ -640,23 +640,24 @@ describe('Done on the category grid', () => {
     expect($('.category-trigger')?.textContent).toBe('Food')
   })
 
-  // A translation is a record, not a phrase on the board: there is nothing to
-  // file until the check keeps it as one.
-  it('files nothing for a translation until the check keeps it', () => {
-    localStorage.setItem(
-      'peri_translated',
-      JSON.stringify([{ id: 'tr-1', source: 'I am cold', text: "J'ai froid", tag: 'fr' }]),
-    )
+  // Keeping a translation is making a phrase, so Done saves it as it saves one
+  // being written — and leaves the record it came off as it was.
+  it('keeps a translation as a phrase, filed where it was chosen', () => {
+    const record = [{ id: 'tr-1', source: 'I am cold', text: "J'ai froid", tag: 'fr' }]
+    localStorage.setItem('peri_translated', JSON.stringify(record))
     renderApp()
     click(tabNamed('Translations'))
     enterEditMode()
     // Two lines to a cell there: what was said, and what it was said as.
     click(cells().find(c => c.textContent?.includes("J'ai froid")))
     expect($('.edit-bar-title')?.textContent).toBe('Keep this translation')
+    const words = box().value
     toggleCategories('Food')
 
-    expect(storedStore()).toEqual(SEEDED)
-    expect(toast() ?? '').not.toMatch(/filed/i)
+    const kept = storedStore().custom.find((p: { text: string }) => p.text === words)
+    expect(members().Food).toEqual(['custom-seed-3', 'custom-seed-4', kept.id])
+    expect(toast()).toBe('Kept as a phrase')
+    expect(JSON.parse(localStorage.getItem('peri_translated')!)).toEqual(record)
   })
 
   it('files nothing on Cancel', () => {
