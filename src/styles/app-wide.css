@@ -45,20 +45,22 @@
 /* **Made to be seen from anywhere on the board.** For a save, a refused paste
    or a blocked link it is the only thing that says anything, and a gaze on the
    grid rather than on this corner could miss a thin grey pill. So it is roomy,
-   and ringed with a wide gradient — near-black into mid-grey — at 60%,
-   so what is behind shows through the ring and the words stay on solid ground.
-   The ring is the border itself: a transparent 2rem border with the gradient
-   painted to the border box and the ground to the padding box, which keeps the
-   corners rounded where `border-image` would square them off. The rounding is
-   the outer edge's; the inner is square, the border being wider than it. */
+   and ringed with a wide border in a phrase cell's own colour at 80%, so what is
+   behind shows faintly through the ring and the words stay on solid ground —
+   the ground painted to the padding box only, or it would show through the ring
+   instead. The rounding is the outer edge's; the inner is square, the border
+   being wider than it.
+
+   The words are the accent, muted: 60% of it into the muted grey, which keeps
+   the green and clears 7:1 on the ground (7.48:1). Dimming it towards black
+   instead falls under 7:1 at once. */
 .toast {
   padding: 1rem 1.75rem;
   border-radius: 0.8rem;
-  border: 2rem solid transparent;
-  background:
-    linear-gradient(var(--surface), var(--surface)) padding-box,
-    linear-gradient(90deg, rgb(17 17 17 / 0.6), rgb(136 136 136 / 0.6)) border-box;
-  color: var(--text);
+  border: 2rem solid color-mix(in srgb, var(--cell) 80%, transparent);
+  background: var(--surface);
+  background-clip: padding-box;
+  color: color-mix(in srgb, var(--accent) 60%, var(--text-muted));
   font-size: 1.05rem;
   font-weight: 500;
   box-shadow: 0 8px 30px rgba(0,0,0,0.5);
