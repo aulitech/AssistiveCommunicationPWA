@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import App from '../../src/App'
 import { HELP_SECTIONS } from '../../src/menu/help'
+import { BESIDE_THE_BOARD } from '../../src/menu/introduction'
 import { spoken } from '../setup'
 
 let container: HTMLElement
@@ -124,6 +125,68 @@ it('is deaf for a moment after giving the board back', () => {
   pastTheHold()
   click($('.phrase-cell'))
   expect(spoken).toHaveLength(1)
+})
+
+/**
+ * **On a wide screen it takes the left half and the board works in the right**,
+ * so a part can be tried as it is read. jsdom has no `matchMedia`, which is the
+ * narrow case every other test here is; this gives it one, and a way to turn
+ * the screen.
+ */
+describe('on a wide screen', () => {
+  let wide = true
+  const listeners = new Set<() => void>()
+  const turn = (to: boolean) => {
+    wide = to
+    act(() => listeners.forEach(l => l()))
+  }
+  beforeEach(() => {
+    wide = true
+    window.matchMedia = ((query: string) => ({
+      get matches() {
+        return query === BESIDE_THE_BOARD && wide
+      },
+      addEventListener: (_: string, l: () => void) => listeners.add(l),
+      removeEventListener: (_: string, l: () => void) => listeners.delete(l),
+    })) as unknown as typeof window.matchMedia
+  })
+  afterEach(() => {
+    delete (window as { matchMedia?: unknown }).matchMedia
+    listeners.clear()
+  })
+
+  it('stands beside the board, which works while it is open', () => {
+    signedOut()
+    signIn()
+
+    expect($('.talk-body.is-beside > .introduction')).not.toBeNull()
+    expect($('.talk-body.is-beside > .board-column .text-display')).not.toBeNull()
+    click($('.phrase-cell'))
+    expect(spoken).toHaveLength(1)
+    expect(intro()).not.toBeNull()
+  })
+
+  it('gives the board the whole screen back on Close', () => {
+    signedOut()
+    signIn()
+    press('Close')
+
+    expect(intro()).toBeNull()
+    expect($('.talk-body.is-beside')).toBeNull()
+    expect($('.text-display')).not.toBeNull()
+  })
+
+  // Turned to narrow, half of it is room for neither, so it takes the board's place.
+  it('takes the board’s place when the screen turns narrow', () => {
+    signedOut()
+    signIn()
+    turn(false)
+
+    expect(intro()).not.toBeNull()
+    expect($('.text-display')).toBeNull()
+    turn(true)
+    expect($('.text-display')).not.toBeNull()
+  })
 })
 
 describe('turning it off and on', () => {

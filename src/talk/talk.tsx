@@ -48,7 +48,8 @@ import { useNotKeeping } from './use-not-keeping'
 import { useGridOrder } from './use-grid-order'
 import { useUsage } from './use-usage'
 import { useToast } from './use-toast'
-import { Introduction } from '../menu/introduction'
+import { BESIDE_THE_BOARD, Introduction } from '../menu/introduction'
+import { useMediaQuery } from '../ui/media'
 
 export function TalkScreen({
   user,
@@ -68,6 +69,8 @@ export function TalkScreen({
    * put a guide in front of the board. See docs/decisions/getting-started.md.
    */
   const [introducing, setIntroducing] = useState(() => arrivedBySignIn && settings.introduction)
+  /** Beside the board rather than in its place — see `BESIDE_THE_BOARD`. */
+  const beside = useMediaQuery(BESIDE_THE_BOARD) && introducing
   const closeIntroduction = useCallback(() => {
     // The board arrives under a pointer resting where Close was.
     holdDwells()
@@ -1058,100 +1061,105 @@ export function TalkScreen({
             </div>
           )}
           {/* Getting started stands where the box, the tabs and the grid are,
-              and the emergency bar stays live below it. */}
-          {introducing ? (
-            <Introduction onClose={closeIntroduction} />
-          ) : (
-            <>
-              <Topbar
-                composer={composer}
-                editMode={editMode}
-                onToggleEdit={toggleEditMode}
-                autoSpeak={settings.autoSpeak}
-                onToggleAutoSpeak={toggleAutoSpeak}
-                menuOpen={menuOpen}
-                onToggleMenu={() => setMenuOpen(o => !o)}
-                keyboardOpen={keyboardOpen}
-                onToggleKeyboard={() => setKeyboardOpen(o => !o)}
-                resting={resting}
-                onToggleRest={toggleRest}
-                editor={editor}
-                onSavePhrase={handleSave}
-                onDeletePhrase={handleDelete}
-                undoDelete={
-                  lastDeleted && { words: stripMarkdown(lastDeleted.phrase.text), undo: handleUndoDelete }
-                }
-                removingFrom={removingFrom}
-                onSpeak={handleSpeak}
-                onCopy={handleCopy}
-                onPasted={reportPaste}
-                listener={listener}
-                onToggleListen={toggleListen}
-                categories={allCategories}
-                countFor={countFor}
-                onChooseCategories={chooseCategories}
-                onCreateCategory={openCategoryForDraft}
-              />
-
-              {/* Hidden while a typed word is narrowing the grid: the tabs would be
-              filtering a list that is already filtered by something else. */}
-              {!(filterWord && visiblePhrases.length > 0) && (
-                <FilterBar
-                  categories={tabs}
-                  activeFilter={effectiveFilter}
-                  onSelect={chooseTab}
-                  onEditCategory={editMode ? openCategory : undefined}
-                  onAddCategory={editMode ? () => openCategory(null) : undefined}
-                  reordering={editMode && reordering}
-                  isAlphabetical={store.categorySort === 'alpha'}
-                  canRestoreOrder={store.categoryOrder.length > 0}
-                  onToggleReorder={editMode ? () => setReordering(r => !r) : undefined}
-                  onToggleSort={editMode ? handleToggleSort : undefined}
-                  onReorder={editMode ? board.reorderCategories : undefined}
-                  onLift={name => flashToast(`Holding ${name} — dwell where it should go`)}
-                  pointing={pointing}
+              and the emergency bar stays live below it. **On a wide screen it
+              takes the left half and the board works in the right**, so what a
+              part says can be tried as it is read. Both wrappers are
+              `display: contents` otherwise, so the board's own layout is what
+              it always was. */}
+          <div className={cx('talk-body', beside && 'is-beside')}>
+            {introducing && <Introduction onClose={closeIntroduction} />}
+            {(!introducing || beside) && (
+              <div className="board-column">
+                <Topbar
+                  composer={composer}
+                  editMode={editMode}
+                  onToggleEdit={toggleEditMode}
+                  autoSpeak={settings.autoSpeak}
+                  onToggleAutoSpeak={toggleAutoSpeak}
+                  menuOpen={menuOpen}
+                  onToggleMenu={() => setMenuOpen(o => !o)}
+                  keyboardOpen={keyboardOpen}
+                  onToggleKeyboard={() => setKeyboardOpen(o => !o)}
+                  resting={resting}
+                  onToggleRest={toggleRest}
+                  editor={editor}
+                  onSavePhrase={handleSave}
+                  onDeletePhrase={handleDelete}
+                  undoDelete={
+                    lastDeleted && { words: stripMarkdown(lastDeleted.phrase.text), undo: handleUndoDelete }
+                  }
+                  removingFrom={removingFrom}
+                  onSpeak={handleSpeak}
+                  onCopy={handleCopy}
+                  onPasted={reportPaste}
+                  listener={listener}
+                  onToggleListen={toggleListen}
+                  categories={allCategories}
+                  countFor={countFor}
+                  onChooseCategories={chooseCategories}
+                  onCreateCategory={openCategoryForDraft}
                 />
-              )}
 
-              <PhraseGrid
-                phrases={visiblePhrases}
-                // A new tab or a new word is a different list; the same phrases in
-                // a new order is not.
-                listKey={`${effectiveFilter}\u0000${filterWord}`}
-                pointing={pointing}
-                emptyMessage={
-                  showingTranslated
-                    ? 'Nothing translated yet. Set a spoken language in Settings, and what you say in it is kept here.'
-                    : showingSuggestions
-                      ? listener.heard.asking
-                        ? 'Thinking of some answers…'
-                        : 'No answers came back. Try asking again.'
-                      : undefined
-                }
-                // The wait stands where the answers will, which is the whole reason
-                // the tab appears before they do.
-                busy={showingSuggestions && listener.heard.asking}
-                sort={phraseSort}
-                // Neither of these is a category. Both are a record in the order it
-                // happened, and that is the whole of what they are for — so the
-                // order is not the user's to change under either.
-                orderFixed={
-                  showingTranslated
-                    ? 'Translations are always newest first'
-                    : showingSuggestions
-                      ? 'Answers are in the order they were offered'
-                      : undefined
-                }
-                canArrange={canArrange}
-                onChooseSort={chooseSort}
-                reordering={editMode && reorderingPhrases}
-                onToggleReorder={editMode ? () => setReorderingPhrases(r => !r) : undefined}
-                onReorder={editMode ? handleReorderPhrases : undefined}
-                onLift={text => flashToast(`Holding ${text} — dwell where it should go`)}
-                onSelect={handleSelectPhrase}
-              />
-            </>
-          )}
+                {/* Hidden while a typed word is narrowing the grid: the tabs would be
+              filtering a list that is already filtered by something else. */}
+                {!(filterWord && visiblePhrases.length > 0) && (
+                  <FilterBar
+                    categories={tabs}
+                    activeFilter={effectiveFilter}
+                    onSelect={chooseTab}
+                    onEditCategory={editMode ? openCategory : undefined}
+                    onAddCategory={editMode ? () => openCategory(null) : undefined}
+                    reordering={editMode && reordering}
+                    isAlphabetical={store.categorySort === 'alpha'}
+                    canRestoreOrder={store.categoryOrder.length > 0}
+                    onToggleReorder={editMode ? () => setReordering(r => !r) : undefined}
+                    onToggleSort={editMode ? handleToggleSort : undefined}
+                    onReorder={editMode ? board.reorderCategories : undefined}
+                    onLift={name => flashToast(`Holding ${name} — dwell where it should go`)}
+                    pointing={pointing}
+                  />
+                )}
+
+                <PhraseGrid
+                  phrases={visiblePhrases}
+                  // A new tab or a new word is a different list; the same phrases in
+                  // a new order is not.
+                  listKey={`${effectiveFilter}\u0000${filterWord}`}
+                  pointing={pointing}
+                  emptyMessage={
+                    showingTranslated
+                      ? 'Nothing translated yet. Set a spoken language in Settings, and what you say in it is kept here.'
+                      : showingSuggestions
+                        ? listener.heard.asking
+                          ? 'Thinking of some answers…'
+                          : 'No answers came back. Try asking again.'
+                        : undefined
+                  }
+                  // The wait stands where the answers will, which is the whole reason
+                  // the tab appears before they do.
+                  busy={showingSuggestions && listener.heard.asking}
+                  sort={phraseSort}
+                  // Neither of these is a category. Both are a record in the order it
+                  // happened, and that is the whole of what they are for — so the
+                  // order is not the user's to change under either.
+                  orderFixed={
+                    showingTranslated
+                      ? 'Translations are always newest first'
+                      : showingSuggestions
+                        ? 'Answers are in the order they were offered'
+                        : undefined
+                  }
+                  canArrange={canArrange}
+                  onChooseSort={chooseSort}
+                  reordering={editMode && reorderingPhrases}
+                  onToggleReorder={editMode ? () => setReorderingPhrases(r => !r) : undefined}
+                  onReorder={editMode ? handleReorderPhrases : undefined}
+                  onLift={text => flashToast(`Holding ${text} — dwell where it should go`)}
+                  onSelect={handleSelectPhrase}
+                />
+              </div>
+            )}
+          </div>
 
           <EmergencyBar
             phrases={board.emergencyPhrases}

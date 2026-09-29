@@ -133,3 +133,33 @@
 }
 
 .outline-tick svg { width: 1rem; height: 1rem; }
+
+/* ── Beside the board ── */
+/* On a wide screen Getting started takes the left half and the board works in
+   the right — see `BESIDE_THE_BOARD`. Otherwise both wrappers are
+   `display: contents`, so the box, the tabs and the grid are the `.app`'s own
+   flex items exactly as they always were. */
+.talk-body,
+.board-column {
+  display: contents;
+}
+
+.talk-body.is-beside {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.talk-body.is-beside > .introduction {
+  flex: 0 0 50%;
+  min-width: 0;
+  border-right: 1px solid var(--border);
+}
+
+.talk-body.is-beside > .board-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
