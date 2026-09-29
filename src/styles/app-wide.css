@@ -45,18 +45,19 @@
 /* **Made to be seen from anywhere on the board.** For a save, a refused paste
    or a blocked link it is the only thing that says anything, and a gaze on the
    grid rather than on this corner could miss a thin grey pill. So it is roomy,
-   and ringed with a wide gradient — the accent into the brand yellow — at 40%,
+   and ringed with a wide gradient — near-black into mid-grey — at 60%,
    so what is behind shows through the ring and the words stay on solid ground.
    The ring is the border itself: a transparent 2rem border with the gradient
    painted to the border box and the ground to the padding box, which keeps the
-   pill's rounding where `border-image` would square it off. */
+   corners rounded where `border-image` would square them off. The rounding is
+   the outer edge's; the inner is square, the border being wider than it. */
 .toast {
   padding: 1rem 1.75rem;
-  border-radius: 999px;
+  border-radius: 0.8rem;
   border: 2rem solid transparent;
   background:
     linear-gradient(var(--surface), var(--surface)) padding-box,
-    linear-gradient(90deg, rgb(34 197 94 / 0.4), rgb(252 221 107 / 0.4)) border-box;
+    linear-gradient(90deg, rgb(17 17 17 / 0.6), rgb(136 136 136 / 0.6)) border-box;
   color: var(--text);
   font-size: 1.05rem;
   font-weight: 500;
