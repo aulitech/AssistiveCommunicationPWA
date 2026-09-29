@@ -22,6 +22,35 @@ test.describe('on a phone held upright', () => {
     await expect(page.locator('.emergency-bar')).toBeInViewport()
   })
 
+  // The toast is ringed by a 2rem border now. Placed at the middle, it used to
+  // shrink to the half of the screen right of that, which on a phone left the
+  // words five lines of two.
+  test('gives the toast the width of the screen, less a gutter', async ({ page }) => {
+    await openBoard(page)
+    // The microphone's area answers over the edit toggle at this width, so the
+    // click goes to the toggle itself.
+    await page.locator('.edit-toggle').dispatchEvent('click')
+    const toast = page.locator('.toast')
+    await expect(toast).toBeVisible()
+    const { left, right, border, lines } = await toast.evaluate(el => {
+      const r = el.getBoundingClientRect()
+      const style = getComputedStyle(el)
+      return {
+        left: r.left,
+        right: r.right,
+        border: parseFloat(style.borderTopWidth),
+        lines: Math.round(
+          (r.height - 2 * parseFloat(style.borderTopWidth)) / parseFloat(style.lineHeight || '24'),
+        ),
+      }
+    })
+    expect(border).toBe(32)
+    expect(left).toBeGreaterThanOrEqual(15)
+    expect(right).toBeLessThanOrEqual(390 - 15)
+    expect(right - left).toBeGreaterThan(300)
+    expect(lines).toBeLessThanOrEqual(3)
+  })
+
   // Getting started stands where the box, the tabs and the grid are: down to
   // the emergency bar and no further, and no wider than the phone.
   test('opens Getting started on signing in, above the emergency bar', async ({ page }) => {
