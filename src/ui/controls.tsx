@@ -10,8 +10,8 @@ import { createPortal } from 'react-dom'
 import { useDwellControl } from './dwell'
 import { useSettings } from './settings'
 import { ResetIcon } from './icons'
-import { prosePieces, type ProseSection } from '../core/prose'
-import { PROSE_ICONS } from './prose-icons'
+import { sectionPieces, type ProsePiece, type ProseSection } from '../core/prose'
+import { PROSE_ICON_NAMES, PROSE_ICONS } from './prose-icons'
 import { cx, dwellVar } from './style'
 import { useSettled } from './settle'
 import { useScrollEdges, type ScrollEdges } from './scroll-edges'
@@ -548,41 +548,61 @@ export function ScrollPane({
 }
 
 /**
- * A line, with the icons it names drawn where they stand.
+ * A line, with the icons it names drawn where they stand — and the first use of
+ * each in its section with the icon's name beside it, as one label, so the
+ * reader learns the glyph by its name once and reads it alone after that. See
+ * `sectionPieces`.
  *
- * `aria-hidden`, because the words either side already say what the control is:
- * a screen reader reading "rest on the speaker-icon button" twice over is worse
- * than one reading the sentence as written.
+ * The glyph itself is `aria-hidden`: where it is named the name is read out,
+ * and where it is not the words either side already say what the control is.
  */
-function ProseLine({ line }: { line: string }) {
+function ProseLine({ pieces }: { pieces: ProsePiece[] }) {
   return (
     <>
-      {prosePieces(line).map((piece, i) => {
+      {pieces.map((piece, i) => {
         if ('word' in piece) return piece.word
         const Icon = PROSE_ICONS[piece.icon]
-        return Icon ? (
+        if (!Icon) return null
+        const glyph = (
+          <span className="prose-icon" aria-hidden="true">
+            <Icon />
+          </span>
+        )
+        return piece.named ? (
+          <span key={i} className="prose-icon-named">
+            {glyph}
+            {PROSE_ICON_NAMES[piece.icon]}
+          </span>
+        ) : (
           <span key={i} className="prose-icon" aria-hidden="true">
             <Icon />
           </span>
-        ) : null
+        )
       })}
     </>
   )
 }
 
 function ProseBlocks({ blocks }: { blocks: ProseSection['blocks'] }) {
+  // Every line of the section at once, in the order it is read, so the first
+  // use of an icon is the first in the section rather than in its paragraph.
+  const lines = blocks.flatMap(block => (block.kind === 'text' ? [block.text] : block.items))
+  const pieces = sectionPieces(lines, icon => PROSE_ICON_NAMES[icon])
+  const firstLineOf = blocks.map((_, i) =>
+    blocks.slice(0, i).reduce((n, b) => n + (b.kind === 'text' ? 1 : b.items.length), 0),
+  )
   return (
     <>
       {blocks.map((block, i) =>
         block.kind === 'text' ? (
           <p key={i} className="help-text">
-            <ProseLine line={block.text} />
+            <ProseLine pieces={pieces[firstLineOf[i]]} />
           </p>
         ) : (
           <ul key={i} className="help-list">
-            {block.items.map(item => (
+            {block.items.map((item, j) => (
               <li key={item}>
-                <ProseLine line={item} />
+                <ProseLine pieces={pieces[firstLineOf[i] + j]} />
               </li>
             ))}
           </ul>

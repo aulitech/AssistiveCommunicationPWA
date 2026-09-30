@@ -234,6 +234,19 @@
   height: 100%;
 }
 
+/* An icon's first use in a section, with its name beside it — see
+   `sectionPieces`. The name in the icon's own accent and weight, so the two read
+   as one control's label, and kept on one line with it: a glyph at the end of a
+   line and its name at the start of the next would be two things again. */
+.prose-icon-named {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25em;
+  white-space: nowrap;
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* A link answering to dwell — see `DwellLink`. The fill is an underline that
    grows across the words, since a link is a run of text rather than a box and a
    bar under a box would be under nothing. Padded a little and pulled back by the

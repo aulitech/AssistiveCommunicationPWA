@@ -8,6 +8,8 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import App from '../../src/App'
 import { HELP_SECTIONS } from '../../src/menu/help'
 import { BESIDE_THE_BOARD } from '../../src/menu/introduction'
+import { sectionPieces } from '../../src/core/prose'
+import { PROSE_ICON_NAMES } from '../../src/ui/prose-icons'
 import { spoken } from '../setup'
 
 let container: HTMLElement
@@ -232,9 +234,12 @@ describe('going through it', () => {
     )
     press('Start')
     expect(partTitle()).toBe(HELP_SECTIONS[0].title)
+    // Word for word, the first use of each icon carrying its name as the guide
+    // draws it.
     const first = HELP_SECTIONS[0].blocks[0]
+    const [said] = sectionPieces([first.kind === 'text' ? first.text : ''], icon => PROSE_ICON_NAMES[icon])
     expect($('.introduction .help-text')?.textContent).toBe(
-      first.kind === 'text' ? first.text.replace(/:[a-z-]+:/g, '') : '',
+      said.map(p => ('word' in p ? p.word : p.named ? PROSE_ICON_NAMES[p.icon] : '')).join(''),
     )
     expect($('.introduction-progress')?.textContent).toBe(
       `Part 1 of ${HELP_SECTIONS.length} · 0 of ${HELP_SECTIONS.length} covered`,
