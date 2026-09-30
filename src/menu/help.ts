@@ -20,7 +20,10 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Overview',
     blocks: [
       text(
-        'Peri is a board of phrases you speak with. Rest the pointer on a phrase to add it to the message at the top, then rest on :speak: to say it aloud. Nothing needs a click.',
+        'Peri is a board of phrases you speak with, and it opens ready to talk. Rest the pointer on a phrase and it is said straight away, because :auto-speak: is on every time Peri is opened. Nothing needs a click.',
+      ),
+      text(
+        'To build a longer message first, turn :auto-speak: off. Then each phrase you rest on goes into the message box at the top, and :speak: says the whole of it.',
       ),
       text('The screen has three parts:'),
       list(
@@ -39,6 +42,52 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         ':menu: opens Settings, Aliases, Backup & sharing, this guide, and Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
       ),
+    ],
+  },
+  // These two straight after the overview, and so second and third in Getting
+  // started's outline. Peri opens in auto-speak, so how that works — and how to
+  // leave it to build a message — is among the first things to know.
+  {
+    title: 'Making a phrase stand out',
+    blocks: [
+      text(
+        'A phrase can carry a little formatting, so a button can be read at a glance. It changes how the phrase looks and nothing else — the words are spoken and searched exactly as they read.',
+      ),
+      list(
+        '**two stars** for bold, *one star* for italic',
+        '~~two tildes~~ for a line through',
+        '`backticks` for a typed look',
+        '# at the start of a line for a heading',
+        '- at the start of a line for a bullet',
+        '_underscores_ work for italic too, but only between words, so a_name_like_this is left alone',
+      ),
+      text(
+        'A star on its own stays a star, so "2 * 3" is safe to write. Nothing becomes formatting until it is closed.',
+      ),
+      text(
+        'Formatting is kept when you copy a message, and dropped when it is spoken or searched. Typing "help" still finds a phrase written as **Help** me.',
+      ),
+    ],
+  },
+  {
+    title: 'Speaking straight away',
+    blocks: [
+      text(
+        ':auto-speak: to the right of the Rest bar, along the top edge of the message box, is auto-speak. It lights up when it is on, and it is on every time Peri is opened, so the board can always talk straight away.',
+      ),
+      text(
+        'With auto-speak on, every phrase you choose is spoken the moment you choose it, and nothing is collected in the message box. This suits quick back-and-forth conversation.',
+      ),
+      text('The two buttons either side of Rest move between three ways of working:'),
+      list(
+        ':auto-speak: Auto-speak — a phrase is spoken the moment you choose it.',
+        ':edit: Edit — a phrase you choose opens in the box to be reworded.',
+        'Neither one on — a phrase you choose goes into the box, to be part of a longer sentence.',
+      ),
+      text(
+        'Each button means its own way of working and nothing else. Turning :auto-speak: off comes back to building a message, and turning :edit: off does the same — neither one takes you to the other.',
+      ),
+      text('Turning either one on turns the other off, so any of the three is one rest away from any other.'),
     ],
   },
   {
@@ -171,49 +220,6 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'A phrase keeps what you wrote, not what it shows. Opening one to fix a typo will not flatten its choices.',
       ),
-    ],
-  },
-  {
-    title: 'Making a phrase stand out',
-    blocks: [
-      text(
-        'A phrase can carry a little formatting, so a button can be read at a glance. It changes how the phrase looks and nothing else — the words are spoken and searched exactly as they read.',
-      ),
-      list(
-        '**two stars** for bold, *one star* for italic',
-        '~~two tildes~~ for a line through',
-        '`backticks` for a typed look',
-        '# at the start of a line for a heading',
-        '- at the start of a line for a bullet',
-        '_underscores_ work for italic too, but only between words, so a_name_like_this is left alone',
-      ),
-      text(
-        'A star on its own stays a star, so "2 * 3" is safe to write. Nothing becomes formatting until it is closed.',
-      ),
-      text(
-        'Formatting is kept when you copy a message, and dropped when it is spoken or searched. Typing "help" still finds a phrase written as **Help** me.',
-      ),
-    ],
-  },
-  {
-    title: 'Speaking straight away',
-    blocks: [
-      text(
-        ':auto-speak: to the right of the Rest bar, along the top edge of the message box, is auto-speak. It lights up when it is on, and it is on every time Peri is opened, so the board can always talk straight away.',
-      ),
-      text(
-        'With auto-speak on, every phrase you choose is spoken the moment you choose it, and nothing is collected in the message box. This suits quick back-and-forth conversation.',
-      ),
-      text('The two buttons either side of Rest move between three ways of working:'),
-      list(
-        ':auto-speak: Auto-speak — a phrase is spoken the moment you choose it.',
-        ':edit: Edit — a phrase you choose opens in the box to be reworded.',
-        'Neither one on — a phrase you choose goes into the box, to be part of a longer sentence.',
-      ),
-      text(
-        'Each button means its own way of working and nothing else. Turning :auto-speak: off comes back to building a message, and turning :edit: off does the same — neither one takes you to the other.',
-      ),
-      text('Turning either one on turns the other off, so any of the three is one rest away from any other.'),
     ],
   },
   {
