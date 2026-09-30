@@ -112,8 +112,8 @@ test('puts the toast in the upper third of the phrase table, across its middle',
     table: document.querySelector('.grid-wrapper')!.getBoundingClientRect().toJSON(),
   }))
   const middle = { x: toast.left + toast.width / 2, y: toast.top + toast.height / 2 }
-  expect(middle.y).toBeGreaterThan(table.top)
-  expect(middle.y).toBeLessThan(table.top + table.height / 3)
+  // Its middle on the middle of the table's upper third.
+  expect(Math.abs(middle.y - (table.top + table.height / 6))).toBeLessThan(1)
   expect(Math.abs(middle.x - (table.left + table.width / 2))).toBeLessThan(1)
 })
 
