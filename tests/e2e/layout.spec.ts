@@ -22,32 +22,34 @@ test.describe('on a phone held upright', () => {
     await expect(page.locator('.emergency-bar')).toBeInViewport()
   })
 
-  // The toast is ringed by a 2rem border now. Placed at the middle, it used to
+  // The toast is ringed by a wide border. Placed at the middle, it used to
   // shrink to the half of the screen right of that, which on a phone left the
   // words five lines of two.
-  test('gives the toast the width of the screen, less a gutter', async ({ page }) => {
+  test('gives the toast the width of the table, less a gutter', async ({ page }) => {
     await openBoard(page)
     // The microphone's area answers over the edit toggle at this width, so the
     // click goes to the toggle itself.
     await page.locator('.edit-toggle').dispatchEvent('click')
     const toast = page.locator('.toast')
     await expect(toast).toBeVisible()
-    const { left, right, border, lines } = await toast.evaluate(el => {
+    const { left, right, table, border, lines } = await toast.evaluate(el => {
       const r = el.getBoundingClientRect()
       const style = getComputedStyle(el)
       return {
         left: r.left,
         right: r.right,
+        table: document.querySelector('.grid-wrapper')!.getBoundingClientRect().right,
         border: parseFloat(style.borderTopWidth),
         lines: Math.round(
           (r.height - 2 * parseFloat(style.borderTopWidth)) / parseFloat(style.lineHeight || '24'),
         ),
       }
     })
-    expect(border).toBe(32)
+    // 1.3rem, which Chrome draws on a whole pixel.
+    expect(Math.abs(border - 1.3 * 16)).toBeLessThan(1)
     expect(left).toBeGreaterThanOrEqual(15)
-    expect(right).toBeLessThanOrEqual(390 - 15)
-    expect(right - left).toBeGreaterThan(300)
+    expect(right).toBeLessThanOrEqual(table - 15)
+    expect(right - left).toBeGreaterThan(280)
     expect(lines).toBeLessThanOrEqual(3)
   })
 
@@ -98,6 +100,21 @@ test.describe('on a wide screen', () => {
     expect(overflow).toBeLessThanOrEqual(0)
     await expect(page.locator('.phrase-cell').first()).toBeInViewport()
   })
+})
+
+// Where a gaze working the board already is, rather than a corner.
+test('puts the toast in the upper third of the phrase table, across its middle', async ({ page }) => {
+  await openBoard(page)
+  await page.locator('.edit-toggle').dispatchEvent('click')
+  await expect(page.locator('.toast')).toBeVisible()
+  const { toast, table } = await page.evaluate(() => ({
+    toast: document.querySelector('.toast')!.getBoundingClientRect().toJSON(),
+    table: document.querySelector('.grid-wrapper')!.getBoundingClientRect().toJSON(),
+  }))
+  const middle = { x: toast.left + toast.width / 2, y: toast.top + toast.height / 2 }
+  expect(middle.y).toBeGreaterThan(table.top)
+  expect(middle.y).toBeLessThan(table.top + table.height / 3)
+  expect(Math.abs(middle.x - (table.left + table.width / 2))).toBeLessThan(1)
 })
 
 test.describe('on a short screen', () => {

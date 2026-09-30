@@ -48,6 +48,7 @@ import { useNotKeeping } from './use-not-keeping'
 import { useGridOrder } from './use-grid-order'
 import { useUsage } from './use-usage'
 import { useToast } from './use-toast'
+import { ToastRegion } from './toast'
 import { BESIDE_THE_BOARD, Introduction } from '../menu/introduction'
 import { useMediaQuery } from '../ui/media'
 
@@ -1205,9 +1206,7 @@ export function TalkScreen({
             label={board.rebuilding ? 'Rebuilding the board' : 'Synchronizing'}
           />
 
-          <div className="toast-region" role="status" aria-live="polite">
-            {toast && <div className="toast">{toast}</div>}
-          </div>
+          <ToastRegion toast={toast} />
 
           {filling && (
             <SlotPicker

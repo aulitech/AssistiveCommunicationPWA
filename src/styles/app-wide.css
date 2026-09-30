@@ -42,6 +42,14 @@
   text-align: center;
 }
 
+/* Over the phrase table, its middle a sixth of the way down — the middle of the
+   table's upper third. `ToastRegion` measures the table and writes where; this
+   is only the centring, and without it the place above is what stands. */
+.toast-region.is-over-table {
+  bottom: auto;
+  transform: translate(-50%, -50%);
+}
+
 /* **Made to be seen from anywhere on the board.** For a save, a refused paste
    or a blocked link it is the only thing that says anything, and a gaze on the
    grid rather than on this corner could miss a thin grey pill. So it is roomy,
@@ -58,7 +66,7 @@
   --toast-ground: #2e2e2e;
   padding: 1rem 1.75rem;
   border-radius: 0.8rem;
-  border: 2rem solid color-mix(in srgb, var(--toast-ground) 85%, transparent);
+  border: 1.3rem solid color-mix(in srgb, var(--toast-ground) 85%, transparent);
   background: var(--toast-ground);
   background-clip: padding-box;
   color: color-mix(in srgb, var(--accent) 60%, var(--text));
