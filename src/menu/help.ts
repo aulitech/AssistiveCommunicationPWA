@@ -32,12 +32,12 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         'Along the top edge, in the middle: the three modes — :edit: on the left, Rest in the middle, :auto-speak: on the right.',
         'Top left corner: :listen:, which opens a second box for what somebody is saying to you.',
-        'Top right corner: :copy:, :paste: and :speak:. The last is the largest thing on the bar, because it is the one the whole board exists to reach.',
+        'Top right corner: :copy:, :paste: and :speak:. Speak is last and green, because it is the one the whole board exists to reach.',
         'Bottom left corner: :clear:, which empties the box — and afterwards offers :undo:.',
-        'Bottom right corner: the language and the voice.',
+        'Bottom right corner, on a wide screen: the language and the voice.',
       ),
       text(
-        'Everything you change stays on this device. :menu: opens your details, your settings, this guide, and a way to save it all to a file. :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
+        ':menu: opens Settings, Aliases, Backup & sharing, this guide, and Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
       ),
     ],
   },
@@ -61,11 +61,16 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Phrases that begin with what you typed come first, then phrases with a word that begins with it. Last are phrases whose first letters it spells, so "ttyl" finds "Talk to you later".',
         'In each of those groups, the phrase you used most recently comes first.',
         'Use the tabs above the grid to show one category at a time. Every phrase is in Library, each one once. The categories you make hold phrases from Library, in an order of their own, and a phrase can be in as many as you like.',
-        'The buttons on the right scroll the grid: the middle two move a little at a time and keep going while you rest on them, the outer two jump to the very top or bottom.',
+        'The arrows either side of the tabs move along them: one arrow goes a little way, two arrows a page, and an arrow against a bar to either end. On a phone held upright the two that go to the ends are left out.',
+        'The buttons on the right scroll the grid the same way: one arrow a little at a time, two arrows a page, and the outer two to the very top or bottom. The first two sizes keep going while you rest on them. On a short screen the page buttons are left out.',
+      ),
+      text('Rest on the words in the box to put the caret there, and type or paste from that point.'),
+      text(
+        'The box grows as the message does, up to five lines. Past that, arrows appear inside its right edge to scroll it.',
       ),
       text('When the message is ready, the three at the top right of the box are what becomes of it:'),
       list(
-        ':speak: says it aloud. It is the biggest button on the bar and it sits at the end of the row.',
+        ':speak: says it aloud. It is the last in the row, in green.',
         ':copy: puts it on the clipboard to send somewhere else.',
         ':paste: brings in whatever was last copied, at the point the caret is sitting — into the message, or into a phrase being written.',
       ),
@@ -212,12 +217,23 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Resting',
+    blocks: [
+      text(
+        'Rest, the bar in the middle of the top edge of the message box, switches dwelling off everywhere but on itself. Use it to look at the screen, or away from it, without choosing anything.',
+      ),
+      text(
+        'While it is on, nothing answers to a rest — the blue bar included, which dims to show it — so nothing can be said by accident. Rest on the bar again to switch dwelling back on.',
+      ),
+    ],
+  },
+  {
     title: 'Emergency phrases',
     blocks: [
       text('The blue bar along the bottom is always there, on every screen.'),
       text('Resting on one speaks it immediately — it is never added to the message box first.'),
       text(
-        'These use the same dwell time as everything else, so they are no easier to trigger by accident than any other button.',
+        'They take the phrase dwell time, like the phrases in the grid, so they are no easier to trigger by accident than any other phrase.',
       ),
     ],
   },
@@ -244,7 +260,10 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         'Choose any phrase to bring it into the box and change its wording.',
         'A new phrase starts in the category and voice you last used, so adding several in a row takes one choice rather than one each.',
-        ':edit: among the tools at the end of the category tabs renames the category that is showing. Delete in the same box removes the category. It asks first, and its phrases stay in Library.',
+        'After a delete, or taking a phrase out of a category, :undo: at the bottom left puts it back where it was, until you start on something else.',
+        ':add: among the tools at the end of the category tabs makes a new category. So does New category… at the end of the grid of categories under the box.',
+        ':edit: among those tools renames the category that is showing. Delete in the same box removes the category. It asks first, and its phrases stay in Library.',
+        ':arrange: at the end of those tools rearranges the tabs: choose a tab to pick it up, then choose where it should go. While it is on, the first tool switches the tabs between A to Z and your own order.',
         'A category goes by itself once its last phrase is taken out, and an import leaves no empty ones behind. A new category you have not put anything in yet stays until you do.',
         'Use :add: at the end of the blue bar to add an emergency phrase.',
         ':arrange: beside it rearranges the blue bar: choose a phrase to pick it up, then choose where it should go. Choosing it again puts it back.',
@@ -300,11 +319,16 @@ export const HELP_SECTIONS: ProseSection[] = [
       text('Settings and Aliases scroll if there is more than fits, using the same arrows as the phrase grid.'),
       list(
         'Text size — how big everything is written, from half again as small to twice as large. It grows the words rather than the screen, so the board keeps the same number of phrases on it.',
-        'Phrase dwell — how long to rest on a phrase before it is chosen.',
+        'Phrase dwell — how long to rest on a phrase before it is chosen. The blue bar takes this one too.',
         'Action dwell — how long to rest on buttons and menus.',
+        'Auto-repeat — how quickly a button that keeps going, such as a scroll arrow, goes again while you go on resting on it.',
         'Volume and Speed — how the voice sounds.',
-        'Voice — opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
+        'Peri’s keyboard — adds :keyboard: beside the menu, for a device you cannot otherwise type on, such as an iPad. Each device keeps its own answer.',
         'Getting started — this guide, one part at a time, with a tick against each part you have been through. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',
+        'Spoken language — see Speaking another language.',
+        'Voice — opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
+        'Synchronize, ElevenLabs and Suggested answers — see Keeping two devices the same, Better voices and Getting suggested answers.',
+        'Reset to Factory Defaults, at the very bottom, puts this board back to how Peri arrived — phrases, categories, lists, settings and any linked account. It offers to save a backup first, and you stay signed in.',
       ),
       text(
         'Every setting has a :reset: beside it that puts it back to how it came. It is quiet while the setting is already there.',
@@ -555,7 +579,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'After that, the last change wins. Edit on two devices without letting them meet in between and the earlier edit is the one that goes, so it is worth letting each device settle before picking up the other.',
       ),
       text(
-        "Text size and volume are left alone. They belong to the screen and the speaker in front of you — a phone at arm's length and a tablet on a mount want different numbers — so each device keeps its own. Everything else follows you: dwell times, the voice, your phrases and lists.",
+        "Text size, volume and Peri's keyboard are left alone. They belong to the device in front of you — a phone at arm's length and a tablet on a mount want different numbers — so each keeps its own. Everything else follows you: dwell times, the voice, your phrases and lists.",
       ),
       text(
         'If you have linked an ElevenLabs account, the audio it makes waits on the server too, so the second device does not spend your credits saying what the first already said. It is kept clip by clip, apart from the board, and locked the same way.',
@@ -572,7 +596,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Backup and sharing',
     blocks: [
       text(
-        'Open :menu: and choose Backup & sharing. Everything you have changed can be saved as one file: the phrases you added, the wording you changed, what you moved or removed, your details and your settings.',
+        'Open :menu: and choose Backup & sharing. Everything you have changed can be saved as one file: the phrases you added, the wording you changed, your categories and their order, what you removed, your word lists and your settings.',
       ),
       list(
         'Save a file keeps a copy in your downloads. Copy puts the same thing on the clipboard.',
@@ -639,16 +663,23 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Peri can be installed to a home screen from your browser menu. Once installed it opens like any other app and keeps working with no internet connection.',
       ),
       text(
-        'Your phrases, your details and your settings are stored on this device only. Nothing is uploaded, and signing in does not change that.',
+        'Your phrases, your word lists and your settings are stored on this device. Nothing is uploaded unless you switch on one of the few things listed below, and signing in does not change that.',
       ),
       text(
         'Each account signed in on a device keeps a board of its own there, and nobody signed in with a different account can open it. Signing out leaves yours where it is, for when you sign back in. Everyone who continues as a guest shares one guest board.',
       ),
-      text(
-        'The one exception is a linked ElevenLabs account: choosing one of its voices sends the words you speak to ElevenLabs to be spoken back. Everything else still works with no connection, including the emergency bar.',
+      text('A few things use the internet, and each is yours to switch on:'),
+      list(
+        'Synchronize keeps an encrypted copy of your board on our server, for your other devices. We cannot read it.',
+        'An ElevenLabs voice sends the words you speak to ElevenLabs to be spoken back.',
+        'A spoken language sends the phrases you wrote yourself to Google to be translated, once each.',
+        'Listening lets your browser send what it hears to a speech service of its own, and suggested answers send the question, with your phrases, to Anthropic.',
       ),
       text(
-        'Because of that, clearing your browser data would take them with it. Save a backup from time to time — see Backup and sharing above.',
+        'With no connection each of those simply stops. Everything else carries on, the emergency bar included.',
+      ),
+      text(
+        'Because your board is kept in the browser, clearing your browser data would take it with it. Save a backup from time to time — see Backup and sharing above.',
       ),
     ],
   },
