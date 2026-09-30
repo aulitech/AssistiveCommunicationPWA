@@ -640,7 +640,7 @@ function CollapsibleSection({
         <div className="dwell-bar" key={active ? 'a' : 'i'} />
       </h3>
       {/* Unmounted rather than hidden: the whole guide left in the tree would
-          have a screen reader read out fifteen sections the user has closed. */}
+          have a screen reader read out every section the user has closed. */}
       {open && <ProseBlocks blocks={section.blocks} />}
     </section>
   )
@@ -686,7 +686,7 @@ export function ProseSections({
           key={section.title}
           section={section}
           open={openTitle === section.title}
-          // One at a time. Fifteen sections all open is the uncollapsed guide
+          // One at a time. Every section open at once is the uncollapsed guide
           // with extra steps, and closing the last one by hand is a dwell spent
           // on tidying rather than on reading.
           onToggle={() => setOpenTitle(current => (current === section.title ? null : section.title))}
