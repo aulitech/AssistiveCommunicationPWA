@@ -17,7 +17,7 @@ const FEATURES = [
   {
     icon: '🔒',
     title: 'Stays on your device',
-    body: 'Your phrases and settings are stored locally, never uploaded.',
+    body: 'Your phrases and settings are kept on this device. Nothing sends them anywhere until you turn it on.',
   },
 ]
 
@@ -174,7 +174,8 @@ export function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
               <p className="signin-legal">
                 By continuing you agree to our <DwellLink href="/terms">Terms of Service</DwellLink> and{' '}
                 <DwellLink href="/privacy">Privacy Policy</DwellLink>. Signing in only personalises this device —
-                your phrases and settings are saved locally either way, and are not uploaded anywhere.
+                your phrases and settings are saved locally either way, and nothing sends them anywhere until you
+                turn it on.
               </p>
             </>
           )}

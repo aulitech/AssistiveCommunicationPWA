@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 import { HELP_SECTIONS } from '../../src/menu/help'
 
@@ -64,6 +65,11 @@ describe('the user guide', () => {
     ['the board as a spreadsheet', /Save for Excel/],
     ['bringing a spreadsheet back', /Paste from Sheets/],
     ['the word lists in a spreadsheet', /one word to a row/],
+    ['resting', /switches dwelling off everywhere but on itself/],
+    ['paging the grid and the tabs', /two arrows a page/],
+    ['putting a deleted phrase back', /After a delete/],
+    ['arranging the category tabs', /rearranges the tabs/],
+    ['what uses the internet', /A few things use the internet/],
   ])('covers %s', (_feature, pattern) => {
     expect(allText.some(line => pattern.test(line))).toBe(true)
   })
@@ -90,6 +96,31 @@ describe('the user guide', () => {
   it('states plainly that nothing is uploaded', () => {
     // The sign-in page makes this promise; the guide must not contradict it.
     expect(allText.some(l => /nothing is uploaded/i.test(l))).toBe(true)
+  })
+
+  /**
+   * **Every row in Settings is in the guide's Settings section**, read out of
+   * the panel itself. The guide listed six of the fourteen once — the rows added
+   * since had never been written into it, and nothing said so.
+   */
+  it('names every row in Settings', () => {
+    const panel = readFileSync('src/menu/settings-panel.tsx', 'utf8')
+    const rows = [
+      ...[...panel.matchAll(/<SettingRow\s+label="([^"]+)"/g)].map(m => m[1]),
+      ...[...panel.matchAll(/className="setting-label">([^<]+)</g)].map(m => m[1]),
+      ...[...panel.matchAll(/label="(Reset to Factory Defaults)"/g)].map(m => m[1]),
+    ]
+    expect(rows.length).toBeGreaterThan(10)
+    const quotes = (t: string) => t.replace(/[‘’]/g, "'")
+    const settings = HELP_SECTIONS.find(s => s.title === 'Settings')!
+    const said = quotes(settings.blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items)).join('\n'))
+    expect(rows.filter(row => !said.includes(quotes(row)))).toEqual([])
+  })
+
+  // Every control on the message box's borders is one size now; Speak is told
+  // apart by being last and green.
+  it('does not call Speak the biggest button', () => {
+    expect(allText.filter(l => /largest thing on the bar|biggest button/i.test(l))).toEqual([])
   })
 
   it('keeps sentences short enough to read while tired', () => {
