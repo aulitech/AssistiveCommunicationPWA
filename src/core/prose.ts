@@ -35,8 +35,12 @@ export const list = (...items: string[]): ProseBlock => ({ kind: 'list', items }
  */
 const ICON_MARK = /:([a-z][a-z-]*):/g
 
-/** One run of a line: either words to read or the name of an icon to draw. */
-export type ProsePiece = { word: string } | { icon: string }
+/**
+ * One run of a line: either words to read or the name of an icon to draw —
+ * `named` when its name is drawn beside it, which is its first use in a
+ * section. See `sectionPieces`.
+ */
+export type ProsePiece = { word: string } | { icon: string; named?: boolean }
 
 /**
  * A line broken into what to read and what to draw.
@@ -55,4 +59,33 @@ export function prosePieces(line: string): ProsePiece[] {
   }
   if (at < line.length) pieces.push({ word: line.slice(at) })
   return pieces
+}
+
+/**
+ * Every line of a section, in reading order, broken into pieces — **with the
+ * first use of each icon named.**
+ *
+ * An icon alone asks somebody to know it already, and a section is read on its
+ * own: opened from the folded guide, or reached as one part of Getting started.
+ * So the first time a section draws an icon it says what the icon is called,
+ * and after that the icon is enough. A first use the words already name —
+ * `:auto-speak: Auto-speak — …` — counts as named, and gets no second name.
+ *
+ * `nameOf` is what each icon is called; one with no name is drawn alone.
+ */
+export function sectionPieces(lines: string[], nameOf: (icon: string) => string | undefined): ProsePiece[][] {
+  const seen = new Set<string>()
+  return lines.map(line => {
+    const pieces = prosePieces(line)
+    return pieces.map((piece, i) => {
+      if (!('icon' in piece) || seen.has(piece.icon)) return piece
+      seen.add(piece.icon)
+      const name = nameOf(piece.icon)
+      if (!name) return piece
+      const next = pieces[i + 1]
+      const saysItAlready =
+        next && 'word' in next && next.word.trimStart().toLowerCase().startsWith(name.toLowerCase())
+      return saysItAlready ? piece : { ...piece, named: true }
+    })
+  })
 }

@@ -59,3 +59,30 @@ export const PROSE_ICONS: Record<string, () => React.ReactElement> = {
   'own-order': CustomOrderIcon,
   reset: ResetIcon,
 }
+
+/**
+ * What each is called, drawn beside it the first time a section uses it — see
+ * `sectionPieces`. The words the control itself answers to, where it has them,
+ * so the guide and a screen reader call it the same thing.
+ */
+export const PROSE_ICON_NAMES: Record<string, string> = {
+  speak: 'Speak',
+  clear: 'Clear',
+  undo: 'Undo',
+  copy: 'Copy',
+  paste: 'Paste',
+  save: 'Save',
+  delete: 'Delete',
+  add: 'Add',
+  menu: 'Menu',
+  keyboard: 'Keyboard',
+  edit: 'Edit',
+  'auto-speak': 'Auto-speak',
+  listen: 'Listen',
+  mic: 'Microphone',
+  suggest: 'Suggest answers',
+  arrange: 'Arrange',
+  alphabetical: 'A to Z',
+  'own-order': 'Custom order',
+  reset: 'Reset',
+}
