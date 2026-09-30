@@ -40,7 +40,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Bottom right corner, on a wide screen: the language and the voice.',
       ),
       text(
-        ':menu: opens Settings, Aliases, Backup & sharing, this guide, and Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
+        ':menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — and :sign-out: Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
       ),
     ],
   },
@@ -110,8 +110,8 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Phrases that begin with what you typed come first, then phrases with a word that begins with it. Last are phrases whose first letters it spells, so "ttyl" finds "Talk to you later".',
         'In each of those groups, the phrase you used most recently comes first.',
         'Use the tabs above the grid to show one category at a time. Every phrase is in Library, each one once. The categories you make hold phrases from Library, in an order of their own, and a phrase can be in as many as you like.',
-        'The arrows either side of the tabs move along them: one arrow goes a little way, two arrows a page, and an arrow against a bar to either end. On a phone held upright the two that go to the ends are left out.',
-        'The buttons on the right scroll the grid the same way: one arrow a little at a time, two arrows a page, and the outer two to the very top or bottom. The first two sizes keep going while you rest on them. On a short screen the page buttons are left out.',
+        'The arrows either side of the tabs move along them: :left: and :right: a little way, :page-left: and :page-right: a page, and :first: and :last: to either end. On a phone held upright :first: and :last: are left out.',
+        'The buttons on the right scroll the grid the same way: :up: and :down: a little at a time, :page-up: and :page-down: a page, and :top: and :bottom: to the very top or bottom. The first two sizes keep going while you rest on them. On a short screen :page-up: and :page-down: are left out.',
       ),
       text('Rest on the words in the box to put the caret there, and type or paste from that point.'),
       text(
@@ -138,13 +138,13 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Putting the phrases in a different order',
     blocks: [
       text(
-        'The button at the very top of the scrolling buttons, above the one that jumps to the top, sets the order the phrases are shown in.',
+        'The button at the very top of the scrolling buttons, above :top:, sets the order the phrases are shown in. It shows the one that is on:',
       ),
       list(
         ':own-order: Custom order is your own order for that category — the order the board came in, until you arrange it yourself.',
         ':alphabetical: A to Z puts them in alphabetical order by what each one says.',
-        'Recently used puts whatever you said last at the front.',
-        'Most used puts whatever you say most often at the front.',
+        ':recent: Recently used puts whatever you said last at the front.',
+        ':frequent: Most used puts whatever you say most often at the front.',
       ),
       text(
         'Every tab starts on Most used. Nothing is lost by that: a phrase you have never said keeps the place the board gave it, so a board you have only just opened looks exactly as it always did and sorts itself out as you talk.',
@@ -157,7 +157,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Peri counts what you use on this device only. It is never included in a backup and never sent anywhere, because it is a record of what you actually said.',
       ),
       text(
-        'Each tab keeps its own order, so you can have one category alphabetical and another by what you use most. Opening a tab brings back the order you left it in, and the button always says which one that is.',
+        'Each tab keeps its own order, so you can have one category alphabetical and another by what you use most. Opening a tab brings back the order you left it in, and the button always shows which one that is.',
       ),
       text(
         'Library and every category can be put in an order of your own. Each keeps its own, so arranging one moves nothing in another.',
@@ -259,7 +259,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         ':delete: on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
         ':add: at the bottom left starts a new phrase — where :clear: is the rest of the time.',
-        'A strip under the box says what is being edited, and which categories it is in. Tick as many as you like, or none to keep it in Library alone.',
+        'A strip under the box says what is being edited, and which categories it is in. Rest on :choose: beside them to open the categories. Tick as many as you like — each ticked one shows :ticked: — or none to keep it in Library alone.',
         'Done on the categories saves straight away. A new phrase, or a translation or answer you are keeping, is saved whole. For one already on the board only the categories are, and new words or a new voice still wait for :save:.',
         "The two at the bottom right corner become this phrase's own: the voice it is said in, and the language that voice is for.",
       ),
@@ -288,7 +288,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Aliases',
     blocks: [
       text(
-        'Open :menu: and choose Aliases. Each one is a named list of words, and a phrase that writes that name in curly brackets offers the list to choose from.',
+        'Open :menu: and choose :aliases: Aliases. Each one is a named list of words, and a phrase that writes that name in curly brackets offers the list to choose from.',
       ),
       text(
         'Peri comes with nine — pronouns, directions, body parts and so on — and two of them start empty: contacts, and your name. Fill those in and phrases such as "This is …" and "I\'m going to call …" come to life.',
@@ -297,7 +297,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'With one word on a list it is filled in for you; with several, you are asked which one you mean. Take words off any list, or add your own.',
       ),
       text(
-        'Three buttons sit above the lists: :add: adds one of your own, called new-list until you rename it; :edit: turns every heading into a name box with an × beside it to delete that list; :undo: puts back the last list you deleted.',
+        'Three buttons sit above the lists: :add: adds one of your own, called new-list until you rename it; :edit: turns every heading into a name box with :remove: beside it to delete that list; :undo: puts back the last list you deleted.',
       ),
       text(
         'Any list can be renamed or deleted, including the ones Peri comes with. Doing that leaves a blank in the phrases that used it, since those were written with the old name in them.',
@@ -309,7 +309,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         ':alphabetical: or :own-order: switches between A to Z and the order you put the words in.',
         ':arrange: moves them: choose a word to pick it up, then choose where it should go.',
-        ':edit: turns every word into a box you can retype, with an × beside it to take that word off. Words can only be deleted there, so resting on one you are simply reading cannot lose it.',
+        ':edit: turns every word into a box you can retype, with :remove: beside it to take that word off. Words can only be deleted there, so resting on one you are simply reading cannot lose it.',
         ':undo: puts back the last word you deleted, and again for the one before that.',
       ),
       text(
@@ -321,7 +321,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Settings',
     blocks: [
       text(
-        'Open :menu: and choose Settings. Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.',
+        'Open :menu: and choose :settings: Settings. :back: Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.',
       ),
       text('Settings and Aliases scroll if there is more than fits, using the same arrows as the phrase grid.'),
       list(
@@ -331,9 +331,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Auto-repeat — how quickly a button that keeps going, such as a scroll arrow, goes again while you go on resting on it.',
         'Volume and Speed — how the voice sounds.',
         'Peri’s keyboard — adds :keyboard: beside the menu, for a device you cannot otherwise type on, such as an iPad. Each device keeps its own answer.',
-        'Getting started — this guide, one part at a time, with a tick against each part you have been through. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',
+        'Getting started — this guide, one part at a time, each part you have been through marked :ticked:. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',
         'Spoken language — see Speaking another language.',
-        'Voice — opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
+        'Voice — :choose: opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
         'Synchronize, ElevenLabs and Suggested answers — see Keeping two devices the same, Better voices and Getting suggested answers.',
         'Reset to Factory Defaults, at the very bottom, puts this board back to how Peri arrived — phrases, categories, lists, settings and any linked account. It offers to save a backup first, and you stay signed in.',
       ),
@@ -404,7 +404,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The audio itself is never in a backup file either. It is kept on the device that fetched it, and with Synchronize on, on the server for your other devices. Stop and erase the copy takes all of it back.',
       ),
       text(
-        'It is hidden once it is linked, with an eye to show it and a button to copy it. ElevenLabs only shows a key at the moment you make it, so this is how you get the same one onto another device without going back to them for a new one.',
+        'It is hidden once it is linked, with :show: to show it, :hide: to hide it again, and :copy: to copy it. ElevenLabs only shows a key at the moment you make it, so this is how you get the same one onto another device without going back to them for a new one.',
       ),
       text(
         'With a lot of voices to choose from, the row of buttons above the grid narrows it — by collection for your ElevenLabs voices, by language for the ones on this device.',
@@ -572,7 +572,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'It asks for a passphrase, and this is not a password to an account. It is the key your board is locked with before it leaves the device, and it is what the other device needs to unlock it. Choose the same one on every device, and write it down somewhere safe.',
       ),
       text(
-        'The passphrase stays in that row, hidden, with an eye and a copy button beside it — so the device you set up first can give it to the next one. Copying does not put it on the screen, which matters in a room with other people in it.',
+        'The passphrase stays in that row, hidden, with :show: and :copy: beside it — so the device you set up first can give it to the next one. Copying does not put it on the screen, which matters in a room with other people in it.',
       ),
       list(
         'The Code under the setting is six characters worked out from your passphrase. Two devices showing the same code agree; two showing different codes have different passphrases, and will never see each other.',
@@ -603,11 +603,11 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Backup and sharing',
     blocks: [
       text(
-        'Open :menu: and choose Backup & sharing. Everything you have changed can be saved as one file: the phrases you added, the wording you changed, your categories and their order, what you removed, your word lists and your settings.',
+        'Open :menu: and choose :backup: Backup & sharing. Everything you have changed can be saved as one file: the phrases you added, the wording you changed, your categories and their order, what you removed, your word lists and your settings.',
       ),
       list(
         'Save a file keeps a copy in your downloads. Copy puts the same thing on the clipboard.',
-        'What to save opens a full screen of categories. Everything is the default; tick as many single categories as you like instead — useful for passing a set of phrases to someone else.',
+        'What to save, with :choose: beside it, opens a full screen of categories. Everything is the default; tick as many single categories as you like instead — useful for passing a set of phrases to someone else.',
         'Choose a file, or Paste a backup, to bring one in.',
       ),
       text(

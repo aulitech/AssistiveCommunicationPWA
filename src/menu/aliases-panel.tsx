@@ -17,7 +17,7 @@ import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
 import { aliasNames, aliasWords, tableAliases, type AliasStore, type Aliases } from '../core/phrases'
 import { moveInOrder, loadAliasSort, saveAliasSort } from '../core/store'
-import { CustomOrderIcon, EditIcon, PlusIcon, ReorderIcon, SortAlphaIcon, UndoIcon } from '../ui/icons'
+import { CustomOrderIcon, EditIcon, PlusIcon, RemoveIcon, ReorderIcon, SortAlphaIcon, UndoIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { DwellInput, ScrollPane } from '../ui/controls'
 
@@ -115,19 +115,7 @@ function WordChip({
           {...remove.props}
         >
           <div className="dwell-bar" key={remove.active ? 'a' : 'i'} />
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            width="14"
-            height="14"
-            aria-hidden="true"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <RemoveIcon />
         </div>
       ) : null}
     </div>
@@ -635,19 +623,7 @@ function AliasList({
             onCommit={onRename}
           />
           <ListTool className="alias-delete" label={`Delete the ${name} list`} onActivate={onDrop}>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              width="14"
-              height="14"
-              aria-hidden="true"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <RemoveIcon />
           </ListTool>
         </div>
       ) : (

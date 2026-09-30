@@ -66,7 +66,7 @@ describe('the user guide', () => {
     ['bringing a spreadsheet back', /Paste from Sheets/],
     ['the word lists in a spreadsheet', /one word to a row/],
     ['resting', /switches dwelling off everywhere but on itself/],
-    ['paging the grid and the tabs', /two arrows a page/],
+    ['paging the grid and the tabs', /:page-up: and :page-down: a page/],
     ['putting a deleted phrase back', /After a delete/],
     ['arranging the category tabs', /rearranges the tabs/],
     ['what uses the internet', /A few things use the internet/],

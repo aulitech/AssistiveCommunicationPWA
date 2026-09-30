@@ -5,11 +5,21 @@
 // progress. Anything here is used by more than one screen — a control with a
 // single caller lives with its caller.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDwellControl } from './dwell'
 import { useSettings } from './settings'
-import { ResetIcon } from './icons'
+import {
+  ChooseIcon,
+  ResetIcon,
+  ScrollDownIcon,
+  ScrollLeftIcon,
+  ScrollRightIcon,
+  ScrollUpIcon,
+  TickIcon,
+  ToBottomIcon,
+  ToTopIcon,
+} from './icons'
 import { sectionPieces, type ProsePiece, type ProseSection } from '../core/prose'
 import { PROSE_ICON_NAMES, PROSE_ICONS } from './prose-icons'
 import { cx, dwellVar } from './style'
@@ -297,38 +307,19 @@ const SCROLL_LABELS: Record<ScrollAction, string> = {
   right: 'Scroll right',
 }
 
-/** Double-headed for the jumps, single for the nudges, so the pair differ at a glance. */
-function ScrollGlyph({ action }: { action: ScrollAction }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      width="14"
-      height="14"
-      aria-hidden="true"
-    >
-      {action === 'top' && (
-        <>
-          <line x1="5" y1="5" x2="19" y2="5" />
-          <polyline points="18 16 12 10 6 16" />
-        </>
-      )}
-      {action === 'bottom' && (
-        <>
-          <line x1="5" y1="19" x2="19" y2="19" />
-          <polyline points="6 8 12 14 18 8" />
-        </>
-      )}
-      {action === 'up' && <polyline points="18 15 12 9 6 15" />}
-      {action === 'down' && <polyline points="6 9 12 15 18 9" />}
-      {action === 'left' && <polyline points="15 18 9 12 15 6" />}
-      {action === 'right' && <polyline points="9 18 15 12 9 6" />}
-    </svg>
-  )
+/**
+ * **The grid's own arrows**, so everything that scrolls is moved by the same
+ * marks — a chevron against a bar for an end, one chevron for a nudge — and the
+ * guide shows one set of them for all of it. These were drawn apart once, near
+ * enough alike to pass for the grid's and not the same.
+ */
+const SCROLL_GLYPHS: Record<ScrollAction, () => React.ReactElement> = {
+  top: ToTopIcon,
+  up: ScrollUpIcon,
+  down: ScrollDownIcon,
+  bottom: ToBottomIcon,
+  left: ScrollLeftIcon,
+  right: ScrollRightIcon,
 }
 
 function ScrollButton({
@@ -360,7 +351,7 @@ function ScrollButton({
       {...props}
     >
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
-      <ScrollGlyph action={action} />
+      {createElement(SCROLL_GLYPHS[action])}
     </div>
   )
 }
@@ -861,19 +852,7 @@ export function PickerTrigger({
       {...props}
     >
       <span className="picker-trigger-label">{label}</span>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        width="14"
-        height="14"
-        aria-hidden="true"
-      >
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
+      <ChooseIcon />
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )
@@ -966,18 +945,7 @@ export function PickerTile({
           is a poor thing to read a whole screen by. */}
       {selected && (
         <span className="picker-tile-check" aria-hidden="true">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            width="12"
-            height="12"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+          <TickIcon />
         </span>
       )}
       <div className="dwell-bar" key={active ? 'a' : 'i'} />

@@ -9,7 +9,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
-import { CustomOrderIcon, EditIcon, PageIcon, PlusIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
+import {
+  CustomOrderIcon,
+  EditIcon,
+  PageIcon,
+  PlusIcon,
+  ReorderIcon,
+  ScrollLeftIcon,
+  ScrollRightIcon,
+  SortAlphaIcon,
+  ToFirstIcon,
+  ToLastIcon,
+} from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { LIBRARY } from '../core/phrases'
 
@@ -250,18 +261,7 @@ export function FilterBar({
   return (
     <div className="filter-bar-wrap" role="tablist" aria-label="Filter phrases by category">
       <FilterArrow onAction={() => scrollTo(0)} className="filter-arrow-end" label="Go to first category">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <line x1="5" y1="6" x2="5" y2="18" />
-          <polyline points="19 18 11 12 19 6" />
-        </svg>
+        <ToFirstIcon />
       </FilterArrow>
 
       <FilterArrow onAction={() => scrollPage(-1)} repeat label="Previous page of categories">
@@ -269,17 +269,7 @@ export function FilterBar({
       </FilterArrow>
 
       <FilterArrow onAction={() => scrollBy(-SCROLL_STEP)} repeat label="Scroll categories left">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
+        <ScrollLeftIcon />
       </FilterArrow>
 
       <div ref={scrollRef} className="filter-scroll">
@@ -295,17 +285,7 @@ export function FilterBar({
       </div>
 
       <FilterArrow onAction={() => scrollBy(SCROLL_STEP)} repeat label="Scroll categories right">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
+        <ScrollRightIcon />
       </FilterArrow>
 
       <FilterArrow onAction={() => scrollPage(1)} repeat label="Next page of categories">
@@ -313,18 +293,7 @@ export function FilterBar({
       </FilterArrow>
 
       <FilterArrow onAction={() => scrollTo(999999)} className="filter-arrow-end" label="Go to last category">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <line x1="19" y1="6" x2="19" y2="18" />
-          <polyline points="5 6 13 12 5 18" />
-        </svg>
+        <ToLastIcon />
       </FilterArrow>
 
       {/* The category tools sit past the scroll controls rather than in with

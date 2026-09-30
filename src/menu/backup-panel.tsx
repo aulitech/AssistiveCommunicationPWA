@@ -22,6 +22,7 @@ import { downloadBackup } from './backup-file'
 import { cx, dwellVar } from '../ui/style'
 import { FileButton, PanelButton, PickerModal, PickerTile, ScrollPane } from '../ui/controls'
 import { SheetSection } from './sheet-section'
+import { ChooseIcon } from '../ui/icons'
 
 /** What the trigger says the current choice is. */
 function describeScope(scope: string[] | null): string {
@@ -182,19 +183,7 @@ export function BackupPanel({
           {...scopeProps}
         >
           <span className="picker-trigger-label">{describeScope(scope)}</span>
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            width="14"
-            height="14"
-            aria-hidden="true"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <ChooseIcon />
           <div className="dwell-bar" key={scopeActive ? 'a' : 'i'} />
         </div>
 

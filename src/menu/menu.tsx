@@ -16,6 +16,7 @@ import type { SyncControl } from '../sync/use-sync'
 import type { ElevenLabsAccount } from '../core/store'
 import { BackupPanel } from './backup-panel'
 import { HelpPanel } from './help-panel'
+import { AliasesIcon, BackIcon, BackupIcon, HelpIcon, SettingsIcon, SignOutIcon } from '../ui/icons'
 
 /**
  * The way out of a panel, in the top right corner of every one of them.
@@ -51,19 +52,7 @@ function PanelBack({ onSelect }: { onSelect: () => void }) {
       {...props}
     >
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        width="15"
-        height="15"
-        aria-hidden="true"
-      >
-        <polyline points="15 18 9 12 15 6" />
-      </svg>
+      <BackIcon />
       Back
     </div>
   )
@@ -292,108 +281,35 @@ export function TopPanel({
         ) : (
           <nav className="panel-nav">
             <NavItem
-              icon={
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  width="18"
-                  height="18"
-                >
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-              }
+              icon={<SettingsIcon />}
               label="Settings"
               sublabel="Dwell time, voice, volume, speed"
               disabled={guarded}
               onSelect={() => setView('settings')}
             />
             <NavItem
-              icon={
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  width="18"
-                  height="18"
-                >
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              }
+              icon={<AliasesIcon />}
               label="Aliases"
               sublabel="The words your phrases choose from"
               disabled={guarded}
               onSelect={() => setView('aliases')}
             />
             <NavItem
-              icon={
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  width="18"
-                  height="18"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-              }
+              icon={<BackupIcon />}
               label="Backup & sharing"
               sublabel="Save your phrases, or bring some in"
               disabled={guarded}
               onSelect={() => setView('backup')}
             />
             <NavItem
-              icon={
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  width="18"
-                  height="18"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-              }
+              icon={<HelpIcon />}
               label="Help"
               sublabel="How to use Peri"
               disabled={guarded}
               onSelect={() => setView('help')}
             />
             <NavItem
-              icon={
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  width="18"
-                  height="18"
-                >
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-              }
+              icon={<SignOutIcon />}
               label="Sign out"
               sublabel={user.email || 'Guest session'}
               disabled={guarded}

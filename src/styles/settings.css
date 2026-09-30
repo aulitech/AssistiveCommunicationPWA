@@ -560,6 +560,9 @@
 
 .scroll-pane-inner::-webkit-scrollbar { display: none; }
 
+/* The grid's arrows, drawn at the size these always were — see `SCROLL_GLYPHS`. */
+.pane-scroll-btn svg { width: 14px; height: 14px; }
+
 /* Jump and nudge sit side by side rather than stacked: two full-width bars top
    and bottom would cost 56px of a pane that is height-constrained already, and
    splitting each bar in two costs none. */
