@@ -17,7 +17,7 @@ import { HELP_SECTIONS } from './help'
 import { loadCovered, saveCovered, type Covered } from '../core/store'
 import { PanelButton, ProseSections, ScrollPane } from '../ui/controls'
 import { holdDwells, useDwellControl } from '../ui/dwell'
-import { CheckIcon } from '../ui/icons'
+import { TickIcon } from '../ui/icons'
 import { useSettings } from '../ui/settings'
 import { cx, dwellVar } from '../ui/style'
 
@@ -54,7 +54,7 @@ function DwellCheckbox({ checked, label, onToggle }: { checked: boolean; label: 
       {...props}
     >
       <span className="dwell-checkbox-box" aria-hidden="true">
-        {checked && <CheckIcon />}
+        {checked && <TickIcon />}
       </span>
       <span className="dwell-checkbox-label">{label}</span>
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
@@ -90,7 +90,7 @@ function OutlineRow({
         {at !== undefined && (
           <span className="outline-covered">
             <span className="outline-tick" aria-hidden="true">
-              <CheckIcon />
+              <TickIcon />
             </span>
             {coveredOn(at)}
           </span>

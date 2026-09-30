@@ -16,6 +16,7 @@ import { DwellInput, PickerModal, PickerTile } from '../ui/controls'
 import { cx, dwellVar } from '../ui/style'
 import { usePendingChoice } from '../ui/pending-choice'
 import { type Draft } from './use-editor'
+import { ChooseIcon } from '../ui/icons'
 
 function EditAction({
   kind,
@@ -109,19 +110,7 @@ function CategoryPicker({
         {...props}
       >
         <span className="picker-trigger-label">{shown}</span>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          width="14"
-          height="14"
-          aria-hidden="true"
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        <ChooseIcon />
         <div className="dwell-bar" key={active ? 'a' : 'i'} />
       </div>
 

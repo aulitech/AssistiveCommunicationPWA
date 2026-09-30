@@ -441,6 +441,40 @@ describe('the shape of the source tree', () => {
   })
 
   /**
+   * **Every icon the app draws is one the guide can draw.** A guide that names
+   * a control has to be able to show it, and a glyph drawn inline in the screen
+   * that uses it is one no line of prose can reach — so every `<svg>` lives in
+   * `ui/icons.tsx`, and every icon there is in the prose table. The sign-in
+   * page's brand marks and Peri's own are the exceptions: they say whose button
+   * it is, not what it does, and the words beside them say that already.
+   */
+  it('draws every icon in one place, and every one of them in the guide', () => {
+    // Comments stripped, since some of them talk about an <svg>.
+    const code = (path: string) =>
+      readFileSync(path, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+    const inline = sources()
+      .filter(path => !path.endsWith('ui/icons.tsx'))
+      .filter(path => /<svg[\s>]/.test(code(path)))
+      .map(path => relative(SRC, path))
+    expect(inline, 'an icon drawn outside ui/icons.tsx').toEqual([])
+
+    const BRANDS = ['GoogleIcon', 'AppleIcon', 'FacebookIcon', 'AppLogoIcon']
+    const icons = [
+      ...readFileSync(resolve(SRC, 'ui/icons.tsx'), 'utf8').matchAll(/^export (?:function|const) (\w+Icon)\b/gm),
+    ]
+      .map(m => m[1]!)
+      .filter(name => !BRANDS.includes(name))
+    expect(icons.length).toBeGreaterThan(20)
+    const table = readFileSync(resolve(SRC, 'ui/prose-icons.tsx'), 'utf8')
+    expect(
+      icons.filter(name => !new RegExp(`\\b${name}\\b`).test(table)),
+      'an icon the guide cannot draw',
+    ).toEqual([])
+  })
+
+  /**
    * **A focused field draws one line, not two.** Every text field says it has
    * focus by tinting its own border, and the app's focus ring draws three pixels
    * outside whatever is focused — so every field a dwell had put the caret in

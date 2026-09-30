@@ -15,7 +15,18 @@ import { hasChoices, type Phrase } from '../core/phrases'
 import { sortName, sortsFor } from '../core/sort'
 import { type PhraseSort } from '../core/store'
 import { needsMore, windowSize } from '../core/virtual'
-import { CustomOrderIcon, PageIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
+import {
+  CustomOrderIcon,
+  FrequentIcon,
+  PageIcon,
+  RecentIcon,
+  ReorderIcon,
+  ScrollDownIcon,
+  ScrollUpIcon,
+  SortAlphaIcon,
+  ToBottomIcon,
+  ToTopIcon,
+} from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { PhraseText } from './phrase-text'
 
@@ -202,45 +213,6 @@ function ScrollBtn({
   )
 }
 
-/**
- * A clock and a stack of bars, for the two arrangements that are about use. The
- * other two reuse the glyphs the category bar already sorts by, so a user learns
- * one mark for "A to Z" and one for "the order it is in" rather than two.
- *
- * These two live here because nothing else draws them — the rule icons follow in
- * this tree.
- */
-const RecentIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="12" r="9" />
-    <polyline points="12 7 12 12 16 14" />
-  </svg>
-)
-
-const FrequentIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <line x1="6" y1="20" x2="6" y2="14" />
-    <line x1="12" y1="20" x2="12" y2="9" />
-    <line x1="18" y1="20" x2="18" y2="4" />
-  </svg>
-)
-
 /** Which glyph says which arrangement is on. */
 const SORT_ICONS: Record<PhraseSort, React.ReactNode> = {
   custom: <CustomOrderIcon />,
@@ -403,18 +375,7 @@ function GridScrollBar({
         )}
       </div>
       <ScrollBtn onAction={() => scrollTo(0)} label="Scroll to top">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <line x1="5" y1="6" x2="19" y2="6" />
-          <polyline points="8 14 12 10 16 14" />
-        </svg>
+        <ToTopIcon />
       </ScrollBtn>
       {/* A screenful at a time, repeating while held at whatever pace the
           auto-repeat setting says — see `PageIcon` for why the double chevron,
@@ -427,30 +388,10 @@ function GridScrollBar({
         <PageIcon direction="up" />
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollBy(-SCROLL_STEP)} repeat label="Scroll up">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="18 15 12 9 6 15" />
-        </svg>
+        <ScrollUpIcon />
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollBy(SCROLL_STEP)} repeat label="Scroll down">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        <ScrollDownIcon />
       </ScrollBtn>
       <ScrollBtn onAction={() => scrollPage(1)} repeat className="scroll-btn-page" label="Next page">
         <PageIcon direction="down" />
@@ -462,18 +403,7 @@ function GridScrollBar({
         }}
         label="Scroll to bottom"
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <line x1="5" y1="18" x2="19" y2="18" />
-          <polyline points="8 10 12 14 16 10" />
-        </svg>
+        <ToBottomIcon />
       </ScrollBtn>
     </div>
   )

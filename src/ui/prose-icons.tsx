@@ -16,7 +16,29 @@
 // of quietly leaving a sentence with a hole in it.
 
 import {
+  AliasesIcon,
   AutoSpeakIcon,
+  BackIcon,
+  BackupIcon,
+  ChooseIcon,
+  EyeIcon,
+  EyeOffIcon,
+  FrequentIcon,
+  HelpIcon,
+  PageIcon,
+  RecentIcon,
+  RemoveIcon,
+  ScrollDownIcon,
+  ScrollLeftIcon,
+  ScrollRightIcon,
+  ScrollUpIcon,
+  SettingsIcon,
+  SignOutIcon,
+  TickIcon,
+  ToBottomIcon,
+  ToFirstIcon,
+  ToLastIcon,
+  ToTopIcon,
   CheckIcon,
   ClearIcon,
   CopyIcon,
@@ -37,7 +59,13 @@ import {
   UndoIcon,
 } from './icons'
 
-/** Named for what the control *does*, which is what the prose around it says. */
+/**
+ * Named for what the control *does*, which is what the prose around it says —
+ * **every glyph a control in the app draws**, so the guide can show any of them.
+ * The sign-in page's Google, Apple and Facebook marks and Peri's own are the
+ * exceptions: they say whose button it is, not what it does, and the words
+ * beside them say it already.
+ */
 export const PROSE_ICONS: Record<string, () => React.ReactElement> = {
   speak: SpeakIcon,
   clear: ClearIcon,
@@ -58,6 +86,31 @@ export const PROSE_ICONS: Record<string, () => React.ReactElement> = {
   alphabetical: SortAlphaIcon,
   'own-order': CustomOrderIcon,
   reset: ResetIcon,
+  recent: RecentIcon,
+  frequent: FrequentIcon,
+  top: ToTopIcon,
+  'page-up': () => <PageIcon direction="up" />,
+  up: ScrollUpIcon,
+  down: ScrollDownIcon,
+  'page-down': () => <PageIcon direction="down" />,
+  bottom: ToBottomIcon,
+  first: ToFirstIcon,
+  'page-left': () => <PageIcon direction="left" />,
+  left: ScrollLeftIcon,
+  right: ScrollRightIcon,
+  'page-right': () => <PageIcon direction="right" />,
+  last: ToLastIcon,
+  settings: SettingsIcon,
+  aliases: AliasesIcon,
+  backup: BackupIcon,
+  help: HelpIcon,
+  'sign-out': SignOutIcon,
+  back: BackIcon,
+  choose: ChooseIcon,
+  remove: RemoveIcon,
+  ticked: TickIcon,
+  show: EyeIcon,
+  hide: EyeOffIcon,
 }
 
 /**
@@ -85,4 +138,29 @@ export const PROSE_ICON_NAMES: Record<string, string> = {
   alphabetical: 'A to Z',
   'own-order': 'Custom order',
   reset: 'Reset',
+  recent: 'Recently used',
+  frequent: 'Most used',
+  top: 'Top',
+  'page-up': 'Page up',
+  up: 'Up',
+  down: 'Down',
+  'page-down': 'Page down',
+  bottom: 'Bottom',
+  first: 'First',
+  'page-left': 'Page left',
+  left: 'Left',
+  right: 'Right',
+  'page-right': 'Page right',
+  last: 'Last',
+  settings: 'Settings',
+  aliases: 'Aliases',
+  backup: 'Backup & sharing',
+  help: 'Help',
+  'sign-out': 'Sign out',
+  back: 'Back',
+  choose: 'Choose',
+  remove: 'Remove',
+  ticked: 'Ticked',
+  show: 'Show',
+  hide: 'Hide',
 }
