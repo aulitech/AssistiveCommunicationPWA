@@ -11,7 +11,7 @@ export function HelpPanel() {
             column — text running the width of a wide monitor is unreadable. */}
         <div className="help-measure">
           <h2 className="help-title">Using Peri</h2>
-          {/* Folded up, one open at a time. Fifteen sections is a lot of guide
+          {/* Folded up, one open at a time. Twenty-odd sections is a lot of guide
               to scroll past by dwell to reach the one you came for. */}
           <ProseSections sections={HELP_SECTIONS} collapsible />
           <p className="help-legal-links">
