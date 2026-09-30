@@ -467,7 +467,12 @@ describe('the shape of the source tree', () => {
       .map(m => m[1]!)
       .filter(name => !BRANDS.includes(name))
     expect(icons.length).toBeGreaterThan(20)
-    const table = readFileSync(resolve(SRC, 'ui/prose-icons.tsx'), 'utf8')
+    // The table itself, not the file: every icon is imported at the top of it,
+    // so the whole file names each one whether the table does or not.
+    const file = readFileSync(resolve(SRC, 'ui/prose-icons.tsx'), 'utf8')
+    const from = file.indexOf('export const PROSE_ICONS')
+    const table = file.slice(from, file.indexOf('\n}\n', from))
+    expect(from, 'no icon table — did it move?').toBeGreaterThan(-1)
     expect(
       icons.filter(name => !new RegExp(`\\b${name}\\b`).test(table)),
       'an icon the guide cannot draw',
