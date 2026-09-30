@@ -44,28 +44,18 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
     ],
   },
-  // These two straight after the overview, and so second and third in Getting
-  // started's outline. Peri opens in auto-speak, so how that works — and how to
-  // leave it to build a message — is among the first things to know.
+  // Straight after the overview, and so second, third and fourth in Getting
+  // started's outline: how to stop the board answering, the mode it opens in,
+  // and the bar for what cannot wait — what somebody new to it needs before
+  // anything else.
   {
-    title: 'Making a phrase stand out',
+    title: 'Resting',
     blocks: [
       text(
-        'A phrase can carry a little formatting, so a button can be read at a glance. It changes how the phrase looks and nothing else — the words are spoken and searched exactly as they read.',
-      ),
-      list(
-        '**two stars** for bold, *one star* for italic',
-        '~~two tildes~~ for a line through',
-        '`backticks` for a typed look',
-        '# at the start of a line for a heading',
-        '- at the start of a line for a bullet',
-        '_underscores_ work for italic too, but only between words, so a_name_like_this is left alone',
+        'Rest, the bar in the middle of the top edge of the message box, switches dwelling off everywhere but on itself. Use it to look at the screen, or away from it, without choosing anything.',
       ),
       text(
-        'A star on its own stays a star, so "2 * 3" is safe to write. Nothing becomes formatting until it is closed.',
-      ),
-      text(
-        'Formatting is kept when you copy a message, and dropped when it is spoken or searched. Typing "help" still finds a phrase written as **Help** me.',
+        'While it is on, nothing answers to a rest — the blue bar included, which dims to show it — so nothing can be said by accident. Rest on the bar again to switch dwelling back on.',
       ),
     ],
   },
@@ -88,6 +78,16 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Each button means its own way of working and nothing else. Turning :auto-speak: off comes back to building a message, and turning :edit: off does the same — neither one takes you to the other.',
       ),
       text('Turning either one on turns the other off, so any of the three is one rest away from any other.'),
+    ],
+  },
+  {
+    title: 'Emergency phrases',
+    blocks: [
+      text('The blue bar along the bottom is always there, on every screen.'),
+      text('Resting on one speaks it immediately — it is never added to the message box first.'),
+      text(
+        'They take the phrase dwell time, like the phrases in the grid, so they are no easier to trigger by accident than any other phrase.',
+      ),
     ],
   },
   {
@@ -223,23 +223,24 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
-    title: 'Resting',
+    title: 'Making a phrase stand out',
     blocks: [
       text(
-        'Rest, the bar in the middle of the top edge of the message box, switches dwelling off everywhere but on itself. Use it to look at the screen, or away from it, without choosing anything.',
+        'A phrase can carry a little formatting, so a button can be read at a glance. It changes how the phrase looks and nothing else — the words are spoken and searched exactly as they read.',
+      ),
+      list(
+        '**two stars** for bold, *one star* for italic',
+        '~~two tildes~~ for a line through',
+        '`backticks` for a typed look',
+        '# at the start of a line for a heading',
+        '- at the start of a line for a bullet',
+        '_underscores_ work for italic too, but only between words, so a_name_like_this is left alone',
       ),
       text(
-        'While it is on, nothing answers to a rest — the blue bar included, which dims to show it — so nothing can be said by accident. Rest on the bar again to switch dwelling back on.',
+        'A star on its own stays a star, so "2 * 3" is safe to write. Nothing becomes formatting until it is closed.',
       ),
-    ],
-  },
-  {
-    title: 'Emergency phrases',
-    blocks: [
-      text('The blue bar along the bottom is always there, on every screen.'),
-      text('Resting on one speaks it immediately — it is never added to the message box first.'),
       text(
-        'They take the phrase dwell time, like the phrases in the grid, so they are no easier to trigger by accident than any other phrase.',
+        'Formatting is kept when you copy a message, and dropped when it is spoken or searched. Typing "help" still finds a phrase written as **Help** me.',
       ),
     ],
   },
