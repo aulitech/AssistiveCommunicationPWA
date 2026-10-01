@@ -143,7 +143,7 @@ export const PRIVACY: ProseDocument = {
       title: 'Speech',
       blocks: [
         text(
-          'Speech is produced by the voices built into your device or browser, through a standard web feature. The app does not record audio and has no access to your microphone.',
+          'Speech is produced by the voices built into your device or browser, through a standard web feature. The app does not record audio. It uses your microphone only while you have listening turned on — see Listening above.',
         ),
         text(
           'One caveat worth knowing: some operating systems offer higher-quality voices that run in the cloud rather than on the device. If you select one of those, your browser or operating system may send the text to be spoken to its own servers. That is between you, your browser and your device maker — it does not pass through us — but if it matters to you, choose a voice marked as on-device in your system settings.',
@@ -158,7 +158,7 @@ export const PRIVACY: ProseDocument = {
           'Setting a spoken language works the same way, and mostly sends nothing. The phrases Peri comes with are translated before the app is built, so speaking one of those in another language involves no request at all. Only the phrases you wrote yourself, and messages you build out of several, need translating as you go. Those are sent from your device straight to Google, once each, using our account rather than yours, and the result is kept on your device so it is not sent again. We do not see them and we keep no copy. Set the language back to your device default and nothing is sent at all.',
         ),
         text(
-          'The emergency bar always uses a device voice, whatever else is selected, so those phrases are spoken instantly and still work with no connection.',
+          'The emergency bar never waits for a connection. An emergency phrase is said in an ElevenLabs voice only when its audio is already loaded on your device — a phrase you have given a voice of its own is kept ready for this — and otherwise in a device voice, straight away. Either way nothing is fetched to say it, so those phrases still work with no connection.',
         ),
         text(
           'The speaking tab, under Settings, shows the last thing you said and plays it, for sharing into a video call instead of your board. It gets what you said from the app inside your browser, on your device, and nothing is sent anywhere to reach it. If you share it in a call, what it shows and plays goes to that call and its other participants, under that service’s own policy — not this one.',
