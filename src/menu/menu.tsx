@@ -16,7 +16,16 @@ import type { SyncControl } from '../sync/use-sync'
 import type { ElevenLabsAccount } from '../core/store'
 import { BackupPanel } from './backup-panel'
 import { HelpPanel } from './help-panel'
-import { AliasesIcon, BackIcon, BackupIcon, HelpIcon, SettingsIcon, SignOutIcon } from '../ui/icons'
+import {
+  AliasesIcon,
+  BackIcon,
+  BackupIcon,
+  HelpIcon,
+  SettingsIcon,
+  SignOutIcon,
+  SpeakingTabIcon,
+} from '../ui/icons'
+import { SPEAKING_PATH, SPEAKING_WINDOW } from '../voice/relay'
 
 /**
  * The way out of a panel, in the top right corner of every one of them.
@@ -176,6 +185,22 @@ export function TopPanel({
   }, [onClose, onSignOut])
   const [view, setView] = useState<PanelView>('menu')
 
+  /**
+   * **The speaking tab** — the last thing said, for sharing into a call instead
+   * of the board; see `voice/relay.ts`. Not a panel: it opens a tab of its own,
+   * and the menu closes behind it, since the board is what somebody comes back
+   * to. **Opened by a click, not by a rest** — a browser opens a tab only in
+   * answer to a real click or tap, and the timer a rest fires from is neither —
+   * so a rest that is refused leaves the menu open and says so where the item
+   * says what it is, with the address. Opened under one name, so opening it
+   * again finds the tab already open.
+   */
+  const [speakingRefused, setSpeakingRefused] = useState(false)
+  const openSpeakingTab = useCallback(() => {
+    if (window.open(SPEAKING_PATH, SPEAKING_WINDOW)) onClose()
+    else setSpeakingRefused(true)
+  }, [onClose])
+
   // Coming back to the menu from anything opened out of it. The guard runs from
   // the moment it is set, and the effect below is what takes it off again.
   const [guarded, setGuarded] = useState(false)
@@ -198,6 +223,7 @@ export function TopPanel({
   if (wasOpen !== open) {
     setWasOpen(open)
     setView('menu')
+    setSpeakingRefused(false)
   }
 
   useEffect(() => {
@@ -300,6 +326,17 @@ export function TopPanel({
               sublabel="Save your phrases, or bring some in"
               disabled={guarded}
               onSelect={() => setView('backup')}
+            />
+            <NavItem
+              icon={<SpeakingTabIcon />}
+              label="Speaking tab"
+              sublabel={
+                speakingRefused
+                  ? `A tab opens only for a click or a tap — or go to ${window.location.host}${SPEAKING_PATH}`
+                  : 'Share what you say in a call, not the board'
+              }
+              disabled={guarded}
+              onSelect={openSpeakingTab}
             />
             <NavItem
               icon={<HelpIcon />}

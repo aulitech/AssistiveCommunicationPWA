@@ -1,4 +1,4 @@
-// **The speaking tab** in a real browser: opened by a click from Settings, kept
+// **The speaking tab** in a real browser: opened by a click from the menu, kept
 // in step with the board over a real `BroadcastChannel`, and playing an
 // ElevenLabs clip in place of the board — see docs/decisions/speaking-into-a-call.md.
 // jsdom has its own stand-in for the channel; this is the one that ships.
@@ -40,21 +40,17 @@ const plays = (page: Page) => page.evaluate(() => (window as unknown as { plays:
 
 const phrases = categories(['Speaking'])
 
-/** Opens the speaking tab the way somebody would: Menu, Settings, and a click on the row. */
+/** Opens the speaking tab the way somebody would: the menu, and a click on its item. */
 async function openSpeakingTab(page: Page) {
   await page.locator('.icon-btn[aria-label*="menu" i]').click()
-  await page.locator('.nav-item[aria-label="Settings"]').click()
   const [speaking] = await Promise.all([
     page.context().waitForEvent('page'),
-    page.locator('.panel-btn[aria-label="Open the tab"]').click(),
+    page.locator('.nav-item[aria-label="Speaking tab"]').click(),
   ])
   await expect(speaking.locator('.speaking-said')).toHaveText('What Peri says will appear here.')
   await page.bringToFront()
-  // Back to the menu, and Back out of it, waiting out the second after each.
-  for (let i = 0; i < 2 && (await page.locator('.top-panel').isVisible()); i++) {
-    await page.waitForTimeout(1100)
-    await page.locator('[aria-label="Back"]').first().click()
-  }
+  // The menu closes behind it; the board is deaf for a second after.
+  await expect(page.locator('.top-panel')).not.toHaveClass(/\bopen\b/)
   await page.waitForTimeout(1100)
   return speaking
 }

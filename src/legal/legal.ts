@@ -161,7 +161,7 @@ export const PRIVACY: ProseDocument = {
           'The emergency bar never waits for a connection. An emergency phrase is said in an ElevenLabs voice only when its audio is already loaded on your device — a phrase you have given a voice of its own is kept ready for this — and otherwise in a device voice, straight away. Either way nothing is fetched to say it, so those phrases still work with no connection.',
         ),
         text(
-          'The speaking tab, under Settings, shows the last thing you said and plays it, for sharing into a video call instead of your board. It gets what you said from the app inside your browser, on your device, and nothing is sent anywhere to reach it. If you share it in a call, what it shows and plays goes to that call and its other participants, under that service’s own policy — not this one.',
+          'The speaking tab, in the menu, shows the last thing you said and plays it, for sharing into a video call instead of your board. It gets what you said from the app inside your browser, on your device, and nothing is sent anywhere to reach it. If you share it in a call, what it shows and plays goes to that call and its other participants, under that service’s own policy — not this one.',
         ),
       ],
     },

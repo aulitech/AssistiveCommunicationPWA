@@ -1,5 +1,5 @@
 // **The speaking tab** through the real app: the page at its own address, what
-// it shows and plays, and the Settings row that opens it. What passes between
+// it shows and plays, and the menu item that opens it. What passes between
 // it and Peri is `voice/relay.test.ts`; whether a call can hear it is a
 // question for a real browser, measured when it was built — see
 // docs/decisions/speaking-into-a-call.md.
@@ -87,26 +87,21 @@ describe('the page', () => {
   })
 })
 
-describe('the Settings row', () => {
-  const openSettings = () => {
-    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
-    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
-  }
-  const openTheTab = () =>
-    [...document.body.querySelectorAll<HTMLElement>('.panel-btn')].find(
-      b => b.getAttribute('aria-label') === 'Open the tab',
-    )
-  const note = () => openTheTab()?.closest('.setting-row')?.querySelector('.setting-note')?.textContent
+describe('the menu item', () => {
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const item = () => $$('.nav-item').find(n => n.getAttribute('aria-label') === 'Speaking tab')
+  const sublabel = () => item()?.querySelector('.nav-item-sub')?.textContent
+  const menuOpen = () => $('.top-panel')?.classList.contains('open')
 
-  it('opens the tab under one name, so a second time finds the first', () => {
+  it('opens the tab under one name, so a second time finds the first, and gives the board back', () => {
     const opened = vi.fn(() => ({}) as Window)
     vi.stubGlobal('open', opened)
     renderApp()
-    openSettings()
-    click(openTheTab())
+    openMenu()
+    click(item())
 
     expect(opened).toHaveBeenCalledWith('/speaking', 'peri-speaking')
-    expect(note()).not.toMatch(/only for a click/)
+    expect(menuOpen(), 'the menu stayed open over the board').toBe(false)
   })
 
   // A rest is not a click, and a browser opens a tab only for one.
@@ -116,10 +111,18 @@ describe('the Settings row', () => {
       vi.fn(() => null),
     )
     renderApp()
-    openSettings()
-    click(openTheTab())
+    openMenu()
+    click(item())
 
-    expect(note()).toMatch(/only for a click or a tap/)
-    expect(note()).toContain(`${window.location.origin}/speaking`)
+    expect(menuOpen()).toBe(true)
+    expect(sublabel()).toMatch(/only for a click or a tap/)
+    expect(sublabel()).toContain(`${window.location.host}/speaking`)
+  })
+
+  it('is not in Settings', () => {
+    renderApp()
+    openMenu()
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+    expect(document.body.textContent).not.toMatch(/Speaking tab/)
   })
 })

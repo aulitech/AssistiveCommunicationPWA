@@ -10,7 +10,6 @@ import type { SyncControl } from '../sync/use-sync'
 import { VoicePicker } from '../voice/picker'
 import { LanguagePicker } from '../voice/language-picker'
 import { clearAudioCache } from '../voice/audio-cache'
-import { SPEAKING_PATH, SPEAKING_WINDOW } from '../voice/relay'
 import { type AliasStore } from '../core/phrases'
 import { buildBackup } from '../core/backup'
 import { type ElevenLabsAccount, type PhraseStore } from '../core/store'
@@ -144,32 +143,6 @@ function LanguageRow() {
         value={settings.language}
         onChange={(tag, voices) => update(chooseLanguage(settings, tag, voices))}
       />
-    </SettingRow>
-  )
-}
-
-/**
- * **The speaking tab** — the last thing said, and nothing else, for sharing into
- * a video call instead of the board. See `voice/relay.ts`.
- *
- * **Opened by a click, not by a rest.** A browser opens a tab only in answer to
- * a real click or tap, and the timer a rest fires from is neither — so a rest
- * here is refused, and the row says so and gives the address, rather than doing
- * nothing. Opened under one name, so opening it again finds the tab already open.
- */
-function SpeakingTabRow() {
-  const [refused, setRefused] = useState(false)
-  const open = () => setRefused(!window.open(SPEAKING_PATH, SPEAKING_WINDOW))
-  return (
-    <SettingRow
-      label="Speaking tab"
-      note={
-        refused
-          ? `Your browser opens a tab only for a click or a tap, which a rest is not. Click Open the tab, or go to ${window.location.origin}${SPEAKING_PATH}.`
-          : 'A tab showing only the last thing said. Share it in a video call, with its audio, instead of sharing the board: the call sees the words and hears an ElevenLabs voice. A device voice is shown but not heard there — the device plays it, not the tab.'
-      }
-    >
-      <PanelButton kind="plain" label="Open the tab" onActivate={open} />
     </SettingRow>
   )
 }
@@ -362,7 +335,6 @@ export function SettingsPanel({
         </SettingRow>
         <LanguageRow />
         <VoiceRow />
-        <SpeakingTabRow />
         <SyncRow sync={sync} />
         <ElevenLabsRow account={account} onChange={onAccountChange} />
         <SuggestedRepliesRow value={replyKey} onChange={onReplyKeyChange} onForget={onForgetConversation} />
