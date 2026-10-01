@@ -40,7 +40,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Bottom right corner, on a wide screen: the language and the voice.',
       ),
       text(
-        ':menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — and :sign-out: Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
+        ':menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :speaking-tab: Speaking tab, :help: Help — this guide — and :sign-out: Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
       ),
     ],
   },
@@ -334,7 +334,6 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Getting started — this guide, one part at a time, each part you have been through marked :ticked:. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',
         'Spoken language — see Speaking another language.',
         'Voice — :choose: opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
-        'Speaking tab — see Speaking in a video call.',
         'Synchronize, ElevenLabs and Suggested answers — see Keeping two devices the same, Better voices and Getting suggested answers.',
         'Reset to Factory Defaults, at the very bottom, puts this board back to how Peri arrived — phrases, categories, lists, settings and any linked account. It offers to save a backup first, and you stay signed in.',
       ),
@@ -419,7 +418,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'In a video call, the others hear your microphone — and a call is built to take the sound of your own speakers out of it, so they hear little or nothing of Peri. The speaking tab is the way round that, without showing anybody your board.',
       ),
       text(
-        'Open :menu:, choose :settings: Settings, and choose Open the tab under Speaking tab. A tab of its own opens, showing only the last thing you said, in large writing.',
+        'Open :menu: and choose :speaking-tab: Speaking tab. A tab of its own opens, showing only the last thing you said, in large writing.',
       ),
       text(
         'In the call, share that tab rather than your screen. In Google Meet: Present now, then A tab, then choose Peri — speaking, with Also share tab audio ticked. The call sees what you say, and never the board.',
