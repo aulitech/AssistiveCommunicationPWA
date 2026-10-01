@@ -118,6 +118,18 @@ describe('the user guide', () => {
     expect(rows.filter(row => !said.includes(quotes(row)))).toEqual([])
   })
 
+  // The same for the menu: every item in it is in the Overview's line about the
+  // menu, with its icon, read out of the menu itself — so an item added there
+  // fails here until the guide says it exists.
+  it('names every item in the menu, with its icon, in the overview', () => {
+    const menu = readFileSync('src/menu/menu.tsx', 'utf8')
+    const items = [...menu.matchAll(/<NavItem[\s\S]*?label="([^"]+)"/g)].map(m => m[1])
+    expect(items.length).toBeGreaterThan(4)
+    const overview = HELP_SECTIONS.find(s => s.title === 'Overview')!
+    const said = overview.blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items)).join('\n')
+    expect(items.filter(item => !new RegExp(`:[a-z-]+: ${item.replace(/[&]/g, '\\$&')}`).test(said))).toEqual([])
+  })
+
   // **Two claims that were true once and stopped being.** The emergency bar
   // plays an ElevenLabs clip already loaded — `speak`'s `instant` rules out
   // fetching, not the voice — and listen mode uses the microphone. Both were
