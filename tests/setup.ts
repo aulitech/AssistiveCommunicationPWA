@@ -39,6 +39,40 @@ export const voices: SpeechSynthesisVoice[] = []
 /** Files the app has offered to download, in order. */
 export const downloads: { filename: string; text: string; blob?: Blob }[] = []
 
+/**
+ * **A `BroadcastChannel` that stays in this process**, for the speaking tab —
+ * see `voice/relay.ts`. Node has a real one, which delivers through its own
+ * event loop where fake timers cannot reach and holds the worker open. This
+ * delivers to every other channel of the name, a microtask later, as the real
+ * one delivers a task later: never to the sender, never after `close`.
+ *
+ * Installed for the whole file rather than per test, because Peri opens its end
+ * as speech loads — before any `beforeEach` has run.
+ */
+const channels = new Map<string, Set<FakeBroadcastChannel>>()
+class FakeBroadcastChannel {
+  onmessage: ((e: MessageEvent) => void) | null = null
+  private closed = false
+  constructor(readonly name: string) {
+    if (!channels.has(name)) channels.set(name, new Set())
+    channels.get(name)!.add(this)
+  }
+  postMessage(data: unknown) {
+    if (this.closed) throw new DOMException('closed', 'InvalidStateError')
+    for (const other of channels.get(this.name) ?? [])
+      if (other !== this) queueMicrotask(() => !other.closed && other.onmessage?.({ data } as MessageEvent))
+  }
+  close() {
+    this.closed = true
+    channels.get(this.name)?.delete(this)
+  }
+}
+Object.defineProperty(globalThis, 'BroadcastChannel', {
+  value: FakeBroadcastChannel,
+  configurable: true,
+  writable: true,
+})
+
 /** Audio the app has started playing, in order. */
 export const played: { volume: number; rate: number }[] = []
 

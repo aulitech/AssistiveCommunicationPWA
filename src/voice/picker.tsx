@@ -100,7 +100,7 @@ export function VoicePicker({
   const pick = useCallback(
     (voiceURI: string) => {
       onChange(voiceURI)
-      speak(sampleText?.trim() || SAMPLE, settings, { voiceURI })
+      speak(sampleText?.trim() || SAMPLE, settings, { voiceURI, preview: true })
     },
     [onChange, settings, sampleText],
   )
