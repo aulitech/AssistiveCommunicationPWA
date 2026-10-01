@@ -393,7 +393,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'They use your own ElevenLabs credits. A phrase said again costs nothing — Peri keeps what it already fetched, and keeps it when you close the app.',
         'With Synchronize on, a phrase paid for on one device is not paid for again on another. The audio waits on the server, locked with your passphrase like everything else.',
         'If one cannot be fetched, Peri speaks with the device voice instead rather than saying nothing.',
-        'The blue emergency bar always uses the device voice, so it stays instant and works offline.',
+        'The blue emergency bar never waits for a connection. It uses an ElevenLabs voice only when the audio is already loaded — a phrase given a voice of its own is kept ready for this — and otherwise the device voice, straight away, so it works offline too.',
       ),
       text(
         'Choosing one of these voices means the words you speak are sent to ElevenLabs to be turned into audio. Unlink the account, or pick a device voice, and nothing is sent.',
