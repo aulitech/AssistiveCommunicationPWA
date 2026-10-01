@@ -17,7 +17,7 @@ import { type ProseDocument, list, text } from '../core/prose'
 
 // One date each: the policy says its date changes whenever it does, and the
 // terms have not changed with it.
-const PRIVACY_UPDATED = '22 September 2026'
+const PRIVACY_UPDATED = '1 October 2026'
 const TERMS_UPDATED = '20 August 2026'
 const CONTACT = 'spero@auli.tech'
 const ENTITY = 'Autonomous Living Technologies, Inc.'
@@ -159,6 +159,9 @@ export const PRIVACY: ProseDocument = {
         ),
         text(
           'The emergency bar always uses a device voice, whatever else is selected, so those phrases are spoken instantly and still work with no connection.',
+        ),
+        text(
+          'The speaking tab, under Settings, shows the last thing you said and plays it, for sharing into a video call instead of your board. It gets what you said from the app inside your browser, on your device, and nothing is sent anywhere to reach it. If you share it in a call, what it shows and plays goes to that call and its other participants, under that service’s own policy — not this one.',
         ),
       ],
     },

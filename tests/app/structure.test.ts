@@ -26,7 +26,7 @@ const LAYERS: string[][] = [
   ['translate'], //       words into other words, before anything says them
   ['voice', 'sync', 'listen'], // the three that talk to something outside this device
   ['menu'], //            the panel that slides down
-  ['talk', 'signin', 'legal'], // the three screens
+  ['talk', 'signin', 'legal', 'speaking'], // the screens
   ['.'], //               App and main, which reach anything
 ]
 
