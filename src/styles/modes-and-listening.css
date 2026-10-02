@@ -62,7 +62,7 @@
 }
 
 /* The language and the voice, now at the box's **lower**-right corner: the upper
-   one is the three that act on the message, and these are neither about the
+   one is what becomes of the message, and these are neither about the
    message nor urgent — they are set once and left, which is the border to be on.
    Against `.message-wrap`, because the pair of boxes ends wherever the taller of
    the two does and that is not where this box's border falls.
@@ -100,9 +100,10 @@
   border-radius: 999px;
 }
 
-/* The three that act on what is in the box, at the **right end of its upper
-   border** — where the language and the voice used to sit, before they went to
-   the bottom.
+/* What becomes of what is in the box, at the **right end of its upper border** —
+   speak, or in edit mode delete and save — where the language and the voice
+   used to sit, before they went to the bottom. Copy and paste were here too, and
+   are beside the slot that empties the box now.
  *
  * They were full-size buttons in a rail beside the box, and this is the last of
  * that rail: with them and the slot that empties the box on its borders, what is
@@ -138,7 +139,9 @@
 
 /* Clear, or undo — and in edit mode, start a new phrase — at the **left end of
    the message box's lower border**, mirroring the microphone at the left end of
-   the upper one.
+   the upper one. **Copy and paste to the right of it**: the three that work on
+   the text where it stands, none of which sends it anywhere — copy only outside
+   edit mode, paste in both.
  *
  * It was a full-size button in the rail beside the box. Moving it onto a border
  * is the bargain the mode strip already struck: the board gets 3.5rem of width
@@ -168,8 +171,12 @@
   z-index: 91;
   display: flex;
   align-items: center;
+  /* Copy and paste stand beside the slot, as far apart as the actions on the
+     upper border and for the same reason: it clears the invisible area each
+     carries, so no two overlap. */
+  gap: 1.25rem;
   background: var(--border-ground);
-  padding: 0.25rem;
+  padding: 0.25rem 0.6rem;
   border-radius: 999px;
 }
 

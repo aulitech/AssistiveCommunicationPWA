@@ -627,7 +627,8 @@ export function Topbar({
               The lower border rather than the upper because the upper one is
               full: a mode in the middle, the values at the right, the microphone
               at the left. Down here it shares the line with the edit strip,
-              which is centred, and has the left end to itself. */}
+              which is centred, and has the left end to itself — with copy and
+              paste to the right of it. */}
           <div className="topbar-clear">
             {editMode && undoDelete ? (
               // The undo glyph the composer's own slot draws, because it means
@@ -658,29 +659,37 @@ export function Topbar({
                 {showUndo ? <UndoIcon /> : <ClearIcon />}
               </ActionButton>
             )}
+            {/* **Copy and paste to the right of it**: with the slot that empties
+                the box, the three that work on the text where it stands, and
+                none of them sends it anywhere. Paste in both modes, meaning the
+                same thing either way; copy only outside edit mode, where the
+                message is what there is to copy. Paste is never disabled: what
+                is on the clipboard is not this app's to know until it asks —
+                and the keyboard route into a text box is Ctrl-V, which is
+                exactly the input this app exists without. */}
+            {!editMode && (
+              <ActionButton className="on-border" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
+                <CopyIcon />
+              </ActionButton>
+            )}
+            <ActionButton className="on-border" onSelect={paste} label="Paste from clipboard">
+              <PasteIcon />
+            </ActionButton>
           </div>
 
-          {/* The three that act on what is in the box, at the **upper right** of
-              its top border — where the language and the voice used to sit, and
-              they have gone to the bottom.
+          {/* What becomes of what is in the box, at the **upper right** of its top
+              border — where the language and the voice used to sit, and they
+              have gone to the bottom. Speak alone outside edit mode; in it,
+              delete and save, what becomes of the phrase being written. Copy and
+              paste were here too, and are beside the slot that empties the box
+              now, with the other two that work on the text where it stands.
 
               They were full-size buttons in a rail beside the box, and this is
-              the last of that rail: with them and the slot that empties the box
-              on its borders, what is left outside is the menu and the keyboard,
-              which are about the app rather than about the message. The board
-              gets the whole of that width.
-
-              **Three in both modes, in the same three places.** Outside edit
-              mode they are how a message leaves; inside it they are what becomes
-              of the phrase in the box. Paste means the same thing either way,
-              which is why it keeps the end of the row while the two beside it
-              change. */}
+              the last of that rail: with these and the slot on its borders, what
+              is left outside is the menu and the keyboard, which are about the
+              app rather than about the message. The board gets the whole of that
+              width. */}
           <div className="topbar-actions">
-            {/* Paste keeps the middle in both modes, being the one of the three
-                that means the same thing either way — the keyboard route into a
-                text box is Ctrl-V, which is exactly the input this app exists
-                without. Never disabled: what is on the clipboard is not this
-                app's to know until it asks. */}
             {editMode ? (
               <ActionButton
                 className="on-border danger"
@@ -696,15 +705,7 @@ export function Topbar({
               >
                 <TrashIcon />
               </ActionButton>
-            ) : (
-              <ActionButton className="on-border" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
-                <CopyIcon />
-              </ActionButton>
-            )}
-
-            <ActionButton className="on-border" onSelect={paste} label="Paste from clipboard">
-              <PasteIcon />
-            </ActionButton>
+            ) : null}
 
             {/* **Last, and half again the size of the two beside it.** It is the
                 one the whole board exists to reach: everything else here edits
