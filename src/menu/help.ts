@@ -35,8 +35,8 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         'Along the top edge, in the middle: the three modes — :edit: on the left, Rest in the middle, :auto-speak: on the right.',
         'Top left corner: :listen:, which opens a second box for what somebody is saying to you.',
-        'Top right corner: :copy:, :paste: and :speak:. Speak is last and green, because it is the one the whole board exists to reach.',
-        'Bottom left corner: :clear:, which empties the box — and afterwards offers :undo:.',
+        'Top right corner: :speak:, in green, because it is the one the whole board exists to reach.',
+        'Bottom left corner: :clear:, which empties the box — and afterwards offers :undo: — with :copy: and :paste: to the right of it.',
         'Bottom right corner, on a wide screen: the language and the voice.',
       ),
       text(
@@ -117,10 +117,10 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'The box grows as the message does, up to five lines. Past that, arrows appear inside its right edge to scroll it.',
       ),
-      text('When the message is ready, the three at the top right of the box are what becomes of it:'),
+      text('When the message is ready, :speak: at the top right of the box says it aloud. It is green.'),
+      text('To the right of :clear:, at the bottom left of the box, are the two for the clipboard:'),
       list(
-        ':speak: says it aloud. It is the last in the row, in green.',
-        ':copy: puts it on the clipboard to send somewhere else.',
+        ':copy: puts the message on the clipboard to send somewhere else.',
         ':paste: brings in whatever was last copied, at the point the caret is sitting — into the message, or into a phrase being written.',
       ),
       text(
@@ -258,7 +258,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         ':save: at the end of the top row saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for.',
         ':delete: on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
-        ':add: at the bottom left starts a new phrase — where :clear: is the rest of the time.',
+        ':add: at the bottom left starts a new phrase — where :clear: is the rest of the time. :paste: stays beside it; :copy: is not there in edit mode.',
         'A strip under the box says what is being edited, and which categories it is in. Rest on :choose: beside them to open the categories. Tick as many as you like — each ticked one shows :ticked: — or none to keep it in Library alone.',
         'Done on the categories saves straight away. A new phrase, or a translation or answer you are keeping, is saved whole. For one already on the board only the categories are, and new words or a new voice still wait for :save:.',
         "The two at the bottom right corner become this phrase's own: the voice it is said in, and the language that voice is for.",

@@ -493,8 +493,8 @@ describe('the slot that empties the box', () => {
   /**
    * **Nothing acts on the message from outside the box any more.**
    *
-   * The three that do sit on its upper border at the right; the one that empties
-   * it sits at the left of the lower one. What is left in the rail beside the box
+   * What becomes of it sits on its upper border at the right; the one that
+   * empties it sits at the left of the lower one, with copy and paste beside it. What is left in the rail beside the box
    * is the menu and the keyboard, which are about the app rather than about the
    * message — and the board gets the whole of the width that came back.
    *
@@ -522,8 +522,9 @@ describe('the slot that empties the box', () => {
   /**
    * **Each of the box's four borders holds one kind of thing.**
    *
-   * Upper: a mode in the middle, the microphone at the left, the three that act
-   * on the message at the right. Lower: the one that empties it at the left, and
+   * Upper: a mode in the middle, the microphone at the left, what becomes of the
+   * message at the right. Lower: the one that empties it at the left, with copy
+   * and paste beside it, and
    * the language and the voice at the right — neither about the message and
    * neither urgent, set once and left, which is the border to be on.
    *
@@ -538,10 +539,10 @@ describe('the slot that empties the box', () => {
       return ['top', 'bottom'].filter(side => new RegExp(`^ *${side}: `, 'm').test(block))
     }
 
-    expect(edge('.topbar-actions'), 'the three that act on the message left the upper border').toEqual(['top'])
+    expect(edge('.topbar-actions'), 'speak left the upper border').toEqual(['top'])
     expect(edge('.topbar-listen'), 'the microphone left the upper border').toEqual(['top'])
     expect(edge('.topbar-choices'), 'the language and the voice are not on the lower border').toEqual(['bottom'])
-    expect(edge('.topbar-clear'), 'the one that empties the box is not on the lower border').toEqual(['bottom'])
+    expect(edge('.topbar-clear'), 'clear, copy and paste are not on the lower border').toEqual(['bottom'])
   })
 
   it('rides the box border rather than sitting in the rail beside it', () => {
@@ -649,28 +650,34 @@ describe('pasting by dwell', () => {
     })
   }
 
-  // Paste keeps the end of the row while the two beside it change with the mode,
-  // being the one of the three that means the same thing either way.
   /**
-   * Paste keeps the **middle** of the row in both modes, being the one of the
-   * three that means the same thing either way. What is at the end is what the
-   * mode is for — speak, or in edit mode save — and it is half again the size of
-   * the two beside it.
+   * **Copy and paste ride the lower border, to the right of the slot that
+   * empties the box** — the three that work on the text where it stands, none
+   * of which sends it anywhere. The upper right is what becomes of it: speak, or
+   * in edit mode delete and save. Paste is in the same place in both modes,
+   * meaning the same thing either way; copy is not offered in edit mode.
    */
-  it('sits between copy and speak, on the box upper border', () => {
+  it('sits to the right of clear and undo, with copy, on the lower border', () => {
     renderApp()
-    const actions = $$('.topbar-actions .icon-btn').map(b => b.getAttribute('aria-label'))
-    expect(actions).toEqual(['Copy to clipboard', 'Paste from clipboard', 'Speak'])
+    const lower = () => $$('.topbar-clear .icon-btn').map(b => b.getAttribute('aria-label'))
+    const upper = () => $$('.topbar-actions .icon-btn').map(b => b.getAttribute('aria-label'))
+    expect(lower()).toEqual(['Clear', 'Copy to clipboard', 'Paste from clipboard'])
+    expect(upper()).toEqual(['Speak'])
 
-    // The end of the row is what the mode is for, and it is the one drawn large.
+    // Afterwards the slot is Undo, and the two stay to the right of it.
+    writeIn(composer(), 'Hello')
+    click(iconBtn('Clear'))
+    expect(lower()).toEqual(['Undo', 'Copy to clipboard', 'Paste from clipboard'])
+
+    // The end of the upper row is what the mode is for, and it is the primary.
     const primary = () => $('.topbar-actions .icon-btn:last-child')!
     expect(primary().getAttribute('aria-label')).toBe('Speak')
-    expect(primary().classList.contains('is-primary'), 'speak is not the large one').toBe(true)
+    expect(primary().classList.contains('is-primary'), 'speak is not the primary').toBe(true)
 
     click(editToggle())
-    const editing = $$('.topbar-actions .icon-btn').map(b => b.getAttribute('aria-label'))
-    expect(editing).toEqual(['Delete phrase', 'Paste from clipboard', 'Save phrase'])
-    expect(primary().classList.contains('is-primary'), 'save is not the large one').toBe(true)
+    expect(lower()).toEqual(['Start a new phrase', 'Paste from clipboard'])
+    expect(upper()).toEqual(['Delete phrase', 'Save phrase'])
+    expect(primary().classList.contains('is-primary'), 'save is not the primary').toBe(true)
   })
 
   // Never disabled: what is on the clipboard is not this app's to know until it

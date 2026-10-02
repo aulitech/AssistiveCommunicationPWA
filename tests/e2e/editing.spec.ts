@@ -87,7 +87,7 @@ test('puts a deleted phrase back where it was', async ({ page }) => {
   await page.locator('.icon-btn[aria-label="Delete phrase"]').click()
   await expect(cell(page, text)).toHaveCount(0)
 
-  await page.locator('.topbar-clear .icon-btn').click()
+  await page.locator('.topbar-clear .icon-btn').first().click()
 
   await expect(cell(page, text)).toHaveCount(1)
   await expect(messageBox(page)).toHaveValue(text)
