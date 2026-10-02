@@ -14,7 +14,6 @@ import { audioKey, cachedAudio } from './audio-cache'
 import { reportFailure } from '../core/report'
 import { needsTranslation, rememberTranslation, translationFor, translationTarget } from '../core/translation'
 import { hasTranslateKey, translate } from '../translate/client'
-import { handToSpeakingTab, hushSpeakingTab, showSaid, speakingTabOpen } from './relay'
 
 export interface VoiceSettings {
   voiceURI: string // empty = browser default
@@ -64,11 +63,6 @@ export interface SpeakOptions {
    * translated, and the record is keyed on it.
    */
   onTranslated?: (source: string, translated: string, tag: string) => void
-  /**
-   * Heard here and nowhere else — a voice being tried in the picker. Said to
-   * nobody, so it is not shown on the speaking tab or played into a call.
-   */
-  preview?: boolean
 }
 
 // Read per utterance rather than mirrored in a variable here. A JSON parse of
@@ -91,7 +85,6 @@ let playing: HTMLAudioElement | null = null
 
 function stopEverything() {
   generation++
-  hushSpeakingTab()
   if ('speechSynthesis' in window) speechSynthesis.cancel()
   if (playing) {
     playing.pause()
@@ -201,52 +194,33 @@ function say(text: string, settings: VoiceSettings, options: SpeakOptions) {
   const linked = currentAccount()
   const voiceId = remoteVoiceId(chosen.voiceURI)
   const mine = generation
-  // The device's voice is the device's to play, so the speaking tab is only
-  // shown the words — see `relay.ts`.
-  const onDevice = () => {
-    if (!options.preview) showSaid(text)
-    speakOnDevice(text, chosen)
-  }
   const fallBack = () => {
-    if (mine === generation) onDevice()
-  }
-  // A clip goes to the speaking tab if one is open, which plays it into the call
-  // and shows the words; and is played here if not, or if the tab will not.
-  const playClip = (blob: Blob) => {
-    const playHere = () => {
-      if (mine === generation) playAudio(blob, chosen, fallBack)
-    }
-    if (options.preview) return playAudio(blob, chosen, fallBack)
-    if (!speakingTabOpen()) {
-      showSaid(text)
-      return playAudio(blob, chosen, fallBack)
-    }
-    handToSpeakingTab({ text, clip: blob, volume: chosen.volume, rate: chosen.rate }, playHere)
+    if (mine === generation) speakOnDevice(text, chosen)
   }
 
   if (!voiceId || !linked) {
-    onDevice()
+    speakOnDevice(text, chosen)
     return
   }
 
   // Already fetched: play it now, whoever is asking.
   const inHand = cachedAudio(audioKey(voiceId, text))
   if (inHand) {
-    playClip(inHand)
+    playAudio(inHand, chosen, fallBack)
     return
   }
 
   // Not in hand, and this is a phrase that cannot wait. The device says it now
   // rather than the right voice saying it in a second and a half.
   if (options.instant) {
-    onDevice()
+    speakOnDevice(text, chosen)
     return
   }
 
   synthesize(linked, voiceId, text)
     .then(blob => {
       if (mine !== generation) return
-      playClip(blob)
+      playAudio(blob, chosen, fallBack)
     })
     .catch((err: unknown) => {
       reportFailure('elevenlabs/audio', err instanceof Error ? err.message : 'Could not fetch the audio')

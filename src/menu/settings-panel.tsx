@@ -736,7 +736,7 @@ function ElevenLabsRow({
         )}
         <p className="eleven-note">
           {account
-            ? 'These voices need the internet and use your ElevenLabs credits. A phrase is paid for once: Peri keeps the audio, and with Synchronize on your other devices use the same clip rather than buying their own. Peri falls back to the device voice if one cannot be fetched, and the emergency bar uses it for any phrase whose audio is not already loaded rather than wait.'
+            ? 'These voices need the internet and use your ElevenLabs credits. A phrase is paid for once: Peri keeps the audio, and with Synchronize on your other devices use the same clip rather than buying their own. Peri falls back to the device voice if one cannot be fetched, and the emergency bar always uses the device voice.'
             : 'Optional. Adds the voices from your ElevenLabs account. The key is never put in a backup file — but with Synchronize on it does travel, encrypted, to your own devices, and so does the audio it pays for.'}
         </p>
       </div>

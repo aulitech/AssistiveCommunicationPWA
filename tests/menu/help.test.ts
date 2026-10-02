@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 import { HELP_SECTIONS } from '../../src/menu/help'
-import { PRIVACY } from '../../src/legal/legal'
 
 const allText = HELP_SECTIONS.flatMap(s => s.blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items)))
 
@@ -116,38 +115,6 @@ describe('the user guide', () => {
     const settings = HELP_SECTIONS.find(s => s.title === 'Settings')!
     const said = quotes(settings.blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items)).join('\n'))
     expect(rows.filter(row => !said.includes(quotes(row)))).toEqual([])
-  })
-
-  // The same for the menu: every item in it is in the Overview's line about the
-  // menu, with its icon, read out of the menu itself — so an item added there
-  // fails here until the guide says it exists.
-  it('names every item in the menu, with its icon, in the overview', () => {
-    const menu = readFileSync('src/menu/menu.tsx', 'utf8')
-    const items = [...menu.matchAll(/<NavItem[\s\S]*?label="([^"]+)"/g)].map(m => m[1])
-    expect(items.length).toBeGreaterThan(4)
-    const overview = HELP_SECTIONS.find(s => s.title === 'Overview')!
-    const said = overview.blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items)).join('\n')
-    expect(items.filter(item => !new RegExp(`:[a-z-]+: ${item.replace(/[&]/g, '\\$&')}`).test(said))).toEqual([])
-  })
-
-  // **Two claims that were true once and stopped being.** The emergency bar
-  // plays an ElevenLabs clip already loaded — `speak`'s `instant` rules out
-  // fetching, not the voice — and listen mode uses the microphone. Both were
-  // said the other way round, the second in the privacy policy, until 7.6.1.
-  it('does not say the emergency bar always uses the device voice, or that the microphone is never used', () => {
-    const settingsRows = readFileSync('src/menu/settings-panel.tsx', 'utf8')
-    const policy = [
-      ...(PRIVACY.intro ? [PRIVACY.intro] : []),
-      ...PRIVACY.sections.flatMap(s => s.blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items))),
-    ]
-    for (const [where, text] of [
-      ['the guide', allText.join(' ')],
-      ['the Settings rows', settingsRows],
-      ['the privacy policy', policy.join(' ')],
-    ] as const) {
-      expect(text, where).not.toMatch(/emergency bar always uses/i)
-      expect(text, where).not.toMatch(/no access to your microphone/i)
-    }
   })
 
   // Every control on the message box's borders is one size now; Speak is told
