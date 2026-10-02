@@ -1,4 +1,4 @@
-// The app shell: which of the screens is on, and the settings every one of
+// The app shell: which of the three screens is on, and the settings every one of
 // them reads.
 //
 // Everything else lives in its own module; this file exists to answer "what am I
@@ -26,16 +26,11 @@ import { SignInPage } from './signin/signin'
 import { LegalPage } from './legal/legal-page'
 import { TalkScreen } from './talk/talk'
 import { ErrorBoundary } from './talk/error-boundary'
-import { SpeakingPage } from './speaking/speaking-page'
-import { SPEAKING_PATH } from './voice/relay'
 
 export default function App() {
   // Legal pages are plain documents at their own URLs. Two leaf pages reached
   // by real links need no router and no history handling.
   const legalDoc = legalDocumentFor(window.location.pathname)
-  // The speaking tab: the last thing said, for sharing into a call. Nobody's
-  // board, so it needs nobody signed in — see `voice/relay.ts`.
-  const speakingTab = window.location.pathname.replace(/\/+$/, '') === SPEAKING_PATH
 
   // Whose board this page reads is settled before anything reads it, the
   // settings on the next line included.
@@ -133,9 +128,7 @@ export default function App() {
   return (
     <SettingsCtx.Provider value={ctx}>
       <ErrorBoundary>
-        {speakingTab ? (
-          <SpeakingPage />
-        ) : legalDoc ? (
+        {legalDoc ? (
           <LegalPage doc={legalDoc} />
         ) : user ? (
           <TalkScreen user={user} onSignOut={handleSignOut} arrivedBySignIn={signedInHere} />

@@ -40,7 +40,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Bottom right corner, on a wide screen: the language and the voice.',
       ),
       text(
-        ':menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :speaking-tab: Speaking tab, :help: Help — this guide — and :sign-out: Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
+        ':menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — and :sign-out: Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
       ),
     ],
   },
@@ -392,7 +392,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'They use your own ElevenLabs credits. A phrase said again costs nothing — Peri keeps what it already fetched, and keeps it when you close the app.',
         'With Synchronize on, a phrase paid for on one device is not paid for again on another. The audio waits on the server, locked with your passphrase like everything else.',
         'If one cannot be fetched, Peri speaks with the device voice instead rather than saying nothing.',
-        'The blue emergency bar never waits for a connection. It uses an ElevenLabs voice only when the audio is already loaded — a phrase given a voice of its own is kept ready for this — and otherwise the device voice, straight away, so it works offline too.',
+        'The blue emergency bar always uses the device voice, so it stays instant and works offline.',
       ),
       text(
         'Choosing one of these voices means the words you speak are sent to ElevenLabs to be turned into audio. Unlink the account, or pick a device voice, and nothing is sent.',
@@ -408,30 +408,6 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'With a lot of voices to choose from, the row of buttons above the grid narrows it — by collection for your ElevenLabs voices, by language for the ones on this device.',
-      ),
-    ],
-  },
-  {
-    title: 'Speaking in a video call',
-    blocks: [
-      text(
-        'In a video call, the others hear your microphone — and a call is built to take the sound of your own speakers out of it, so they hear little or nothing of Peri. The speaking tab is the way round that, without showing anybody your board.',
-      ),
-      text(
-        'Open :menu: and choose :speaking-tab: Speaking tab. A tab of its own opens, showing only the last thing you said, in large writing.',
-      ),
-      text(
-        'In the call, share that tab rather than your screen. In Google Meet: Present now, then A tab, then choose Peri — speaking, with Also share tab audio ticked. The call sees what you say, and never the board.',
-      ),
-      list(
-        'With an ElevenLabs voice, the speaking tab plays what you say, so the call hears it as well as seeing it. You still hear it as you always did.',
-        'With a voice from your device, the call sees the words but does not hear them. Your device plays that voice itself, and a tab can share only what it plays. An ElevenLabs voice is the way to be heard — see Better voices.',
-        'A browser opens a tab only for a click or a tap, not for a rest, and choosing what to share is the call’s screen rather than Peri’s. Somebody may need to do this part for you, once a call.',
-        'If the tab asks you to click it once, do — a browser plays sound in a tab only after a click there. Until then Peri plays the voice itself, so nothing goes unsaid, but the call does not hear it.',
-        'Close the tab, and Peri plays everything itself again.',
-      ),
-      text(
-        'Nothing is sent anywhere to reach the speaking tab: it gets what you said from Peri on this device, never over the internet. Once you share it, what the call does with it is up to the call.',
       ),
     ],
   },

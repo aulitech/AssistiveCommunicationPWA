@@ -25,7 +25,6 @@ import {
 } from '../core/store'
 import { type AppState } from '../core/backup'
 import { speak, warmVoice } from '../voice/speech'
-import { speakingChannel } from '../voice/relay'
 import { cx } from '../ui/style'
 import { BusyIndicator, DwellCursor, PanelButton } from '../ui/controls'
 import { Keyboard } from '../ui/keyboard'
@@ -1019,9 +1018,6 @@ export function TalkScreen({
   useEffect(() => {
     void loadTranslations(settings.language)
   }, [settings.language])
-  // Listening for a speaking tab from the board's arrival, so one opened before
-  // anything is said is known about before anything is — see `voice/relay.ts`.
-  useEffect(() => void speakingChannel(), [])
   /**
    * Peri's own keyboard. An app-level surface rather than anything the message
    * box owns: it types into whatever field has the caret, so it has to outlast
