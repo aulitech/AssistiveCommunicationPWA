@@ -46,18 +46,22 @@
   /* The Peri mark's own gold. Used by the logo and nothing else — the interface
      stays green, so this never competes with a control for meaning. */
   --brand: #fcdd6b;
-  /* **The ground under every control that rides the message box and the heard
-     box** — the microphone, the modes, the actions, the one that empties a box,
-     the heard box's tools, the language and the voice, and the edit strip. One
-     value for all of them, so the border furniture reads as one set.
-   *
-   * **Grey at fifteen per cent, mixed rather than laid over.** It is the colour
-     a fifteen-per-cent grey makes on the bar, but opaque: every one of these sits
-     *on* a border, and a translucent ground let the box's border run straight
-     through the glyphs — the focused box's green line crossing copy, paste and
-     speak. Solid black was the first answer to that; this is the same answer in
-     the lighter grey. */
+  /* **The ground under the language and the voice** in the message card's row,
+     the two controls there whose faces are words rather than glyphs, so they
+     read as values set rather than buttons to press. Grey at fifteen per cent,
+     mixed into the bar rather than laid over it. It was the ground under every
+     control that rode the boxes' borders, before the boxes were cards. */
   --border-ground: color-mix(in srgb, rgb(128 128 128) 15%, var(--surface));
+
+  /* **The two boxes are cards**, the shape of a chat app's input box — the words
+     and, inside along the bottom, the controls that work on them. A ground a step
+     up from the bar's, as dark as it can be while the muted grey still clears 7:1
+     on it (7.3:1); an edge a step up again, soft rather than ruled; and a focus
+     that is the accent let into that edge rather than the accent itself, since it
+     is on whenever the caret is, which is most of the time. */
+  --card-ground: #232323;
+  --card-edge: #3a3a3a;
+  --card-focus: color-mix(in srgb, var(--accent) 55%, var(--card-edge));
 
 }
 

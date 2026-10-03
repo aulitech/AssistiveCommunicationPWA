@@ -69,6 +69,15 @@ const typeKey = (key: string) =>
   })
 
 const micBtn = () => $('.listen-toggle')
+/**
+ * Rests on the microphone, and waits out the second the board is deaf for after
+ * it: the question's card opening or closing moves the message card, and the
+ * microphone with it, out from under the pointer.
+ */
+const toggleMic = () => {
+  click(micBtn())
+  act(() => void vi.advanceTimersByTime(1100))
+}
 const editToggle = () => $('.edit-toggle')!
 const speakToggle = () => $('.autospeak-toggle')!
 const speaking = () => speakToggle().getAttribute('aria-pressed') === 'true'
@@ -88,7 +97,7 @@ const chooseAnswer = (text: string) => click($$('.phrase-cell').find(c => c.text
 
 /** Opens listen mode and delivers a question, the recogniser still running. */
 function hear(question: string) {
-  click(micBtn())
+  toggleMic()
   act(() => FakeRecognition.last!.say({ transcript: question, isFinal: true }))
   settle()
 }
@@ -164,7 +173,7 @@ describe('the control', () => {
   // about the half of it they could use.
   it('asks for a question, spoken or typed, while it listens', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
     expect(heardBox()!.placeholder).toBe('Speak or type a question')
 
     // And says so plainly once it has stopped: nothing is listening any more,
@@ -187,7 +196,7 @@ describe('the control', () => {
   it('shows a live microphone in the box’s lower right corner only while sound comes in', () => {
     const live = () => $('.heard-live')
     renderApp()
-    click(micBtn())
+    toggleMic()
     expect(live(), 'live before the browser had the microphone').toBeNull()
 
     act(() => FakeRecognition.last!.soundStarts())
@@ -209,7 +218,7 @@ describe('the control', () => {
     act(() => FakeRecognition.last!.soundStarts())
     settle()
     expect(live()).not.toBeNull()
-    click(micBtn())
+    toggleMic()
     expect(live()).toBeNull()
   })
 
@@ -217,7 +226,7 @@ describe('the control', () => {
   // do, and a target that did nothing would be a dwell spent for nothing.
   it('is a light and not a control', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
     act(() => FakeRecognition.last!.soundStarts())
     settle()
     const live = $('.heard-live')!
@@ -238,7 +247,7 @@ describe('the control', () => {
    */
   it('moves only a level inside the capsule, and holds it still for reduced motion', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
     act(() => FakeRecognition.last!.soundStarts())
     settle()
     expect($('.heard-live .mic-level'), 'no level in the capsule').not.toBeNull()
@@ -266,7 +275,7 @@ describe('the control', () => {
   // still, so it is the same outline with no level in it.
   it('draws the glyph the guide and the policy show for it', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
     act(() => FakeRecognition.last!.soundStarts())
     settle()
     const drawn = $('.heard-live svg')!.cloneNode(true) as SVGElement
@@ -284,30 +293,25 @@ describe('the control', () => {
   })
 
   /**
-   * The microphone does not move when it is used.
-   *
-   * On a wide screen the heard box sits *beside* the message rather than above
-   * it, so the leftmost box on that border changes the moment listen mode opens.
-   * What stops the control moving with it is that it hangs off the wrapper
-   * rather than off either box, and the wrapper is the same size in the same
-   * place either way — so the microphone rides the message box's corner while it
-   * is closed and the heard box's while it is open, at one point on screen.
-   *
-   * It is the way *out* of listen mode as well as the way in, which is what
-   * makes this worth holding: a control that moved the moment somebody used it
-   * would be the worst one on this bar to have to hunt for.
+   * **First in the message card's row**, before the modes. Opening the question
+   * moves the message card — above it on a narrow screen, beside it on a wide
+   * one — and the microphone with it, out from under the pointer that rested on
+   * it. So the board is deaf for a second after, as it is after anything that
+   * moves under a resting pointer: a second rest there is refused rather than
+   * answered by whatever the card put under it.
    */
-  it('hangs off the wrapper rather than off either box, so it does not move', () => {
+  it('sits first in the message card’s row, and holds the board still after the card moves', () => {
     renderApp()
-    const wrap = $('.text-display-wrap')!
-    expect(wrap.querySelector(':scope > .topbar-listen')).not.toBeNull()
+    expect($('.message-wrap .message-tools-start > .topbar-listen:first-child .listen-toggle')).not.toBeNull()
 
     click(micBtn())
     expect(heardBox()).not.toBeNull()
-    // Still the wrapper's own child, and not something the heard box brought
-    // with it — which is the only reason the two states put it in one place.
-    expect(wrap.querySelector(':scope > .topbar-listen')).not.toBeNull()
-    expect($('.heard-wrap .topbar-listen')).toBeNull()
+    click(micBtn())
+    expect(heardBox(), 'answered a rest under a pointer the card had just moved').not.toBeNull()
+
+    act(() => void vi.advanceTimersByTime(1100))
+    click(micBtn())
+    expect(heardBox()).toBeNull()
   })
 
   /**
@@ -324,7 +328,7 @@ describe('the control', () => {
    */
   it('empties and refills with the glyphs the message box uses', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
     expect(clearHeard()?.getAttribute('aria-disabled'), 'offered with nothing to empty').toBe('true')
 
     act(() => FakeRecognition.last!.say({ transcript: 'Do you want tea', isFinal: true }))
@@ -374,7 +378,7 @@ describe('the control', () => {
     renderApp()
     expect(speaking(), 'the board was already talking, so this proves nothing').toBe(false)
 
-    click(micBtn())
+    toggleMic()
     expect(speaking()).toBe(true)
   })
 
@@ -386,7 +390,7 @@ describe('the control', () => {
    */
   it('says nothing when the board is already talking', () => {
     renderApp({ autoSpeak: true })
-    click(micBtn())
+    toggleMic()
 
     expect(speaking()).toBe(true)
     expect($('.toast')?.textContent ?? '').toBe('')
@@ -397,9 +401,9 @@ describe('the control', () => {
   // mode somebody had chosen in the middle of one.
   it('leaves the mode alone on the way out', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
     click(speakToggle()) // back to composing, mid-conversation
-    click(micBtn()) // and out
+    toggleMic() // and out
 
     expect(speaking(), 'closing the box put auto-speak back on').toBe(false)
   })
@@ -417,7 +421,7 @@ describe('the control', () => {
     click(editToggle())
     expect($('.app')?.classList.contains('edit-mode')).toBe(true)
 
-    click(micBtn())
+    toggleMic()
     expect($('.app')?.classList.contains('edit-mode')).toBe(false)
     expect(speaking()).toBe(true)
   })
@@ -429,8 +433,8 @@ describe('the control', () => {
     renderApp()
     hear('Do you want tea')
     click(clearHeard())
-    click(micBtn())
-    click(micBtn())
+    toggleMic()
+    toggleMic()
 
     expect(undoHeard(), 'an undo survived the box being closed and opened').toBeUndefined()
     expect(clearHeard()?.getAttribute('aria-disabled')).toBe('true')
@@ -493,7 +497,7 @@ describe('the control', () => {
    */
   it('grows both boxes together, to whichever is holding more', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
 
     const measures = (el: HTMLTextAreaElement, lines: number) =>
       Object.defineProperty(el, 'scrollHeight', {
@@ -572,38 +576,41 @@ describe('the control', () => {
     expect(shape('.heard-text'), 'the two boxes are not the same box').toEqual(message)
   })
 
-  // A ground each rather than one pill round all three — two rem apart, one pill
-  // would be wider than the pane the wide-screen split gives this box — and the
-  // same ground every other control on either box's border stands on.
-  it('paints a ground under each of them', () => {
-    const css = stylesheet()
-    const rule = css.slice(css.indexOf('.heard-btn {'))
-    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/background: *var\(--border-ground\)/)
+  // The question is a card like the message's, with its tools inside it along
+  // the bottom — and its edge dashed, being somebody else's words.
+  it('draws the question as a card, dashed, with its tools inside it', () => {
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = css.slice(css.indexOf('.heard-wrap {'))
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/border: *1px dashed var\(--card-edge\)/)
+
+    renderApp()
+    toggleMic()
+    expect($('.heard-wrap > .heard-tools')).not.toBeNull()
   })
 
   it('opens a box above the message, and closes it again', () => {
     renderApp()
     expect(heardBox()).toBeNull()
 
-    click(micBtn())
+    toggleMic()
     expect(heardBox()).not.toBeNull()
 
-    click(micBtn())
+    toggleMic()
     expect(heardBox()).toBeNull()
   })
 
   it('starts listening when it opens, and stops when it closes', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
     expect(FakeRecognition.last!.started).toBe(true)
 
-    click(micBtn())
+    toggleMic()
     expect(FakeRecognition.last!.stopped).toBe(true)
   })
 
   it('listens in the language the board is spoken in', () => {
     renderApp({ language: 'es-MX' })
-    click(micBtn())
+    toggleMic()
     expect(FakeRecognition.last!.lang).toBe('es-MX')
   })
 })
@@ -611,7 +618,7 @@ describe('the control', () => {
 describe('the question', () => {
   it('fills the box as the words arrive', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
 
     act(() => FakeRecognition.last!.say({ transcript: 'Do you want', isFinal: false }))
     expect(heardBox()!.value).toBe('Do you want')
@@ -639,7 +646,7 @@ describe('the question', () => {
     const fetch = suggests('Yes please')
     vi.stubGlobal('fetch', fetch)
     renderApp()
-    click(micBtn())
+    toggleMic()
     act(() => FakeRecognition.last!.soundStarts())
     act(() => FakeRecognition.last!.say({ transcript: 'Do you want', isFinal: false }))
     settle()
@@ -672,7 +679,7 @@ describe('the question', () => {
 
   it('says so when the microphone is refused, and keeps the board working', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
     act(() => FakeRecognition.last!.fail('not-allowed'))
     settle()
 
@@ -827,7 +834,7 @@ describe('the suggested reply', () => {
    */
   it('says in the box that a key is needed, and takes nothing, until one is set up', async () => {
     renderApp({}, { key: '' })
-    click(micBtn())
+    toggleMic()
 
     expect(heardBox()!.value).toBe(KEY_NOTICE.missing)
     expect(heardBox()!.readOnly, 'the box takes typing with no key').toBe(true)
@@ -958,7 +965,7 @@ describe('the suggested reply', () => {
     expect(answerCells()).toEqual(['I am, thank you'])
 
     // Closing listen mode, which is the end of that question altogether.
-    click(micBtn())
+    toggleMic()
     expect($('.filter-tab.active')?.textContent).toBe('Sorted')
     expect(answerTab(), 'the answers went with the box').toBeDefined()
     click(answerTab())
@@ -974,9 +981,9 @@ describe('the suggested reply', () => {
     click($$('.filter-tab').find(t => t.textContent === 'Sorted'))
     heardAndDone('Are you comfortable')
     await act(async () => {})
-    click(micBtn())
+    toggleMic()
 
-    click(micBtn())
+    toggleMic()
     expect($('.filter-tab.active')?.textContent).toBe('Sorted')
   })
 
@@ -1243,7 +1250,7 @@ describe('the suggested reply', () => {
     vi.stubGlobal('fetch', fetch)
     renderApp({}, { key: '' })
 
-    click(micBtn())
+    toggleMic()
     act(() => void vi.advanceTimersByTime(300))
     await act(async () => {})
 
@@ -1267,7 +1274,7 @@ describe('the suggested reply', () => {
     // Edit mode *after* the microphone, which takes the board out of it on the
     // way in — so this is somebody who opened the box and then went to change a
     // phrase, which is the only way the two are ever on together.
-    click(micBtn())
+    toggleMic()
     click(editToggle())
     expect(messageBox().value, 'the draft is not empty, so this proves nothing').toBe('')
 
@@ -1629,7 +1636,7 @@ describe('the suggested reply', () => {
   // and synchronized — and the box stops where it is.
   it('stops listening and says so when the key is removed', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
     act(() => FakeRecognition.last!.soundStarts())
     act(() => FakeRecognition.last!.say({ transcript: 'Tea?', isFinal: false }))
     settle()
@@ -1678,7 +1685,7 @@ describe('the suggested reply', () => {
   // Nothing to reply to, and a control that would ask about an empty question.
   it('goes quiet while nothing has been heard', () => {
     withKey()
-    click(micBtn())
+    toggleMic()
     expect(suggestBtn()?.getAttribute('aria-disabled')).toBe('true')
   })
 })
@@ -1686,7 +1693,7 @@ describe('the suggested reply', () => {
 describe('what listen mode does not touch', () => {
   it('leaves the board working while the box is open', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
 
     const cell = $$('.phrase-cell')[0]!
     click(cell)
@@ -1713,7 +1720,7 @@ describe('what listen mode does not touch', () => {
    */
   it('stops listening when the screen goes', () => {
     renderApp()
-    click(micBtn())
+    toggleMic()
     expect(FakeRecognition.last!.started).toBe(true)
 
     cleanup()
@@ -1724,8 +1731,8 @@ describe('what listen mode does not touch', () => {
   it('keeps nothing once the box is closed', () => {
     renderApp()
     hear('Do you want tea?')
-    click(micBtn())
-    click(micBtn())
+    toggleMic()
+    toggleMic()
     expect(heardBox()!.value).toBe('')
   })
 })

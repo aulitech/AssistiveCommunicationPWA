@@ -1,23 +1,19 @@
 // The bar across the top: the message being composed, and the controls that act
 // on it — or, in edit mode, the phrase being written and the controls that act on
-// *that*. All three of the app's modes sit here too — edit, Rest, auto-speak —
-// in a strip straddling the top edge of the message box, in the middle of the
-// screen's top where a gaze on its way anywhere passes.
+// *that*. **The box is a card**, the shape of a chat app's input box: the words,
+// and inside it along the bottom one row — what the board is doing at its start
+// (the microphone and the three modes), what is done with the words at its end.
+// See docs/decisions/the-message-card.md.
 //
 // **The box is the phrase editor in edit mode.** There was a dialog for that,
 // which covered the very phrases being edited and had to be got out of before
 // anything else could be reached. So the one box does both jobs and the rail
-// beside it changes with the mode: speak, copy and paste become save, delete and
-// paste. The controls stay in the same places, which is what makes the mode a
-// change of meaning rather than a change of layout.
-//
-// The strip is centred on the box's top border and overlaps the box, rather than
-// sitting in a band above it — a band wide enough for two icons cost the grid
-// 18px, and riding on the border costs 2px. What it costs instead is the
-// top-centre of the message box, which now answers to a mode rather than to the
-// caret. Rest was already there, so that surface was never entirely the box's.
+// in its row changes with the mode: clear, copy, paste and speak become start a
+// new phrase, paste, delete and save. The controls stay in the same places,
+// which is what makes the mode a change of meaning rather than a change of
+// layout.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { compose, parseSegments } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { chooseLanguage, chooseVoice } from '../core/store'
@@ -91,14 +87,10 @@ function ActionButton({
 }
 
 /**
- * A mode toggle — auto-speak, or edit. Both used to sit at the top of the grid
- * rail; they are here now, either side of Rest, because all three are modes and
- * Rest was already here. The rail is left to scrolling.
- *
- * Small, because the strip they share with Rest is a strip rather than a row,
- * and Rest is half a rem of it. So each takes the same treatment Rest does: the
- * painted size is small and the area answering to a pointer is larger and
- * invisible — see `.mode-btn::before`.
+ * A mode toggle — auto-speak, edit, or the microphone. Edit and auto-speak sit
+ * either side of Rest in the card's row, because all three are modes. The area
+ * answering to a pointer is a little larger than the painted one, and invisible
+ * — see `.mode-btn::before`.
  */
 /**
  * Whether the screen has room for the language and voice controls.
@@ -111,11 +103,11 @@ function ActionButton({
 const WIDE_ENOUGH = '(min-width: 1100px)'
 
 /**
- * One of the two value controls at the box's upper-right corner.
+ * One of the two value controls in the card's row, before the actions.
  *
  * A face that says the value rather than a glyph that says the subject: `en-US`
  * and `Samantha` tell somebody what the board will do, where a globe and a
- * waveform only say which grid opens. Six rem is what a border can spare, and
+ * waveform only say which grid opens. Six rem is what the row can spare, and
  * what does not fit is on the control for a screen reader rather than lost.
  *
  * `on` is *the grid is open*, not *switched on* — there is nothing to switch.
@@ -261,7 +253,7 @@ export function Topbar({
   undoDelete: { words: string; undo: () => void } | null
   /** The category the bin takes the phrase out of, where it only does that — see `talk.tsx`. */
   removingFrom: string | null
-  /** For the strip on the box's lower border: what a phrase can be filed under. */
+  /** For the row in the card that says what is being edited: what a phrase can be filed under. */
   categories: string[]
   countFor: (name: string) => number
   /** Done on the category grid — which, for a phrase on the board, files it there and then. */
@@ -440,88 +432,8 @@ export function Topbar({
     void linkInput.pasteFromClipboard().then(onPasted)
   }, [linkInput, onPasted])
 
-  /**
-   * **The modes never sit left of the message box.**
-   *
-   * They are centred on the bar, which is where Rest was found and where it is
-   * looked for without looking — and on a bar holding one box, the bar's centre
-   * is on the box. With the question beside the answer on a wide screen it is
-   * not: the message box starts a third of the way across, and the strip centred
-   * on the bar hung over the gap between the two boxes with edit sitting on
-   * nothing at all.
-   *
-   * So the stylesheet takes whichever is further right of two places — the bar's
-   * centre, or just far enough right that the strip's left edge is the box's
-   * — and this measures the two numbers the second needs. Pushed only as far as
-   * it has to go rather than re-centred on the box, because re-centring would
-   * move Rest a long way every time listen mode opened, and a control that
-   * jumps when a different one is used is one that has to be found again.
-   *
-   * **Where nothing can be measured, nothing is set**, and the strip stays on the
-   * bar's centre — jsdom, and the first paint.
-   */
-  const barRef = useRef<HTMLElement>(null)
-  const boxRef = useRef<HTMLDivElement>(null)
-  const modesRef = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    const bar = barRef.current
-    const box = boxRef.current
-    const modes = modesRef.current
-    if (!bar || !box || !modes) return
-    const place = () => {
-      const half = modes.offsetWidth / 2
-      if (!half) return
-      bar.style.setProperty(
-        '--box-left',
-        `${box.getBoundingClientRect().left - bar.getBoundingClientRect().left}px`,
-      )
-      bar.style.setProperty('--modes-half', `${half}px`)
-    }
-    place()
-    // The box moves when listen mode opens and closes and when the window does,
-    // and each of those changes the size of one of these three.
-    const watch = new ResizeObserver(place)
-    for (const el of [bar, box, modes]) watch.observe(el)
-    return () => watch.disconnect()
-  }, [])
-
   return (
-    <header ref={barRef} className="topbar">
-      {/* The three modes, straddling the top edge of the message box — the
-          middle of the screen's top, where a gaze on its way anywhere passes.
-          Edit and auto-speak came up from the grid rail to join Rest, which was
-          always here: they are the same kind of thing, and a mode is worth more
-          on the path a gaze already takes than at the end of a rail.
-
-          Rest keeps the centre. It is the one control that has to be findable
-          without looking, and it was found there.
-
-          Edit and auto-speak are exclusive of one another — the board cannot be
-          both a thing being spoken from and a thing being rewritten — so each
-          reads as pressed only while it is the one that is on, and switching one
-          on switches the other off. */}
-      <div ref={modesRef} className="topbar-modes">
-        <ModeToggle
-          className="edit-toggle"
-          on={editMode}
-          onToggle={onToggleEdit}
-          label={editMode ? 'Exit edit mode' : 'Edit phrases'}
-        >
-          <EditIcon />
-        </ModeToggle>
-
-        <RestButton resting={resting} onToggle={onToggleRest} />
-
-        <ModeToggle
-          className="autospeak-toggle"
-          on={autoSpeak}
-          onToggle={onToggleAutoSpeak}
-          label={autoSpeak ? 'Turn off auto-speak' : 'Turn on auto-speak — speak phrases immediately'}
-        >
-          <AutoSpeakIcon />
-        </ModeToggle>
-      </div>
-
+    <header className="topbar">
       <ActionButton label={menuOpen ? 'Close menu' : 'Open menu'} onSelect={onToggleMenu} className="menu-btn">
         <MenuIcon />
       </ActionButton>
@@ -544,11 +456,8 @@ export function Topbar({
         </ActionButton>
       )}
 
-      {/* The box and whatever rides its border. A wrapper only so the strip
-          below can be positioned against **the box**: everything else on this
-          bar is centred on the bar itself, which is 4px off the box's true
-          centre and nobody can see — but a corner found that way would be out
-          by the whole width of the action rail. */}
+      {/* The two cards: the question, when listen mode is open, and the
+          message. Side by side on a wide screen, stacked on a narrow one. */}
       <div className="text-display-wrap">
         {/* What was heard, beside the message rather than in it — or above it
             on a screen with no width to spare, which is the stylesheet's call
@@ -557,293 +466,257 @@ export function Topbar({
             answer one thing to be untangled by whoever is waiting for a reply.
 
             It goes *before* the message in the markup, so the question reads
-            first in both arrangements and in a screen reader. What keeps the
-            two strips on the border from moving with it is that both hang off
-            the wrapper rather than off either box. */}
+            first in both arrangements and in a screen reader. Opening it moves
+            the message card, which is why the microphone holds the dwells. */}
         {listener.open && <HeardBox listener={listener} fieldRef={heardRef} edges={heardEdges} />}
 
-        {/* The message box and what rides *its* borders, which after the split
-            above is not the same thing as what rides the wrapper's. The mic and
-            the two value controls stay on the wrapper, where they hold one point
-            on screen whether listen mode is open or not; this one has to follow
-            the box, because what it empties is the message. */}
-        <div ref={boxRef} className="message-wrap">
-          <textarea
-            ref={textareaRef}
-            className={cx(
-              'text-display',
-              caret.active && 'dwelling',
-              (messageEdges.canUp || messageEdges.canDown) && 'has-scroll',
-            )}
-            style={dwellVar(settings.actionDwellMs)}
-            aria-label={editMode ? 'Phrase text' : 'Composed message'}
-            value={value}
-            onChange={e => {
-              write(e.target.value)
-              if (!editMode) trackCursor(e)
-            }}
-            // Only outside edit mode: the caret tracked here is the composer's, and
-            // it decides which word the grid filters on. A caret moved about in a
-            // phrase would narrow the board to a word that is not in the message.
-            onSelect={editMode ? undefined : trackCursor}
-            onPaste={linkInput.onPaste}
-            onDrop={linkInput.onDrop}
-            onDragOver={linkInput.onDragOver}
-            {...caret.props}
-            onClick={editMode ? undefined : trackCursor}
-            onKeyUp={editMode ? undefined : trackCursor}
-            placeholder={
-              editMode
-                ? 'Write a phrase, or hold one on the board to edit it…'
-                : settings.autoSpeak
-                  ? 'Immediately speak selected phrase'
-                  : 'Dwell on a phrase or type…'
-            }
-            rows={1}
-            spellCheck
-            autoCapitalize="sentences"
-            // The board opens with the caret already in the box, so somebody with a
-            // keyboard can type the first thing they want to say without having to
-            // put it there first — and putting it there is the one thing a dwell
-            // could not do until `useCaretDwell`. A programmatic focus does not
-            // raise a phone's on-screen keyboard, which needs a real gesture.
-            autoFocus
-          />
-
-          <BoxScroll edges={messageEdges} what="message" />
-
-          {/* The slot that empties the box, at the **left end of its lower
-              border** — of the message, or in edit mode of the phrase being
-              written along with whatever it was pointed at.
-
-              It was a full-size button in the rail, and moving it onto the
-              border is the bargain the mode strip already struck on the upper
-              one: the board gets the width back, and what it costs is a smaller
-              painted control overlapping the box, with an invisible area around
-              it a tracker can still hit. It keeps its place across both modes,
-              which is what makes the mode a change of meaning rather than a
-              change of layout.
-
-              The lower border rather than the upper because the upper one is
-              full: a mode in the middle, the values at the right, the microphone
-              at the left. Down here it shares the line with the edit strip,
-              which is centred, and has the left end to itself — with copy and
-              paste to the right of it. */}
-          <div className="topbar-clear">
-            {editMode && undoDelete ? (
-              // The undo glyph the composer's own slot draws, because it means
-              // the same thing: put back the last thing I did.
-              <ActionButton
-                className="on-border"
-                onSelect={undoDelete.undo}
-                label={`Undo deleting “${undoDelete.words}”`}
-              >
-                <UndoIcon />
-              </ActionButton>
-            ) : editMode ? (
-              <ActionButton
-                className="on-border"
-                onSelect={() => startNew()}
-                label="Start a new phrase"
-                disabled={isUntouched}
-              >
-                <PlusIcon />
-              </ActionButton>
-            ) : (
-              <ActionButton
-                className="on-border"
-                onSelect={clearOrUndo}
-                label={showUndo ? 'Undo' : 'Clear'}
-                disabled={!canClear}
-              >
-                {showUndo ? <UndoIcon /> : <ClearIcon />}
-              </ActionButton>
-            )}
-            {/* **Copy and paste to the right of it**: with the slot that empties
-                the box, the three that work on the text where it stands, and
-                none of them sends it anywhere. Paste in both modes, meaning the
-                same thing either way; copy only outside edit mode, where the
-                message is what there is to copy. Paste is never disabled: what
-                is on the clipboard is not this app's to know until it asks —
-                and the keyboard route into a text box is Ctrl-V, which is
-                exactly the input this app exists without. */}
-            {!editMode && (
-              <ActionButton className="on-border" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
-                <CopyIcon />
-              </ActionButton>
-            )}
-            <ActionButton className="on-border" onSelect={paste} label="Paste from clipboard">
-              <PasteIcon />
-            </ActionButton>
-          </div>
-
-          {/* What becomes of what is in the box, at the **upper right** of its top
-              border — where the language and the voice used to sit, and they
-              have gone to the bottom. Speak alone outside edit mode; in it,
-              delete and save, what becomes of the phrase being written. Copy and
-              paste were here too, and are beside the slot that empties the box
-              now, with the other two that work on the text where it stands.
-
-              They were full-size buttons in a rail beside the box, and this is
-              the last of that rail: with these and the slot on its borders, what
-              is left outside is the menu and the keyboard, which are about the
-              app rather than about the message. The board gets the whole of that
-              width. */}
-          <div className="topbar-actions">
-            {editMode ? (
-              <ActionButton
-                className="on-border danger"
-                onSelect={onDeletePhrase}
-                label={
-                  draft.kept
-                    ? `Forget this ${draft.kept}`
-                    : removingFrom
-                      ? `Take out of ${removingFrom}`
-                      : 'Delete phrase'
-                }
-                disabled={draft.isNew}
-              >
-                <TrashIcon />
-              </ActionButton>
-            ) : null}
-
-            {/* **Last, and half again the size of the two beside it.** It is the
-                one the whole board exists to reach: everything else here edits
-                what is in the box, and this is what takes it out of the box and
-                into the room. Last because a row is read to its end and the end
-                is where a hand — or a gaze — comes to rest.
-
-                Edit mode puts Save in the same place at the same size, for the
-                reason the other two keep theirs: the mode is a change of meaning
-                rather than a change of layout, and Save is what this mode's box
-                is for. */}
-            {editMode ? (
-              <ActionButton
-                className="on-border is-primary"
-                onSelect={onSavePhrase}
-                label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
-                disabled={!draft.canSave}
-              >
-                <CheckIcon />
-              </ActionButton>
-            ) : (
-              <ActionButton className="on-border is-primary" onSelect={onSpeak} label="Speak" disabled={!text}>
-                <SpeakIcon />
-              </ActionButton>
-            )}
-          </div>
-
-          {/* The language and the voice, at the box's lower-right corner.
-
-              **Their faces are the values**: the tag itself, `en-US`, and the
-              voice's bare name. Six rem each — enough for "Samantha" and for any
-              tag there is, and past that an ellipsis, with the whole of it on the
-              control for a screen reader. Two words is what fits on a border; the
-              settings panel is where the full names are.
-
-              **In edit mode they are the phrase's, not the board's.** The box is
-              the phrase editor there, so everything riding its borders is about
-              the phrase in it — which is why the edit strip below no longer
-              carries a voice picker of its own: one pair of controls, meaning
-              whichever of the two the mode says, rather than two pairs that look
-              alike and are not. The language is the language that voice is *for*:
-              a phrase's own voice is remembered per language, so choosing one
-              says which of them is being given a voice, and it is still the
-              board's language because that is the one the lookup will use.
-
-              Not rendered at all on a narrow screen rather than hidden: each
-              builds the device's voice list, which is real work to do for
-              something never shown. **Edit mode is the exception**, at any width:
-              this is the only place a phrase can be given a voice of its own now,
-              and a control that exists on a monitor and not on a phone is a
-              feature somebody cannot reach rather than one they have to scroll
-              to. The cost it was gated on is a cost worth paying for the mode
-              somebody entered in order to change a phrase. */}
-          {(wide || editMode) && (
-            <div className="topbar-choices">
-              <LanguagePicker value={settings.language} onChange={onChooseLanguage}>
-                {({ label, open, isOpen }) => (
-                  <ChoiceButton
-                    label={
-                      editMode
-                        ? `Language this phrase's voice is for: ${label}. Choose another`
-                        : `Spoken language: ${label}. Choose another`
-                    }
-                    on={isOpen}
-                    onOpen={open}
-                  >
-                    {settings.language || 'auto'}
-                  </ChoiceButton>
-                )}
-              </LanguagePicker>
-
-              {editMode ? (
-                <VoicePicker
-                  value={draft.voice}
-                  onChange={editor.setVoice}
-                  defaultLabel="Same as everything else"
-                  sampleText={spokenDraft}
-                >
-                  {({ label, name, open, isOpen }) => (
-                    <ChoiceButton
-                      label={`Voice for this phrase: ${label}. Choose another`}
-                      on={isOpen}
-                      onOpen={open}
-                    >
-                      {name}
-                    </ChoiceButton>
-                  )}
-                </VoicePicker>
-              ) : (
-                <VoicePicker value={settings.voiceURI} onChange={onChooseVoice} defaultLabel="Default">
-                  {({ label, name, open, isOpen }) => (
-                    <ChoiceButton label={`Voice: ${label}. Choose another`} on={isOpen} onOpen={open}>
-                      {name}
-                    </ChoiceButton>
-                  )}
-                </VoicePicker>
+        {/* The message card: the words, the row of controls, and in edit mode
+            what is being edited. */}
+        <div className="message-wrap">
+          <div className="message-field">
+            <textarea
+              ref={textareaRef}
+              className={cx(
+                'text-display',
+                caret.active && 'dwelling',
+                (messageEdges.canUp || messageEdges.canDown) && 'has-scroll',
               )}
+              style={dwellVar(settings.actionDwellMs)}
+              aria-label={editMode ? 'Phrase text' : 'Composed message'}
+              value={value}
+              onChange={e => {
+                write(e.target.value)
+                if (!editMode) trackCursor(e)
+              }}
+              // Only outside edit mode: the caret tracked here is the composer's, and
+              // it decides which word the grid filters on. A caret moved about in a
+              // phrase would narrow the board to a word that is not in the message.
+              onSelect={editMode ? undefined : trackCursor}
+              onPaste={linkInput.onPaste}
+              onDrop={linkInput.onDrop}
+              onDragOver={linkInput.onDragOver}
+              {...caret.props}
+              onClick={editMode ? undefined : trackCursor}
+              onKeyUp={editMode ? undefined : trackCursor}
+              placeholder={
+                editMode
+                  ? 'Write a phrase, or hold one on the board to edit it…'
+                  : settings.autoSpeak
+                    ? 'Immediately speak selected phrase'
+                    : 'Dwell on a phrase or type…'
+              }
+              rows={1}
+              spellCheck
+              autoCapitalize="sentences"
+              // The board opens with the caret already in the box, so somebody with a
+              // keyboard can type the first thing they want to say without having to
+              // put it there first — and putting it there is the one thing a dwell
+              // could not do until `useCaretDwell`. A programmatic focus does not
+              // raise a phone's on-screen keyboard, which needs a real gesture.
+              autoFocus
+            />
+
+            <BoxScroll edges={messageEdges} what="message" />
+          </div>
+
+          {/* **The card's own row of controls, inside it along the bottom** —
+              the shape of a chat app's input box. At the start, what the board
+              is doing: the microphone that opens the question, then the three
+              modes, Rest among them. At the end, what is done with the words:
+              empty, copy and paste them, the language and the voice they go out
+              in, and last the one the board exists to reach. A narrow card
+              wraps the end group onto a line of its own rather than crowding a
+              gaze target into its neighbour's invisible area. */}
+          <div className="message-tools">
+            <div className="message-tools-start">
+              {listener.available && (
+                <div className="topbar-listen">
+                  <ModeToggle
+                    className="listen-toggle"
+                    on={listener.open}
+                    onToggle={onToggleListen}
+                    label={listener.open ? 'Stop listening' : 'Listen to a question'}
+                  >
+                    <QuestionIcon />
+                  </ModeToggle>
+                </div>
+              )}
+              <div className="topbar-modes">
+                <ModeToggle
+                  className="edit-toggle"
+                  on={editMode}
+                  onToggle={onToggleEdit}
+                  label={editMode ? 'Exit edit mode' : 'Edit phrases'}
+                >
+                  <EditIcon />
+                </ModeToggle>
+
+                <RestButton resting={resting} onToggle={onToggleRest} />
+
+                <ModeToggle
+                  className="autospeak-toggle"
+                  on={autoSpeak}
+                  onToggle={onToggleAutoSpeak}
+                  label={autoSpeak ? 'Turn off auto-speak' : 'Turn on auto-speak — speak phrases immediately'}
+                >
+                  <AutoSpeakIcon />
+                </ModeToggle>
+              </div>
             </div>
+            <div className="message-tools-end">
+              <div className="topbar-clear">
+                {editMode && undoDelete ? (
+                  // The undo glyph the composer's own slot draws, because it means
+                  // the same thing: put back the last thing I did.
+                  <ActionButton
+                    className="in-card"
+                    onSelect={undoDelete.undo}
+                    label={`Undo deleting “${undoDelete.words}”`}
+                  >
+                    <UndoIcon />
+                  </ActionButton>
+                ) : editMode ? (
+                  <ActionButton
+                    className="in-card"
+                    onSelect={() => startNew()}
+                    label="Start a new phrase"
+                    disabled={isUntouched}
+                  >
+                    <PlusIcon />
+                  </ActionButton>
+                ) : (
+                  <ActionButton
+                    className="in-card"
+                    onSelect={clearOrUndo}
+                    label={showUndo ? 'Undo' : 'Clear'}
+                    disabled={!canClear}
+                  >
+                    {showUndo ? <UndoIcon /> : <ClearIcon />}
+                  </ActionButton>
+                )}
+                {/* **Copy and paste to the right of it**: with the slot that empties
+                    the box, the three that work on the text where it stands, and
+                    none of them sends it anywhere. Paste in both modes, meaning the
+                    same thing either way; copy only outside edit mode, where the
+                    message is what there is to copy. Paste is never disabled: what
+                    is on the clipboard is not this app's to know until it asks —
+                    and the keyboard route into a text box is Ctrl-V, which is
+                    exactly the input this app exists without. */}
+                {!editMode && (
+                  <ActionButton className="in-card" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
+                    <CopyIcon />
+                  </ActionButton>
+                )}
+                <ActionButton className="in-card" onSelect={paste} label="Paste from clipboard">
+                  <PasteIcon />
+                </ActionButton>
+              </div>
+              {(wide || editMode) && (
+                <div className="topbar-choices">
+                  <LanguagePicker value={settings.language} onChange={onChooseLanguage}>
+                    {({ label, open, isOpen }) => (
+                      <ChoiceButton
+                        label={
+                          editMode
+                            ? `Language this phrase's voice is for: ${label}. Choose another`
+                            : `Spoken language: ${label}. Choose another`
+                        }
+                        on={isOpen}
+                        onOpen={open}
+                      >
+                        {settings.language || 'auto'}
+                      </ChoiceButton>
+                    )}
+                  </LanguagePicker>
+
+                  {editMode ? (
+                    <VoicePicker
+                      value={draft.voice}
+                      onChange={editor.setVoice}
+                      defaultLabel="Same as everything else"
+                      sampleText={spokenDraft}
+                    >
+                      {({ label, name, open, isOpen }) => (
+                        <ChoiceButton
+                          label={`Voice for this phrase: ${label}. Choose another`}
+                          on={isOpen}
+                          onOpen={open}
+                        >
+                          {name}
+                        </ChoiceButton>
+                      )}
+                    </VoicePicker>
+                  ) : (
+                    <VoicePicker value={settings.voiceURI} onChange={onChooseVoice} defaultLabel="Default">
+                      {({ label, name, open, isOpen }) => (
+                        <ChoiceButton label={`Voice: ${label}. Choose another`} on={isOpen} onOpen={open}>
+                          {name}
+                        </ChoiceButton>
+                      )}
+                    </VoicePicker>
+                  )}
+                </div>
+              )}
+              <div className="topbar-actions">
+                {editMode ? (
+                  <ActionButton
+                    className="in-card danger"
+                    onSelect={onDeletePhrase}
+                    label={
+                      draft.kept
+                        ? `Forget this ${draft.kept}`
+                        : removingFrom
+                          ? `Take out of ${removingFrom}`
+                          : 'Delete phrase'
+                    }
+                    disabled={draft.isNew}
+                  >
+                    <TrashIcon />
+                  </ActionButton>
+                ) : null}
+
+                {/* **Last, and filled in the accent**, as a chat app fills Send. It is
+                    the one the whole board exists to reach: everything else here edits
+                    what is in the box, and this is what takes it out of the box and
+                    into the room. Last because a row is read to its end and the end
+                    is where a hand — or a gaze — comes to rest.
+
+                    Edit mode puts Save in the same place, filled the same, for the
+                    reason the other two keep theirs: the mode is a change of meaning
+                    rather than a change of layout, and Save is what this mode's box
+                    is for. */}
+                {editMode ? (
+                  <ActionButton
+                    className="in-card is-primary"
+                    onSelect={onSavePhrase}
+                    label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
+                    disabled={!draft.canSave}
+                  >
+                    <CheckIcon />
+                  </ActionButton>
+                ) : (
+                  <ActionButton className="in-card is-primary" onSelect={onSpeak} label="Speak" disabled={!text}>
+                    <SpeakIcon />
+                  </ActionButton>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* What is being edited and where it is filed, in a row of the card's
+              own **below** the controls — so turning edit mode on grows the card
+              downwards and moves nothing under the pointer that turned it on. */}
+          {editMode && (
+            <PhraseEditBar
+              draft={draft}
+              categories={categories}
+              countFor={countFor}
+              onCategory={onChooseCategories}
+              onCreateCategory={onCreateCategory}
+            />
           )}
         </div>
-
-        {/* Listen mode, at the box's upper-**left** corner, riding the same
-            border the modes ride at its middle and the two values ride at the
-            right. The three corners of that border are now all spoken for, and
-            each holds a different kind of thing: a mode in the middle, a value
-            at the right, and at the left the one control that opens a surface
-            of its own.
-
-            **Not drawn at all where the browser cannot listen.** A button that
-            does nothing is worse than no button anywhere, and on a board aimed
-            at by gaze it is a target spent for nothing. */}
-        {listener.available && (
-          <div className="topbar-listen">
-            <ModeToggle
-              className="listen-toggle"
-              on={listener.open}
-              onToggle={onToggleListen}
-              label={listener.open ? 'Stop listening' : 'Listen to a question'}
-            >
-              <QuestionIcon />
-            </ModeToggle>
-          </div>
-        )}
       </div>
-
-      {/* The other strip, on the box's lower border, and centred on it exactly
-          as the modes are on the upper one. A phrase has two things besides its
-          words — where it is filed and how it sounds — and they belong to the
-          box holding those words rather than to a band underneath it. */}
-      {editMode && (
-        <PhraseEditBar
-          draft={draft}
-          categories={categories}
-          countFor={countFor}
-          onCategory={onChooseCategories}
-          onCreateCategory={onCreateCategory}
-        />
-      )}
     </header>
   )
 }
