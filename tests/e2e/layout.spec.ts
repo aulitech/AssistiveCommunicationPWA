@@ -139,9 +139,9 @@ test('grows the message box with what is in it', async ({ page }) => {
 })
 
 /**
- * **The message box is a card with its controls inside it** — and on a phone,
- * where the row wraps, still none of them close enough to another to share a
- * rest. Each carries an invisible area 6px past its edges, so two closer than
+ * **The message box is a card with its controls inside it** — on its line and
+ * in the row under it, the modes on the card's centre — and on a phone, where
+ * the row stacks, still none of them close enough to another to share a rest. Each carries an invisible area 6px past its edges, so two closer than
  * 12px overlap there, and a gaze resting between them answers to whichever the
  * browser picks. In both modes, since edit mode's row is the wider.
  */
@@ -155,10 +155,16 @@ for (const [width, height] of [
     await openBoard(page)
     for (const mode of ['composing', 'editing']) {
       if (mode === 'editing') await page.locator('.edit-toggle').dispatchEvent('click')
-      const { outside, crowded } = await page.evaluate(() => {
+      // Words in the box, so Speak — or Save — is drawn at the end of the line.
+      await page.locator('.text-display').fill('Could you open the window a little, please?')
+      const { outside, crowded, offCentre } = await page.evaluate(() => {
         const card = document.querySelector('.message-wrap')!.getBoundingClientRect()
+        const modes = document.querySelector('.tools-modes')!.getBoundingClientRect()
+        const offCentre = Math.abs((modes.left + modes.right) / 2 - (card.left + card.right) / 2)
         const controls = [
-          ...document.querySelectorAll<HTMLElement>('.message-tools [role="button"], .message-tools button'),
+          ...document.querySelectorAll<HTMLElement>(
+            '.message-line [role="button"], .message-line button, .message-tools [role="button"], .message-tools button',
+          ),
         ]
           .filter(el => el.offsetParent)
           .map(el => ({ name: el.getAttribute('aria-label') ?? '', r: el.getBoundingClientRect() }))
@@ -174,10 +180,24 @@ for (const [width, height] of [
             const dy = Math.max(b.r.top - a.r.bottom, a.r.top - b.r.bottom)
             if (Math.max(dx, dy) < 11.5) crowded.push(`${a.name} / ${b.name}`)
           }
-        return { outside, crowded }
+        return { outside, crowded, offCentre }
       })
       expect(outside, `${mode}: outside the card`).toEqual([])
       expect(crowded, `${mode}: close enough to share a rest`).toEqual([])
+      expect(offCentre, `${mode}: the modes are not on the card's centre`).toBeLessThan(2)
     }
   })
 }
+
+// Speak is drawn only once there are words, in a place kept for it either way —
+// so the first letter typed does not narrow the box and rewrap the words under
+// a resting gaze.
+test('keeps Speak’s place while it is not drawn, so the box does not change width', async ({ page }) => {
+  await openBoard(page)
+  const width = () => page.locator('.text-display').evaluate(el => el.getBoundingClientRect().width)
+  const before = await width()
+  await expect(page.locator('.icon-btn[aria-label="Speak"]')).toHaveCount(0)
+  await page.locator('.text-display').fill('Hello')
+  await expect(page.locator('.icon-btn[aria-label="Speak"]')).toHaveCount(1)
+  expect(await width()).toBe(before)
+})

@@ -729,8 +729,9 @@ describe('the phrase editor', () => {
     const destination = catTabs()[2].textContent!
 
     writePhrase('Somewhere particular')
+    // Done on the categories saves a new phrase whole — there is nothing left
+    // for Save to do, and the box it rode is empty, so it is not drawn.
     chooseCategory(destination)
-    savePhrase()
 
     click(editToggle()) // leave edit mode
     click(tabNamed(destination))

@@ -43,6 +43,8 @@
      Its focus is said on its own edge, the box inside it having none. */
   display: flex;
   flex-direction: column;
+  /* The row of controls stacks by the card's width, not the screen's. */
+  container: message / inline-size;
   background: var(--card-ground);
   border: 1px solid var(--card-edge);
   border-radius: 1.25rem;
@@ -53,8 +55,13 @@
 .message-wrap:focus-within { border-color: var(--card-focus); }
 
 /* The words and the arrows that scroll them, so the arrows are placed against
-   the words rather than against a card that also holds a row of controls. */
-.message-field { position: relative; }
+   the words rather than against the line's two ends. */
+.message-field,
+.heard-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
 
 .text-display {
   display: block;
@@ -75,7 +82,7 @@
   /* The card is the box now: its ground, its edge, its focus. */
   background: transparent;
   border: none;
-  border-radius: 1.25rem 1.25rem 0 0;
+  border-radius: 0;
   font-size: 1.35rem;
   font-weight: 500;
   font-family: var(--font);

@@ -27,19 +27,18 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text('The screen has three parts:'),
       list(
-        'The message box across the top, with its controls in a row inside it.',
+        'The message box across the top, with its controls inside it.',
         'The category tabs, and below them the grid of phrases, with arrows down the right for moving through it.',
         'The blue bar at the bottom, for the things that cannot wait.',
       ),
-      text(
-        'Everything the message box needs is inside it, in a row under the words — on the left what the board is doing, on the right what to do with the message:',
-      ),
+      text('Everything the message box needs is inside it — on the line you write on, and in a row under it:'),
       list(
-        'On the left: :listen:, which opens a second box for what somebody is saying to you, then the three modes — :edit:, the Rest bar, and :auto-speak:.',
-        'On the right: :clear:, which empties the box — and afterwards offers :undo: — then :copy: and :paste:.',
-        'Then, on a wide screen, the language and the voice.',
-        'Last: :speak:, filled in green, because it is the one the whole board exists to reach.',
-        'On a narrow screen the right-hand part goes onto a second row of its own.',
+        'At the left end of the line: :clear:, which empties the box — and afterwards offers :undo:.',
+        'At the right end of the line, once there is something in the box: :speak:, filled in green, because it is the one the whole board exists to reach.',
+        'In the middle of the row: :listen:, which opens a second box for what somebody is saying to you, then the three modes — :edit:, the Rest bar, and :auto-speak:.',
+        'At the far left of the row: :copy: and :paste:.',
+        'At the right of the row, on a wide screen: the language and the voice.',
+        'On a narrow screen the modes have the row to themselves, and the rest go on a row under them.',
       ),
       text(
         ':menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — and :sign-out: Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
@@ -119,8 +118,10 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'The box grows as the message does, up to five lines. Past that, arrows appear inside its right edge to scroll it.',
       ),
-      text("When the message is ready, :speak: at the end of the box's row says it aloud. It is filled in green."),
-      text('To the right of :clear:, in the same row, are the two for the clipboard:'),
+      text(
+        'When there is something in the box, :speak: appears at the right end of its line, filled in green. Rest on it to say the message aloud.',
+      ),
+      text('At the far left of the row under the line are the two for the clipboard:'),
       list(
         ':copy: puts the message on the clipboard to send somewhere else.',
         ':paste: brings in whatever was last copied, at the point the caret is sitting — into the message, or into a phrase being written.',
@@ -128,7 +129,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'If a paste says it was blocked, allow clipboard access for Peri in your browser settings. Firefox does not offer the clipboard to a web page at all — there, use Ctrl+V if you have a keyboard.',
       ),
-      text(":clear: in the box's row empties it, and then turns into :undo: so the clearing can be taken back."),
+      text(
+        ':clear: at the left end of the line empties the box, and then turns into :undo: so the clearing can be taken back.',
+      ),
       text(
         'The last phrase you chose stays marked on the board, so you can see which one it was and where it has moved to. The mark goes as soon as you choose anything else.',
       ),
@@ -255,10 +258,10 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text('The controls on the box mean something else while it is on, in the same places:'),
       list(
-        ':save: at the end of the row saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for.',
-        ':delete: on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
+        ':save: at the right end of the line saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for. Like Speak, it is there once there is something to save.',
+        ':delete:, at the far right of the row, on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
-        ':add: starts a new phrase — where :clear: is the rest of the time. :paste: stays beside it; :copy: is not there in edit mode.',
+        ':add: at the left end of the line starts a new phrase — where :clear: is the rest of the time. :paste: stays where it is; :copy: is not there in edit mode.',
         'A line at the bottom of the box, under its row of controls, says what is being edited, and which categories it is in. Rest on :choose: beside them to open the categories. Tick as many as you like — each ticked one shows :ticked: — or none to keep it in Library alone.',
         'Done on the categories saves straight away. A new phrase, or a translation or answer you are keeping, is saved whole. For one already on the board only the categories are, and new words or a new voice still wait for :save:.',
         "The language and the voice in the row become this phrase's own: the voice it is said in, and the language that voice is for.",
@@ -438,22 +441,22 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Hearing a question',
     blocks: [
       text(
-        ":listen:, first in the message box's row, listens to whoever is talking to you. What it hears appears in a box of its own — beside the message on a wide screen, above it on a narrow one — where you can correct it, read it in your own language, and answer it.",
+        ":listen:, first of the modes in the middle of the message box's row, listens to whoever is talking to you. What it hears appears in a box of its own — beside the message on a wide screen, above it on a narrow one — where you can correct it, read it in your own language, and answer it.",
       ),
       list(
         'Rest on :listen: to start, and again to stop and close the box.',
-        "While sound is coming in, :mic: shows at the end of that box's row, its level rising and falling. It goes the moment the microphone stops hearing.",
+        "While sound is coming in, :mic: shows at the right end of that box's line, its level rising and falling. It goes the moment the microphone stops hearing.",
         'Typing in the box stops the microphone, so nothing it hears is written over what you type.',
         'The box needs your own Anthropic API key — see Getting suggested answers. Without one, or with one Anthropic does not accept, the box says so and takes nothing, typed or heard.',
         'Starting it switches :auto-speak: on, so the phrase you choose next is spoken straight away — you have just been asked something, and the answer should not need another button first. Stopping leaves the board however you have set it.',
         'The box fills as the words arrive, so you can see it is working.',
         'It is the same kind of box as the message one, in the same size of writing, and it grows to match it. Rest on it to put the caret in, and rest longer to select a word or the lot — recognisers mis-hear names.',
       ),
-      text('Its own controls are in a row inside it, under the words:'),
+      text("Its own controls are on the line its words are on, as the message box's are:"),
       list(
-        ':clear: empties it **and starts listening again**, which is what you want when what came back was wrong. There is no separate button for the microphone.',
+        ':clear:, at the left end, empties it **and starts listening again**, which is what you want when what came back was wrong. There is no separate button for the microphone.',
         ':undo: puts the words back and stops listening, if you cleared it by mistake.',
-        ':suggest: offers answers to the question, as cells on the board to choose between.',
+        ':suggest:, at the right end once there is a question, offers answers to it, as cells on the board to choose between.',
       ),
       text(
         'Your browser does the listening, not Peri. Most browsers send what the microphone picks up to a speech service of their own to turn it into words — the same one behind dictation elsewhere on your device. That is between you and your browser, and it does not pass through us.',

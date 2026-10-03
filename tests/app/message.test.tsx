@@ -225,7 +225,7 @@ describe('what is said', () => {
 
   it('keeps nothing for an empty message', () => {
     renderApp()
-    click(iconBtn('Speak'))
+    expect(iconBtn('Speak'), 'Speak is drawn with nothing to say').toBeUndefined()
     click(iconBtn('Copy to clipboard'))
     expect(kept()).toEqual([])
   })
@@ -432,22 +432,22 @@ describe('the message box growing', () => {
 })
 
 /**
- * **The message box is a card**, the shape of a chat app's input box: the words,
- * and inside it along the bottom a row of everything that works on them. At the
- * start of the row, what the board is doing — the microphone, then the three
- * modes; at the end, what is done with the words — empty, copy, paste, the
- * language and the voice, and last the one the board exists to reach.
+ * **The message box is a card**, the shape of a chat app's input box. Its first
+ * line is the one the words are written on: the slot that empties the box at its
+ * left end, the box, and Speak at its right end — drawn only once there are
+ * words. Under it, a row: the clipboard at the far left, the modes centred, the
+ * language and the voice at the right.
  */
 describe('the card', () => {
-  const start = () => $$('.message-tools-start [role="button"]').map(b => b.getAttribute('aria-label'))
-  const end = () =>
-    $$('.message-tools-end [role="button"], .message-tools-end button').map(b => b.getAttribute('aria-label'))
+  const labels = (sel: string) =>
+    $$(`${sel} [role="button"], ${sel} button`).map(b => b.getAttribute('aria-label'))
 
   // The keyboard is offered only where it has been asked for — see *Peri's own
   // keyboard* — so on a board that has not asked, the menu is the whole rail.
   it('leaves nothing outside it but the menu, and the keyboard where it is offered', () => {
     renderApp()
     expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual(['Open menu'])
+    expect($('.message-wrap > .message-line'), 'the line is not inside the card').not.toBeNull()
     expect($('.message-wrap > .message-tools'), 'the row is not inside the card').not.toBeNull()
 
     renderApp({ keyboard: true })
@@ -457,37 +457,78 @@ describe('the card', () => {
     ])
   })
 
-  it('puts what the board is doing at the start of its row, and what is done with the words at the end', () => {
+  it('puts clear at the left end of the line, and speak at its right once there are words', () => {
     renderApp()
-    // The microphone comes first where the browser can listen — see
-    // `app/listen.test.tsx`; this one cannot.
-    expect(start()).toEqual(['Edit phrases', expect.stringMatching(/rest/i), expect.stringMatching(/auto-speak/i)])
-    expect(end()).toEqual(['Clear', 'Copy to clipboard', 'Paste from clipboard', 'Speak'])
-    expect(
-      $('.message-tools-end > .topbar-actions:last-child .icon-btn:last-child')!.classList.contains('is-primary'),
-    ).toBe(true)
+    const line = () => [...$('.message-line')!.children].map(el => el.className.split(' ')[0])
+    expect(line()).toEqual(['topbar-clear', 'message-field', 'topbar-actions'])
+    expect(labels('.message-line > .topbar-clear')).toEqual(['Clear'])
+    expect(labels('.message-line > .topbar-actions'), 'Speak is drawn with nothing to say').toEqual([])
+
+    writeIn(box(), 'Hello')
+    expect(labels('.message-line > .topbar-actions')).toEqual(['Speak'])
+    expect(iconBtn('Speak')!.classList.contains('is-primary')).toBe(true)
+
+    click(iconBtn('Clear'))
+    expect(labels('.message-line > .topbar-clear')).toEqual(['Undo'])
+    expect(labels('.message-line > .topbar-actions')).toEqual([])
+  })
+
+  // The microphone comes first among the modes where the browser can listen —
+  // see `app/listen.test.tsx`; this one cannot.
+  it('puts the clipboard at the far left of the row, the modes in its middle, and the values at its right', () => {
+    renderApp()
+    const row = () => [...$('.message-tools')!.children].map(el => el.className.split(' ')[0])
+    expect(row()).toEqual(['tools-clipboard', 'tools-modes', 'tools-values'])
+    expect(labels('.tools-clipboard')).toEqual(['Copy to clipboard', 'Paste from clipboard'])
+    expect(labels('.tools-modes')).toEqual([
+      'Edit phrases',
+      expect.stringMatching(/rest/i),
+      expect.stringMatching(/auto-speak/i),
+    ])
   })
 
   /**
    * **The same places in edit mode**, meaning what the mode says: start a new
-   * phrase where clear was, paste where it was, and delete and save at the end.
-   * What is being edited is a row of the card's own **below** the controls, so
-   * turning the mode on grows the card downwards and moves nothing in the row
-   * under the pointer that turned it on.
+   * phrase where clear was, Save where Speak was — drawn once there are words —
+   * paste where it was, and delete at the far right, as far from Save as the
+   * card goes. What is being edited is a row of the card's own **below** the
+   * controls, so turning the mode on moves nothing under the pointer that
+   * turned it on.
    */
-  it('keeps its row in edit mode, with what is being edited below it', () => {
+  it('keeps its places in edit mode, with what is being edited below them', () => {
     renderApp()
     click(editToggle())
-    expect(end()).toEqual([
-      'Start a new phrase',
-      'Paste from clipboard',
+    expect(labels('.message-line > .topbar-clear')).toEqual(['Start a new phrase'])
+    expect(labels('.message-line > .topbar-actions')).toEqual([])
+    writePhrase('Something new')
+    expect(labels('.message-line > .topbar-actions')).toEqual(['Save phrase'])
+
+    expect(labels('.tools-clipboard')).toEqual(['Paste from clipboard'])
+    expect(labels('.tools-values')).toEqual([
       expect.stringMatching(/^Language this phrase's voice is for/),
       expect.stringMatching(/^Voice for this phrase/),
       'Delete phrase',
-      'Save phrase',
     ])
     expect($('.message-tools + .edit-bar'), 'the edit row is not below the controls').not.toBeNull()
     expect($('.message-wrap > .edit-bar'), 'the edit row is not inside the card').not.toBeNull()
+  })
+
+  /**
+   * **The modes are centred**: the row is three columns, the middle one between
+   * two equal ones, and stacks by the card's own width rather than the
+   * screen's. Asserted against the stylesheet, which is all jsdom allows —
+   * where it lands is `e2e/layout.spec.ts`'s question.
+   */
+  it('centres the modes between two equal columns, stacking by the card’s width', () => {
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+    const block = (selector: string) => {
+      const rule = css.slice(css.indexOf(`${selector} {`))
+      return rule.slice(0, rule.indexOf('}'))
+    }
+    expect(block('.message-tools')).toMatch(/grid-template-columns: *1fr auto 1fr/)
+    expect(block('.tools-modes')).toMatch(/justify-self: *center/)
+    expect(block('.message-wrap')).toMatch(/container: *message \/ inline-size/)
+    expect(css).toMatch(/@container message \(max-width: [\d.]+rem\)/)
   })
 
   /**
@@ -553,7 +594,7 @@ describe('pasting by dwell', () => {
   // asks, so a paste with nothing behind it says so rather than being greyed out.
   it('stays live with an empty message, unlike speak and copy', () => {
     renderApp()
-    expect(iconBtn('Speak')?.hasAttribute('disabled')).toBe(true)
+    expect(iconBtn('Speak'), 'Speak is drawn with nothing to say').toBeUndefined()
     expect(iconBtn('Copy to clipboard')?.hasAttribute('disabled')).toBe(true)
     expect(iconBtn('Paste from clipboard')?.hasAttribute('disabled')).toBe(false)
   })
