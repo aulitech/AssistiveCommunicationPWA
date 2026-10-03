@@ -202,7 +202,7 @@ describe('the control', () => {
     act(() => FakeRecognition.last!.soundStarts())
     settle()
     expect(live(), 'not shown while sound came in').not.toBeNull()
-    expect($('.heard-tools > :last-child')).toBe(live())
+    expect($('.heard-end > :last-child')).toBe(live())
     expect(live()!.getAttribute('aria-label')).toBe('The microphone is on')
 
     act(() => FakeRecognition.last!.say({ transcript: 'Tea', isFinal: false }))
@@ -302,7 +302,7 @@ describe('the control', () => {
    */
   it('sits first in the message card’s row, and holds the board still after the card moves', () => {
     renderApp()
-    expect($('.message-wrap .message-tools-start > .topbar-listen:first-child .listen-toggle')).not.toBeNull()
+    expect($('.message-wrap .tools-modes > .topbar-listen:first-child .listen-toggle')).not.toBeNull()
 
     click(micBtn())
     expect(heardBox()).not.toBeNull()
@@ -453,18 +453,18 @@ describe('the control', () => {
    * they land *on* the line is a question for the deploy preview, jsdom laying
    * nothing out.
    */
-  it('rides the box lower border, under the box itself', () => {
+  // The question's line, as the message's: what empties it at the left end, the
+  // words, and asking for answers at the right end.
+  it('puts clear at the left end of the question’s line and ask at its right', () => {
     renderApp()
     hear('Do you want tea?')
 
-    const inOrder = [...$('.heard-wrap')!.children].map(el => el.className.split(' ')[0])
-    expect(inOrder).toEqual(['heard-field', 'heard-tools'])
+    const inOrder = [...$('.heard-line')!.children].map(el => el.className.split(' ')[0])
+    expect(inOrder).toEqual(['heard-start', 'heard-field', 'heard-end'])
     expect($('.heard-field > .heard-text'), 'the box is not the first thing in its field').not.toBeNull()
+    expect($('.heard-start .heard-btn')!.getAttribute('aria-label')).toMatch(/^clear/i)
 
-    // Empty first, then the ones that do something with what is in the box. The
-    // rest of the row depends on what this build and this board can do, so only
-    // the two that are always there are named.
-    const tools = $$('.heard-tools .heard-btn').map(b => b.getAttribute('aria-label') ?? '')
+    const tools = $$('.heard-line .heard-btn').map(b => b.getAttribute('aria-label') ?? '')
     expect(tools[0], 'the control that empties the box is not first').toMatch(/^clear/i)
     // Two, and no more: emptying the box and asking for answers. Reading the
     // question in the board's own language was a third of them and has been
@@ -585,7 +585,7 @@ describe('the control', () => {
 
     renderApp()
     toggleMic()
-    expect($('.heard-wrap > .heard-tools')).not.toBeNull()
+    expect($('.heard-wrap > .heard-line')).not.toBeNull()
   })
 
   it('opens a box above the message, and closes it again', () => {
@@ -1683,10 +1683,12 @@ describe('the suggested reply', () => {
   })
 
   // Nothing to reply to, and a control that would ask about an empty question.
-  it('goes quiet while nothing has been heard', () => {
+  // Drawn only once there is a question to ask about, in a place kept for it.
+  it('is not offered while nothing has been heard', () => {
     withKey()
     toggleMic()
-    expect(suggestBtn()?.getAttribute('aria-disabled')).toBe('true')
+    expect(suggestBtn()).toBeUndefined()
+    expect($('.heard-end'), 'no room is kept for it').not.toBeNull()
   })
 })
 

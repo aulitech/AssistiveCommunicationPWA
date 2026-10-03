@@ -16,8 +16,8 @@
 // put a caret in the middle of a sentence — so the same `useCaretDwell` that
 // made the message box reachable makes this one correctable.
 //
-// It is a card like the message box, its controls in a row inside it under the
-// words — see docs/decisions/the-message-card.md. There is no button for the
+// It is a card like the message box, its controls on the line its words are on
+// — see docs/decisions/the-message-card.md. There is no button for the
 // microphone: clearing the box starts it and
 // undo stops it, because emptying this box has one reason behind it — what came
 // back was wrong — and what somebody wants next is to be listened to again.
@@ -101,92 +101,84 @@ export function HeardBox({
 
   return (
     <div className="heard-wrap">
-      {/* The box and the arrows that scroll it, together: the arrows sit inside
-          the box's right edge and have to be positioned against the box rather
-          than against everything under it. */}
-      <div className="heard-field">
-        <textarea
-          ref={fieldRef}
-          className={cx(
-            'heard-text',
-            caret.active && 'dwelling',
-            heard.listening && 'is-listening',
-            notice && 'is-notice',
-            (edges.canUp || edges.canDown) && 'has-scroll',
-          )}
-          style={dwellVar(settings.actionDwellMs)}
-          aria-label="Question heard"
-          // **Without a key it can use, the box says so and takes nothing.** As
-          // its words rather than as a placeholder, so it is measured like a
-          // question and the box grows to hold all of it; read-only, so neither
-          // a keyboard nor Peri's own can put a question in it.
-          value={notice || heard.said}
-          readOnly={notice !== ''}
-          onChange={e => write(e.target.value)}
-          placeholder={heard.listening ? 'Speak or type a question' : 'Nothing heard yet'}
-          rows={1}
-          spellCheck
-          {...caret.props}
-        />
-        <BoxScroll edges={edges} what="question" />
-      </div>
-
-      {/* Its tools, in a row inside the card under the words — as the message
-          card's are, and as far apart, since each is a gaze target. */}
-      <div className="heard-tools">
-        {/* First, and the same two glyphs the message box empties itself with.
-            One box is what somebody is being asked and the other is what they
-            are about to say, and a control that means *empty this* has to look
-            the same on both or it is two controls to learn. A recogniser
-            mis-hears, and the answer to a question that came out as nonsense is
-            to empty the box — which makes this the gesture most worth being able
-            to take back, since what it threw away is the only copy of what was
-            said to somebody. */}
-        <HeardButton
-          onSelect={clearOrUndo}
-          label={showUndo ? 'Undo. Put the question back and stop listening' : 'Clear, and listen again'}
-          disabled={!canClear}
-        >
-          {showUndo ? <UndoIcon /> : <ClearIcon />}
-        </HeardButton>
-
-        {canSuggest && (
+      {/* **The line the question is written on**, as the message's is: the slot
+          that empties it at its left end, the words, and at its right end Ask —
+          suggest answers — **drawn only once there is a question to ask about**,
+          in a place kept for it either way so nothing moves when it arrives. */}
+      <div className="heard-line">
+        <div className="heard-start">
           <HeardButton
-            onSelect={() => void suggest()}
-            // Named for where they go. They land on the board to be chosen
-            // between, and nothing here ever speaks one — and a control that has
-            // gone quiet explains nothing by itself, so the one thing it can
-            // still do is say what would let it work.
-            label={
-              messageEmpty
-                ? 'Suggest answers, onto the board'
-                : 'Suggest answers. Clear the message first — a message half written is how you say you are already answering'
-            }
-            disabled={nothingHeard || heard.asking || !messageEmpty}
+            onSelect={clearOrUndo}
+            label={showUndo ? 'Undo. Put the question back and stop listening' : 'Clear, and listen again'}
+            disabled={!canClear}
           >
-            <SuggestIcon />
+            {showUndo ? <UndoIcon /> : <ClearIcon />}
           </HeardButton>
-        )}
+        </div>
+        <div className="heard-field">
+          <textarea
+            ref={fieldRef}
+            className={cx(
+              'heard-text',
+              caret.active && 'dwelling',
+              heard.listening && 'is-listening',
+              notice && 'is-notice',
+              (edges.canUp || edges.canDown) && 'has-scroll',
+            )}
+            style={dwellVar(settings.actionDwellMs)}
+            aria-label="Question heard"
+            // **Without a key it can use, the box says so and takes nothing.** As
+            // its words rather than as a placeholder, so it is measured like a
+            // question and the box grows to hold all of it; read-only, so neither
+            // a keyboard nor Peri's own can put a question in it.
+            value={notice || heard.said}
+            readOnly={notice !== ''}
+            onChange={e => write(e.target.value)}
+            placeholder={heard.listening ? 'Speak or type a question' : 'Nothing heard yet'}
+            rows={1}
+            spellCheck
+            {...caret.props}
+          />
+          <BoxScroll edges={edges} what="question" />
+        </div>
+        <div className="heard-end">
+          {canSuggest && !nothingHeard && (
+            <HeardButton
+              onSelect={() => void suggest()}
+              // Named for where they go. They land on the board to be chosen
+              // between, and nothing here ever speaks one — and a control that has
+              // gone quiet explains nothing by itself, so the one thing it can
+              // still do is say what would let it work.
+              label={
+                messageEmpty
+                  ? 'Suggest answers, onto the board'
+                  : 'Suggest answers. Clear the message first — a message half written is how you say you are already answering'
+              }
+              disabled={nothingHeard || heard.asking || !messageEmpty}
+            >
+              <SuggestIcon />
+            </HeardButton>
+          )}
+          {/* **The microphone is live**, at the end of the row the tools leave free, and
+              drawn only while sound is actually coming in — after the browser has
+              been given the microphone, not when it was asked for it — so there
+              is nothing to read it as but *this is being heard now*.
 
-        {/* **The microphone is live**, at the end of the row the tools leave free, and
-            drawn only while sound is actually coming in — after the browser has
-            been given the microphone, not when it was asked for it — so there
-            is nothing to read it as but *this is being heard now*.
+              Its capsule fills and empties like a level meter, which is the whole
+              of the animation: nothing outside the glyph moves, and its ground
+              stays put, so nothing around it glows. Still under reduced motion.
 
-            Its capsule fills and empties like a level meter, which is the whole
-            of the animation: nothing outside the glyph moves, and its ground
-            stays put, so nothing around it glows. Still under reduced motion.
-
-            Not a control: there is nothing to do to it that the controls beside
-            it do not already do, and a target that did nothing would be a dwell
-            spent for nothing. In the row rather than positioned over it, so a
-            card too narrow for all four pushes it along rather than laying it
-            over a control. */}
-        {heard.hearing && (
-          <span className="heard-live" role="img" aria-label="The microphone is on">
-            <MicIcon live />
-          </span>
-        )}
+              Not a control: there is nothing to do to it that the controls beside
+              it do not already do, and a target that did nothing would be a dwell
+              spent for nothing. In the row rather than positioned over it, so a
+              card too narrow for all four pushes it along rather than laying it
+              over a control. */}
+          {heard.hearing && (
+            <span className="heard-live" role="img" aria-label="The microphone is on">
+              <MicIcon live />
+            </span>
+          )}
+        </div>
       </div>
 
       {/* What it says in the board's own language, under the words that were

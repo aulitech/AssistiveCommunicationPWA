@@ -473,7 +473,7 @@ describe('keeping a composed message as a phrase', () => {
     enterEditMode()
 
     expect(box().value).toBe('')
-    expect(iconBtn('Save phrase')?.disabled).toBe(true)
+    expect(iconBtn('Save phrase'), 'Save is drawn with no words to save').toBeUndefined()
   })
 
   // Two different things share the one box, and only one of them is on screen
