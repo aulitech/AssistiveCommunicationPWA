@@ -89,6 +89,10 @@
   color: var(--text);
   line-height: 1.4;
   resize: none;
+  /* Said rather than left to the browser, because `AfterText`'s copy has to
+     break lines exactly where the box does. */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
   overflow-y: auto;
   scrollbar-width: none;
   outline: none;

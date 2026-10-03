@@ -189,15 +189,137 @@ for (const [width, height] of [
   })
 }
 
-// Speak is drawn only once there are words, in a place kept for it either way —
-// so the first letter typed does not narrow the box and rewrap the words under
-// a resting gaze.
-test('keeps Speak’s place while it is not drawn, so the box does not change width', async ({ page }) => {
+/**
+ * **Speak stands right after the last word typed** — measured against the words
+ * themselves, set in the box's own type on a canvas, so the test does not ask
+ * the copy `AfterText` places it by and then believe it.
+ */
+test('puts Speak right after the last word, on its line', async ({ page }) => {
   await openBoard(page)
-  const width = () => page.locator('.text-display').evaluate(el => el.getBoundingClientRect().width)
-  const before = await width()
-  await expect(page.locator('.icon-btn[aria-label="Speak"]')).toHaveCount(0)
-  await page.locator('.text-display').fill('Hello')
-  await expect(page.locator('.icon-btn[aria-label="Speak"]')).toHaveCount(1)
-  expect(await width()).toBe(before)
+  await page.locator('.text-display').fill('Hello there')
+  const { speak, expected, line } = await page.evaluate(() => {
+    const box = document.querySelector<HTMLTextAreaElement>('.text-display')!
+    const style = getComputedStyle(box)
+    const ctx = document.createElement('canvas').getContext('2d')!
+    ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+    const r = box.getBoundingClientRect()
+    const s = document.querySelector('.icon-btn[aria-label="Speak"]')!.getBoundingClientRect()
+    return {
+      speak: { left: s.left, middle: (s.top + s.bottom) / 2 },
+      expected: r.left + parseFloat(style.paddingLeft) + ctx.measureText('Hello there').width,
+      line: r.top + parseFloat(style.paddingTop) + parseFloat(style.lineHeight) / 2,
+    }
+  })
+  // A few pixels of gap after the word, and no more.
+  expect(speak.left - expected).toBeGreaterThan(2)
+  expect(speak.left - expected).toBeLessThan(12)
+  expect(Math.abs(speak.middle - line), 'not on the line the words are on').toBeLessThan(3)
+
+  // More words, and it moves with them.
+  await page.locator('.text-display').fill('Hello there, how are you')
+  const moved = await page.locator('.icon-btn[aria-label="Speak"]').evaluate(el => el.getBoundingClientRect().left)
+  expect(moved).toBeGreaterThan(speak.left + 40)
+})
+
+// The last line full, so Speak goes to the start of the next — and the box grows
+// to hold that line, rather than Speak being drawn under its edge.
+test('wraps Speak onto a line of its own when the last has no room, inside the box', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openBoard(page)
+  const box = page.locator('.text-display')
+  await box.fill('x')
+  const oneLine = await box.evaluate(el => el.getBoundingClientRect().height)
+  // Grow the words a letter at a time until Speak is pushed to a line of its own.
+  let text = 'Could you open the window'
+  for (let i = 0; i < 40; i++) {
+    await box.fill(text)
+    const wrapped = await page.evaluate(() => {
+      const b = document.querySelector('.text-display')!.getBoundingClientRect()
+      const s = document.querySelector('.icon-btn[aria-label="Speak"]')!.getBoundingClientRect()
+      return s.left - b.left < 40 && s.top - b.top > 30
+    })
+    if (wrapped) break
+    text += 'a'
+  }
+  const { speak, field } = await page.evaluate(() => ({
+    speak: document.querySelector('.icon-btn[aria-label="Speak"]')!.getBoundingClientRect().toJSON(),
+    field: document.querySelector('.text-display')!.getBoundingClientRect().toJSON(),
+  }))
+  expect(speak.left - field.left, 'it never wrapped').toBeLessThan(40)
+  expect(speak.bottom, 'drawn under the box’s edge').toBeLessThanOrEqual(field.bottom)
+  expect(field.height).toBeGreaterThan(oneLine)
+})
+
+/**
+ * **It moves with the words, so it must not fire under a pointer it arrived
+ * under.** Typing is already covered — the grid narrows to what is typed, and
+ * that holds every dwell until the pointer moves. What is left is Speak moving
+ * on its own: the screen narrowing rewraps the words, and Speak lands somewhere
+ * new. The pointer is rested there first, drifting as a gaze does, and nothing
+ * is said — until it moves away and back.
+ */
+test('does not speak when Speak arrives under a resting pointer', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { said: number }
+    w.said = 0
+    speechSynthesis.speak = () => void w.said++
+  })
+  const said = () => page.evaluate(() => (window as unknown as { said: number }).said)
+  const speakAt = () =>
+    page.locator('.icon-btn[aria-label="Speak"]').evaluate(el => {
+      const r = el.getBoundingClientRect()
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+    })
+  await page.setViewportSize({ width: 900, height: 900 })
+  await openBoard(page)
+  await page.locator('.edit-toggle').dispatchEvent('click')
+  await page.locator('.edit-toggle').dispatchEvent('click')
+  await page
+    .locator('.text-display')
+    .fill('Could you open the window a little, please, and leave it open until the evening')
+  const narrow = await speakAt()
+
+  await page.setViewportSize({ width: 1400, height: 900 })
+  await page.waitForTimeout(300)
+  const wide = await speakAt()
+  expect(Math.abs(wide.x - narrow.x) + Math.abs(wide.y - narrow.y), 'Speak did not move').toBeGreaterThan(40)
+  await page.mouse.move(narrow.x, narrow.y)
+  await page.waitForTimeout(1500)
+
+  // The screen narrows, the words rewrap, and Speak lands under the pointer.
+  await page.setViewportSize({ width: 900, height: 900 })
+  await page.waitForTimeout(300)
+  expect(await speakAt(), 'Speak did not come back to the same place').toEqual(narrow)
+  // A gaze is never quite still: it drifts a pixel or two, which is what tells
+  // the browser the pointer is over whatever has just arrived under it.
+  for (let i = 0; i < 30; i++) {
+    await page.mouse.move(narrow.x + (i % 2), narrow.y + ((i + 1) % 2))
+    await page.waitForTimeout(100)
+  }
+  expect(await said(), 'spoken by nobody').toBe(0)
+
+  await page.mouse.move(narrow.x + 200, narrow.y + 200, { steps: 5 })
+  await page.mouse.move(narrow.x, narrow.y, { steps: 5 })
+  await page.waitForTimeout(3000)
+  expect(await said()).toBe(1)
+})
+
+// The box is sized by the copy Speak is placed with as well as by its words, and
+// on a resize that copy is measured at the new width — or a box that rewrapped
+// onto fewer lines kept the height of the old ones.
+test('gives the box its new height when the screen widens and the words rewrap', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 })
+  await openBoard(page)
+  const box = page.locator('.text-display')
+  const height = () => box.evaluate(el => Math.round(el.getBoundingClientRect().height))
+  await box.fill('x')
+  const oneLine = await height()
+
+  await page.setViewportSize({ width: 900, height: 900 })
+  await box.fill('Could you open the window a little, please, and leave it open until the evening')
+  expect(await height(), 'it did not wrap at the narrow width').toBeGreaterThan(oneLine)
+
+  await page.setViewportSize({ width: 1400, height: 900 })
+  await page.waitForTimeout(300)
+  expect(await height()).toBe(oneLine)
 })

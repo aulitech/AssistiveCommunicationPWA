@@ -1,9 +1,9 @@
 // The bar across the top: the message being composed, and the controls that act
 // on it — or, in edit mode, the phrase being written and the controls that act on
-// *that*. **The box is a card**, the shape of a chat app's input box: the line
-// the words are written on — empty it at the left end, send it at the right,
-// once there is something to send — and under it a row, the clipboard at the
-// far left, the modes in the middle, the language and the voice at the right.
+// *that*. **The box is a card**, the shape of a chat app's input box: a row
+// along its top — the clipboard at the far left, the modes in the middle, the
+// language and the voice at the right — and under it the line the words are
+// written on, emptied from its left end and sent from right after the last word.
 // See docs/decisions/the-message-card.md.
 //
 // **The box is the phrase editor in edit mode.** There was a dialog for that,
@@ -21,6 +21,7 @@ import { chooseLanguage, chooseVoice } from '../core/store'
 import { LanguagePicker } from '../voice/language-picker'
 import { VoicePicker } from '../voice/picker'
 import { useCaretDwell } from '../ui/caret'
+import { AfterText } from '../ui/after-text'
 import { useDwellControl } from '../ui/dwell'
 import { useLinkInput, type PasteResult } from '../ui/link-input'
 import {
@@ -388,7 +389,18 @@ export function Topbar({
       // still standing at the other's height would report it straight back and
       // the pair would only ever grow.
       for (const el of boxes) el.style.height = ''
-      const tallest = Math.max(...boxes.map(el => el.scrollHeight))
+      // The copies `AfterText` lays out count too: a control that wrapped onto a
+      // line of its own after the last word needs the box to hold that line.
+      // Each given its box's width first: on a resize this runs before the copy
+      // has been told the box is wider or narrower, and a copy measured at the
+      // old width would size the box for lines it no longer has.
+      const copies = boxes.flatMap(el => {
+        const copy = el.parentElement?.querySelector<HTMLElement>(':scope > .after-text-mirror')
+        if (!copy) return []
+        copy.style.width = `${el.offsetWidth}px`
+        return [copy]
+      })
+      const tallest = Math.max(...boxes.map(el => el.scrollHeight), ...copies.map(el => el.offsetHeight))
       // **Plus the box's own border.** The height is `border-box`, and
       // `scrollHeight` is the text and its padding without the border — so a box
       // set to exactly that was two pixels short of holding what was in it. That
@@ -476,107 +488,7 @@ export function Topbar({
         {/* The message card: the words, the row of controls, and in edit mode
             what is being edited. */}
         <div className="message-wrap">
-          {/* **The line the words are written on**: the slot that empties the box
-              at its left end, the words, and at its right end the one the board
-              exists to reach — Speak, or Save in edit mode — **drawn only once
-              there are words to send**, in a place kept for it either way so
-              nothing moves when it arrives. A chat app's input line. */}
-          <div className="message-line">
-            <div className="topbar-clear">
-              {editMode && undoDelete ? (
-                // The undo glyph the composer's own slot draws, because it means
-                // the same thing: put back the last thing I did.
-                <ActionButton
-                  className="in-card"
-                  onSelect={undoDelete.undo}
-                  label={`Undo deleting “${undoDelete.words}”`}
-                >
-                  <UndoIcon />
-                </ActionButton>
-              ) : editMode ? (
-                <ActionButton
-                  className="in-card"
-                  onSelect={() => startNew()}
-                  label="Start a new phrase"
-                  disabled={isUntouched}
-                >
-                  <PlusIcon />
-                </ActionButton>
-              ) : (
-                <ActionButton
-                  className="in-card"
-                  onSelect={clearOrUndo}
-                  label={showUndo ? 'Undo' : 'Clear'}
-                  disabled={!canClear}
-                >
-                  {showUndo ? <UndoIcon /> : <ClearIcon />}
-                </ActionButton>
-              )}
-            </div>
-            <div className="message-field">
-              <textarea
-                ref={textareaRef}
-                className={cx(
-                  'text-display',
-                  caret.active && 'dwelling',
-                  (messageEdges.canUp || messageEdges.canDown) && 'has-scroll',
-                )}
-                style={dwellVar(settings.actionDwellMs)}
-                aria-label={editMode ? 'Phrase text' : 'Composed message'}
-                value={value}
-                onChange={e => {
-                  write(e.target.value)
-                  if (!editMode) trackCursor(e)
-                }}
-                // Only outside edit mode: the caret tracked here is the composer's, and
-                // it decides which word the grid filters on. A caret moved about in a
-                // phrase would narrow the board to a word that is not in the message.
-                onSelect={editMode ? undefined : trackCursor}
-                onPaste={linkInput.onPaste}
-                onDrop={linkInput.onDrop}
-                onDragOver={linkInput.onDragOver}
-                {...caret.props}
-                onClick={editMode ? undefined : trackCursor}
-                onKeyUp={editMode ? undefined : trackCursor}
-                placeholder={
-                  editMode
-                    ? 'Write a phrase, or hold one on the board to edit it…'
-                    : settings.autoSpeak
-                      ? 'Immediately speak selected phrase'
-                      : 'Dwell on a phrase or type…'
-                }
-                rows={1}
-                spellCheck
-                autoCapitalize="sentences"
-                // The board opens with the caret already in the box, so somebody with a
-                // keyboard can type the first thing they want to say without having to
-                // put it there first — and putting it there is the one thing a dwell
-                // could not do until `useCaretDwell`. A programmatic focus does not
-                // raise a phone's on-screen keyboard, which needs a real gesture.
-                autoFocus
-              />
-
-              <BoxScroll edges={messageEdges} what="message" />
-            </div>
-            <div className="topbar-actions">
-              {!hasWords ? null : editMode ? (
-                <ActionButton
-                  className="in-card is-primary"
-                  onSelect={onSavePhrase}
-                  label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
-                  disabled={!draft.canSave}
-                >
-                  <CheckIcon />
-                </ActionButton>
-              ) : (
-                <ActionButton className="in-card is-primary" onSelect={onSpeak} label="Speak" disabled={!text}>
-                  <SpeakIcon />
-                </ActionButton>
-              )}
-            </div>
-          </div>
-
-          {/* **The card's row of controls, under the line**: the clipboard at
+          {/* **The card's row of controls, above the line**: the clipboard at
               the far left, the modes in the middle — the microphone, edit, Rest,
               auto-speak — and the language and the voice at the right, with
               delete after them in edit mode, as far from Save as the card goes. */}
@@ -695,6 +607,114 @@ export function Topbar({
                   <TrashIcon />
                 </ActionButton>
               )}
+            </div>
+          </div>
+
+          {/* **The line the words are written on**: the slot that empties the box
+              at its left end, then the words, with Speak — or Save in edit
+              mode — right after the last of them. */}
+          <div className="message-line">
+            <div className="topbar-clear">
+              {editMode && undoDelete ? (
+                // The undo glyph the composer's own slot draws, because it means
+                // the same thing: put back the last thing I did.
+                <ActionButton
+                  className="in-card"
+                  onSelect={undoDelete.undo}
+                  label={`Undo deleting “${undoDelete.words}”`}
+                >
+                  <UndoIcon />
+                </ActionButton>
+              ) : editMode ? (
+                <ActionButton
+                  className="in-card"
+                  onSelect={() => startNew()}
+                  label="Start a new phrase"
+                  disabled={isUntouched}
+                >
+                  <PlusIcon />
+                </ActionButton>
+              ) : (
+                <ActionButton
+                  className="in-card"
+                  onSelect={clearOrUndo}
+                  label={showUndo ? 'Undo' : 'Clear'}
+                  disabled={!canClear}
+                >
+                  {showUndo ? <UndoIcon /> : <ClearIcon />}
+                </ActionButton>
+              )}
+            </div>
+            <div className="message-field">
+              <textarea
+                ref={textareaRef}
+                className={cx(
+                  'text-display',
+                  caret.active && 'dwelling',
+                  (messageEdges.canUp || messageEdges.canDown) && 'has-scroll',
+                )}
+                style={dwellVar(settings.actionDwellMs)}
+                aria-label={editMode ? 'Phrase text' : 'Composed message'}
+                value={value}
+                onChange={e => {
+                  write(e.target.value)
+                  if (!editMode) trackCursor(e)
+                }}
+                // Only outside edit mode: the caret tracked here is the composer's, and
+                // it decides which word the grid filters on. A caret moved about in a
+                // phrase would narrow the board to a word that is not in the message.
+                onSelect={editMode ? undefined : trackCursor}
+                onPaste={linkInput.onPaste}
+                onDrop={linkInput.onDrop}
+                onDragOver={linkInput.onDragOver}
+                {...caret.props}
+                onClick={editMode ? undefined : trackCursor}
+                onKeyUp={editMode ? undefined : trackCursor}
+                placeholder={
+                  editMode
+                    ? 'Write a phrase, or hold one on the board to edit it…'
+                    : settings.autoSpeak
+                      ? 'Immediately speak selected phrase'
+                      : 'Dwell on a phrase or type…'
+                }
+                rows={1}
+                spellCheck
+                autoCapitalize="sentences"
+                // The board opens with the caret already in the box, so somebody with a
+                // keyboard can type the first thing they want to say without having to
+                // put it there first — and putting it there is the one thing a dwell
+                // could not do until `useCaretDwell`. A programmatic focus does not
+                // raise a phone's on-screen keyboard, which needs a real gesture.
+                autoFocus
+              />
+
+              <BoxScroll edges={messageEdges} what="message" />
+              {/* **Speak right after the last word**, as if it were the next one —
+                  Save in edit mode — and only once there are words: see
+                  `AfterText`, which finds where the words end and holds the
+                  dwells if it lands under a resting pointer. */}
+              <AfterText
+                fieldRef={textareaRef}
+                value={value}
+
+                className="topbar-actions"
+              >
+                {hasWords &&
+                  (editMode ? (
+                    <ActionButton
+                      className="in-card is-primary"
+                      onSelect={onSavePhrase}
+                      label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
+                      disabled={!draft.canSave}
+                    >
+                      <CheckIcon />
+                    </ActionButton>
+                  ) : (
+                    <ActionButton className="in-card is-primary" onSelect={onSpeak} label="Speak" disabled={!text}>
+                      <SpeakIcon />
+                    </ActionButton>
+                  ))}
+              </AfterText>
             </div>
           </div>
 
