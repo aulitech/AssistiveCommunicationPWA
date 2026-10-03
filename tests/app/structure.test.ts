@@ -500,12 +500,18 @@ describe('the shape of the source tree', () => {
       )
       return found?.[2] ?? ''
     }
-    for (const field of ['.text-display', '.heard-text', '.caret-field']) {
+    // The two boxes have no edge of their own — each is the inside of a card —
+    // so their focus is said on the card's edge, `:focus-within`.
+    for (const [field, says] of [
+      ['.text-display', '.message-wrap:focus-within'],
+      ['.heard-text', '.heard-wrap:focus-within'],
+      ['.caret-field', '.caret-field:focus'],
+    ]) {
       expect(rule(`${field}:focus-visible`), `${field} still wears the ring outside its border`).toMatch(
         /outline: *none/,
       )
-      expect(rule(`${field}:focus`), `${field} shows no focus of its own once the ring is gone`).toMatch(
-        /border-color: *var\(--accent\)/,
+      expect(rule(says!), `${field} shows no focus of its own once the ring is gone`).toMatch(
+        /border-color: *var\(--(accent|card-focus)\)/,
       )
     }
   })

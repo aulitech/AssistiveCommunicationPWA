@@ -23,7 +23,6 @@ import {
   editTitle,
   clearMessage,
 } from './harness'
-import { stylesheet } from '../stylesheet'
 
 // Everything Peri ships is in Library, and filing a phrase, following it and
 // moving between tabs need more than one category — so each board here starts
@@ -403,47 +402,24 @@ describe('edit mode', () => {
   })
 
   /**
-   * The strip rides the lower border of the message box, exactly as the modes
-   * ride the upper one — which it can only do from inside the bar the box is in.
+   * What is being edited and where it is filed is a row of the message card's
+   * own, below its controls.
    *
-   * **The voice is not in it.** A phrase's voice is the pair at the box's
-   * lower-right corner in edit mode, the same pair that is the board's outside
-   * it: one pair of controls meaning whichever of the two the mode says, rather
-   * than two pairs that look alike and are not.
+   * **The voice is not in it.** A phrase's voice is the pair in the card's row in
+   * edit mode, the same pair that is the board's outside it: one pair of controls
+   * meaning whichever of the two the mode says, rather than two pairs that look
+   * alike and are not.
    */
-  it('puts the category on the message box itself, and the voice on its corner', () => {
+  it('puts the category in the message card, and the voice in its row', () => {
     renderApp()
     click(editToggle())
 
-    expect($('.topbar > .edit-bar')).not.toBeNull()
+    expect($('.message-wrap > .edit-bar')).not.toBeNull()
     expect($('.edit-bar .category-trigger')).not.toBeNull()
     expect($('.edit-bar .voice-trigger'), 'the strip still carries a voice of its own').toBeNull()
 
-    const voice = $$('.topbar-choices .choice-btn').map(b => b.getAttribute('aria-label') ?? '')
+    const voice = $$('.message-tools .topbar-choices .choice-btn').map(b => b.getAttribute('aria-label') ?? '')
     expect(voice.some(l => /voice for this phrase/i.test(l))).toBe(true)
-  })
-
-  // The two numbers that put it there. `.topbar` padding-bottom is where the
-  // box's lower border falls; the strip's `bottom`, with `translateY(50%)`, is
-  // where its own centre line falls — so they have to be the same number, and
-  // are one variable for that reason. Written as two they drifted apart at the
-  // first change, leaving the strip centred 20px below the border it rides.
-  //
-  // jsdom applies no cascade and lays nothing out, so this can only check that
-  // the rule is written. Whether it takes effect is for the deploy preview.
-  it('centres that strip on the border rather than below it', () => {
-    const css = stylesheet()
-
-    expect(css).toMatch(/\.app\.edit-mode \.topbar \{ padding-bottom: var\(--edit-bar-inset\); \}/)
-    expect(css).toMatch(/\.edit-bar \{[^}]*\bbottom: var\(--edit-bar-inset\);/)
-    // Half the strip's height, so its lower edge reaches the bottom of the bar
-    // and no further — any more and it hangs over the category tabs.
-    // Read as numbers, and checked to be numbers first: `Object.is(NaN, NaN)`
-    // is true, so a regex that stops matching would otherwise pass this.
-    const inset = Number(css.match(/--edit-bar-inset: ([\d.]+)rem/)?.[1])
-    const height = Number(css.match(/\.edit-bar \{[^}]*\bheight: ([\d.]+)rem/)?.[1])
-    expect(height, 'the strip no longer states a height in rem').toBeGreaterThan(0)
-    expect(inset).toBe(height / 2)
   })
 
   // Saving leaves the editor on a blank phrase rather than closing anything —

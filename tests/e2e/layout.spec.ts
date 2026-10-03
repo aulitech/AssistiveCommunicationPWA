@@ -138,13 +138,46 @@ test('grows the message box with what is in it', async ({ page }) => {
   expect(after).toBeGreaterThan(before)
 })
 
-// The three modes ride the top border of the message box, centred on it.
-test('rides the mode strip on the message box’s top border', async ({ page }) => {
-  await openBoard(page)
-  const apart = await page.evaluate(() => {
-    const strip = document.querySelector('.topbar-modes')!.getBoundingClientRect()
-    const box = document.querySelector('.text-display')!.getBoundingClientRect()
-    return Math.abs((strip.top + strip.bottom) / 2 - box.top)
+/**
+ * **The message box is a card with its controls inside it** — and on a phone,
+ * where the row wraps, still none of them close enough to another to share a
+ * rest. Each carries an invisible area 6px past its edges, so two closer than
+ * 12px overlap there, and a gaze resting between them answers to whichever the
+ * browser picks. In both modes, since edit mode's row is the wider.
+ */
+for (const [width, height] of [
+  [360, 740],
+  [390, 844],
+  [1280, 900],
+]) {
+  test(`keeps every control inside the card, none sharing a rest, at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    await openBoard(page)
+    for (const mode of ['composing', 'editing']) {
+      if (mode === 'editing') await page.locator('.edit-toggle').dispatchEvent('click')
+      const { outside, crowded } = await page.evaluate(() => {
+        const card = document.querySelector('.message-wrap')!.getBoundingClientRect()
+        const controls = [
+          ...document.querySelectorAll<HTMLElement>('.message-tools [role="button"], .message-tools button'),
+        ]
+          .filter(el => el.offsetParent)
+          .map(el => ({ name: el.getAttribute('aria-label') ?? '', r: el.getBoundingClientRect() }))
+        const outside = controls
+          .filter(
+            ({ r }) => r.left < card.left || r.right > card.right || r.top < card.top || r.bottom > card.bottom,
+          )
+          .map(c => c.name)
+        const crowded: string[] = []
+        for (const [i, a] of controls.entries())
+          for (const b of controls.slice(i + 1)) {
+            const dx = Math.max(b.r.left - a.r.right, a.r.left - b.r.right)
+            const dy = Math.max(b.r.top - a.r.bottom, a.r.top - b.r.bottom)
+            if (Math.max(dx, dy) < 11.5) crowded.push(`${a.name} / ${b.name}`)
+          }
+        return { outside, crowded }
+      })
+      expect(outside, `${mode}: outside the card`).toEqual([])
+      expect(crowded, `${mode}: close enough to share a rest`).toEqual([])
+    }
   })
-  expect(apart).toBeLessThan(3)
-})
+}

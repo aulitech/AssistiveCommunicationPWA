@@ -1,12 +1,12 @@
 // Editing what is on the board.
 //
 // The phrase editor is not here any more: in edit mode the message box *is* the
-// editor, and the strip below it — `PhraseEditBar` — says what is being edited
-// and where it is filed. **Its voice is not here either**: that rides the box's
-// lower-right corner with the language, which in edit mode is the phrase's pair
+// editor, and a row of the card below its controls — `PhraseEditBar` — says what
+// is being edited and where it is filed. **Its voice is not here either**: that is
+// in the card's row with the language, which in edit mode is the phrase's pair
 // rather than the board's — one pair of controls meaning whichever of the two
 // the mode says, rather than two pairs that look alike and are not. What is left
-// in this file is that strip, the grid a category is chosen from, and the one
+// in this file is that row, the grid a category is chosen from, and the one
 // dialog that survives, which is about a category rather than a phrase.
 
 import { useCallback, useEffect, useState } from 'react'
@@ -148,8 +148,8 @@ function CategoryPicker({
 }
 
 /**
- * The strip under the message box, in edit mode only: what is being edited, the
- * category it is filed under, and the voice it is said in.
+ * The row at the bottom of the message card, in edit mode only: what is being
+ * edited, and the category it is filed under.
  *
  * Only these two, because everything else a phrase has is its words, and its
  * words are in the box above. Both are triggers rather than lists — each opens
@@ -189,7 +189,7 @@ export function PhraseEditBar({
       </span>
 
       {/* The emergency bar is the category, so there is nothing to choose. Said
-          rather than hidden, because a strip that loses a control between one
+          rather than hidden, because a row that loses a control between one
           phrase and the next moves the one beside it. */}
       {draft.isEmergency ? (
         <span className="edit-bar-fixed">Emergency</span>

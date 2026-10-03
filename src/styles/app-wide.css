@@ -312,8 +312,7 @@
    nothing a keyboard user was relying on. The heard box had the ring taken away
    and was given nothing in its place, which left it the one field in the app
    that showed no focus at all. */
-.caret-field:focus,
-.heard-text:focus { border-color: var(--accent); }
+.caret-field:focus { border-color: var(--accent); }
 
 .phrase-cell:focus-visible,
 .slot-option:focus-visible,

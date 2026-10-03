@@ -7,29 +7,13 @@
 
 /* ── Topbar ── */
 .topbar {
-  /* Anchors the mode strip. Centring on the topbar rather than on the message
-     box itself puts it 4px off the box's true centre — the button rails either
-     side are not quite symmetric — which is not a difference anyone can see.
-
-     The top padding is where the message box begins, and the mode strip is
-     centred on that line — so the padding has to be at least half the strip or it
-     would overflow the top of the bar. The strip is a 1.5rem toggle in 0.25rem of
-     padding, which is 2rem, so this is 1rem — in rem rather than pixels, because
-     the strip it is half of is built out of rem and would otherwise outgrow its
-     own anchor at any zoom above 100%. **It has to equal `.topbar-modes`
-     `top`**: equal is what puts the strip on the border, and half the strip is
-     what keeps it inside the bar. */
   position: relative;
   display: flex;
   align-items: stretch;
   gap: 0;
-  /* The top padding is half the mode strip, which is built out of rem itself —
-     so it is written in rem too and the two cannot come apart when the root
-     font-size changes. */
-  /* Half of the tallest strip on each border, or it hangs over the bar. Every
-     strip is the microphone's height now, 2rem, so this is a rem either way. In
-     edit mode `--edit-bar-inset` takes the bottom, being the larger there. */
-  padding: 1rem 10px;
+  /* Room round the cards, which carry their controls inside them now — nothing
+     hangs over the bar's edge any more. */
+  padding: 0.75rem 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
@@ -47,18 +31,30 @@
   --box-pad-x: 0.9rem;
 }
 
-/* The message box and the one strip that belongs to it rather than to the pair
-   of boxes. The wrapper exists only to be positioned against: the microphone and
-   the two value controls hang off `.text-display-wrap`, where they hold one point
-   on screen whether listen mode is open or not, but the control that empties the
-   message has to follow the message — on a wide screen the wrapper's left edge is
-   the *question's* left edge, and a Clear there would be a Clear on somebody
-   else's words. `min-width: 0` for the reason the wrapper has it. */
+/* The message card. `min-width: 0` for the reason the wrapper has it. */
 .message-wrap {
   position: relative;
   flex: 1;
   min-width: 0;
+  /* **A card, the shape of a chat app's input box**: the words, and under them
+     inside it a row of everything that works on them. A ground a step up from
+     the bar's, a soft edge rather than a ruled one, the corners well rounded and
+     a shadow under it, so it reads as the one thing on the screen to write in.
+     Its focus is said on its own edge, the box inside it having none. */
+  display: flex;
+  flex-direction: column;
+  background: var(--card-ground);
+  border: 1px solid var(--card-edge);
+  border-radius: 1.25rem;
+  box-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.35);
+  transition: border-color 0.15s;
 }
+
+.message-wrap:focus-within { border-color: var(--card-focus); }
+
+/* The words and the arrows that scroll them, so the arrows are placed against
+   the words rather than against a card that also holds a row of controls. */
+.message-field { position: relative; }
 
 .text-display {
   display: block;
@@ -76,9 +72,10 @@
      that ate it would be a box with nothing to put in it. */
   max-height: var(--box-max-height);
   padding: var(--box-pad-y) var(--box-pad-x);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  /* The card is the box now: its ground, its edge, its focus. */
+  background: transparent;
+  border: none;
+  border-radius: 1.25rem 1.25rem 0 0;
   font-size: 1.35rem;
   font-weight: 500;
   font-family: var(--font);
@@ -97,16 +94,13 @@
    `BoxScroll`. Down the box's right edge, in padding the box gives up only while
    they are there (`.has-scroll`), so no word ever sits under one.
  *
- * **Inset from the top and the bottom** by more than the strips on the message
- * box's border reach into it: the three actions stand 1.75rem into its upper
- * right corner and the language and the voice most of a rem into its lower one.
- * Two targets in one place is the one thing this layout must never do. The inset
- * only matters at the cap, which is the only time these are drawn, and the cap
- * leaves room for both. */
+ * Inset a little from the top and the bottom, so they stand inside the words'
+ * own space rather than against the row of controls under it.
+ */
 .box-scroll {
   position: absolute;
-  top: 2rem;
-  bottom: 1.1rem;
+  top: 0.4rem;
+  bottom: 0.4rem;
   right: 0.3rem;
   width: 2rem;
   display: flex;
@@ -135,8 +129,7 @@
 }
 
 /* The heard box and its arrows, positioned against the box rather than against
-   everything the column holds under it. Its height is the box's, so the tools
-   below still ride the box's lower border. */
+   everything its card holds under it. */
 .heard-field {
   position: relative;
   display: flex;
@@ -144,7 +137,6 @@
 }
 
 .text-display::-webkit-scrollbar { display: none; }
-.text-display:focus { border-color: var(--accent); }
 .text-display::placeholder { color: var(--text-muted); font-weight: 400; }
 
 /* ── Icon Buttons ── */
@@ -170,26 +162,26 @@
 }
 
 
-/* The same button painted small enough to ride a border — see `.topbar-clear`.
-   The bordered `--cell` square is dropped for the ground the strip paints, and
-   the invisible hit area is the one `.mode-btn` carries, since this is now the
-   same kind of control sitting in the same kind of place. */
-.icon-btn.on-border {
-  width: 1.5rem;
-  height: 1.5rem;
+/* The same button in the card's row — see `.message-tools`. The bordered
+   `--cell` square is dropped for the card's own ground, and the invisible hit
+   area is the one `.mode-btn` carries, since this is the same kind of control
+   sitting in the same row. */
+.icon-btn.in-card {
+  width: 2rem;
+  height: 2rem;
   margin: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 0.6rem;
   background: transparent;
 }
 
-.icon-btn.on-border::before {
+.icon-btn.in-card::before {
   content: '';
   position: absolute;
-  inset: -8px;
+  inset: -6px;
 }
 
-.icon-btn.on-border svg {
+.icon-btn.in-card svg {
   width: 1.2rem;
   height: 1.2rem;
 }
@@ -199,8 +191,14 @@
    by size: every control on the two boxes' borders is the microphone's height,
    so the border furniture reads as one set. It was a 3rem glyph for a while.
    Quiet in the muted grey with nothing to say, like everything else here. */
-.icon-btn.on-border.is-primary { color: var(--accent); }
-.icon-btn.on-border.is-primary:disabled { color: var(--text-muted); }
+.icon-btn.in-card.is-primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+.icon-btn.in-card.is-primary:disabled {
+  background: var(--card-edge);
+  color: var(--text-muted);
+}
 
 .icon-btn svg {
   width: 22px;

@@ -18,7 +18,7 @@
    meaning of — but on the box it has to be the border rather than an outline
    over it: the box already has one, and an outline sits just outside it, so the
    two read as a double line drawn around a single box. */
-.app.edit-mode .text-display {
+.app.edit-mode .message-wrap {
   border-style: dashed;
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
@@ -26,7 +26,7 @@
 /* Focus still brightens it, and has to be said again here to outrank the rule
    above. The style says which mode the board is in, the colour says where the
    typing will go. */
-.app.edit-mode .text-display:focus { border-color: var(--accent); }
+.app.edit-mode .message-wrap:focus-within { border-color: var(--accent); }
 
 /* The dwell progress everywhere else is a child element; a textarea cannot hold
    one, so it is painted as a background layer instead. Same bar, no wrapper —
@@ -46,74 +46,32 @@
   to { background-size: 100% 3px; }
 }
 
-/* Room for the lower half of the strip — half its height, and the same number
-   the strip is positioned by. Only in edit mode, so it is a cost editing pays
-   and talking does not: the bar is 8px taller there and unchanged everywhere
-   else. */
-.app.edit-mode {
-  --edit-bar-inset: 1.25rem;
-}
+/* What is being edited and where it is filed, **in a row of the card's own,
+   below its controls** — see `topbar.tsx`. Below rather than above, so turning
+   edit mode on grows the card downwards and nothing in the row of controls moves
+   under the pointer that turned it on. Ruled off from them by the card's edge
+   colour, since it is about the phrase rather than a thing to do to it.
 
-.app.edit-mode .topbar { padding-bottom: var(--edit-bar-inset); }
-
-/* The other strip, on the lower border of the message box, and centred on it
-   exactly as `.topbar-modes` is on the upper one. The words are in the box; this
-   is everything else a phrase has, which is two things — where it is filed and
-   how it sounds.
-
-   Riding the border rather than sitting in a band below it is the same bargain
-   the modes strike above: what it costs is the bottom-centre of the box, and
-   what it saves is the grid. Opaque black for the same reason too — it sits *on*
-   the box, and the border and the typed text showed through the gaps.
-
-   **The inset is one number used twice**, and it has to stay that way. It is
-   `.topbar` padding-bottom in edit mode, which is where the box's lower border
-   falls; it is this strip's `bottom`, which with `translateY(50%)` is where the
-   strip's own centre line falls. Equal is what puts the strip *on* the border.
-   Written as two numbers they drifted apart immediately — the padding grew to
-   make room and the strip stayed where it was, leaving it centred 20px below
-   the border it was meant to be riding.
-
-   The number is **half the strip's height**, which is why the height is stated
-   here rather than left to the content: half is what puts the strip's lower
-   edge exactly on the bottom of the bar, so it reaches the border without
-   hanging over the category tabs. Both are in rem, so the strip and the room
-   made for it grow together with the type inside them. */
+   **It never scrolls**, which it once did: sideways, on a phone, with nothing a
+   gaze could use to do it. The title is what gives way, down to an ellipsis,
+   and the category trigger never leaves the row. */
 .edit-bar {
-  position: absolute;
-  bottom: var(--edit-bar-inset);
-  height: 2.5rem;
-  left: 50%;
-  transform: translate(-50%, 50%);
-  /* Above the app, below the panel and the dialogs — the same layer the modes
-     sit on, since the two strips are the same kind of thing. */
-  z-index: 90;
-
   display: flex;
   align-items: center;
   gap: 8px;
-  /* **It never scrolls**, which it used to: sideways, on a phone, with nothing a
-     gaze could use to do it — so the category trigger at its far end was the
-     one control in the app a dwell user could see the edge of and not reach.
-     The voice has gone to the box's corner since, which left a title and one
-     trigger; the title is what gives way now, down to an ellipsis, and the
-     control never leaves the strip. */
-  max-width: calc(100% - 20px);
+  min-width: 0;
   overflow: hidden;
-
-  background: var(--border-ground);
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 0.5rem 0.75rem 0.6rem;
+  border-top: 1px solid var(--card-edge);
 }
 
 
-/* Tighter than the same control in a settings row: this one is riding a border
-   rather than sitting in a panel, and every pixel of it is a pixel of grid. */
+/* Tighter than the same control in a settings row: this one is in the message
+   card rather than in a panel, and every pixel of it is a pixel of grid. */
 .edit-bar .picker-trigger {
   padding: 5px 9px;
   font-size: 0.9rem;
-  /* The strip's ground, not a second one laid on it — two fifteen-per-cent greys
-     stacked would be a different grey from every other control on the border. */
+  /* The card's ground, not a second one laid on it. */
   background: transparent;
 }
 
@@ -126,7 +84,7 @@
   white-space: nowrap;
   padding-left: 2px;
   /* What gives way on a narrow screen, so the trigger beside it never does. The
-     whole of it is still read out: the strip carries its own label. */
+     whole of it is still read out: the row carries its own label. */
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -137,8 +95,8 @@
    there. */
 .edit-bar-title.is-warning { color: var(--rest); }
 
-/* An emergency phrase has no category to choose, and the strip says so rather
-   than dropping the control — a strip that loses one between one phrase and the
+/* An emergency phrase has no category to choose, and the row says so rather
+   than dropping the control — a row that loses one between one phrase and the
    next moves everything beside it. */
 .edit-bar-fixed {
   padding: 5px 9px;
@@ -151,7 +109,7 @@
 }
 
 /* The same control as the voice trigger beside it, and deliberately the same
-   shape: two choices on one strip, each opening a full-screen grid, and no
+   shape: two choices in one row, each opening a full-screen grid, and no
    reason for anybody to learn two. */
 .category-trigger { width: 132px; }
 

@@ -941,6 +941,10 @@ export function TalkScreen({
   const { open: listening, toggle: toggleMic } = listener
   const toggleListen = useCallback(() => {
     if (!listening && !settings.autoSpeak) setMode('speak')
+    // The question's card opens above the message's on a narrow screen and
+    // beside it on a wide one, and either way the message card — and the
+    // microphone in its row — moves out from under the pointer that rested on it.
+    holdDwells()
     toggleMic()
   }, [listening, settings.autoSpeak, setMode, toggleMic])
 

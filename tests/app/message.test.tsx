@@ -432,170 +432,71 @@ describe('the message box growing', () => {
 })
 
 /**
- * The slot that empties the box rides the **message box's** lower border.
- *
- * It was a full-size button in the rail beside the box, and moving it onto a
- * border is the bargain the mode strip already struck on the upper one: the board
- * gets the width back, and what it costs is a smaller painted control overlapping
- * the box with an invisible area around it a tracker can still hit.
+ * **The message box is a card**, the shape of a chat app's input box: the words,
+ * and inside it along the bottom a row of everything that works on them. At the
+ * start of the row, what the board is doing — the microphone, then the three
+ * modes; at the end, what is done with the words — empty, copy, paste, the
+ * language and the voice, and last the one the board exists to reach.
  */
-/**
- * **The modes never sit left of the message box.** They are centred on the bar,
- * where Rest is looked for without looking; with the question beside the answer
- * on a wide screen, the bar's centre is over the gap between the two boxes and
- * edit sat on nothing. The stylesheet takes whichever is further right of the
- * bar's centre and the place that puts the strip's left edge on the box's, and
- * the bar measures the two numbers that second place needs.
- *
- * jsdom lays nothing out, so the geometry is supplied — the bargain the paging
- * tests make. What is under test is what the app does with it.
- */
-describe('the mode strip', () => {
-  const rule = () => {
-    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
-    const at = css.slice(css.indexOf('.topbar-modes {'))
-    return at.slice(0, at.indexOf('}'))
-  }
+describe('the card', () => {
+  const start = () => $$('.message-tools-start [role="button"]').map(b => b.getAttribute('aria-label'))
+  const end = () =>
+    $$('.message-tools-end [role="button"], .message-tools-end button').map(b => b.getAttribute('aria-label'))
 
-  it('is held right of the message box’s left edge', () => {
-    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
-      if (this.classList.contains('topbar')) return new DOMRect(0, 0, 1280, 80)
-      if (this.classList.contains('message-wrap')) return new DOMRect(552, 16, 720, 56)
-      return new DOMRect(0, 0, 0, 0)
-    })
-    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (this: HTMLElement) {
-      return this.classList.contains('topbar-modes') ? 220 : 0
-    })
-    renderApp()
-
-    const bar = $('.topbar')!
-    expect(bar.style.getPropertyValue('--box-left'), 'where the box starts was not measured').toBe('552px')
-    expect(bar.style.getPropertyValue('--modes-half')).toBe('110px')
-    // The further right of the two: the bar's centre, or the strip's left edge
-    // on the box's. Pushed only as far as it has to go, not re-centred.
-    expect(rule(), 'the strip may be centred left of the box').toMatch(
-      /left: *max\(50%, *calc\(var\(--box-left, *0px\) \+ var\(--modes-half, *0px\)\)\)/,
-    )
-    vi.restoreAllMocks()
-  })
-
-  // Where nothing can be measured nothing is set, and the strip stays on the
-  // bar's centre — the first paint, and jsdom.
-  it('stays on the bar’s centre where nothing can be measured', () => {
-    renderApp()
-    expect($('.topbar')!.style.getPropertyValue('--box-left')).toBe('')
-  })
-})
-
-describe('the slot that empties the box', () => {
-  const strip = () => $('.message-wrap > .topbar-clear')
-
-  /**
-   * **Nothing acts on the message from outside the box any more.**
-   *
-   * What becomes of it sits on its upper border at the right; the one that
-   * empties it sits at the left of the lower one, with copy and paste beside it. What is left in the rail beside the box
-   * is the menu and the keyboard, which are about the app rather than about the
-   * message — and the board gets the whole of the width that came back.
-   *
-   * The strips hang off `.message-wrap` rather than off the pair of boxes: they
-   * act on the message, and on a wide screen with listen mode open the pair's
-   * corners belong to the question.
-   */
   // The keyboard is offered only where it has been asked for — see *Peri's own
   // keyboard* — so on a board that has not asked, the menu is the whole rail.
-  it('leaves nothing in the rail but the menu, and the keyboard where it is offered', () => {
+  it('leaves nothing outside it but the menu, and the keyboard where it is offered', () => {
     renderApp()
     expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual(['Open menu'])
+    expect($('.message-wrap > .message-tools'), 'the row is not inside the card').not.toBeNull()
 
     renderApp({ keyboard: true })
     expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual([
       'Open menu',
       'Show the keyboard',
     ])
+  })
 
-    for (const strip of ['.topbar-actions', '.topbar-clear']) {
-      expect($(`.message-wrap > ${strip}`), `${strip} is not on the message box`).not.toBeNull()
-    }
+  it('puts what the board is doing at the start of its row, and what is done with the words at the end', () => {
+    renderApp()
+    // The microphone comes first where the browser can listen — see
+    // `app/listen.test.tsx`; this one cannot.
+    expect(start()).toEqual(['Edit phrases', expect.stringMatching(/rest/i), expect.stringMatching(/auto-speak/i)])
+    expect(end()).toEqual(['Clear', 'Copy to clipboard', 'Paste from clipboard', 'Speak'])
+    expect(
+      $('.message-tools-end > .topbar-actions:last-child .icon-btn:last-child')!.classList.contains('is-primary'),
+    ).toBe(true)
   })
 
   /**
-   * **Each of the box's four borders holds one kind of thing.**
-   *
-   * Upper: a mode in the middle, the microphone at the left, what becomes of the
-   * message at the right. Lower: the one that empties it at the left, with copy
-   * and paste beside it, and
-   * the language and the voice at the right — neither about the message and
-   * neither urgent, set once and left, which is the border to be on.
-   *
-   * Asserted against the text of the stylesheet, which is all jsdom allows —
-   * whether they land on the lines is a question for the deploy preview.
+   * **The same places in edit mode**, meaning what the mode says: start a new
+   * phrase where clear was, paste where it was, and delete and save at the end.
+   * What is being edited is a row of the card's own **below** the controls, so
+   * turning the mode on grows the card downwards and moves nothing in the row
+   * under the pointer that turned it on.
    */
-  it('puts the two value controls on the lower border and the actions on the upper', () => {
-    const css = stylesheet()
-    const edge = (selector: string) => {
-      const rule = css.slice(css.indexOf(`${selector} {`))
-      const block = rule.slice(0, rule.indexOf('}'))
-      return ['top', 'bottom'].filter(side => new RegExp(`^ *${side}: `, 'm').test(block))
-    }
-
-    expect(edge('.topbar-actions'), 'speak left the upper border').toEqual(['top'])
-    expect(edge('.topbar-listen'), 'the microphone left the upper border').toEqual(['top'])
-    expect(edge('.topbar-choices'), 'the language and the voice are not on the lower border').toEqual(['bottom'])
-    expect(edge('.topbar-clear'), 'clear, copy and paste are not on the lower border').toEqual(['bottom'])
-  })
-
-  it('rides the box border rather than sitting in the rail beside it', () => {
+  it('keeps its row in edit mode, with what is being edited below it', () => {
     renderApp()
-    expect(strip(), 'it is not on the box at all').not.toBeNull()
-    expect(strip()!.querySelector('.icon-btn.on-border')).not.toBeNull()
-    // And nothing of it is left in the rail, which is the width the board gets
-    // back — a button both here and there would be the same control twice.
-    expect(iconBtn('Clear')!.closest('.topbar-clear')).not.toBeNull()
-  })
-
-  /**
-   * **It follows the message box, not the pair of boxes.**
-   *
-   * The microphone and the two value controls hang off the wrapper, which is the
-   * same size in the same place whether listen mode is open or not — that is what
-   * holds them at one point on screen. This one cannot do that: on a wide screen
-   * with listen mode open, the wrapper's left edge is the *question's* left edge,
-   * and a Clear riding that border would be a Clear on somebody else's words.
-   */
-  it('hangs off the message box rather than off the pair of them', () => {
-    renderApp()
-    const wrap = strip()!.parentElement!
-    expect(wrap.querySelector(':scope > .text-display'), 'it is not on the message box').not.toBeNull()
-    expect(wrap.querySelector(':scope > .heard-wrap'), 'the question is in here too').toBeNull()
-  })
-
-  /**
-   * It means two things and sits in one place, which is what makes the mode a
-   * change of meaning rather than a change of layout — the same rule the three
-   * controls on the right of this bar follow.
-   */
-  it('keeps its place in edit mode, where it starts a new phrase instead', () => {
-    renderApp()
-    expect(iconBtn('Clear')!.closest('.topbar-clear')).not.toBeNull()
-    expect(iconBtn('Start a new phrase'), 'the phrase controls are showing already').toBeUndefined()
-
     click(editToggle())
-    expect(iconBtn('Clear'), 'the message controls are still showing').toBeUndefined()
-    expect(iconBtn('Start a new phrase')!.closest('.topbar-clear')).not.toBeNull()
+    expect(end()).toEqual([
+      'Start a new phrase',
+      'Paste from clipboard',
+      expect.stringMatching(/^Language this phrase's voice is for/),
+      expect.stringMatching(/^Voice for this phrase/),
+      'Delete phrase',
+      'Save phrase',
+    ])
+    expect($('.message-tools + .edit-bar'), 'the edit row is not below the controls').not.toBeNull()
+    expect($('.message-wrap > .edit-bar'), 'the edit row is not inside the card').not.toBeNull()
   })
 
   /**
-   * **Every control on the two boxes' borders stands on the one ground, at the
-   * microphone's size.** They were black grounds, then a set of different sizes —
-   * speak at twice everything else, the heard box's tools a little larger than
-   * the rest. One grey at fifteen per cent and one height now, so the border
-   * furniture reads as one set rather than as things added one at a time.
-   *
-   * Asserted against the text of the stylesheet, which is all jsdom allows —
-   * whether it looks right is a question for the deploy preview.
+   * Its look, asserted against the text of the stylesheet, which is all jsdom
+   * allows — whether it looks right is `e2e/layout.spec.ts`'s question and an
+   * eye's. A ground of its own, rounded, and the box inside it bare: the card
+   * is the box, so its focus is said on the card's edge.
    */
-  it('stands every border control on one grey ground, at the microphone’s size', () => {
+  it('draws a rounded card on a ground of its own, with the box inside it bare', () => {
     const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
     const block = (selector: string) => {
       const rule = css.slice(css.indexOf(`${selector} {`))
@@ -604,35 +505,33 @@ describe('the slot that empties the box', () => {
     const value = (selector: string, prop: string) =>
       block(selector).match(new RegExp(`\\b${prop}: *([^;]+);`))?.[1]
 
-    // Grey at fifteen per cent *mixed into the bar*, not laid over it: these all
-    // sit on a border, and a see-through ground let the box's line run through
-    // the glyphs themselves.
-    expect(css, 'the ground is not a fifteen-per-cent grey').toMatch(
-      /--border-ground: *color-mix\(in srgb, rgb\(128 128 128\) 15%, var\(--surface\)\)/,
-    )
-    for (const strip of [
-      '.topbar-modes',
-      '.topbar-listen',
-      '.topbar-clear',
-      '.topbar-actions',
-      '.edit-bar',
-      '.heard-btn',
-      '.heard-live',
-      '.choice-btn',
-    ]) {
-      expect(value(strip, 'background'), `${strip} stands on a ground of its own`).toBe('var(--border-ground)')
-    }
+    expect(value('.message-wrap', 'background')).toBe('var(--card-ground)')
+    expect(value('.message-wrap', 'border-radius')).toBe('1.25rem')
+    expect(value('.heard-wrap', 'background'), 'the question is not a card too').toBe('var(--card-ground)')
+    expect(value('.text-display', 'background')).toBe('transparent')
+    expect(value('.text-display', 'border')).toBe('none')
+    expect(css).toMatch(/\.message-wrap:focus-within \{ border-color: var\(--card-focus\); \}/)
 
-    // The microphone is a mode toggle; everything else on a border is measured by it.
+    // Every control in either card is the microphone's size, and draws its glyph at the microphone's.
     const mic = { box: value('.mode-btn', 'height'), glyph: value('.mode-btn svg', 'height') }
-    expect(value('.icon-btn.on-border', 'height')).toBe(mic.box)
-    expect(value('.icon-btn.on-border svg', 'height')).toBe(mic.glyph)
-    expect(value('.heard-btn svg', 'height'), 'the heard box draws its glyphs at another size').toBe(mic.glyph)
-    expect(value('.heard-live', 'height'), 'the live light is not the tools’ size').toBe('var(--heard-tool)')
-    expect(value('.heard-live svg', 'height'), 'the live light draws its glyph at another size').toBe(mic.glyph)
-    expect(block('.icon-btn.on-border.is-primary'), 'speak is sized apart from the rest again').not.toMatch(
-      /(width|height):/,
+    expect(value('.icon-btn.in-card', 'height')).toBe(mic.box)
+    expect(value('.icon-btn.in-card svg', 'height')).toBe(mic.glyph)
+    expect(value('.heard-btn svg', 'height')).toBe(mic.glyph)
+    expect(block('.icon-btn.in-card.is-primary'), 'speak is filled, as a chat app fills send').toMatch(
+      /background: *var\(--accent\)/,
     )
+  })
+
+  // It means two things and sits in one place, which is what makes the mode a
+  // change of meaning rather than a change of layout.
+  it('keeps the slot that empties the box in its place in edit mode, where it starts a new phrase instead', () => {
+    renderApp()
+    expect(iconBtn('Clear')!.closest('.topbar-clear')).not.toBeNull()
+    expect(iconBtn('Start a new phrase'), 'the phrase controls are showing already').toBeUndefined()
+
+    click(editToggle())
+    expect(iconBtn('Clear'), 'the message controls are still showing').toBeUndefined()
+    expect(iconBtn('Start a new phrase')!.closest('.topbar-clear')).not.toBeNull()
   })
 })
 
@@ -649,36 +548,6 @@ describe('pasting by dwell', () => {
       vi.advanceTimersByTime(50)
     })
   }
-
-  /**
-   * **Copy and paste ride the lower border, to the right of the slot that
-   * empties the box** — the three that work on the text where it stands, none
-   * of which sends it anywhere. The upper right is what becomes of it: speak, or
-   * in edit mode delete and save. Paste is in the same place in both modes,
-   * meaning the same thing either way; copy is not offered in edit mode.
-   */
-  it('sits to the right of clear and undo, with copy, on the lower border', () => {
-    renderApp()
-    const lower = () => $$('.topbar-clear .icon-btn').map(b => b.getAttribute('aria-label'))
-    const upper = () => $$('.topbar-actions .icon-btn').map(b => b.getAttribute('aria-label'))
-    expect(lower()).toEqual(['Clear', 'Copy to clipboard', 'Paste from clipboard'])
-    expect(upper()).toEqual(['Speak'])
-
-    // Afterwards the slot is Undo, and the two stay to the right of it.
-    writeIn(composer(), 'Hello')
-    click(iconBtn('Clear'))
-    expect(lower()).toEqual(['Undo', 'Copy to clipboard', 'Paste from clipboard'])
-
-    // The end of the upper row is what the mode is for, and it is the primary.
-    const primary = () => $('.topbar-actions .icon-btn:last-child')!
-    expect(primary().getAttribute('aria-label')).toBe('Speak')
-    expect(primary().classList.contains('is-primary'), 'speak is not the primary').toBe(true)
-
-    click(editToggle())
-    expect(lower()).toEqual(['Start a new phrase', 'Paste from clipboard'])
-    expect(upper()).toEqual(['Delete phrase', 'Save phrase'])
-    expect(primary().classList.contains('is-primary'), 'save is not the primary').toBe(true)
-  })
 
   // Never disabled: what is on the clipboard is not this app's to know until it
   // asks, so a paste with nothing behind it says so rather than being greyed out.

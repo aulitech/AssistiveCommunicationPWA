@@ -16,9 +16,9 @@
 // put a caret in the middle of a sentence — so the same `useCaretDwell` that
 // made the message box reachable makes this one correctable.
 //
-// Its controls ride the lower border rather than sitting in a row beneath it, so
-// the box costs the board the height of a box and not the height of a box and a
-// toolbar. There is no button for the microphone: clearing the box starts it and
+// It is a card like the message box, its controls in a row inside it under the
+// words — see docs/decisions/the-message-card.md. There is no button for the
+// microphone: clearing the box starts it and
 // undo stops it, because emptying this box has one reason behind it — what came
 // back was wrong — and what somebody wants next is to be listened to again.
 // The third is the one that reaches anywhere else in the app: it fills the board
@@ -131,17 +131,8 @@ export function HeardBox({
         <BoxScroll edges={edges} what="question" />
       </div>
 
-      {/* The three controls, riding the box's lower border rather than sitting
-          in a row under it — the bargain every strip on the message box strikes,
-          and worth more here than anywhere: this box is the one thing between
-          the question and the board somebody answers it from.
-
-          Each carries its own black ground, because a control painted on a
-          border with nothing behind it shows the border and the words through
-          the gaps — the reason `.topbar-modes` has one. A ground each rather
-          than one pill around all three, since the two rem between them is a
-          target-separation number and a pill that wide would not fit the
-          narrower pane the wide-screen split gives this box. */}
+      {/* Its tools, in a row inside the card under the words — as the message
+          card's are, and as far apart, since each is a gaze target. */}
       <div className="heard-tools">
         {/* First, and the same two glyphs the message box empties itself with.
             One box is what somebody is being asked and the other is what they
@@ -177,21 +168,20 @@ export function HeardBox({
           </HeardButton>
         )}
 
-        {/* **The microphone is live**, in the corner the tools leave free, and
+        {/* **The microphone is live**, at the end of the row the tools leave free, and
             drawn only while sound is actually coming in — after the browser has
             been given the microphone, not when it was asked for it — so there
             is nothing to read it as but *this is being heard now*.
 
             Its capsule fills and empties like a level meter, which is the whole
             of the animation: nothing outside the glyph moves, and its ground
-            stays solid, so the box's border under it never shows through or
-            glows. Still under reduced motion.
+            stays put, so nothing around it glows. Still under reduced motion.
 
             Not a control: there is nothing to do to it that the controls beside
             it do not already do, and a target that did nothing would be a dwell
-            spent for nothing. In this row rather than positioned over the
-            corner, so a box too narrow for all four pushes it along rather than
-            laying it over a control. */}
+            spent for nothing. In the row rather than positioned over it, so a
+            card too narrow for all four pushes it along rather than laying it
+            over a control. */}
         {heard.hearing && (
           <span className="heard-live" role="img" aria-label="The microphone is on">
             <MicIcon live />

@@ -34,13 +34,10 @@ describe('resting', () => {
   }
   const startResting = () => click(rest())
 
-  // On the message box rather than over the phrases. It used to be the only
-  // thing in that strip and cost the grid nothing; edit and auto-speak have
-  // joined it there and the strip is taller for them, but the phrases still
-  // start below the topbar rather than under any of it.
-  it('sits in the mode strip on the message box, not over the phrases', () => {
+  // Among the modes in the message card's row, rather than over the phrases.
+  it('sits among the modes in the message card, not over the phrases', () => {
     renderApp()
-    expect($('.topbar > .topbar-modes > .rest-btn')).not.toBeNull()
+    expect($('.message-wrap .message-tools .topbar-modes > .rest-btn')).not.toBeNull()
     expect($('.grid-area .rest-btn')).toBeNull()
   })
 
