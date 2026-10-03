@@ -31,14 +31,16 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The category tabs, and below them the grid of phrases, with arrows down the right for moving through it.',
         'The blue bar at the bottom, for the things that cannot wait.',
       ),
-      text('Everything the message box needs is inside it — on the line you write on, and in a row under it:'),
+      text(
+        'Everything the message box needs is inside it — in a row along its top, and on the line you write on under that:',
+      ),
       list(
+        'At the far left of the top row: :copy: and :paste:.',
+        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then the three modes — :edit:, the Rest bar, and :auto-speak:.',
+        'At the right of the top row, on a wide screen: the language and the voice.',
         'At the left end of the line: :clear:, which empties the box — and afterwards offers :undo:.',
-        'At the right end of the line, once there is something in the box: :speak:, filled in green, because it is the one the whole board exists to reach.',
-        'In the middle of the row: :listen:, which opens a second box for what somebody is saying to you, then the three modes — :edit:, the Rest bar, and :auto-speak:.',
-        'At the far left of the row: :copy: and :paste:.',
-        'At the right of the row, on a wide screen: the language and the voice.',
-        'On a narrow screen the modes have the row to themselves, and the rest go on a row under them.',
+        'Right after the last word you write: :speak:, filled in green, because it is the one the whole board exists to reach. It is there once there is something in the box, and moves along as the words do.',
+        'On a narrow screen the modes have the top row to themselves, and the rest go on a row under them.',
       ),
       text(
         ':menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — and :sign-out: Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
@@ -119,9 +121,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The box grows as the message does, up to five lines. Past that, arrows appear inside its right edge to scroll it.',
       ),
       text(
-        'When there is something in the box, :speak: appears at the right end of its line, filled in green. Rest on it to say the message aloud.',
+        'When there is something in the box, :speak: appears right after the last word, filled in green, and moves along as you add more. Rest on it to say the message aloud.',
       ),
-      text('At the far left of the row under the line are the two for the clipboard:'),
+      text('At the far left of the row along the top of the box are the two for the clipboard:'),
       list(
         ':copy: puts the message on the clipboard to send somewhere else.',
         ':paste: brings in whatever was last copied, at the point the caret is sitting — into the message, or into a phrase being written.',
@@ -258,11 +260,11 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text('The controls on the box mean something else while it is on, in the same places:'),
       list(
-        ':save: at the right end of the line saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for. Like Speak, it is there once there is something to save.',
+        ':save:, right after the last word, saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for. Like Speak, it is there once there is something to save.',
         ':delete:, at the far right of the row, on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
         ':add: at the left end of the line starts a new phrase — where :clear: is the rest of the time. :paste: stays where it is; :copy: is not there in edit mode.',
-        'A line at the bottom of the box, under its row of controls, says what is being edited, and which categories it is in. Rest on :choose: beside them to open the categories. Tick as many as you like — each ticked one shows :ticked: — or none to keep it in Library alone.',
+        'A line at the bottom of the box, under the words, says what is being edited, and which categories it is in. Rest on :choose: beside them to open the categories. Tick as many as you like — each ticked one shows :ticked: — or none to keep it in Library alone.',
         'Done on the categories saves straight away. A new phrase, or a translation or answer you are keeping, is saved whole. For one already on the board only the categories are, and new words or a new voice still wait for :save:.',
         "The language and the voice in the row become this phrase's own: the voice it is said in, and the language that voice is for.",
       ),
@@ -456,7 +458,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         ':clear:, at the left end, empties it **and starts listening again**, which is what you want when what came back was wrong. There is no separate button for the microphone.',
         ':undo: puts the words back and stops listening, if you cleared it by mistake.',
-        ':suggest:, at the right end once there is a question, offers answers to it, as cells on the board to choose between.',
+        ':suggest:, right after the last word of the question once there is one, offers answers to it, as cells on the board to choose between.',
       ),
       text(
         'Your browser does the listening, not Peri. Most browsers send what the microphone picks up to a speech service of their own to turn it into words — the same one behind dictation elsewhere on your device. That is between you and your browser, and it does not pass through us.',

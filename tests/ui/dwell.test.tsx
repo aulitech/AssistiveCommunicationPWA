@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, act } from '@testing-library/react'
 import {
   SETTLE_MS,
+  forgetPointerStream,
   holdDwells,
   holdDwellsUntilMoved,
+  holdIfUnderPointer,
   onDwellActivation,
   releaseDwells,
   useDwellControl,
@@ -303,6 +305,72 @@ describe('the settle after the screen moves', () => {
  * A mouse is silent at rest and must never be caught by any of this, which is
  * what most of these tests are about.
  */
+/**
+ * **A control that follows something else around** — Speak, after the last word
+ * typed — held when it lands under a pointer that is resting there, and only
+ * then. The pointer's place is remembered however long it has been still, since
+ * a resting pointer is exactly the one the guard is for.
+ */
+describe('a control that moves under a resting pointer', () => {
+  const at = (left: number, top: number) =>
+    vi.spyOn(probe(), 'getBoundingClientRect').mockReturnValue({
+      left,
+      top,
+      right: left + 32,
+      bottom: top + 32,
+      width: 32,
+      height: 32,
+      x: left,
+      y: top,
+      toJSON: () => ({}),
+    })
+  const pointerTo = (x: number, y: number) => fireEvent.pointerMove(window, { clientX: x, clientY: y })
+  afterEach(() => forgetPointerStream())
+
+  it('is held when it lands where the pointer is resting, until the pointer moves', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    pointerTo(110, 110)
+    // Still for a good while — long past the stream the stall check reads.
+    advance(5000)
+
+    at(100, 100)
+    holdIfUnderPointer(probe())
+    fireEvent.pointerEnter(probe())
+    advance(2000)
+    expect(onActivate, 'it fired under a pointer it had arrived under').not.toHaveBeenCalled()
+
+    fireEvent.pointerLeave(probe())
+    pointerTo(160, 160)
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  // Its own invisible margin counts as under the pointer.
+  it('counts the margin round it as under the pointer', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    pointerTo(96, 110)
+    at(100, 100)
+    holdIfUnderPointer(probe())
+    fireEvent.pointerEnter(probe())
+    advance(2000)
+    expect(onActivate).not.toHaveBeenCalled()
+  })
+
+  it('holds nothing when it lands anywhere else', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    pointerTo(400, 400)
+    at(100, 100)
+    holdIfUnderPointer(probe())
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('the pointer going quiet', () => {
   /** A tracked pointer: a move every 33ms, drifting a pixel, going nowhere. */
   const streamInPlace = (target: Element | Window, ms: number) => {

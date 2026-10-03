@@ -432,11 +432,11 @@ describe('the message box growing', () => {
 })
 
 /**
- * **The message box is a card**, the shape of a chat app's input box. Its first
- * line is the one the words are written on: the slot that empties the box at its
- * left end, the box, and Speak at its right end — drawn only once there are
- * words. Under it, a row: the clipboard at the far left, the modes centred, the
- * language and the voice at the right.
+ * **The message box is a card**, the shape of a chat app's input box. On top, a
+ * row: the clipboard at the far left, the modes centred, the language and the
+ * voice at the right. Under it, the line the words are written on: the slot that
+ * empties the box at its left end, then the box, with Speak **right after the
+ * last word** — drawn only once there are words.
  */
 describe('the card', () => {
   const labels = (sel: string) =>
@@ -457,20 +457,33 @@ describe('the card', () => {
     ])
   })
 
-  it('puts clear at the left end of the line, and speak at its right once there are words', () => {
+  it('puts the row above the line, and the line under it', () => {
+    renderApp()
+    expect([...$('.message-wrap')!.children].map(el => el.className.split(' ')[0])).toEqual([
+      'message-tools',
+      'message-line',
+    ])
+  })
+
+  // Where the words end is the browser's to say — `e2e/layout.spec.ts` holds
+  // Speak to it. What jsdom can see is that it stands in the box, after the
+  // words, and only once there are some.
+  it('puts clear at the left end of the line, and speak after the words once there are some', () => {
     renderApp()
     const line = () => [...$('.message-line')!.children].map(el => el.className.split(' ')[0])
-    expect(line()).toEqual(['topbar-clear', 'message-field', 'topbar-actions'])
+    expect(line()).toEqual(['topbar-clear', 'message-field'])
     expect(labels('.message-line > .topbar-clear')).toEqual(['Clear'])
-    expect(labels('.message-line > .topbar-actions'), 'Speak is drawn with nothing to say').toEqual([])
+    expect(labels('.message-field > .after-text'), 'Speak is drawn with nothing to say').toEqual([])
 
     writeIn(box(), 'Hello')
-    expect(labels('.message-line > .topbar-actions')).toEqual(['Speak'])
+    expect(labels('.message-field > .after-text')).toEqual(['Speak'])
     expect(iconBtn('Speak')!.classList.contains('is-primary')).toBe(true)
+    // The never-seen copy it is placed by holds the same words.
+    expect($('.message-field > .after-text-mirror')!.textContent).toBe('Hello')
 
     click(iconBtn('Clear'))
     expect(labels('.message-line > .topbar-clear')).toEqual(['Undo'])
-    expect(labels('.message-line > .topbar-actions')).toEqual([])
+    expect(labels('.message-field > .after-text')).toEqual([])
   })
 
   // The microphone comes first among the modes where the browser can listen —
@@ -499,9 +512,9 @@ describe('the card', () => {
     renderApp()
     click(editToggle())
     expect(labels('.message-line > .topbar-clear')).toEqual(['Start a new phrase'])
-    expect(labels('.message-line > .topbar-actions')).toEqual([])
+    expect(labels('.message-field > .after-text')).toEqual([])
     writePhrase('Something new')
-    expect(labels('.message-line > .topbar-actions')).toEqual(['Save phrase'])
+    expect(labels('.message-field > .after-text')).toEqual(['Save phrase'])
 
     expect(labels('.tools-clipboard')).toEqual(['Paste from clipboard'])
     expect(labels('.tools-values')).toEqual([
@@ -509,7 +522,7 @@ describe('the card', () => {
       expect.stringMatching(/^Voice for this phrase/),
       'Delete phrase',
     ])
-    expect($('.message-tools + .edit-bar'), 'the edit row is not below the controls').not.toBeNull()
+    expect($('.message-line + .edit-bar'), 'the edit row is not below the line').not.toBeNull()
     expect($('.message-wrap > .edit-bar'), 'the edit row is not inside the card').not.toBeNull()
   })
 

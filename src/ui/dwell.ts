@@ -131,9 +131,16 @@ interface Move {
 let moves: Move[] = []
 let lastMoveAt = 0
 let streamingSeenAt = 0
+/**
+ * Where the pointer was last seen, **kept however long it has been still** —
+ * `moves` is emptied by a gap, which is exactly when a resting pointer's place
+ * matters most. See `holdIfUnderPointer`.
+ */
+let lastPointer: { x: number; y: number } | null = null
 
 function notePointerMove(e: PointerEvent) {
   const t = Date.now()
+  lastPointer = { x: e.clientX, y: e.clientY }
   // Aimed somewhere else, so whatever is under the pointer now is under it on
   // purpose. Measured from where the screen moved, not from the previous event:
   // a pointer crosses a cell in three-pixel steps and nothing would ever exceed
@@ -168,6 +175,7 @@ function pointerStalled(): boolean {
 /** Test seam: the stream is module state, exactly as the settle guard is. */
 export function forgetPointerStream() {
   moves = []
+  lastPointer = null
   lastMoveAt = 0
   streamingSeenAt = 0
 }
@@ -240,8 +248,32 @@ let heldAt = { x: 0, y: 0 }
  */
 export function holdDwellsUntilMoved() {
   heldUntilMoved = true
-  const last = moves[moves.length - 1]
+  const last = moves[moves.length - 1] ?? lastPointer
   heldAt = last ? { x: last.x, y: last.y } : { x: 0, y: 0 }
+}
+
+/**
+ * **A control that has just moved, held if it moved under the pointer.**
+ *
+ * For a control that follows something else around rather than staying put —
+ * Speak, which stands right after the last word typed and so moves with every
+ * letter. Arriving under a pointer that is resting there is the hazard
+ * `holdDwellsUntilMoved` exists for: a rest on the words would become a rest on
+ * Speak, and the message would be said by nobody. So when it lands where the
+ * pointer is — its own invisible margin included — nothing may be chosen until
+ * the pointer moves; anywhere else, nothing is held and nobody waits.
+ *
+ * **And when it goes from under the pointer**, given the place it stood: Save
+ * is gone the moment the phrase is saved, and what is left under a pointer that
+ * was resting on it is the text box, which a rest puts the caret in.
+ */
+export function holdIfUnderPointer(target: Element | DOMRect, margin = 6) {
+  if (!lastPointer) return
+  const r = target instanceof Element ? target.getBoundingClientRect() : target
+  const { x, y } = lastPointer
+  if (x >= r.left - margin && x <= r.right + margin && y >= r.top - margin && y <= r.bottom + margin) {
+    holdDwellsUntilMoved()
+  }
 }
 
 /** Test seam: nothing in the app clears either guard early. */

@@ -32,6 +32,7 @@ import { useCaretDwell } from '../ui/caret'
 import { useDwellControl } from '../ui/dwell'
 import { cx, dwellVar } from '../ui/style'
 import { BoxScroll } from '../ui/controls'
+import { AfterText } from '../ui/after-text'
 import type { ScrollEdges } from '../ui/scroll-edges'
 import { ClearIcon, MicIcon, SuggestIcon, UndoIcon } from '../ui/icons'
 import type { Listener } from './use-listen'
@@ -140,26 +141,30 @@ export function HeardBox({
             {...caret.props}
           />
           <BoxScroll edges={edges} what="question" />
+          {/* **Ask right after the last word of the question**, once there is
+              one — see `AfterText`, as Speak stands after the message. */}
+          <AfterText fieldRef={fieldRef} value={notice || heard.said} className="heard-ask">
+            {canSuggest && !nothingHeard && !notice && (
+              <HeardButton
+                onSelect={() => void suggest()}
+                // Named for where they go. They land on the board to be chosen
+                // between, and nothing here ever speaks one — and a control that has
+                // gone quiet explains nothing by itself, so the one thing it can
+                // still do is say what would let it work.
+                label={
+                  messageEmpty
+                    ? 'Suggest answers, onto the board'
+                    : 'Suggest answers. Clear the message first — a message half written is how you say you are already answering'
+                }
+                disabled={nothingHeard || heard.asking || !messageEmpty}
+              >
+                <SuggestIcon />
+              </HeardButton>
+            )}
+          </AfterText>
         </div>
         <div className="heard-end">
-          {canSuggest && !nothingHeard && (
-            <HeardButton
-              onSelect={() => void suggest()}
-              // Named for where they go. They land on the board to be chosen
-              // between, and nothing here ever speaks one — and a control that has
-              // gone quiet explains nothing by itself, so the one thing it can
-              // still do is say what would let it work.
-              label={
-                messageEmpty
-                  ? 'Suggest answers, onto the board'
-                  : 'Suggest answers. Clear the message first — a message half written is how you say you are already answering'
-              }
-              disabled={nothingHeard || heard.asking || !messageEmpty}
-            >
-              <SuggestIcon />
-            </HeardButton>
-          )}
-          {/* **The microphone is live**, at the end of the row the tools leave free, and
+          {/* **The microphone is live**, at the right end of the question's line, and
               drawn only while sound is actually coming in — after the browser has
               been given the microphone, not when it was asked for it — so there
               is nothing to read it as but *this is being heard now*.
@@ -170,9 +175,7 @@ export function HeardBox({
 
               Not a control: there is nothing to do to it that the controls beside
               it do not already do, and a target that did nothing would be a dwell
-              spent for nothing. In the row rather than positioned over it, so a
-              card too narrow for all four pushes it along rather than laying it
-              over a control. */}
+              spent for nothing. */}
           {heard.hearing && (
             <span className="heard-live" role="img" aria-label="The microphone is on">
               <MicIcon live />

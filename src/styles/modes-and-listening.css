@@ -41,13 +41,11 @@
 }
 
 /* **The line the words are written on** — see `topbar.tsx`. The slot that
-   empties the box at its left end, the box, and at its right end the one the
-   board exists to reach, drawn only once there are words. **Both ends keep
-   their place either way**, a fixed 2rem each, so nothing moves when Speak
-   arrives — the words are not rewrapped under a resting gaze by the first
-   letter typed. Level with the last line of text, as a chat app's send is:
-   the line's padding plus half a line, less half a control. The box's own
-   inline padding is tightened here, since the ends now stand beside it. */
+   empties the box at its left end, level with the last line of text (the
+   line's padding plus half a line, less half a control), and then the box,
+   with Speak right after its last word — `.after-text`, below. Under the row
+   of controls, which is on top. The box's own inline
+   padding is tightened here, since the slot stands beside it. */
 .message-line,
 .heard-line {
   --box-pad-x: 0.35rem;
@@ -58,7 +56,6 @@
 }
 
 .message-line > .topbar-clear,
-.message-line > .topbar-actions,
 .heard-start {
   flex: none;
   display: flex;
@@ -68,20 +65,19 @@
   margin-bottom: calc(var(--box-pad-y) + 0.945rem - 1rem);
 }
 
-/* Ask and the live microphone: room kept for both, so neither arriving
-   rewraps the question. */
+/* The live microphone, at the right end of the question's line: room kept for
+   it, so its arriving does not rewrap the question. */
 .heard-end {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.5rem;
-  width: calc(2 * var(--heard-tool) + 0.5rem);
+  width: var(--heard-tool);
   height: var(--heard-tool);
   margin-bottom: calc(var(--box-pad-y) + 0.945rem - 1rem);
 }
 
-/* **The card's row of controls, under the line.** Three columns: the
+/* **The card's row of controls, above the line.** Three columns: the
    clipboard at the far left, the modes **centred** — a middle column between
    two equal ones, so they sit on the card's centre whatever is either side —
    and the language, the voice and, in edit mode, delete at the right.
@@ -99,7 +95,7 @@
   grid-template-areas: 'clipboard modes values';
   align-items: center;
   gap: 0.75rem 1.25rem;
-  padding: 0.15rem 0.75rem 0.65rem;
+  padding: 0.6rem 0.75rem 0;
 }
 
 .tools-clipboard { grid-area: clipboard; justify-self: start; }
@@ -193,6 +189,8 @@
   line-height: 1.4;
   color: var(--text);
   resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
   overflow-y: auto;
   position: relative;
 }
@@ -543,3 +541,33 @@
   opacity: 0.45;
   transition: opacity 0.2s;
 }
+
+/* **Speak right after the last word**, and Ask after the question's — see
+   `ui/after-text.tsx`. The copy of the box it measures with is laid out
+   exactly as the box is and never seen; the control is placed where the empty
+   space at the end of the copy landed, and shown once it has been. Above the
+   words, which end before it, and below the box's own scroll arrows. */
+.after-text-mirror {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.after-text-slot {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.after-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  display: flex;
+}
+
+.after-text:not(.is-placed) { visibility: hidden; }
