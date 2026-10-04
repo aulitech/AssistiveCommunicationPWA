@@ -128,6 +128,12 @@ export function TalkScreen({
    * every time**, because being pointed at the same phrase twice is two
    * occasions and both components key on the identity.
    */
+  /**
+   * The word the grid was narrowed to when edit mode came on, held while
+   * editing so that turning the mode on changes nothing in the grid — see
+   * `filterWord`.
+   */
+  const [editWord, setEditWord] = useState('')
   const [pointing, setPointing] = useState<{ id: string; movedTo: string | null } | null>(null)
   /**
    * The last phrase deleted, and everything the delete took — see `Removed` in
@@ -324,7 +330,10 @@ export function TalkScreen({
   /**
    * Only what is being *composed* narrows the grid. In edit mode the box holds a
    * phrase being written, and narrowing the board to a word of it would take
-   * away the phrases the user came to edit.
+   * away the phrases the user came to edit — **but the narrowing there was when
+   * the mode came on stays** (`editWord`), so turning edit mode on changes
+   * nothing in the grid. It goes when the box is emptied, by *start a new
+   * phrase* or by taking the words out, which is a fresh start.
    *
    * **The answers are not narrowed either**, and for a sharper version of the
    * same reason: they are alternatives to one question rather than completions
@@ -332,7 +341,7 @@ export function TalkScreen({
    * caret would be a word of the answer they just took, and the other nineteen
    * would disappear at the moment somebody wanted to compare them.
    */
-  const filterWord = editMode || showingSuggestions ? '' : typed
+  const filterWord = showingSuggestions ? '' : editMode ? (draft.text.trim() ? editWord : '') : typed
 
   // How often each phrase is used — see `use-usage.ts`. The record follows every
   // phrase chosen; what the board is *ordered* by does not, which is the next
@@ -837,15 +846,17 @@ export function TalkScreen({
    * edit mode says nothing about where anything belongs.
    *
    * **Unless what it carries in is already on the board**, in which case the
-   * board goes and finds it: a message box holding one phrase, as it does the
-   * moment one is chosen while composing, is somebody pointing at that phrase
-   * — and what they got was a copy of it filed wherever they happened to be,
-   * which cannot be saved and says only *Already on the board*. Now the cell
-   * itself is marked and brought into view, under its own tab, and **the
-   * editor opens on the phrase rather than on a copy of it**: the box holds
-   * what the phrase was written as, its own category and voice are what the
-   * strip shows, and Save saves it. Anything else is a dwell spent on finding
-   * again the cell the board has just finished pointing at.
+   * editor opens on the phrase rather than on a copy of it — a copy cannot be
+   * saved and says only *Already on the board* — so its own category and voice
+   * are what the strip shows, and Save saves it.
+   *
+   * **And nothing else on screen changes.** The words in the box stay, and so
+   * does the grid: the tab, where it is scrolled to, and the word it was
+   * narrowed to, which is held for as long as the box has words in it (see
+   * `editWord`). Turning the mode on is a change of what a dwell does, not of
+   * what is in front of somebody — the board used to go to Library, scroll to
+   * the phrase, and drop the narrowing, so the cell they had just been looking
+   * at was somewhere else the moment the mode came on.
    */
   const setMode = useCallback(
     (mode: 'speak' | 'compose' | 'edit') => {
@@ -856,20 +867,11 @@ export function TalkScreen({
       setLastDeleted(null)
       const carried = mode === 'edit' ? message.trim() : ''
       const already = carried ? phraseSaying(carried) : undefined
-      // The phrase itself, or a new one carrying whatever was composed. What
-      // the box shows changes with it — the phrase's **source**, brackets and
-      // markup and all, rather than the one filling of it that was said.
+      // The phrase itself, or a new one carrying whatever was composed.
       if (already) openPhrase(already)
       else startNew(carried)
-      if (already) {
-        // Where it is in front of them already — Library, or a category that
-        // refers to it — the board stays; anywhere else it goes to Library,
-        // which holds every phrase.
-        const movedTo =
-          effectiveFilter === LIBRARY || categoriesOf(already.id).includes(effectiveFilter) ? null : LIBRARY
-        if (movedTo) showTab(movedTo)
-        setPointing({ id: already.id, movedTo })
-      }
+      // The word the grid is narrowed to, kept while editing.
+      setEditWord(mode === 'edit' ? typed : '')
       // The tab, **only where the tab is a category somebody made.** Four are
       // not: Library, which every phrase is in whatever is ticked, and the
       // three pinned records. They leave the last choice standing rather than
@@ -896,6 +898,7 @@ export function TalkScreen({
     },
     [
       message,
+      typed,
       startNew,
       openPhrase,
       update,
@@ -904,7 +907,6 @@ export function TalkScreen({
       effectiveFilter,
       fileUnder,
       phraseSaying,
-      showTab,
       categoriesOf,
     ],
   )
@@ -938,14 +940,23 @@ export function TalkScreen({
    * draft that dwelling on auto-speak itself would have cost.
    */
   const { open: listening, toggle: toggleMic } = listener
+  const { clear: clearMessage } = composer
   const toggleListen = useCallback(() => {
-    if (!listening && !settings.autoSpeak) setMode('speak')
+    // **A question starts afresh**: the message box is emptied — Undo brings it
+    // back — so the answer is not written onto the end of something else, and
+    // a question that settles answers itself, which it does only into an empty
+    // box. Edit mode goes, and so does please: an answer is said as it is.
+    if (!listening) {
+      if (!settings.autoSpeak) setMode('speak')
+      clearMessage()
+      if (settings.please) update({ please: false })
+    }
     // The question's card opens above the message's on a narrow screen and
     // beside it on a wide one, and either way the message card — and the
     // microphone in its row — moves out from under the pointer that rested on it.
     holdDwells()
     toggleMic()
-  }, [listening, settings.autoSpeak, setMode, toggleMic])
+  }, [listening, settings.autoSpeak, settings.please, setMode, clearMessage, update, toggleMic])
 
   // Anything part-way through when rest begins would otherwise complete after
   // it, which is the one thing resting is supposed to prevent.
@@ -1154,6 +1165,7 @@ export function TalkScreen({
                         : undefined
                   }
                   canArrange={canArrange}
+                  narrowed={Boolean(filterWord)}
                   onChooseSort={chooseSort}
                   reordering={editMode && reorderingPhrases}
                   onToggleReorder={editMode ? () => setReorderingPhrases(r => !r) : undefined}

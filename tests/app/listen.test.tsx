@@ -1210,10 +1210,14 @@ describe('the suggested reply', () => {
     const fetch = suggests('I am, thank you')
     vi.stubGlobal('fetch', fetch)
     withKey()
+    // Written once the microphone is open: opening it empties the box.
+    toggleMic()
     fireEvent.change(messageBox(), { target: { value: 'half a thought' } })
     settle()
 
-    heardAndDone('Are you comfortable')
+    act(() => FakeRecognition.last!.say({ transcript: 'Are you comfortable', isFinal: true }))
+    act(() => FakeRecognition.last!.finish())
+    settle()
     await act(async () => {})
 
     expect(fetch).not.toHaveBeenCalled()
@@ -1361,6 +1365,52 @@ describe('the suggested reply', () => {
   })
 
   /**
+   * **A question starts afresh**: the message box is emptied — one dwell on
+   * Undo brings it back — edit mode goes, and so does please. Only on the way
+   * in; closing the box changes none of them.
+   */
+  describe('opening the question', () => {
+    const pleaseToggle = () => $('.please-toggle')!
+
+    it('empties the message box, with Undo to bring it back', () => {
+      renderApp()
+      fireEvent.change(messageBox(), { target: { value: 'something half said' } })
+      settle()
+      toggleMic()
+      expect(messageBox().value).toBe('')
+      click($$('.icon-btn').find(b => /^undo/i.test(b.getAttribute('aria-label') ?? '')))
+      expect(messageBox().value).toBe('something half said')
+    })
+
+    it('takes the board out of edit mode', () => {
+      renderApp()
+      click(editToggle())
+      expect(editToggle().getAttribute('aria-pressed')).toBe('true')
+      toggleMic()
+      expect(editToggle().getAttribute('aria-pressed')).toBe('false')
+      expect(messageBox().value).toBe('')
+    })
+
+    it('turns please off', () => {
+      renderApp()
+      click(pleaseToggle())
+      act(() => void vi.advanceTimersByTime(1100))
+      expect(pleaseToggle().getAttribute('aria-pressed')).toBe('true')
+      toggleMic()
+      expect(pleaseToggle().getAttribute('aria-pressed')).toBe('false')
+    })
+
+    it('leaves the box as it is on the way out', () => {
+      renderApp()
+      toggleMic()
+      fireEvent.change(messageBox(), { target: { value: 'my answer' } })
+      settle()
+      toggleMic()
+      expect(messageBox().value).toBe('my answer')
+    })
+  })
+
+  /**
    * **It never writes over words somebody already had.** The composer's undo is
    * a one-step toggle rather than a stack, so a suggestion that replaced a
    * half-written message could not be walked back past it — which would make
@@ -1370,9 +1420,12 @@ describe('the suggested reply', () => {
   it('goes quiet rather than writing over a message already there', async () => {
     vi.stubGlobal('fetch', suggests('Tea please'))
     withKey()
+    // Written once the microphone is open: opening it empties the box.
+    toggleMic()
     fireEvent.change(messageBox(), { target: { value: 'my own words' } })
     settle()
-    hear('Do you want tea?')
+    act(() => FakeRecognition.last!.say({ transcript: 'Do you want tea?', isFinal: true }))
+    settle()
 
     expect(suggestBtn()?.getAttribute('aria-disabled')).toBe('true')
     expect(suggestBtn()?.getAttribute('aria-label')).toMatch(/clear the message/i)

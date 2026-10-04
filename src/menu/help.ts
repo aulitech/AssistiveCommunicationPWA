@@ -265,6 +265,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again.',
       ),
+      text(
+        'Turning edit mode on changes nothing you can see: the box keeps its words and the phrases stay as they were. :add: on the left starts a new phrase and shows the whole tab again.',
+      ),
       text('The controls on the box mean something else while it is on, in the same places:'),
       list(
         ':save:, right after the last word, saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for. Like Speak, it is there once there is something to save.',
@@ -454,6 +457,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'Rest on :listen: to start, and again to stop and close the box.',
+        'Starting empties the message box, so your answer starts fresh — :undo: brings back what was there. It also turns off edit mode and :please:.',
         "While sound is coming in, :mic: shows at the right end of that box's line, its level rising and falling. It goes the moment the microphone stops hearing.",
         'Typing in the box stops the microphone, so nothing it hears is written over what you type.',
         'The box needs your own Anthropic API key — see Getting suggested answers. Without one, or with one Anthropic does not accept, the box says so and takes nothing, typed or heard.',

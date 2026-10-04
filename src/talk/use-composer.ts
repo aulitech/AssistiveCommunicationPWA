@@ -205,18 +205,24 @@ export function useComposer({
     }, 0)
   }, [])
 
+  /** Empties the box, keeping what was in it for Undo — as Clear does. */
+  const clear = useCallback(() => {
+    if (!text) return
+    setHistory(h => [...h, { text, phrased }])
+    setTextState('')
+    setPhrased('')
+  }, [text, phrased])
+
   const clearOrUndo = useCallback(() => {
     if (text) {
-      setHistory(h => [...h, { text, phrased }])
-      setTextState('')
-      setPhrased('')
+      clear()
     } else if (history.length) {
       const last = history[history.length - 1]
       setTextState(last.text)
       setPhrased(last.phrased)
       setHistory(h => h.slice(0, -1))
     }
-  }, [text, history, phrased])
+  }, [text, history, clear])
 
   /** Resolves to whether the clipboard took it, which is worth saying out loud. */
   const copy = useCallback(() => {
@@ -243,6 +249,7 @@ export function useComposer({
     setCursor,
     insert,
     propose,
+    clear,
     clearOrUndo,
     copy,
     speak: speakIt,
