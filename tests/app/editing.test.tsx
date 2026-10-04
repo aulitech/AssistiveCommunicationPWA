@@ -280,22 +280,16 @@ describe('edit mode', () => {
     expect($('.app')?.classList.contains('edit-mode')).toBe(false)
   })
 
-  // Typing narrows the grid to the word being written, which is how a gaze user
-  // finishes a word. Edit mode carries whatever was composed in with it, and
-  // narrowing the board to a word of that would take away the very phrases
-  // somebody came to edit.
+  // **Turning edit mode on changes nothing on screen**: the grid stays narrowed
+  // to the word that was being typed, and the box keeps its words. Writing in
+  // the draft does not narrow it further — that would take away the phrases
+  // somebody came to edit — and emptying the box, a fresh start, lets the
+  // whole board back.
   //
-  // The message has to be left in the box rather than cleared first: writing a
-  // phrase writes the draft and never the message, so a cleared box narrows the
-  // grid to nothing whether the guard is there or not.
   // Asked of the cells rather than of how many there are: the grid renders a
   // windowful of whatever list it is given, so a narrowed board and a whole one
   // are both a screenful, and only what is in them tells the two apart.
-  //
-  // A word rather than a whole phrase, and deliberately: a box holding one that
-  // is already on the board takes the board to it — see *going to the phrase
-  // the message is* — and this is about the grid it lands on, not which one.
-  it('does not narrow the board to the message it came in with', () => {
+  it('keeps the board narrowed to the word it came in with, until the box is emptied', () => {
     renderApp()
     const board = cells().map(c => c.textContent)
 
@@ -304,10 +298,25 @@ describe('edit mode', () => {
     expect(narrowed, 'composing did not narrow the grid at all').not.toEqual(board.slice(0, narrowed.length))
 
     click(editToggle())
-
-    const inEditMode = cells().map(c => c.textContent)
-    expect(inEditMode).toEqual(board.slice(0, inEditMode.length))
+    expect(
+      cells().map(c => c.textContent),
+      'the grid changed as edit mode came on',
+    ).toEqual(narrowed)
     expect(box().value, 'the message did not come with it').toBe('wat')
+
+    writePhrase('watching the rain')
+    expect(
+      cells().map(c => c.textContent),
+      'writing the draft narrowed the grid',
+    ).toEqual(narrowed)
+    // Arranging now would arrange only what matched, so it waits, and says why.
+    const arrange = () => $('.reorder-btn')!
+    expect(arrange().getAttribute('aria-label')).toMatch(/start a new phrase first/i)
+
+    click(iconBtn('Start a new phrase'))
+    const whole = cells().map(c => c.textContent)
+    expect(whole).toEqual(board.slice(0, whole.length))
+    expect(arrange().getAttribute('aria-label')).toBe('Arrange the phrases by hand')
   })
 
   // A phrase listed twice in one category is a cell somebody has to read past to
@@ -1036,11 +1045,13 @@ describe('showing where the new phrase went', () => {
 // A message box holding one phrase — which is what it holds the moment one is
 // chosen while composing — is somebody pointing at that phrase. What they got
 // for reaching for edit mode was a copy of it, filed wherever they happened to
-// be standing, that could not be saved and said only "Already on the board".
+// be standing, that could not be saved and said only "Already on the board". So
+// the editor opens on the phrase itself.
 //
-// **Composed on All**, the commonest case: where the board opens, and where a
-// phrase is most often chosen without knowing which category it is in.
-describe('going to the phrase the message is', () => {
+// **And nothing else moves.** The board used to go to Library, mark the phrase
+// and scroll to it; turning the mode on is a change of what a dwell does, not
+// of what is in front of somebody, so the tab, the grid and the box stay.
+describe('opening the phrase the message is', () => {
   const marked = () => $('.phrase-cell[aria-current="true"]')?.textContent
   const cellFor = (text: string) => $$('.phrase-cell').find(c => c.textContent === text)
 
@@ -1058,30 +1069,35 @@ describe('going to the phrase the message is', () => {
     return text
   }
 
-  // Library holds every phrase, so that is where the board goes to show it.
-  it('takes the board to Library from a tab that does not hold it', () => {
+  it('stays on the tab it was on, even one that does not hold it, and marks nothing', () => {
     const text = composeAPhrase()
+    const before = cells().map(c => c.textContent)
+    scrolledIntoView.length = 0
 
     enterEditMode()
 
-    expect(activeTab()).toBe('Library')
-    expect(marked()).toBe(text)
+    expect(activeTab()).toBe('Food')
+    expect(marked()).toBeUndefined()
+    expect(
+      cells().map(c => c.textContent),
+      'the grid changed',
+    ).toEqual(before)
+    expect(scrolledIntoView, 'something was scrolled into view').not.toContain(cellFor(text))
+    expect(box().value).toBe(text)
   })
 
   it('stays on a tab that holds it', () => {
     renderApp()
     click(tab('Drinks'))
-    const text = plainCell().textContent!
     click(plainCell())
 
     enterEditMode()
 
     expect(activeTab()).toBe('Drinks')
-    expect(marked()).toBe(text)
+    expect(marked()).toBeUndefined()
   })
 
-  // On the phrase itself, not on a copy of it. Anything else is a dwell spent
-  // finding again the cell the board has just finished pointing at.
+  // On the phrase itself, not on a copy of it.
   it('opens the editor on that phrase', () => {
     const text = composeAPhrase()
 
@@ -1101,6 +1117,7 @@ describe('going to the phrase the message is', () => {
 
     writePhrase(`${text}, please`)
     savePhrase()
+    click(tab('Drinks'))
 
     const saying = $$('.phrase-cell').map(c => c.textContent)
     expect(saying).toContain(`${text}, please`)
@@ -1118,17 +1135,6 @@ describe('going to the phrase the message is', () => {
     expect(box().value).toBe('Nothing anywhere on this board says this')
   })
 
-  // The box's contents have just changed under them — the phrase as it was
-  // written rather than the one filling of it they had said — and the board
-  // has moved. The toast is what says both, and which category it went to.
-  it('says what it opened, and where', () => {
-    composeAPhrase()
-
-    enterEditMode()
-
-    expect($('.toast')?.textContent).toMatch(new RegExp(`editing this phrase.*${activeTab()}`, 'i'))
-  })
-
   // The strip says which categories it is in; the toast says where it is.
   it('says where it is, and the strip which categories it is in', () => {
     composeAPhrase()
@@ -1139,57 +1145,14 @@ describe('going to the phrase the message is', () => {
     expect(shownCategory()).toBe('Drinks')
   })
 
-  it('brings the phrase into view and the tab to the middle of the bar', () => {
-    const text = composeAPhrase()
-
-    enterEditMode()
-
-    expect(scrolledIntoView).toContain(cellFor(text))
-    expect(scrolledIntoView.filter(el => el.classList.contains('filter-tab')).map(el => el.textContent)).toContain(
-      activeTab(),
-    )
-  })
-
-  // The same phrase composed, put away and composed again is two occasions, and
-  // the board has to answer both — which is why what the grid and the bar watch
-  // is an occasion rather than the phrase's own name.
-  it('goes again the next time the same phrase is composed', () => {
-    const text = composeAPhrase()
-    enterEditMode()
-    const home = activeTab()
-    leaveEditMode()
-    // Emptied, so the same phrase goes in again as the whole of the message.
-    clearMessage()
-    click(tab('Library'))
-    click(cellFor(text))
-
-    enterEditMode()
-
-    expect(activeTab()).toBe(home)
-    expect(marked(), 'the second time pointed at nothing').toBe(text)
-  })
-
-  it('stays where it is for a message that is no phrase at all', () => {
-    renderApp()
-    writeIn(box(), 'Nothing anywhere on this board says this')
-
-    enterEditMode()
-
-    expect(activeTab()).toBe('Library')
-    expect(marked()).toBeUndefined()
-  })
-
   // Somebody can file their own copy of a wording Library already has — the
   // guard is per category — and look in whichever they think in. The one they
   // are looking at is the one they mean.
-  const goodMorningTwice = () =>
+  it('stays on the copy in front of them where the wording is filed twice', () => {
     localStorage.setItem(
       'dwellspeak_phrase_store_v2',
       JSON.stringify({ custom: [{ id: 'custom-gm', text: 'Good morning', category: 'Greetings' }] }),
     )
-
-  it('stays on the copy in front of them where the wording is filed twice', () => {
-    goodMorningTwice()
     renderApp()
     click(tab('Greetings'))
     click(cellFor('Good morning')!)
@@ -1197,13 +1160,13 @@ describe('going to the phrase the message is', () => {
     enterEditMode()
 
     expect(activeTab()).toBe('Greetings')
-    expect(marked()).toBe('Good morning')
+    expect(cellFor('Good morning')).toBeDefined()
   })
 
-  // And it does not go deaf where it did not move. Nothing was replaced under
-  // anybody's gaze, so refusing their next dwell would cost them one for
-  // nothing — in edit mode, the phrase they were reaching for to reword.
-  it('is still listening where the board stayed put', () => {
+  // And it does not go deaf. Nothing was replaced under anybody's gaze, so
+  // refusing their next dwell would cost them one for nothing — in edit mode,
+  // the phrase they were reaching for to reword.
+  it('is still listening, the board having stayed put', () => {
     localStorage.setItem(
       'dwellspeak_phrase_store_v2',
       JSON.stringify({

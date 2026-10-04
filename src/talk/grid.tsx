@@ -315,6 +315,7 @@ function GridScrollBar({
   sort,
   orderFixed,
   canArrange,
+  narrowed,
   onChooseSort,
   reordering,
   onToggleReorder,
@@ -326,6 +327,8 @@ function GridScrollBar({
   orderFixed?: string
   /** False under the answers and Translations: neither holds phrases in an order of its own. */
   canArrange: boolean
+  /** The grid is narrowed to a word, so what shows is not the whole tab to arrange. */
+  narrowed?: boolean
   onChooseSort: (sort: PhraseSort) => void
   reordering?: boolean
   /** Edit mode only; absent otherwise, and the control with it. */
@@ -359,15 +362,17 @@ function GridScrollBar({
         {onToggleReorder && (
           <ScrollBtn
             className="rail-tool reorder-btn"
-            disabled={!canArrange}
+            disabled={!canArrange || (narrowed && !reordering)}
             pressed={reordering}
             onAction={onToggleReorder}
             label={
               !canArrange
                 ? 'Arrange the phrases by hand. Open a category first — this tab is not one'
-                : reordering
-                  ? 'Done arranging the phrases'
-                  : 'Arrange the phrases by hand'
+                : narrowed && !reordering
+                  ? 'Arrange the phrases by hand. Start a new phrase first — the board is showing only what matches a word'
+                  : reordering
+                    ? 'Done arranging the phrases'
+                    : 'Arrange the phrases by hand'
             }
           >
             <ReorderIcon />
@@ -424,6 +429,7 @@ export function PhraseGrid({
   sort,
   orderFixed,
   canArrange,
+  narrowed,
   onChooseSort,
   reordering,
   onToggleReorder,
@@ -454,6 +460,12 @@ export function PhraseGrid({
   orderFixed?: string
   /** False under the answers and Translations: no Custom order, and nothing to arrange. */
   canArrange: boolean
+  /**
+   * The grid is narrowed to a word — in edit mode, the one it was narrowed to
+   * when the mode came on. Arranging then would arrange only what matched, so
+   * the control goes quiet and says why.
+   */
+  narrowed?: boolean
   onChooseSort: (sort: PhraseSort) => void
   /** All four of these are edit-mode only. */
   reordering?: boolean
@@ -680,6 +692,7 @@ export function PhraseGrid({
         sort={sort}
         orderFixed={orderFixed}
         canArrange={canArrange}
+        narrowed={narrowed}
         onChooseSort={onChooseSort}
         reordering={reordering}
         onToggleReorder={onToggleReorder && toggleReorder}

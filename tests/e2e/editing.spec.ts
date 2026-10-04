@@ -66,15 +66,27 @@ test('reaches a new phrase past the end of what is rendered', async ({ page }) =
   await expect.poll(() => within(page, '.phrase-cell[aria-current="true"]', '.grid-wrapper')).toBe(true)
 })
 
-test('opens the phrase in the message box, under its own category', async ({ page }) => {
+// **Turning edit mode on opens the phrase and moves nothing**: the tab, the
+// cells and where they are scrolled to are as they were.
+test('opens the phrase in the message box, and leaves the board as it was', async ({ page }) => {
   const { errors } = await openBoard(page)
   await composing(page)
   await cell(page, 'Once in a blue moon').first().click()
+  const before = await page.evaluate(() => ({
+    cells: [...document.querySelectorAll('.phrase-cell')].slice(0, 12).map(c => c.textContent),
+    top: document.querySelector('.grid-wrapper')!.scrollTop,
+  }))
   await editMode(page)
 
   await expect(activeTab(page)).toHaveText('Library')
   await expect(page.locator('.edit-bar-title')).toHaveText('Editing phrase')
-  await expect(marked(page)).toHaveText('Once in a blue moon')
+  await expect(messageBox(page)).toHaveValue('Once in a blue moon')
+  await expect(marked(page)).toHaveCount(0)
+  const after = await page.evaluate(() => ({
+    cells: [...document.querySelectorAll('.phrase-cell')].slice(0, 12).map(c => c.textContent),
+    top: document.querySelector('.grid-wrapper')!.scrollTop,
+  }))
+  expect(after).toEqual(before)
   expect(errors).toEqual([])
 })
 
