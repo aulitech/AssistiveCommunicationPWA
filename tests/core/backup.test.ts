@@ -318,6 +318,7 @@ describe('reading a backup back', () => {
           language: 'Klingon, obviously',
           voicesByLanguage: { 'es-PR': 'Monica', 'Klingon, obviously': 'Worf', vi: 42, '': 'Samantha' },
           autoSpeak: 'yes',
+          please: 1,
           introduction: 'no',
           zoom: 9,
           // A model this build has never heard of. It is handed to somebody
@@ -345,6 +346,8 @@ describe('reading a backup back', () => {
       // 'yes' is not a boolean, so it falls back to the default like every
       // other nonsense value here — and the default is on.
       autoSpeak: true,
+      // Not a boolean either, so off, which is its default.
+      please: false,
       keyboard: false,
       introduction: true,
       // A file does not get to make the text nine times its size, which would

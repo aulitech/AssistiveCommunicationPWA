@@ -33,6 +33,7 @@ import {
   KeyboardIcon,
   MenuIcon,
   PasteIcon,
+  PleaseIcon,
   PlusIcon,
   QuestionIcon,
   SpeakIcon,
@@ -289,6 +290,7 @@ export function Topbar({
     (voiceURI: string) => update(chooseVoice(settings, voiceURI)),
     [settings, update],
   )
+  const togglePlease = useCallback(() => update({ please: !settings.please }), [settings.please, update])
   const { text, setText, showUndo, canClear, clearOrUndo, textareaRef, trackCursor, setCursor } = composer
   const { draft, isUntouched, startNew, setText: setDraftText } = editor
 
@@ -538,6 +540,19 @@ export function Topbar({
                 >
                   <AutoSpeakIcon />
                 </ModeToggle>
+
+                {/* **Please on the end of everything said**, in the language it
+                    is said in, and never written into the phrase — see
+                    `core/please.ts`. After auto-speak, being about how what is
+                    said comes out, and lit while it is on as the modes are. */}
+                <ModeToggle
+                  className="please-toggle"
+                  on={settings.please}
+                  onToggle={togglePlease}
+                  label={settings.please ? 'Stop saying please' : 'Say please at the end of everything spoken'}
+                >
+                  <PleaseIcon />
+                </ModeToggle>
               </div>
             </div>
             <div className="tools-values">
@@ -589,7 +604,12 @@ export function Topbar({
               )}
               {editMode && (
                 <ActionButton
-                  className="in-card danger"
+                  // **Not shown until there is something to delete** — a phrase
+                  // on the board, rather than a new one being written. Hidden
+                  // rather than taken away, so its place is kept and the
+                  // language and the voice beside it never slide under a
+                  // resting pointer as it comes and goes.
+                  className={cx('in-card danger', draft.isNew && 'is-absent')}
                   onSelect={onDeletePhrase}
                   label={
                     draft.kept

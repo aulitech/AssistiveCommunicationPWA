@@ -125,6 +125,17 @@
       'modes modes'
       'clipboard values';
   }
+
+  /* The language and the voice wrap inside themselves when the clipboard leaves
+     them too little room — on a phone in edit mode, with please beside paste —
+     rather than pushing the row past the card's edge, which takes the modes off
+     its centre. 0.75rem between the lines, as between every other line here. */
+  .tools-values { min-width: 0; }
+  .tools-values .topbar-choices {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.75rem 1.25rem;
+  }
 }
 
 /* The heard card: somebody else's words. Its own dashed edge, so the two read as

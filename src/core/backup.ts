@@ -353,6 +353,7 @@ function readSettings(v: unknown): Settings | undefined {
     // a file that says nothing about a setting is a file that says nothing, and
     // the default is on.
     autoSpeak: typeof v.autoSpeak === 'boolean' ? v.autoSpeak : DEFAULT_SETTINGS.autoSpeak,
+    please: typeof v.please === 'boolean' ? v.please : DEFAULT_SETTINGS.please,
     keyboard: typeof v.keyboard === 'boolean' ? v.keyboard : DEFAULT_SETTINGS.keyboard,
     introduction: typeof v.introduction === 'boolean' ? v.introduction : DEFAULT_SETTINGS.introduction,
     zoom: num(v.zoom, SETTING_LIMITS.zoom, DEFAULT_SETTINGS.zoom),

@@ -189,9 +189,10 @@ describe('what is said', () => {
     settle()
   }
 
-  it('has no tab of its own: Library is first', () => {
+  it('has no tab of its own: Translations and then Library lead the bar', () => {
     renderApp()
-    expect(tabs()[0].textContent).toBe('Library')
+    expect(tabs()[0].textContent).toBe('Translations')
+    expect(tabs()[1].textContent).toBe('Library')
     expect(tabs().map(el => el.textContent)).not.toContain('Sent')
   })
 
@@ -266,6 +267,53 @@ describe('what is said', () => {
     fillEverySlot()
     expect(spoken).toHaveLength(1)
     expect(kept()).toEqual([spoken[0]])
+  })
+
+  /**
+   * **Please is said, and only said.** The toggle beside paste puts ", please"
+   * on the end of what comes out, and nothing else: what is kept in Library and
+   * what is copied are the words as they were written. It is kept across a load.
+   */
+  describe('with please on', () => {
+    const pleaseToggle = () => $('.please-toggle')!
+    const settings = () => JSON.parse(localStorage.getItem('dwellspeak_settings') ?? '{}')
+
+    it('says it after a message, and keeps the message without it', () => {
+      renderApp()
+      expect(pleaseToggle().getAttribute('aria-pressed')).toBe('false')
+      click(pleaseToggle())
+      expect(pleaseToggle().getAttribute('aria-pressed')).toBe('true')
+      expect(settings().please).toBe(true)
+
+      say('I would like some tea.')
+      expect(spoken).toEqual(['I would like some tea, please.'])
+      expect(kept()).toEqual(['I would like some tea.'])
+
+      click(pleaseToggle())
+      say('Some toast')
+      expect(spoken[1]).toBe('Some toast')
+    })
+
+    it('says it after a phrase off the board, and keeps a filled one without it', () => {
+      renderApp({ autoSpeak: true, please: true })
+      click(slotCell())
+      fillEverySlot()
+      expect(spoken[0]).toMatch(/, please[.!?]*$/)
+      expect(kept()).toEqual([spoken[0].replace(/, please([.!?]*)$/, '$1')])
+    })
+
+    it('copies the words without it', async () => {
+      renderApp({ please: true })
+      writeIn(box(), 'Some soup')
+      await copied()
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Some soup')
+      expect(kept()).toEqual(['Some soup'])
+    })
+
+    it('is still on after a load', () => {
+      renderApp({ please: true })
+      expect(pleaseToggle().getAttribute('aria-pressed')).toBe('true')
+    })
   })
 
   // Counted as used the moment it is said, so it is first among what typing
@@ -495,10 +543,12 @@ describe('the card', () => {
     const row = () => [...$('.message-tools')!.children].map(el => el.className.split(' ')[0])
     expect(row()).toEqual(['tools-clipboard', 'tools-modes', 'tools-values'])
     expect(labels('.tools-clipboard')).toEqual(['Copy to clipboard', 'Paste from clipboard'])
+    // Please after auto-speak: it is about how what is said comes out.
     expect(labels('.tools-modes')).toEqual([
       'Edit phrases',
       expect.stringMatching(/rest/i),
       expect.stringMatching(/auto-speak/i),
+      'Say please at the end of everything spoken',
     ])
   })
 
@@ -524,6 +574,13 @@ describe('the card', () => {
       expect.stringMatching(/^Voice for this phrase/),
       'Delete phrase',
     ])
+    // **Not shown with nothing to delete** — a new phrase — but its place kept,
+    // so the language and the voice never move as it comes and goes.
+    const bin = () => iconBtn('Delete phrase')!
+    expect(bin().classList.contains('is-absent'), 'the bin shows for a new phrase').toBe(true)
+    clearMessage()
+    click(plainCell())
+    expect(bin().classList.contains('is-absent'), 'the bin is hidden for a phrase off the board').toBe(false)
     expect($('.message-line + .edit-bar'), 'the edit row is not below the line').not.toBeNull()
     expect($('.message-wrap > .edit-bar'), 'the edit row is not inside the card').not.toBeNull()
   })
@@ -577,6 +634,11 @@ describe('the card', () => {
       /background: *var\(--accent\)/,
     )
     expect(block('.heard-btn.is-primary'), 'ask is not filled as speak is').toMatch(/background: *var\(--accent\)/)
+    // The bin with nothing to delete keeps its place, unseen.
+    expect(block('.icon-btn.in-card.is-absent')).toMatch(/visibility: *hidden/)
+    // Clear's X in a red of its own, the danger red let down towards the grey.
+    expect(block('svg.clear-x')).toMatch(/color: *var\(--clear-red\)/)
+    expect(css).toMatch(/--clear-red: *color-mix\(in srgb, *var\(--danger\)/)
     // The language and the voice have no ground of their own; the card's shows through.
     expect(block('.choice-btn'), 'the language and the voice have a ground').toMatch(/background: *transparent/)
   })

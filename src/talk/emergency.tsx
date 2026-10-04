@@ -54,7 +54,8 @@ export function EmergencyButton({
     // hand. Anything not in hand is said by the device this instant rather than
     // in the right voice a second and a half from now: "I can't breathe" does
     // not get to depend on the wifi.
-    speak(phrase.text, settings, { voiceURI: voice, instant: true })
+    // Please too, when it is on — but only as it is in hand, never waited for.
+    speak(phrase.text, settings, { voiceURI: voice, instant: true, please: settings.please })
     setFlash(true)
     setTimeout(() => setFlash(false), 400)
   }, [phrase, voice, editMode, openEdit, settings, reorder])

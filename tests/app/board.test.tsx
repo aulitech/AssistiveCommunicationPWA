@@ -168,15 +168,16 @@ describe('fill-in-the-blank phrases', () => {
 
 describe('auto-speak', () => {
   // The three modes share one strip across the top of the message box, in the
-  // order edit, Rest, auto-speak. DOM order is what can be checked here — jsdom
+  // order edit, Rest, auto-speak — and please after them. DOM order is what can be checked here — jsdom
   // lays nothing out — but in a flex row with nothing setting `order` that is
   // also the order they are seen in, left to right.
   it('sits to the right of Rest, with edit to its left', () => {
     renderApp()
     const strip = $$('.topbar-modes > *')
-    expect(strip.map(el => el.className.split(' ')[0])).toEqual(['mode-btn', 'rest-btn', 'mode-btn'])
+    expect(strip.map(el => el.className.split(' ')[0])).toEqual(['mode-btn', 'rest-btn', 'mode-btn', 'mode-btn'])
     expect(strip[0].getAttribute('aria-label')).toMatch(/edit/i)
     expect(strip[2].getAttribute('aria-label')).toMatch(/auto-speak/i)
+    expect(strip[3].getAttribute('aria-label')).toMatch(/please/i)
   })
 
   // The empty box is where somebody looks to learn what a dwell on a phrase

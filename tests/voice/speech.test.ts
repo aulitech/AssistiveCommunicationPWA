@@ -620,3 +620,98 @@ describe('speaking a board in a regional Spanish', () => {
     expect(spoken).toEqual(['Busque un médico'])
   })
 })
+
+/**
+ * **", please" on the end of what is said**, in the language it comes out in,
+ * and nowhere else — not in what the Translations tab is told was translated.
+ */
+describe('saying please', () => {
+  const SPANISH = { ...SETTINGS, language: 'es-ES' }
+  const translatorSays = (text: string) =>
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify({ data: { translations: [{ translatedText: text }] } }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    )
+
+  beforeEach(() => {
+    forgetTranslations()
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', '')
+  })
+
+  it('says nothing extra unless it is asked for', () => {
+    speak('I want water.', SETTINGS)
+    expect(spoken).toEqual(['I want water.'])
+  })
+
+  it('says it in English on a board spoken as it is written', () => {
+    speak('I want water.', SETTINGS, { please: true })
+    expect(spoken).toEqual(['I want water, please.'])
+  })
+
+  it('says it in the language the board is spoken in, from the shipped table', () => {
+    seedTranslations('es', { 'Help me!': '¡Ayúdenme!', Please: 'Por favor' })
+    speak('Help me!', SPANISH, { please: true })
+    expect(spoken).toEqual(['¡Ayúdenme, por favor!'])
+  })
+
+  it('tells the Translations tab what was translated, without the please', () => {
+    seedTranslations('es', { 'Help me!': '¡Ayúdenme!', Please: 'Por favor' })
+    const onTranslated = vi.fn()
+    speak('Help me!', SPANISH, { please: true, onTranslated })
+    expect(onTranslated).toHaveBeenCalledWith('Help me!', '¡Ayúdenme!', 'es-ES')
+  })
+
+  it('says it in the language of words that are already translated', () => {
+    seedTranslations('es', { Please: 'Por favor' })
+    speak('Tengo frío', SETTINGS, { alreadyIn: 'es-ES', please: true })
+    expect(spoken).toEqual(['Tengo frío, por favor'])
+  })
+
+  // Words that could not be translated are English, so the please is too.
+  it('says the English one after words said as they were written', () => {
+    seedTranslations('es', { Please: 'Por favor' })
+    speak('Something nobody has said before', SPANISH, { please: true })
+    expect(spoken).toEqual(['Something nobody has said before, please'])
+  })
+
+  it('asks the translator for it once, and keeps it', async () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
+    seedTranslations('es', { 'Help me!': '¡Ayúdenme!' })
+    const fetcher = translatorSays('Por favor')
+    vi.stubGlobal('fetch', fetcher)
+
+    speak('Help me!', SPANISH, { please: true })
+    await flush()
+    expect(spoken).toEqual(['¡Ayúdenme, por favor!'])
+    expect(translationFor('Please', 'es')).toBe('Por favor')
+
+    speak('Help me!', SPANISH, { please: true })
+    expect(spoken[1]).toBe('¡Ayúdenme, por favor!')
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  // The emergency bar does not wait: with the word not in hand it goes without
+  // it, rather than with an English one on the end of Spanish.
+  it('goes without it, rather than waiting or mixing languages, on the emergency bar', () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    seedTranslations('es', { 'Help me!': '¡Ayúdenme!' })
+
+    speak('Help me!', SPANISH, { please: true, instant: true })
+    expect(spoken).toEqual(['¡Ayúdenme!'])
+    expect(fetcher, 'the emergency bar went to the network').not.toHaveBeenCalled()
+  })
+
+  it('goes without it when the translator will not answer', async () => {
+    vi.stubEnv('VITE_GOOGLE_TRANSLATE_KEY', 'key-1234')
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    seedTranslations('es', { 'Help me!': '¡Ayúdenme!' })
+    speak('Help me!', SPANISH, { please: true })
+    await flush()
+    expect(spoken).toEqual(['¡Ayúdenme!'])
+  })
+})

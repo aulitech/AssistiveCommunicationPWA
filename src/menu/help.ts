@@ -36,7 +36,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'At the far left of the top row: :copy: and :paste:.',
-        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then the three modes — :edit:, the Rest bar, and :auto-speak:.',
+        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then the three modes — :edit:, the Rest bar, and :auto-speak: — and :please:.',
         'At the right of the top row, on a wide screen: the language and the voice.',
         'At the left end of the line: :clear:, which empties the box — and afterwards offers :undo:.',
         'Right after the last word you write: :speak:, filled in green, because it is the one the whole board exists to reach. It is there once there is something in the box, and moves along as the words do.',
@@ -113,6 +113,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Phrases that begin with what you typed come first, then phrases with a word that begins with it. Last are phrases whose first letters it spells, so "ttyl" finds "Talk to you later".',
         'In each of those groups, the phrase you used most recently comes first.',
         'Use the tabs above the grid to show one category at a time. Every phrase is in Library, each one once. The categories you make hold phrases from Library, in an order of their own, and a phrase can be in as many as you like.',
+        'The tabs always start with Translations, then Answers when there are some, then Library. Your own categories follow, in the order you arranged them.',
         'The arrows either side of the tabs move along them: :left: and :right: a little way, :page-left: and :page-right: a page, and :first: and :last: to either end. On a phone held upright :first: and :last: are left out.',
         'The buttons on the right scroll the grid the same way: :up: and :down: a little at a time, :page-up: and :page-down: a page, and :top: and :bottom: to the very top or bottom. The first two sizes keep going while you rest on them. On a short screen :page-up: and :page-down: are left out.',
       ),
@@ -127,6 +128,12 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         ':copy: puts the message on the clipboard to send somewhere else.',
         ':paste: brings in whatever was last copied, at the point the caret is sitting — into the message, or into a phrase being written.',
+      ),
+      text(
+        ':please:, after :auto-speak: in the middle of the row, puts ", please" on the end of everything Peri says while it is lit — in the language Peri is speaking, so "por favor" in Spanish.',
+      ),
+      text(
+        'Please is only said: it is not added to the phrase, to what is kept, or to what is copied. On the emergency bar it is said only if Peri already has the word for that language, so nothing there ever waits.',
       ),
       text(
         'If a paste says it was blocked, allow clipboard access for Peri in your browser settings. Firefox does not offer the clipboard to a web page at all — there, use Ctrl+V if you have a keyboard.',
@@ -261,7 +268,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text('The controls on the box mean something else while it is on, in the same places:'),
       list(
         ':save:, right after the last word, saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for. Like Speak, it is there once there is something to save.',
-        ':delete:, at the far right of the row, on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
+        ':delete:, at the far right of the row once you have chosen a phrase, on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
         ':add: at the left end of the line starts a new phrase — where :clear: is the rest of the time. :paste: stays where it is; :copy: is not there in edit mode.',
         'A line at the bottom of the box, under the words, says what is being edited, and which categories it is in. Rest on :choose: beside them to open the categories. Tick as many as you like — each ticked one shows :ticked: — or none to keep it in Library alone.',
@@ -534,7 +541,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Finding what you have said in another language',
     blocks: [
       text(
-        'Everything you say in another language is kept under a Translations tab, at the very end of the row of categories. Each button shows the words that came out, with your own wording underneath it, so you can still read the tab even though the phrases on it are not in your language.',
+        'Everything you say in another language is kept under a Translations tab, the first in the row of tabs. Each button shows the words that came out, with your own wording underneath it, so you can still read the tab even though the phrases on it are not in your language.',
       ),
       list(
         'Newest first, always. The tab is a record of what you said rather than a category, so it is not one you can reorder or arrange by hand.',

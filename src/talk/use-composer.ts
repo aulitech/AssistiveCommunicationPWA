@@ -226,7 +226,10 @@ export function useComposer({
       .catch(() => false)
   }, [text])
 
-  const speakIt = useCallback(() => speak(text, settings, { onTranslated }), [text, settings, onTranslated])
+  const speakIt = useCallback(
+    () => speak(text, settings, { onTranslated, please: settings.please }),
+    [text, settings, onTranslated],
+  )
 
   return {
     text,
