@@ -41,11 +41,14 @@ function HeardButton({
   onSelect,
   label,
   disabled,
+  primary,
   children,
 }: {
   onSelect: () => void
   label: string
   disabled?: boolean
+  /** Filled in the accent, as Speak is — the one thing this card is for. */
+  primary?: boolean
   children: React.ReactNode
 }) {
   const { settings } = useSettings()
@@ -53,7 +56,7 @@ function HeardButton({
   return (
     <button
       type="button"
-      className={cx('heard-btn', active && 'dwelling')}
+      className={cx('heard-btn', primary && 'is-primary', active && 'dwelling')}
       style={dwellVar(settings.actionDwellMs)}
       aria-label={label}
       {...props}
@@ -146,6 +149,7 @@ export function HeardBox({
           <AfterText fieldRef={fieldRef} value={notice || heard.said} className="heard-ask">
             {canSuggest && !nothingHeard && !notice && (
               <HeardButton
+                primary
                 onSelect={() => void suggest()}
                 // Named for where they go. They land on the board to be chosen
                 // between, and nothing here ever speaks one — and a control that has

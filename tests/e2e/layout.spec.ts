@@ -210,9 +210,9 @@ test('puts Speak right after the last word, on its line', async ({ page }) => {
       line: r.top + parseFloat(style.paddingTop) + parseFloat(style.lineHeight) / 2,
     }
   })
-  // A few pixels of gap after the word, and no more.
-  expect(speak.left - expected).toBeGreaterThan(2)
-  expect(speak.left - expected).toBeLessThan(12)
+  // A rem and a few pixels after the word, and no more.
+  expect(speak.left - expected).toBeGreaterThan(18)
+  expect(speak.left - expected).toBeLessThan(28)
   expect(Math.abs(speak.middle - line), 'not on the line the words are on').toBeLessThan(3)
 
   // More words, and it moves with them.
@@ -246,6 +246,9 @@ test('wraps Speak onto a line of its own when the last has no room, inside the b
     field: document.querySelector('.text-display')!.getBoundingClientRect().toJSON(),
   }))
   expect(speak.left - field.left, 'it never wrapped').toBeLessThan(40)
+  // On a line of its own it starts where the words do, with no gap before it.
+  const padLeft = await box.evaluate(el => parseFloat(getComputedStyle(el).paddingLeft))
+  expect(Math.abs(speak.left - field.left - padLeft), 'indented on a line of its own').toBeLessThan(2)
   expect(speak.bottom, 'drawn under the box’s edge').toBeLessThanOrEqual(field.bottom)
   expect(field.height).toBeGreaterThan(oneLine)
 })
@@ -323,3 +326,31 @@ test('gives the box its new height when the screen widens and the words rewrap',
   await page.waitForTimeout(300)
   expect(await height()).toBe(oneLine)
 })
+
+/**
+ * **The menu is in the upper right corner**, at every width, and the busy
+ * indicator — fixed in that corner of the screen, and inert — stands clear of it
+ * rather than over the one way into everything else.
+ */
+for (const width of [360, 1280]) {
+  test(`puts the menu in the upper right corner, clear of the busy indicator, at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await openBoard(page)
+    const { menu, card, busyRight } = await page.evaluate(() => {
+      const region = document.createElement('div')
+      region.className = 'busy-region'
+      document.body.append(region)
+      const busyRight = region.getBoundingClientRect().right
+      region.remove()
+      return {
+        menu: document.querySelector('[aria-label="Open menu"]')!.getBoundingClientRect().toJSON(),
+        card: document.querySelector('.message-wrap')!.getBoundingClientRect().toJSON(),
+        busyRight,
+      }
+    })
+    expect(width - menu.right, 'not at the right edge').toBeLessThan(16)
+    expect(menu.top, 'not at the top').toBeLessThan(20)
+    expect(menu.left, 'not right of the card').toBeGreaterThanOrEqual(card.right)
+    expect(busyRight, 'the busy indicator stands over the menu').toBeLessThanOrEqual(menu.left)
+  })
+}

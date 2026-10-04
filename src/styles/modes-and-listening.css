@@ -291,6 +291,17 @@
   cursor: default;
 }
 
+/* Ask, drawn as Speak is — filled in the accent, and grey when it cannot be
+   used — since it is to the question what Speak is to the message. */
+.heard-btn.is-primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+.heard-btn.is-primary[aria-disabled='true'] {
+  background: var(--card-edge);
+  color: var(--text-muted);
+}
+
 /* The microphone is live — see `HeardBox`. At the right end of the card's row of
    tools, at the same size, so it reads as part of the same set, and lit in the
    accent the card's edge turns while it listens.
@@ -402,7 +413,9 @@
   max-width: 6rem;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  background: var(--border-ground);
+  /* No ground of its own: the card's shows through, and the edge alone says it
+     is a control. */
+  background: transparent;
   color: var(--text-muted);
   font-size: 0.8rem;
   line-height: 1.4;

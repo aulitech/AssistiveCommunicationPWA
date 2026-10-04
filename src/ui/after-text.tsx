@@ -22,8 +22,12 @@ import { useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { holdIfUnderPointer } from './dwell'
 import { cx } from './style'
 
-/** The space between the last word and the control, in the box's own pixels. */
-const GAP_PX = 6
+/**
+ * The space between the last word and the control: a rem and a few pixels, so
+ * the control reads as standing after the words rather than as one more of them,
+ * and grows with the text when somebody turns the size up.
+ */
+const gapAfterWords = () => (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) + 6
 
 /** What of the box decides where its lines break, copied onto the copy. */
 const METRICS = [
@@ -74,7 +78,8 @@ export function AfterText({
       for (const metric of METRICS) copy.style[metric] = style[metric]
       copy.style.width = `${field.offsetWidth}px`
       const control = controlRef.current
-      slot.style.width = control ? `${control.offsetWidth + GAP_PX}px` : '0px'
+      const gap = gapAfterWords()
+      slot.style.width = control ? `${control.offsetWidth + gap}px` : '0px'
       slot.style.height = style.lineHeight
       if (!control) return setAt(null)
       // Centred on the line the space landed on, and kept inside the box when
@@ -85,8 +90,12 @@ export function AfterText({
       const paddingBottom = parseFloat(style.paddingBottom) || 0
       const top = slot.offsetTop - field.scrollTop + (lineHeight - control.offsetHeight) / 2
       const lowest = field.clientHeight - paddingBottom - control.offsetHeight
+      // On a line of its own there are no words to stand clear of, so it starts
+      // where the words do rather than a gap in from them.
+      const paddingLeft = parseFloat(style.paddingLeft) || 0
+      const wrapped = slot.offsetLeft <= paddingLeft + 1
       const next = {
-        left: slot.offsetLeft + GAP_PX,
+        left: slot.offsetLeft + (wrapped ? 0 : gap),
         top: Math.max(Math.min(paddingTop, lowest), Math.min(top, lowest)),
       }
       // **Placed again where it already stands is not arriving.** The box is

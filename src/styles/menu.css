@@ -7,11 +7,11 @@
 
 /* ── Menu button ── */
 .icon-btn.menu-btn {
-  margin-left: 0;
-  margin-right: 4px;
+  margin-left: 4px;
+  margin-right: 0;
 }
 
-/* Beside the menu, and lit while the keyboard is up — the same cue the mode
+/* At the bar's left end, and lit while the keyboard is up — the same cue the mode
    toggles use, because it is the same kind of claim: a surface is showing. */
 .icon-btn.keyboard-btn { margin-right: 4px; }
 .icon-btn.keyboard-btn.is-on { color: var(--accent); border-color: var(--accent); }

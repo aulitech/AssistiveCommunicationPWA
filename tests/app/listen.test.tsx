@@ -466,6 +466,9 @@ describe('the control', () => {
 
     const tools = $$('.heard-line .heard-btn').map(b => b.getAttribute('aria-label') ?? '')
     expect(tools[0], 'the control that empties the box is not first').toMatch(/^clear/i)
+    // Ask is drawn as Speak is, filled in the accent; clearing is not.
+    expect($('.heard-ask .heard-btn')!.classList.contains('is-primary'), 'ask is not filled').toBe(true)
+    expect($('.heard-start .heard-btn')!.classList.contains('is-primary'), 'clear is filled').toBe(false)
     // Two, and no more: emptying the box and asking for answers. Reading the
     // question in the board's own language was a third of them and has been
     // taken away — it is somebody else's words, and the box holds them so they

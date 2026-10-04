@@ -186,11 +186,13 @@
    somebody waiting: an exchange with the sync server, and re-parsing the phrase
    table after an alias list changes. It is not a control — nothing to aim at,
    and inert to the pointer, so a gaze passing over it is not caught. Above the
-   panels, because both of those are started from inside one. */
+   panels, because both of those are started from inside one. **Left of the
+   menu**, which is in the upper right corner: drawn over it, the one way into
+   everything else would be hidden for as long as a board took to save. */
 .busy-region {
   position: fixed;
   top: 0.75rem;
-  right: 0.75rem;
+  right: calc(10px + 3.5rem + 0.75rem);
   z-index: 600;
   pointer-events: none;
 }

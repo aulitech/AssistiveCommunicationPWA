@@ -120,6 +120,23 @@ describe('outside edit mode', () => {
   })
 })
 
+// **The tab that is showing is muted**: a faint ground and a green edge, not
+// the whole pill filled. Filled, it was louder than Speak, the one control the
+// fill is kept to mean. The moment of choosing one still flashes full.
+describe('the tab that is showing', () => {
+  const rule = (selector: string) => {
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+    const at = css.indexOf(`\n${selector} {`)
+    return css.slice(at, css.indexOf('}', at))
+  }
+
+  it('is not filled in the accent, though the flash of choosing it is', () => {
+    expect(rule('.filter-tab.active')).toMatch(/background: *var\(--accent-dim\)/)
+    expect(rule('.filter-tab.active')).toMatch(/border-color: *var\(--accent\)/)
+    expect(rule('.filter-tab.flashed')).toMatch(/background: *var\(--accent\);/)
+  })
+})
+
 describe('in edit mode', () => {
   /**
    * **A tab goes to its category in every mode.** It opened the category for

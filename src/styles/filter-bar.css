@@ -125,11 +125,21 @@
   background: var(--cell-hover);
 }
 
-.filter-tab.flashed,
-.filter-tab.active {
+.filter-tab.flashed {
   background: var(--accent);
   border-color: var(--accent);
   color: #000;
+  font-weight: 600;
+}
+
+/* **The tab that is showing, muted**: a faint green ground and a green edge
+   rather than the whole pill filled. It is on all the time, so filled it was the
+   loudest thing on the screen, louder than Speak, which is the one control the
+   accent fill is kept to mean. The moment of choosing one still flashes full. */
+.filter-tab.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--text);
   font-weight: 600;
 }
 
