@@ -128,12 +128,6 @@ export function TalkScreen({
    * every time**, because being pointed at the same phrase twice is two
    * occasions and both components key on the identity.
    */
-  /**
-   * The word the grid was narrowed to when edit mode came on, held while
-   * editing so that turning the mode on changes nothing in the grid — see
-   * `filterWord`.
-   */
-  const [editWord, setEditWord] = useState('')
   const [pointing, setPointing] = useState<{ id: string; movedTo: string | null } | null>(null)
   /**
    * The last phrase deleted, and everything the delete took — see `Removed` in
@@ -328,12 +322,13 @@ export function TalkScreen({
   // Translations are their own list rather than part of the board: a record of
   // what was said in another language, not phrases anybody added.
   /**
-   * Only what is being *composed* narrows the grid. In edit mode the box holds a
-   * phrase being written, and narrowing the board to a word of it would take
-   * away the phrases the user came to edit — **but the narrowing there was when
-   * the mode came on stays** (`editWord`), so turning edit mode on changes
-   * nothing in the grid. It goes when the box is emptied, by *start a new
-   * phrase* or by taking the words out, which is a fresh start.
+   * **What is typed narrows the grid in every mode** — the message being
+   * composed, and in edit mode the phrase being written: the same rule, in
+   * `talk/typed.ts`, so a phrase put in the box is finished and narrows
+   * nothing, and what is typed after it searches Library. Opening a phrase to
+   * edit is putting one in the box, so it narrows nothing either, and turning
+   * edit mode on carries the word being typed in with the message, so the
+   * grid does not change.
    *
    * **The answers are not narrowed either**, and for a sharper version of the
    * same reason: they are alternatives to one question rather than completions
@@ -341,7 +336,7 @@ export function TalkScreen({
    * caret would be a word of the answer they just took, and the other nineteen
    * would disappear at the moment somebody wanted to compare them.
    */
-  const filterWord = showingSuggestions ? '' : editMode ? (draft.text.trim() ? editWord : '') : typed
+  const filterWord = showingSuggestions ? '' : editMode ? editor.typed : typed
 
   // How often each phrase is used — see `use-usage.ts`. The record follows every
   // phrase chosen; what the board is *ordered* by does not, which is the next
@@ -852,8 +847,7 @@ export function TalkScreen({
    *
    * **And nothing else on screen changes.** The words in the box stay, and so
    * does the grid: the tab, where it is scrolled to, and the word it was
-   * narrowed to, which is held for as long as the box has words in it (see
-   * `editWord`). Turning the mode on is a change of what a dwell does, not of
+   * narrowed to, which is still the word being typed (see `filterWord`). Turning the mode on is a change of what a dwell does, not of
    * what is in front of somebody — the board used to go to Library, scroll to
    * the phrase, and drop the narrowing, so the cell they had just been looking
    * at was somewhere else the moment the mode came on.
@@ -867,11 +861,10 @@ export function TalkScreen({
       setLastDeleted(null)
       const carried = mode === 'edit' ? message.trim() : ''
       const already = carried ? phraseSaying(carried) : undefined
-      // The phrase itself, or a new one carrying whatever was composed.
+      // The phrase itself, or a new one carrying whatever was composed — with
+      // the word being typed still being typed, so the grid stays narrowed to it.
       if (already) openPhrase(already)
-      else startNew(carried)
-      // The word the grid is narrowed to, kept while editing.
-      setEditWord(mode === 'edit' ? typed : '')
+      else startNew(carried, typed && carried.endsWith(typed) ? carried.slice(0, -typed.length) : carried)
       // The tab, **only where the tab is a category somebody made.** Four are
       // not: Library, which every phrase is in whatever is ticked, and the
       // three pinned records. They leave the last choice standing rather than

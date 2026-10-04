@@ -266,7 +266,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again.',
       ),
       text(
-        'Turning edit mode on changes nothing you can see: the box keeps its words and the phrases stay as they were. :add: on the left starts a new phrase and shows the whole tab again.',
+        'Turning edit mode on changes nothing you can see: the box keeps its words and the phrases stay as they were. Typing searches the phrases, just as it does while building a message, so you can find the one to change by writing it. :add: on the left starts a new phrase.',
       ),
       text('The controls on the box mean something else while it is on, in the same places:'),
       list(
