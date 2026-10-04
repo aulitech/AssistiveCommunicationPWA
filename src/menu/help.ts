@@ -43,7 +43,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'On a narrow screen the modes have the top row to themselves, and the rest go on a row under them.',
       ),
       text(
-        ':menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — and :sign-out: Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: beside it draws a keyboard, for a device that has none you can rest on.',
+        'In the upper right corner, :menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — and :sign-out: Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: at the left draws a keyboard, for a device that has none you can rest on.',
       ),
     ],
   },
@@ -335,7 +335,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Action dwell — how long to rest on buttons and menus.',
         'Auto-repeat — how quickly a button that keeps going, such as a scroll arrow, goes again while you go on resting on it.',
         'Volume and Speed — how the voice sounds.',
-        'Peri’s keyboard — adds :keyboard: beside the menu, for a device you cannot otherwise type on, such as an iPad. Each device keeps its own answer.',
+        'Peri’s keyboard — adds :keyboard: at the left of the message, for a device you cannot otherwise type on, such as an iPad. Each device keeps its own answer.',
         'Getting started — this guide, one part at a time, each part you have been through marked :ticked:. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',
         'Spoken language — see Speaking another language.',
         'Voice — :choose: opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',

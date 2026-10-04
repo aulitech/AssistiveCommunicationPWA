@@ -449,13 +449,9 @@ export function Topbar({
 
   return (
     <header className="topbar">
-      <ActionButton label={menuOpen ? 'Close menu' : 'Open menu'} onSelect={onToggleMenu} className="menu-btn">
-        <MenuIcon />
-      </ActionButton>
-
-      {/* Beside the menu because it is the same kind of thing: a surface the
-          whole app shares, rather than anything about the message in the box.
-          It stays put in both modes — on a device that cannot type without it,
+      {/* At the left, as the menu is at the right, because it is the same kind
+          of thing: a surface the whole app shares, rather than anything about
+          the message in the box. It stays put in both modes — on a device that cannot type without it,
           a control that moved would be the worst one to have to hunt for.
 
           **Only where it has been asked for.** It is the one way to type at all
@@ -732,6 +728,14 @@ export function Topbar({
           )}
         </div>
       </div>
+
+      {/* **The menu, in the upper right corner**, where an app's menu is
+          looked for. Back sits in the same corner of every panel it opens, and
+          holds the dwells as it closes one — see `PanelBack` — so the pointer
+          left over it does not open the menu again. */}
+      <ActionButton label={menuOpen ? 'Close menu' : 'Open menu'} onSelect={onToggleMenu} className="menu-btn">
+        <MenuIcon />
+      </ActionButton>
     </header>
   )
 }

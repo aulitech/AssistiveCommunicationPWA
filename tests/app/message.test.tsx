@@ -451,10 +451,12 @@ describe('the card', () => {
     expect($('.message-wrap > .message-tools'), 'the row is not inside the card').not.toBeNull()
 
     renderApp({ keyboard: true })
+    // The keyboard at the left end of the bar, the menu at the right.
     expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual([
-      'Open menu',
       'Show the keyboard',
+      'Open menu',
     ])
+    expect($('.topbar')!.lastElementChild!.getAttribute('aria-label'), 'the menu is not last').toBe('Open menu')
   })
 
   it('puts the row above the line, and the line under it', () => {
@@ -574,6 +576,9 @@ describe('the card', () => {
     expect(block('.icon-btn.in-card.is-primary'), 'speak is filled, as a chat app fills send').toMatch(
       /background: *var\(--accent\)/,
     )
+    expect(block('.heard-btn.is-primary'), 'ask is not filled as speak is').toMatch(/background: *var\(--accent\)/)
+    // The language and the voice have no ground of their own; the card's shows through.
+    expect(block('.choice-btn'), 'the language and the voice have a ground').toMatch(/background: *transparent/)
   })
 
   // It means two things and sits in one place, which is what makes the mode a
