@@ -305,6 +305,20 @@ function screenJustMoved(): boolean {
   return Date.now() < deafUntil || heldUntilMoved
 }
 
+/**
+ * **No control takes focus.** A press moves the browser's focus to what was
+ * pressed, which takes it — and the caret — out of the message box: the next
+ * key typed, from a real keyboard or Peri's own, goes nowhere, and the caret
+ * dwell has to put it back. So a press leaves focus where it was. Keyboard
+ * focus is untouched: Tab still reaches every control.
+ *
+ * **Not on something being arranged by hand**, which is draggable then: the
+ * browser starts a drag from this same press, and stopping it stops the drag.
+ */
+function keepFocus(e: React.MouseEvent<HTMLElement>) {
+  if (!e.currentTarget.draggable) e.preventDefault()
+}
+
 export interface DwellOptions {
   disabled?: boolean
   /** When set, the action repeats at this interval while the pointer stays. */
@@ -440,6 +454,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     onPointerEnter: disabled ? undefined : start,
     onPointerMove: disabled ? undefined : onPointerMove,
     onPointerLeave,
+    onMouseDown: keepFocus,
     onClick,
     onKeyDown,
     'aria-disabled': disabled || undefined,

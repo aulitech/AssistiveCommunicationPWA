@@ -210,6 +210,8 @@ export function useEditor({
     draft,
     isUntouched,
     typed,
+    phrased,
+    cursor,
     open,
     startNew,
     setText,

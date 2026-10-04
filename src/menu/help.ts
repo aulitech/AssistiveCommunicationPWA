@@ -80,6 +80,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'Each button means its own way of working and nothing else. Turning :auto-speak: off comes back to building a message, and turning :edit: off does the same — neither one takes you to the other.',
       ),
+      text(
+        'Switching between them never changes what is in the message box or which phrases are showing. Turning :edit: off keeps what you wrote in the box as your message.',
+      ),
       text('Turning either one on turns the other off, so any of the three is one rest away from any other.'),
     ],
   },

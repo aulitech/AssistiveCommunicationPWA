@@ -194,6 +194,27 @@ export function useComposer({
     }, 0)
   }, [])
 
+  /**
+   * The box holding `next`, with `phrased` what was put there rather than
+   * typed and the caret at `caret` — what the edit box held as edit mode is
+   * left, so the words, the caret and the word the grid is narrowed to all
+   * carry on as they were. What was there goes to Undo.
+   */
+  const load = useCallback(
+    (next: string, nextPhrased: string, caret: number) => {
+      if (next === text) return
+      if (text) setHistory(h => [...h, { text, phrased }])
+      setTextState(next)
+      setPhrased(nextPhrased)
+      setCursorPos(caret)
+      const el = textareaRef.current
+      // After the render that wrote the text, or the box is still holding the
+      // old value and the caret lands in the middle of it.
+      setTimeout(() => el?.setSelectionRange(caret, caret), 0)
+    },
+    [text, phrased],
+  )
+
   /** Empties the box, keeping what was in it for Undo — as Clear does. */
   const clear = useCallback(() => {
     if (!text) return
@@ -238,6 +259,7 @@ export function useComposer({
     setCursor,
     insert,
     propose,
+    load,
     clear,
     clearOrUndo,
     copy,
