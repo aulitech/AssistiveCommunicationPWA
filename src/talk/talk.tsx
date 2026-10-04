@@ -166,6 +166,7 @@ export function TalkScreen({
     propose: proposeMessage,
     text: message,
     typed,
+    load: loadMessage,
     copy: copyMessage,
     speak: speakMessage,
   } = composer
@@ -853,12 +854,37 @@ export function TalkScreen({
    * at was somewhere else the moment the mode came on.
    */
   const setMode = useCallback(
-    (mode: 'speak' | 'compose' | 'edit') => {
+    // `carry` is false only for the microphone, which empties the box anyway.
+    (mode: 'speak' | 'compose' | 'edit', carry = true) => {
       update({ autoSpeak: mode === 'speak' })
       setEditMode(mode === 'edit')
       // A delete is undone in edit mode or not at all: coming back to a blank
       // draft later is not coming back to the moment after the bin.
       setLastDeleted(null)
+      // **Leaving edit mode, what the box holds becomes the message** — the
+      // words, the caret and what was typed, so the box and the grid narrowed to
+      // it stay as they were. A phrase with choices in it is carried as the
+      // board shows it, since a message says what is in it and `{drink}` would
+      // be said as written.
+      if (carry && editMode && mode !== 'edit') {
+        const segments = parseSegments(draft.text)
+        if (segments.some(s => s.kind === 'slot')) {
+          const { text, blankAt } = composeWithBlank(segments)
+          loadMessage(text, text, blankAt >= 0 ? blankAt : text.length)
+        } else {
+          loadMessage(draft.text, editor.phrased, editor.cursor)
+        }
+      }
+      // Entering it from either of the other two, it carries the message in.
+      // Between those two the box is the message already, and nothing moves.
+      if (mode !== 'edit' && !editMode) {
+        flashToast(
+          mode === 'speak'
+            ? 'Auto-speak on — phrases speak immediately'
+            : 'Auto-speak off — phrases build a message',
+        )
+        return
+      }
       const carried = mode === 'edit' ? message.trim() : ''
       const already = carried ? phraseSaying(carried) : undefined
       // The phrase itself, or a new one carrying whatever was composed — with
@@ -892,6 +918,11 @@ export function TalkScreen({
     [
       message,
       typed,
+      editMode,
+      draft.text,
+      editor.phrased,
+      editor.cursor,
+      loadMessage,
       startNew,
       openPhrase,
       update,
@@ -940,7 +971,7 @@ export function TalkScreen({
     // a question that settles answers itself, which it does only into an empty
     // box. Edit mode goes, and so does please: an answer is said as it is.
     if (!listening) {
-      if (!settings.autoSpeak) setMode('speak')
+      if (!settings.autoSpeak) setMode('speak', false)
       clearMessage()
       if (settings.please) update({ please: false })
     }

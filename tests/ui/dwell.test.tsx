@@ -723,3 +723,26 @@ describe('a tap while the screen has just moved', () => {
     expect(onActivate).toHaveBeenCalledTimes(2)
   })
 })
+
+/**
+ * **No control takes focus.** A press would move focus — and the caret — out of
+ * the message box, so the next key typed would go nowhere. Arranging by hand is
+ * the exception, the press being where the browser starts a drag.
+ */
+describe('focus', () => {
+  it('stays where it was when a control is pressed', () => {
+    render(<Probe onActivate={() => {}} />)
+    expect(fireEvent.mouseDown(probe()), 'the press was let move focus').toBe(false)
+  })
+
+  it('is left to the browser on something draggable, so it can be dragged', () => {
+    render(<Probe onActivate={() => {}} />)
+    probe().draggable = true
+    expect(fireEvent.mouseDown(probe())).toBe(true)
+  })
+
+  it('can still be reached by Tab', () => {
+    render(<Probe onActivate={() => {}} />)
+    expect(probe().tabIndex).toBe(0)
+  })
+})

@@ -1386,6 +1386,10 @@ describe('the suggested reply', () => {
       renderApp()
       click(editToggle())
       expect(editToggle().getAttribute('aria-pressed')).toBe('true')
+      // A phrase half written: leaving edit mode would make it the message, and
+      // the question empties the box all the same.
+      fireEvent.change(messageBox(), { target: { value: 'half a phrase' } })
+      settle()
       toggleMic()
       expect(editToggle().getAttribute('aria-pressed')).toBe('false')
       expect(messageBox().value).toBe('')

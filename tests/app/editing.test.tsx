@@ -525,17 +525,49 @@ describe('keeping a composed message as a phrase', () => {
     expect(iconBtn('Save phrase'), 'Save is drawn with no words to save').toBeUndefined()
   })
 
-  // Two different things share the one box, and only one of them is on screen
-  // at a time. Writing a phrase must not rewrite the sentence somebody was part
-  // way through saying.
-  it('gives the message back when edit mode ends', () => {
+  // **Switching modes changes nothing in the box or the grid.** Leaving edit
+  // mode, what the box holds becomes the message — words, caret and the word
+  // being typed — so the grid stays narrowed to what it was narrowed to.
+  it('keeps what the box holds, and the grid, when edit mode ends', () => {
     renderApp()
     compose('Please pass me the water')
     enterEditMode()
-    writePhrase('Something else entirely')
+    writePhrase('I want')
+    const narrowed = cells().map(c => c.textContent)
+
     click(editToggle())
 
-    expect(box().value).toBe('Please pass me the water')
+    expect(box().value).toBe('I want')
+    expect(
+      cells().map(c => c.textContent),
+      'the grid changed as edit mode ended',
+    ).toEqual(narrowed)
+  })
+
+  // A phrase with choices in it is carried as the board shows it, rather than
+  // with the markup it was written in, which a message would say out loud.
+  it('carries a phrase with choices in it as it reads, not as it is written', () => {
+    renderApp()
+    enterEditMode()
+    writePhrase("I'd like the {['red', 'blue']} one")
+    click(editToggle())
+
+    expect(box().value).not.toMatch(/[{}[\]]/)
+    expect(box().value).toBe("I'd like the red/blue one")
+  })
+
+  // Between auto-speak and building a message the box is the message already,
+  // and neither it nor the grid moves.
+  it('changes nothing between auto-speak and building a message', () => {
+    renderApp()
+    compose('wat')
+    const narrowed = cells().map(c => c.textContent)
+    click(speakToggle())
+    expect(box().value).toBe('wat')
+    expect(cells().map(c => c.textContent)).toEqual(narrowed)
+    click(speakToggle())
+    expect(box().value).toBe('wat')
+    expect(cells().map(c => c.textContent)).toEqual(narrowed)
   })
 
   // The dwell primitive cancels Space so it cannot scroll the grid. Spread onto

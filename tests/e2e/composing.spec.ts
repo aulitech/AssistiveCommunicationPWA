@@ -60,3 +60,26 @@ test('finds what is typed in Library, and replaces it with the phrase chosen', a
   await expect(messageBox(page)).toHaveValue('Once in a blue moon Talk to you later')
   expect(errors).toEqual([])
 })
+
+/**
+ * **No button takes focus**: the caret stays in the message box whatever is
+ * pressed, so the next key typed goes into the message.
+ */
+test('keeps the caret in the message box when a button is pressed', async ({ page }) => {
+  await openBoard(page)
+  await composing(page)
+  const box = messageBox(page)
+  await box.pressSequentially('Hello')
+  for (const label of [
+    'Copy to clipboard',
+    'Turn on auto-speak — speak phrases immediately',
+    'Say please at the end of everything spoken',
+  ]) {
+    await page.locator(`[aria-label="${label}"]`).first().click()
+    expect(await page.evaluate(() => document.activeElement?.className ?? ''), `${label} took focus`).toContain(
+      'text-display',
+    )
+  }
+  await page.keyboard.type(' there')
+  await expect(box).toHaveValue('Hello there')
+})
