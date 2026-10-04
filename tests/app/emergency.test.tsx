@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, act } from '@testing-library/react'
 import App from '../../src/App'
+import { spoken } from '../setup'
 
 // Arranging the emergency bar. It spans the bar, the store and the backup
 // format, and the bar is the one surface somebody reaches for without reading
@@ -77,6 +78,16 @@ describe('the emergency bar as it ships', () => {
     renderApp()
     expect(labels()[0]).toBe('Help me!')
     expect(storedStore().emergencyOrder ?? []).toEqual([])
+  })
+
+  // Please reaches the bar too, as long as the word is in hand — in English it
+  // always is.
+  it('says please on the end while it is on', () => {
+    renderApp()
+    click($('.please-toggle'))
+    act(() => void vi.advanceTimersByTime(1000))
+    click(buttons()[0])
+    expect(spoken.at(-1)).toBe('Help me, please!')
   })
 
   it('offers no reorder control outside edit mode', () => {

@@ -233,21 +233,19 @@ export function TalkScreen({
   // fully-hidden categories lose theirs.
   const tabs = useMemo(
     () => [
-      // None of these is a category somebody made: they cannot be renamed, and
-      // the custom order cannot move them out of the places a user learns to
-      // look. One is pinned at the front and one at the very end —
-      // Translations is the tab nobody reaches for mid-sentence, and it is the
-      // one tab whose cells are not in the language the rest of the board is
-      // written in. **Library is where every phrase lives**, first; the
-      // categories refer to its phrases, and what is said is kept in it.
-      { id: LIBRARY, label: LIBRARY, fixed: true },
-      // Second, from the first question answered on: the most recent answers
-      // stay until newer ones replace them, and somebody may want to go back to
-      // one after the box is closed. Library keeps the place it is found in
-      // without looking; what gives way is the first category.
-      ...(offering ? [{ id: SUGGEST_FILTER, label: SUGGEST_CATEGORY, fixed: true }] : []),
-      ...allCategories.map(c => ({ id: c, label: c })),
+      // **The tabs that are not categories come first, always in one order** —
+      // Translations, the answers, Library — and then the categories somebody
+      // made, in the order they chose. None of the three can be renamed, and the
+      // custom order cannot move them out of the places a user learns to look.
       { id: TRANSLATED_FILTER, label: TRANSLATED_CATEGORY, fixed: true },
+      // From the first question answered on: the most recent answers stay until
+      // newer ones replace them, and somebody may want to go back to one after
+      // the box is closed.
+      ...(offering ? [{ id: SUGGEST_FILTER, label: SUGGEST_CATEGORY, fixed: true }] : []),
+      // **Library is where every phrase lives**; the categories refer to its
+      // phrases, and what is said is kept in it.
+      { id: LIBRARY, label: LIBRARY, fixed: true },
+      ...allCategories.map(c => ({ id: c, label: c })),
     ],
     [allCategories, offering],
   )
@@ -416,6 +414,7 @@ export function TalkScreen({
           // returns before any of them — so a cell in the tab saying itself
           // again is silent here without needing a second guard.
           onTranslated: recordTranslated,
+          please: settings.please,
         })
         // Not a cell off Translations, which is in another language and is
         // kept there already.

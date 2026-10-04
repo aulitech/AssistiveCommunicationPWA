@@ -14,6 +14,7 @@ import { audioKey, cachedAudio } from './audio-cache'
 import { reportFailure } from '../core/report'
 import { needsTranslation, rememberTranslation, translationFor, translationTarget } from '../core/translation'
 import { hasTranslateKey, translate } from '../translate/client'
+import { PLEASE, withPlease } from '../core/please'
 
 export interface VoiceSettings {
   voiceURI: string // empty = browser default
@@ -63,6 +64,15 @@ export interface SpeakOptions {
    * translated, and the record is keyed on it.
    */
   onTranslated?: (source: string, translated: string, tag: string) => void
+  /**
+   * **", please" on the end**, in the language the words come out in — see
+   * `core/please.ts`. Added here, after `onTranslated` has been told what was
+   * translated, so the record holds the words without it, and so does the
+   * phrase. Where the word cannot be had in time — `instant`, no key, the
+   * service refusing — the words are said without it rather than with an
+   * English one stuck on the end of another language.
+   */
+  please?: boolean
 }
 
 // Read per utterance rather than mirrored in a variable here. A JSON parse of
@@ -147,11 +157,14 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   // Words that have already been translated. They are said in the language they
   // are in, and never put through the translator again.
   if (options.alreadyIn) {
-    return say(written, { ...settings, language: options.alreadyIn }, options)
+    const inLanguage = { ...settings, language: options.alreadyIn }
+    return politely(written, options.alreadyIn, options, text => say(text, inLanguage, options))
   }
 
   const language = settings.language ?? ''
-  if (!needsTranslation(language)) return say(written, settings, options)
+  // Said as they were written, so the please is the English one.
+  const asWritten = () => politely(written, '', options, text => say(text, settings, options))
+  if (!needsTranslation(language)) return asWritten()
 
   // Already known — shipped with the app, or translated once before. This is
   // the path the emergency bar takes, and the only one it can take: a promise
@@ -159,7 +172,7 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   const known = translationFor(written, language)
   if (known) {
     options.onTranslated?.(written, known, language)
-    return say(known, settings, options)
+    return politely(known, language, options, text => say(text, settings, options))
   }
 
   // Nothing to translate with, nothing to translate into, or no time to do it
@@ -170,7 +183,7 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   // these have to speak **in the same tick**. A promise that resolves into the
   // original words a moment later is a phrase that arrives after it was needed.
   if (!hasTranslateKey() || !translationTarget(language) || options.instant) {
-    return say(written, settings, options)
+    return asWritten()
   }
 
   const mine = generation
@@ -179,10 +192,31 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
     if (result.status === 'ok') {
       rememberTranslation(written, language, result.text)
       options.onTranslated?.(written, result.text, language)
-      say(result.text, settings, options)
+      politely(result.text, language, options, text => say(text, settings, options))
     } else {
-      say(written, settings, options)
+      asWritten()
     }
+  })
+}
+
+/**
+ * The words with please on the end, when it is asked for, in `tag` — and then
+ * said. In hand for English, for every language Peri ships a table for, and
+ * for any the translator has been asked once; otherwise asked for here, unless
+ * the words cannot wait, in which case they go without it.
+ */
+function politely(words: string, tag: string, options: SpeakOptions, then: (text: string) => void) {
+  if (!options.please) return then(words)
+  if (!needsTranslation(tag)) return then(withPlease(words, PLEASE))
+  const known = translationFor(PLEASE, tag)
+  if (known) return then(withPlease(words, known))
+  if (!hasTranslateKey() || !translationTarget(tag) || options.instant) return then(words)
+  const mine = generation
+  void translate(PLEASE, tag).then(result => {
+    if (mine !== generation) return
+    if (result.status !== 'ok') return then(words)
+    rememberTranslation(PLEASE, tag, result.text)
+    then(withPlease(words, result.text))
   })
 }
 

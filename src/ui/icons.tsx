@@ -14,18 +14,24 @@ export function MenuIcon() {
   )
 }
 
+/**
+ * A heavy X, in a muted red of its own — emptying the box is the one thing in
+ * the line that throws words away. Two thick strokes with round ends, a little
+ * short of the corners so the weight reads as a mark rather than a cross-out.
+ */
 export function ClearIcon() {
   return (
     <svg
+      className="clear-x"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2.2"
+      strokeWidth="3.6"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
+      <line x1="17" y1="7" x2="7" y2="17" />
+      <line x1="7" y1="7" x2="17" y2="17" />
     </svg>
   )
 }
@@ -293,6 +299,26 @@ export function PasteIcon() {
       <rect x="9" y="2" width="6" height="4" rx="1" />
       <path d="M14 12h7v9a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1z" />
       <polyline points="17.5 9 17.5 15 20.5 12" />
+    </svg>
+  )
+}
+
+/** A hand held out with a heart over it — asking nicely. The toggle that puts please on what is said. */
+export function PleaseIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16" />
+      <path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9" />
+      <path d="m2 15 6 6" />
+      <path d="M19.5 8.5c.7-.7 1.5-1.6 1.5-2.7A2.73 2.73 0 0 0 16 4a2.78 2.78 0 0 0-5 1.8c0 1.2.8 2 1.5 2.8L16 12Z" />
     </svg>
   )
 }

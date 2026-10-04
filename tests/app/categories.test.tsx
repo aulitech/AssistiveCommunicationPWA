@@ -58,15 +58,14 @@ const enterEditMode = () => click(editToggle())
 // rather than role="tab" — this keeps them out of the category list.
 const tabs = () => $$('.filter-tab[role="tab"]')
 const tabLabels = () => tabs().map(t => t.textContent)
-// "Library" leads the bar, "Translations" closes it, and neither is a category.
-// Everything about renaming, deleting and ordering is about what sits between
+// "Translations" and "Library" lead the bar, and neither is a category.
+// Everything about renaming, deleting and ordering is about what comes after
 // them.
-const LEADING_TABS = 1
-const TRAILING_TABS = 1
-const catTabs = () => tabs().slice(LEADING_TABS, -TRAILING_TABS)
+const LEADING_TABS = 2
+const catTabs = () => tabs().slice(LEADING_TABS)
 const catLabels = () => catTabs().map(t => t.textContent)
 /** The two that are not categories, in the order the bar holds them. */
-const pinnedTabs = () => [...tabs().slice(0, LEADING_TABS), ...tabs().slice(-TRAILING_TABS)]
+const pinnedTabs = () => tabs().slice(0, LEADING_TABS)
 const pinnedLabels = () => pinnedTabs().map(t => t.textContent)
 const tabNamed = (name: string) => tabs().find(t => t.textContent === name)
 const renameBtn = () => $('.rename-category-tab')
@@ -995,19 +994,20 @@ describe('ordering categories', () => {
   })
 
   /**
-   * One pinned at the front and one at the end. The end one is the reason this
-   * is worth asserting twice over: a custom order that could reach it would put
-   * a tab after the last thing a user learns to look at.
+   * **Both pinned at the front, Translations then Library**, and the custom
+   * order reaching neither: dragging the last category onto the first puts it
+   * first among the categories, still after the two.
    */
-  it('leaves the two tabs that are not categories pinned and unmovable', () => {
+  it('leaves the two tabs that are not categories pinned at the front and unmovable', () => {
     renderApp()
     startReordering()
-    expect(pinnedLabels()).toEqual(['Library', 'Translations'])
+    expect(pinnedLabels()).toEqual(['Translations', 'Library'])
     for (const tab of pinnedTabs()) expect(tab.getAttribute('draggable')).toBeNull()
 
     const arranged = names()
     dwellDrag(arranged[arranged.length - 1], arranged[0])
-    expect(pinnedLabels()).toEqual(['Library', 'Translations'])
+    expect(pinnedLabels()).toEqual(['Translations', 'Library'])
+    expect(catLabels()[0]).toBe(arranged[arranged.length - 1])
   })
 
   // Renames are stored against the source name, so the order — stored against

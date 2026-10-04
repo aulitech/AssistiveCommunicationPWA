@@ -126,6 +126,7 @@
   border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
 }
 
+.icon-btn.in-card.is-absent { visibility: hidden; }
 .icon-btn.danger .dwell-ring { background: color-mix(in srgb, var(--danger) 35%, transparent); }
 
 /* ── CategoryModal ── */

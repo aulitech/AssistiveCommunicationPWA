@@ -77,14 +77,14 @@ afterEach(() => {
 
 describe('where the tab sits', () => {
   /**
-   * Library is pinned at the front and this one at the very end. It is the tab
-   * nobody reaches for mid-sentence, and the one tab whose cells are not in the
-   * language the rest of the board is written in.
+   * **First, then Library, then the categories** — the tabs that are not
+   * categories always lead the bar, in one order, and nothing a category does
+   * moves them.
    */
-  it('is always the last tab, whatever the categories do', () => {
+  it('is always the first tab, with Library after it', () => {
     renderApp()
-    expect(tabLabels().at(-1)).toBe('Translations')
-    expect(tabLabels()[0]).toBe('Library')
+    expect(tabLabels().slice(0, 2)).toEqual(['Translations', 'Library'])
+    expect(tabLabels().filter(l => l === 'Translations')).toHaveLength(1)
   })
 
   it('is there before anything has been translated, and says so', () => {

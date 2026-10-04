@@ -54,6 +54,14 @@ export interface Settings {
   /** Speak each selected phrase immediately instead of composing a message. */
   autoSpeak: boolean
   /**
+   * **", please" on the end of everything said**, in the language it is said in
+   * — the toggle beside paste in the message card. Added as the words go out,
+   * inside `speak`, and never to the phrase: what is kept in Library, what the
+   * Translations tab records, and what is copied are the words as written.
+   * A preference rather than a mode, so it is kept across a load and travels.
+   */
+  please: boolean
+  /**
    * Whether Peri offers its own keyboard — the toggle beside the menu, and the
    * four rows it opens.
    *
@@ -203,6 +211,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // a sentence out of several phrases turns it off; somebody who wants a button
   // to say a thing has nothing to find first.
   autoSpeak: true,
+  please: false,
   keyboard: false,
   introduction: true,
   zoom: 1,

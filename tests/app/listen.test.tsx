@@ -150,8 +150,10 @@ describe('the control', () => {
   it('sits at the box’s upper-left corner, and nothing else moved', () => {
     renderApp()
     expect($('.topbar-listen .listen-toggle')).not.toBeNull()
-    // The modes strip holds exactly three and nothing may be inserted into it.
-    expect($$('.topbar-modes > *')).toHaveLength(3)
+    // The modes strip holds the three modes and please, and the microphone is
+    // not among them.
+    expect($$('.topbar-modes > *')).toHaveLength(4)
+    expect($('.topbar-modes .listen-toggle')).toBeNull()
   })
 
   /**
@@ -888,6 +890,10 @@ describe('the suggested reply', () => {
     // person is waiting in front of them.
     expect(answerTab(), 'no tab for the answers').toBeDefined()
     expect(answerCells()).toEqual(['I am, thank you', 'A bit cold', 'Could I have a blanket?'])
+    // **Between Translations and Library**, the three tabs that are not
+    // categories always in that order, before any category.
+    const order = $$('.filter-tab[role="tab"]').map(t => (t.textContent ?? '').replace(/\d+$/, '').trim())
+    expect(order.slice(0, 3)).toEqual(['Translations', 'Answers', 'Library'])
     // **Nothing lands in the box by itself.** What goes there is what they
     // choose, and until then the box is theirs.
     expect(messageBox().value).toBe('')

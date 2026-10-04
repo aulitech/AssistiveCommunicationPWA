@@ -219,6 +219,10 @@
   pointer-events: none;
 }
 
+/* Clear's X, wherever it is drawn — the message's line, the question's, and the
+   guide — in its own muted red. See `ClearIcon`. */
+svg.clear-x { color: var(--clear-red); }
+
 .icon-btn .dwell-ring {
   position: absolute;
   inset: 0;
