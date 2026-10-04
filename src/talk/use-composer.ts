@@ -9,6 +9,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { BLANK } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { speak, type SpeakOptions } from '../voice/speech'
+import { keepPhrased, phraseEndIn, typedFrom as typedFromIn } from './typed'
 
 export function useComposer({
   onTranslated,
@@ -54,11 +55,7 @@ export function useComposer({
    * of the word the change is in — see `setText`.
    */
   const [phrased, setPhrased] = useState('')
-  const phraseEnd = useMemo(() => {
-    let same = 0
-    while (same < phrased.length && same < text.length && phrased[same] === text[same]) same++
-    return same
-  }, [text, phrased])
+  const phraseEnd = useMemo(() => phraseEndIn(text, phrased), [text, phrased])
 
   /**
    * Text the person wrote themselves — typed, pasted, or from Peri's own keys.
@@ -68,12 +65,7 @@ export function useComposer({
    * typing "moon", and the board searches for the whole word.
    */
   const setText = useCallback((next: string) => {
-    setPhrased(was => {
-      let same = 0
-      while (same < was.length && same < next.length && was[same] === next[same]) same++
-      if (same === was.length) return was
-      return was.slice(0, same - (next.slice(0, same).match(/\S*$/)?.[0].length ?? 0))
-    })
+    setPhrased(was => keepPhrased(was, next))
     setTextState(next)
   }, [])
 
@@ -98,10 +90,7 @@ export function useComposer({
    * the word it is in, since a caret moved into a phrase's gap is filling a
    * blank one word at a time.
    */
-  const typedFrom = useCallback(
-    (pos: number) => (pos >= phraseEnd ? phraseEnd : pos - (text.slice(0, pos).match(/\S+$/)?.[0].length ?? 0)),
-    [text, phraseEnd],
-  )
+  const typedFrom = useCallback((pos: number) => typedFromIn(text, phraseEnd, pos), [text, phraseEnd])
 
   /** What has been typed since the last phrase, which the grid searches for. */
   const typed = useMemo(() => {

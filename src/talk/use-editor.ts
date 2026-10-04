@@ -11,11 +11,12 @@
 // from the phrase each render, so a draft cannot go stale against a store that
 // changed underneath it.
 
-import { useCallback, useMemo, useState } from 'react'
-import { cancelAllDwells } from '../ui/dwell'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { cancelAllDwells, holdDwellsUntilMoved } from '../ui/dwell'
 import { LIBRARY, type Phrase } from '../core/phrases'
 import { TRANSLATED_CATEGORY } from './use-translated'
 import { SUGGEST_CATEGORY } from './suggestions'
+import { keepPhrased, typedIn } from './typed'
 
 /** Neither is a category on the board, so a phrase off one is kept rather than edited. */
 const keepingOf = (phrase: Phrase | null) =>
@@ -101,6 +102,16 @@ export function useEditor({
 }) {
   const [target, setTarget] = useState<Target | null>(null)
   const [edits, setEdits] = useState<Edits>({})
+  /**
+   * What the box held when it was loaded — a phrase opened, or a message
+   * carried in — and the caret. **What is typed after it searches the board**,
+   * by the rule the message box follows (`talk/typed.ts`): a phrase opened is
+   * finished, so opening one narrows nothing, and typing does.
+   */
+  const [phrased, setPhrased] = useState('')
+  const [cursor, setCursor] = useState(0)
+  /** Whether the grid is narrowed now — read by `open`, which has to stay stable. */
+  const narrowing = useRef(false)
 
   /**
    * Point the editor at a phrase — or, with null, at a new one.
@@ -113,17 +124,36 @@ export function useEditor({
     // Whatever else was part-way through would otherwise land on the phrase that
     // has just been loaded.
     cancelAllDwells()
+    // Opening a phrase off a narrowed grid lets the whole tab back, every cell
+    // changing under the pointer that chose it — as composing does.
+    if (narrowing.current) holdDwellsUntilMoved()
     setTarget({ phrase, isEmergency })
     setEdits({})
+    const source = phrase?.source ?? ''
+    setPhrased(source)
+    setCursor(source.length)
   }, [])
 
-  /** A blank draft, or one seeded with what was in the message box. */
-  const startNew = useCallback((text = '') => {
+  /**
+   * A blank draft, or one seeded with what was in the message box — and of
+   * that, `phrased` is what was put there rather than typed, so a word being
+   * typed when edit mode came on is still being typed.
+   */
+  const startNew = useCallback((text = '', phrased = text) => {
     setTarget(null)
     setEdits(text ? { text } : {})
+    setPhrased(phrased)
+    setCursor(text.length)
   }, [])
 
-  const setText = useCallback((text: string) => setEdits(e => ({ ...e, text })), [])
+  const setText = useCallback((text: string) => {
+    setPhrased(was => keepPhrased(was, text))
+    setEdits(e => ({ ...e, text }))
+  }, [])
+
+  const trackCursor = useCallback((e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    setCursor(e.currentTarget.selectionStart ?? 0)
+  }, [])
   const setCategories = useCallback((categories: string[]) => setEdits(e => ({ ...e, categories })), [])
   const setVoice = useCallback((voice: string) => setEdits(e => ({ ...e, voice })), [])
 
@@ -170,7 +200,24 @@ export function useEditor({
   /** Whether anything would be lost by starting again. */
   const isUntouched = target === null && !edits.text && !edits.categories && !edits.voice
 
-  return { draft, isUntouched, open, startNew, setText, setCategories, setVoice }
+  /** What has been typed into the draft since it was loaded, which the grid searches for. */
+  const typed = typedIn(draft.text, phrased, cursor)
+  useEffect(() => {
+    narrowing.current = typed !== ''
+  }, [typed])
+
+  return {
+    draft,
+    isUntouched,
+    typed,
+    open,
+    startNew,
+    setText,
+    setCategories,
+    setVoice,
+    trackCursor,
+    setCursor,
+  }
 }
 
 export type Editor = ReturnType<typeof useEditor>

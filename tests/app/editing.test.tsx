@@ -280,16 +280,15 @@ describe('edit mode', () => {
     expect($('.app')?.classList.contains('edit-mode')).toBe(false)
   })
 
-  // **Turning edit mode on changes nothing on screen**: the grid stays narrowed
-  // to the word that was being typed, and the box keeps its words. Writing in
-  // the draft does not narrow it further — that would take away the phrases
-  // somebody came to edit — and emptying the box, a fresh start, lets the
-  // whole board back.
+  // **What is typed searches the board in edit mode too**, by the rule the
+  // message follows. Turning the mode on changes nothing — the word being typed
+  // is still being typed — writing searches, a phrase opened off the board is
+  // finished and narrows nothing, and a new phrase starts with the whole tab.
   //
   // Asked of the cells rather than of how many there are: the grid renders a
   // windowful of whatever list it is given, so a narrowed board and a whole one
   // are both a screenful, and only what is in them tells the two apart.
-  it('keeps the board narrowed to the word it came in with, until the box is emptied', () => {
+  it('searches the board as the phrase is written, just as composing does', () => {
     renderApp()
     const board = cells().map(c => c.textContent)
 
@@ -304,19 +303,60 @@ describe('edit mode', () => {
     ).toEqual(narrowed)
     expect(box().value, 'the message did not come with it').toBe('wat')
 
-    writePhrase('watching the rain')
+    writePhrase('I want')
+    const searched = cells().map(c => c.textContent ?? '')
+    expect(searched.length, 'nothing found').toBeGreaterThan(0)
     expect(
-      cells().map(c => c.textContent),
-      'writing the draft narrowed the grid',
-    ).toEqual(narrowed)
+      searched.every(t => /want/i.test(t)),
+      'writing the phrase did not search the board',
+    ).toBe(true)
     // Arranging now would arrange only what matched, so it waits, and says why.
     const arrange = () => $('.reorder-btn')!
     expect(arrange().getAttribute('aria-label')).toMatch(/start a new phrase first/i)
 
+    // A phrase opened off the narrowed board is finished: the whole tab is back.
+    const chosen = cells()[0].textContent
+    click(cells()[0])
+    expect(box().value).toBe(chosen)
+    const opened = cells().map(c => c.textContent)
+    expect(opened).toEqual(board.slice(0, opened.length))
+    expect(arrange().getAttribute('aria-label')).toBe('Arrange the phrases by hand')
+
+    writePhrase('wat')
     click(iconBtn('Start a new phrase'))
     const whole = cells().map(c => c.textContent)
     expect(whole).toEqual(board.slice(0, whole.length))
-    expect(arrange().getAttribute('aria-label')).toBe('Arrange the phrases by hand')
+  })
+
+  // A phrase opened is finished — until its words are changed: taking a letter
+  // off its last word and the board searches for that word, as in the message.
+  it('searches for the word being changed in a phrase opened to edit', () => {
+    renderApp()
+    click(editToggle())
+    const whole = cells().map(c => c.textContent)
+    click(cells()[0])
+    const text = box().value
+    writePhrase(text.slice(0, -1))
+    const searched = cells().map(c => c.textContent)
+    expect(searched, 'changing the phrase did not search the board').not.toEqual(whole.slice(0, searched.length))
+  })
+
+  // Opening a phrase off a narrowed board brings the whole tab back under the
+  // pointer that chose it, so nothing may be chosen until it moves — the guard
+  // composing a phrase has.
+  it('holds the dwells when opening a phrase lets the whole tab back', () => {
+    renderApp()
+    click(editToggle())
+    writePhrase('I want')
+    const chosen = cells()[0].textContent
+    click(cells()[0])
+    expect(box().value).toBe(chosen)
+
+    const under = cells()[0]
+    fireEvent.pointerEnter(under)
+    act(() => void vi.advanceTimersByTime(1500))
+    settle()
+    expect(box().value, 'a cell that landed under a still pointer opened').toBe(chosen)
   })
 
   // A phrase listed twice in one category is a cell somebody has to read past to

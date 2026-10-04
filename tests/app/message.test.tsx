@@ -578,7 +578,7 @@ describe('the card', () => {
     // so the language and the voice never move as it comes and goes.
     const bin = () => iconBtn('Delete phrase')!
     expect(bin().classList.contains('is-absent'), 'the bin shows for a new phrase').toBe(true)
-    clearMessage()
+    click(iconBtn('Start a new phrase'))
     click(plainCell())
     expect(bin().classList.contains('is-absent'), 'the bin is hidden for a phrase off the board').toBe(false)
     expect($('.message-line + .edit-bar'), 'the edit row is not below the line').not.toBeNull()
@@ -887,12 +887,9 @@ describe('the keyboard Peri draws', () => {
     expect(cells().length).toBeLessThan(before)
   })
 
-  /**
-   * And deliberately *not* in edit mode. There the box holds a phrase being
-   * written, and narrowing would take away the very phrases somebody opened the
-   * board to edit, letter by letter as they typed.
-   */
-  it('leaves the board alone while a phrase is being written', () => {
+  // And in edit mode too, where the box holds a phrase being written: the board
+  // is searched as it is typed, by the same rule.
+  it('narrows the board while a phrase is being written, too', () => {
     renderApp({ keyboard: true })
     click(editToggle())
     act(() => box().focus())
@@ -902,7 +899,7 @@ describe('the keyboard Peri draws', () => {
     click(keyNamed('h'))
     click(keyNamed('e'))
     click(keyNamed('l'))
-    expect(cells().length, 'the phrases being edited disappeared as they were typed over').toBe(before)
+    expect(cells().length, 'typing a phrase did not search the board').toBeLessThan(before)
   })
 
   // The bar somebody reaches for without reading it must not be the one the

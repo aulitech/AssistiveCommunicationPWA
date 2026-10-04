@@ -292,7 +292,14 @@ export function Topbar({
   )
   const togglePlease = useCallback(() => update({ please: !settings.please }), [settings.please, update])
   const { text, setText, showUndo, canClear, clearOrUndo, textareaRef, trackCursor, setCursor } = composer
-  const { draft, isUntouched, startNew, setText: setDraftText } = editor
+  const {
+    draft,
+    isUntouched,
+    startNew,
+    setText: setDraftText,
+    trackCursor: trackDraftCursor,
+    setCursor: setDraftCursor,
+  } = editor
 
   /**
    * What the phrase *reads* as, for the voice picker's sample.
@@ -311,11 +318,12 @@ export function Topbar({
   // The same dwell either way, and enabled in both modes now. The box used to be
   // `readOnly` in edit mode, a button whose hold opened the editor dialog; there
   // is no dialog to open any more, so it is a box being typed in whichever mode
-  // it is in. Outside edit mode the caret does a second job — it decides which
-  // word the grid narrows itself to, which is how a gaze user says which word to
-  // finish — so where it lands is reported back to the composer.
+  // it is in. The caret does a second job in both — it decides which word the
+  // grid narrows itself to, which is how a gaze user says which word to finish —
+  // so where it lands is reported back to whichever of the two the box holds.
+  const track = editMode ? trackDraftCursor : trackCursor
   const caret = useCaretDwell(textareaRef, settings.actionDwellMs, {
-    onPlace: editMode ? undefined : setCursor,
+    onPlace: editMode ? setDraftCursor : setCursor,
   })
 
   /**
@@ -674,18 +682,17 @@ export function Topbar({
                 value={value}
                 onChange={e => {
                   write(e.target.value)
-                  if (!editMode) trackCursor(e)
+                  track(e)
                 }}
-                // Only outside edit mode: the caret tracked here is the composer's, and
-                // it decides which word the grid filters on. A caret moved about in a
-                // phrase would narrow the board to a word that is not in the message.
-                onSelect={editMode ? undefined : trackCursor}
+                // The composer's caret or the editor's, whichever the box holds: it
+                // decides which word the grid narrows to.
+                onSelect={track}
                 onPaste={linkInput.onPaste}
                 onDrop={linkInput.onDrop}
                 onDragOver={linkInput.onDragOver}
                 {...caret.props}
-                onClick={editMode ? undefined : trackCursor}
-                onKeyUp={editMode ? undefined : trackCursor}
+                onClick={track}
+                onKeyUp={track}
                 placeholder={
                   editMode
                     ? 'Write a phrase, or hold one on the board to edit it…'
