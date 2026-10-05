@@ -23,6 +23,13 @@ import { holdIfUnderPointer } from './dwell'
 import { cx } from './style'
 
 /**
+ * **Told to place the control again**, dispatched on the copy by whatever lays
+ * it out at a new width — the topbar's fit, which runs once the box has
+ * settled.
+ */
+export const PLACE_AGAIN = 'after-text:place'
+
+/**
  * The space between the last word and the control: a rem and a few pixels, so
  * the control reads as standing after the words rather than as one more of them,
  * and grows with the text when somebody turns the size up.
@@ -116,9 +123,16 @@ export function AfterText({
     place()
     const watch = new ResizeObserver(place)
     watch.observe(field)
+    // **And the copy**, and when told to: the fit lays the copy out at the box's
+    // width once the box has settled, and on one screen that was the only
+    // thing that saw the width a mode switch had left — the control stood where
+    // the other mode had it until something else happened to draw the bar.
+    watch.observe(copy)
+    copy.addEventListener(PLACE_AGAIN, place)
     field.addEventListener('scroll', place)
     return () => {
       watch.disconnect()
+      copy.removeEventListener(PLACE_AGAIN, place)
       field.removeEventListener('scroll', place)
     }
   }, [fieldRef, value, drawn])

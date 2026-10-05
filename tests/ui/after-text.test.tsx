@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import { useRef } from 'react'
-import { AfterText } from '../../src/ui/after-text'
+import { AfterText, PLACE_AGAIN } from '../../src/ui/after-text'
 
 // What jsdom can say about `AfterText`: what it gives the copy it lays the
 // words out in. Where that puts the control is `e2e/layout.spec.ts`'s question.
+
+let liveWidth = 0
 
 function Box({ width }: { width: number }) {
   const field = useRef<HTMLTextAreaElement>(null)
@@ -16,12 +18,14 @@ function Box({ width }: { width: number }) {
           if (!el) return
           // A box flex has shared a line out to: fractional, which `offsetWidth`
           // rounds away.
+          // Read live, so a test can change it without a render.
+          liveWidth = width
           el.getBoundingClientRect = () => ({
-            width,
+            width: liveWidth,
             height: 40,
             top: 0,
             left: 0,
-            right: width,
+            right: liveWidth,
             bottom: 40,
             x: 0,
             y: 0,
@@ -39,6 +43,19 @@ function Box({ width }: { width: number }) {
 }
 
 describe('AfterText', () => {
+  // Regression guard, from a trace on a real screen: after a mode switch the
+  // only thing that saw the box's new width was the fit, which lays the copy
+  // out again once the box has settled — and the control stayed where the
+  // other mode had it until something else drew the bar, seven seconds later.
+  // So the fit says so, and the control is placed again then, with no render.
+  it('places the control again when told to, with nothing re-rendered', () => {
+    const { container } = render(<Box width={600.5} />)
+    const copy = container.querySelector<HTMLElement>('.after-text-mirror')!
+    liveWidth = 410.25
+    copy.dispatchEvent(new Event(PLACE_AGAIN))
+    expect(copy.style.width).toBe('410.25px')
+  })
+
   // **Measured again on every render**, not only when a resize is reported: a
   // box narrowed by what stands beside it — edit mode's row at the line's end —
   // is rewrapped in the same commit, and the notification of it came late or

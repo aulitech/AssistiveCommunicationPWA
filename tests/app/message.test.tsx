@@ -21,6 +21,7 @@ import {
   fillEverySlot,
 } from './harness'
 import { stylesheet } from '../stylesheet'
+import { PLACE_AGAIN } from '../../src/ui/after-text'
 
 describe('placing the caret in the message box by dwell', () => {
   const composer = () => $<HTMLTextAreaElement>('.text-display')!
@@ -505,6 +506,18 @@ describe('the card', () => {
       'Open menu',
     ])
     expect($('.topbar')!.lastElementChild!.getAttribute('aria-label'), 'the menu is not last').toBe('Open menu')
+  })
+
+  // The fit lays the copy out at the box's settled width and says so, and the
+  // control after the words is placed again then — on a mode switch, which
+  // narrows or widens the box without changing its words.
+  it('asks for the control after the words to be placed again when the mode changes', () => {
+    renderApp()
+    writeIn(box(), 'Some words')
+    let asked = 0
+    $('.message-field > .after-text-mirror')!.addEventListener(PLACE_AGAIN, () => asked++)
+    click(editToggle())
+    expect(asked, 'nothing asked for it to be placed again').toBeGreaterThan(0)
   })
 
   it('puts the row above the line, and the line under it', () => {
