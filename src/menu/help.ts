@@ -269,14 +269,14 @@ export const HELP_SECTIONS: ProseSection[] = [
         'In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again.',
       ),
       text(
-        'Turning edit mode on changes nothing you can see: the box keeps its words and the phrases stay as they were. Typing searches the phrases, just as it does while building a message, so you can find the one to change by writing it. :add: on the left starts a new phrase.',
+        'Turning edit mode on changes nothing you can see: the box keeps its words and the phrases stay as they were. Typing searches the phrases, just as it does while building a message, so you can find the one to change by writing it. :clear: on the left starts a new phrase.',
       ),
       text('The controls on the box mean something else while it is on, in the same places:'),
       list(
         ':save:, right after the last word, saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for. Like Speak, it is there once there is something to save.',
         ':delete:, at the far right of the row once you have chosen a phrase, on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
-        ':add: at the left end of the line starts a new phrase — where :clear: is the rest of the time. :paste: stays where it is; :copy: is not there in edit mode.',
+        ':clear: at the left end of the line starts a new phrase — the same button that empties the message the rest of the time. :paste: stays where it is; :copy: is not there in edit mode.',
         'At the right end of the line you write on, it says what is being edited, and which categories it is in — under the words on a narrow screen. Rest on :choose: beside them to open the categories. Tick as many as you like — each ticked one shows :ticked: — or none to keep it in Library alone.',
         'Done on the categories saves straight away. A new phrase, or a translation or answer you are keeping, is saved whole. For one already on the board only the categories are, and new words or a new voice still wait for :save:.',
         "The language and the voice in the row become this phrase's own: the voice it is said in, and the language that voice is for.",
@@ -285,7 +285,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         'Choose any phrase to bring it into the box and change its wording.',
         'A new phrase starts in the category and voice you last used, so adding several in a row takes one choice rather than one each.',
-        'After a delete, or taking a phrase out of a category, :undo: where :add: was puts it back where it was, until you start on something else.',
+        'After a delete, or taking a phrase out of a category, :undo: where :clear: was puts it back where it was, until you start on something else.',
         ':add: among the tools at the end of the category tabs makes a new category. So does New category… at the end of the grid of categories under the box.',
         ':edit: among those tools renames the category that is showing. Delete in the same box removes the category. It asks first, and its phrases stay in Library.',
         ':arrange: at the end of those tools rearranges the tabs: choose a tab to pick it up, then choose where it should go. While it is on, the first tool switches the tabs between A to Z and your own order.',

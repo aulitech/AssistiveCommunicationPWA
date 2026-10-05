@@ -34,7 +34,6 @@ import {
   MenuIcon,
   PasteIcon,
   PleaseIcon,
-  PlusIcon,
   QuestionIcon,
   SpeakIcon,
   TrashIcon,
@@ -719,7 +718,8 @@ export function Topbar({
                   label="Start a new phrase"
                   disabled={isUntouched}
                 >
-                  <PlusIcon />
+                  {/* The same X as Clear: it empties the box in this mode too. */}
+                  <ClearIcon />
                 </ActionButton>
               ) : (
                 <ActionButton
