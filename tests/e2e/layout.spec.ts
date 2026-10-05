@@ -2,7 +2,7 @@
 // these was written in AGENTS.md as "a question for the deploy preview".
 
 import { expect, test } from '@playwright/test'
-import { messageBox, openBoard } from './board'
+import { composing, messageBox, openBoard } from './board'
 
 test.describe('on a phone held upright', () => {
   test.use({ viewport: { width: 390, height: 844 } })
@@ -383,3 +383,40 @@ for (const [width, beside] of [
     }
   })
 }
+
+/**
+ * Regression guard. **Edit mode narrows the box under words that do not
+ * change** — what is being edited takes the line's right end — and they rewrap
+ * into more lines. The box kept the height it had, and Save, kept inside it,
+ * was drawn on the wrong line. Asked of where Save stands against where it
+ * stands once the box is made to measure itself again, going in and coming out.
+ */
+test('puts Save after the last word when edit mode rewraps the words', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 800 })
+  await openBoard(page)
+  await composing(page)
+  const box = page.locator('.text-display')
+  await box.pressSequentially(
+    'This is a rather long message that will run past the end of one line in the box, and more',
+  )
+  const at = () =>
+    page.evaluate(() => ({
+      after: document.querySelector('.after-text')!.getBoundingClientRect().toJSON(),
+      box: document.querySelector('.text-display')!.getBoundingClientRect().toJSON(),
+    }))
+  const remeasured = async () => {
+    await box.press('End')
+    await page.keyboard.type('x')
+    await page.keyboard.press('Backspace')
+    await page.waitForTimeout(200)
+    return at()
+  }
+  for (const label of ['into edit mode', 'out of edit mode']) {
+    await page.locator('.edit-toggle').click()
+    await page.mouse.move(5, 790)
+    await page.waitForTimeout(400)
+    const now = await at()
+    expect(now, `${label}: drawn somewhere else until the box measured itself again`).toEqual(await remeasured())
+    expect(now.after.bottom, `${label}: drawn under the box's edge`).toBeLessThanOrEqual(now.box.bottom)
+  }
+})

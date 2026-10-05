@@ -464,7 +464,26 @@ export function Topbar({
     // The width decides where the lines break, and the width changes with the
     // window — a phone turned on its side rewraps every line in both boxes.
     window.addEventListener('resize', fit)
-    return () => window.removeEventListener('resize', fit)
+    // **And with what stands beside a box**, which no window event says: edit
+    // mode puts what is being edited at the line's right end, narrowing the box
+    // under words that do not change, so they rewrap into more lines than the
+    // box was sized for — and Save, kept inside it, was drawn on the wrong one.
+    // Widths only: the heights are this function's own doing, and answering
+    // them would answer itself.
+    const widths = new Map<Element, number>()
+    const watch = new ResizeObserver(entries => {
+      let changed = false
+      for (const { target, contentRect } of entries) {
+        if (widths.get(target) !== contentRect.width) changed = widths.has(target) || changed
+        widths.set(target, contentRect.width)
+      }
+      if (changed) fit()
+    })
+    for (const el of [textareaRef.current, heardRef.current]) if (el) watch.observe(el)
+    return () => {
+      window.removeEventListener('resize', fit)
+      watch.disconnect()
+    }
   }, [value, question, listener.open, textareaRef, settings.zoom, remeasureMessage, remeasureHeard])
 
   // A link pasted or dropped here becomes `[label](url)`, so the message reads
