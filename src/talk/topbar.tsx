@@ -444,7 +444,8 @@ export function Topbar({
       const copies = boxes.flatMap(el => {
         const copy = el.parentElement?.querySelector<HTMLElement>(':scope > .after-text-mirror')
         if (!copy) return []
-        copy.style.width = `${el.offsetWidth}px`
+        // To the fraction, as `AfterText` measures it — see there.
+        copy.style.width = `${el.getBoundingClientRect().width}px`
         return [copy]
       })
       const tallest = Math.max(...boxes.map(el => el.scrollHeight), ...copies.map(el => el.offsetHeight))
