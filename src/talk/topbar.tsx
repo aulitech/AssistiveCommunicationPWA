@@ -21,7 +21,7 @@ import { chooseLanguage, chooseVoice } from '../core/store'
 import { LanguagePicker } from '../voice/language-picker'
 import { VoicePicker } from '../voice/picker'
 import { useCaretDwell } from '../ui/caret'
-import { AfterText } from '../ui/after-text'
+import { AfterText, PLACE_AGAIN } from '../ui/after-text'
 import { useDwellControl } from '../ui/dwell'
 import { useLinkInput, type PasteResult } from '../ui/link-input'
 import {
@@ -456,6 +456,10 @@ export function Topbar({
       // line, and the room they take rewraps the text into a box that really
       // does overflow. The border is read while the height is still cleared.
       if (tallest) for (const el of boxes) el.style.height = `${tallest + el.offsetHeight - el.clientHeight}px`
+      // The copies were just laid out at the boxes' settled widths: their
+      // controls are placed again from them, now, rather than at whatever
+      // next draws the bar.
+      for (const copy of copies) copy.dispatchEvent(new Event(PLACE_AGAIN))
       // Whatever the heights did, whether there is more than shows is a fresh
       // question — the cap is where a box stops growing and starts scrolling.
       remeasureMessage()
