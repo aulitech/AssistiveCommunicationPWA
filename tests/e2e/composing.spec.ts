@@ -83,3 +83,28 @@ test('keeps the caret in the message box when a button is pressed', async ({ pag
   await page.keyboard.type(' there')
   await expect(box).toHaveValue('Hello there')
 })
+
+/**
+ * **Focus is always in a box** — the message's, and put back there with its
+ * caret when a panel closes or a press lands on nothing.
+ */
+test('puts focus back in the message box, caret and all, when it falls to nothing', async ({ page }) => {
+  await openBoard(page)
+  await composing(page)
+  const box = messageBox(page)
+  await box.pressSequentially('Hello')
+  // Each step waits out the second the app is deaf for after the screen moves.
+  const settle = () => page.waitForTimeout(1100)
+  await page.locator('[aria-label="Open menu"]').click()
+  await settle()
+  await page.locator('.nav-item').filter({ hasText: 'Settings' }).click()
+  await settle()
+  await page.locator('[aria-label="Back"]').first().click()
+  await settle()
+  await page.locator('[aria-label="Back"]').first().click()
+  await settle()
+  await page.mouse.click(5, 300)
+  await expect.poll(() => page.evaluate(() => document.activeElement?.className ?? '')).toContain('text-display')
+  await page.keyboard.type(' there')
+  await expect(box).toHaveValue('Hello there')
+})
