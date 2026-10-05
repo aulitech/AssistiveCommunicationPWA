@@ -41,8 +41,9 @@
 }
 
 /* **The line the words are written on** — see `topbar.tsx`. The slot that
-   empties the box at its left end, level with the last line of text (the
-   line's padding plus half a line, less half a control), and then the box,
+   empties the box at its left end, **centred on the words** however many lines
+   they run to — the box pads them equally above and below, so its centre is
+   theirs — and then the box,
    with Speak right after its last word — `.after-text`, below. Under the row
    of controls, which is on top. The box's own inline
    padding is tightened here, since the slot stands beside it. */
@@ -62,7 +63,7 @@
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  margin-bottom: calc(var(--box-pad-y) + 0.945rem - 1rem);
+  align-self: center;
 }
 
 /* The live microphone, at the right end of the question's line: room kept for

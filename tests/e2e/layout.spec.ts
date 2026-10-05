@@ -457,3 +457,38 @@ test.describe('on a high-density screen', () => {
     }
   })
 })
+
+/**
+ * **The slot that empties the box is centred on the words**, however many lines
+ * they run to, in both modes and on a phone — Clear, Undo, or in edit mode the
+ * start of a new phrase. The box pads its words equally above and below, so its
+ * centre is theirs.
+ */
+for (const width of [1280, 390]) {
+  test(`centres Clear on the words, one line or several, at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await openBoard(page)
+    await composing(page)
+    const box = page.locator('.text-display')
+    const offCentre = () =>
+      page.evaluate(() => {
+        const slot = document.querySelector('.message-line > .topbar-clear .icon-btn')!.getBoundingClientRect()
+        const b = document.querySelector('.text-display')!.getBoundingClientRect()
+        return Math.abs((slot.top + slot.bottom) / 2 - (b.top + b.bottom) / 2)
+      })
+    for (const mode of ['building', 'editing']) {
+      if (mode === 'editing') {
+        await page.locator('.edit-toggle').click()
+        await page.mouse.move(5, 890)
+      }
+      for (const words of [
+        'Hello',
+        'This message runs on well past the end of a single line of the box, and then on again',
+      ]) {
+        await box.fill(words)
+        await page.waitForTimeout(150)
+        expect(await offCentre(), `${mode}, ${words.length} letters: not on the words' centre`).toBeLessThan(1.5)
+      }
+    }
+  })
+}
