@@ -68,6 +68,9 @@ export function AfterText({
   const [at, setAt] = useState<{ left: number; top: number } | null>(null)
   const drawn = Boolean(children)
 
+  /** The latest `place`, for the effect below that runs on every render. */
+  const placeRef = useRef<(() => void) | null>(null)
+
   useLayoutEffect(() => {
     const field = fieldRef.current
     const copy = mirror.current
@@ -109,6 +112,7 @@ export function AfterText({
       // had moved onto it on purpose.
       setAt(was => (was && was.left === next.left && was.top === next.top ? was : next))
     }
+    placeRef.current = place
     place()
     const watch = new ResizeObserver(place)
     watch.observe(field)
@@ -118,6 +122,19 @@ export function AfterText({
       field.removeEventListener('scroll', place)
     }
   }, [fieldRef, value, drawn])
+
+  // **Placed again after every render**, in the commit that changed the
+  // layout, and once more in the frame after it. A box can be rewrapped by what
+  // stands beside it without its words changing — edit mode puts what is being
+  // edited at the line's right end — and waiting on a resize notification to
+  // say so left the control where the other mode had it on at least one
+  // screen. Measuring is cheap, and placed again where it already stands it
+  // has not moved.
+  useLayoutEffect(() => {
+    placeRef.current?.()
+    const frame = requestAnimationFrame(() => placeRef.current?.())
+    return () => cancelAnimationFrame(frame)
+  })
 
   // Each time it lands, held if it landed under the pointer — and the place it
   // stood kept, for when it goes.

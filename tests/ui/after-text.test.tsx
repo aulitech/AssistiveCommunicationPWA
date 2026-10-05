@@ -39,6 +39,17 @@ function Box({ width }: { width: number }) {
 }
 
 describe('AfterText', () => {
+  // **Measured again on every render**, not only when a resize is reported: a
+  // box narrowed by what stands beside it — edit mode's row at the line's end —
+  // is rewrapped in the same commit, and the notification of it came late or
+  // not at all on at least one screen, leaving the control where the other
+  // mode had it. jsdom reports no resizes at all, so this is that case exactly.
+  it('lays the copy out again when a render finds the box another width', () => {
+    const { container, rerender } = render(<Box width={600.5} />)
+    rerender(<Box width={410.25} />)
+    expect(container.querySelector<HTMLElement>('.after-text-mirror')!.style.width).toBe('410.25px')
+  })
+
   // Regression guard: a copy a fraction narrower than the box breaks its lines
   // a word early wherever the last word only fits in the fraction, and the
   // control stood after the wrong word.
