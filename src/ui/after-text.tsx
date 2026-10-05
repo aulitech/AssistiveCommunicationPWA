@@ -76,7 +76,12 @@ export function AfterText({
     const place = () => {
       const style = getComputedStyle(field)
       for (const metric of METRICS) copy.style[metric] = style[metric]
-      copy.style.width = `${field.offsetWidth}px`
+      // **The box's width to the fraction**, not `offsetWidth`, which rounds: a
+      // box 387.11px wide laid out in a copy 387px wide breaks its lines a word
+      // early wherever the last word only fits in the fraction, and the control
+      // was drawn after the wrong word. Boxes are fractional wherever flex shares
+      // out a line — and a mode switch changes what it is shared with.
+      copy.style.width = `${field.getBoundingClientRect().width}px`
       const control = controlRef.current
       const gap = gapAfterWords()
       slot.style.width = control ? `${control.offsetWidth + gap}px` : '0px'

@@ -420,3 +420,40 @@ test('puts Save after the last word when edit mode rewraps the words', async ({ 
     expect(now.after.bottom, `${label}: drawn under the box's edge`).toBeLessThanOrEqual(now.box.bottom)
   }
 })
+
+/**
+ * Regression guard. **The copy that finds where the words end is exactly as
+ * wide as the box**, to the fraction of a pixel. It was given `offsetWidth`,
+ * which rounds, and a box flex shares a line out to is fractional — 387.11px —
+ * so wherever a line's last word fitted only in that fraction, the copy broke
+ * the line a word early and Save or Speak stood after the wrong word. A mode
+ * switch changes what the box shares its line with, which is where it showed.
+ * At twice the pixel density, as on a Mac's own screen.
+ */
+test.describe('on a high-density screen', () => {
+  test.use({ deviceScaleFactor: 2 })
+  test('lays the copy out at the box’s own width, in every mode', async ({ page }) => {
+    await page.setViewportSize({ width: 777, height: 800 })
+    await openBoard(page)
+    await composing(page)
+    await page
+      .locator('.text-display')
+      .fill('This is a rather long message that will run past the end of one line')
+    const widths = () =>
+      page.evaluate(() => {
+        const box = document.querySelector('.text-display')!.getBoundingClientRect().width
+        const copy = document.querySelector('.message-field > .after-text-mirror')!.getBoundingClientRect().width
+        return { box, copy }
+      })
+    for (const label of ['building', 'editing', 'building again']) {
+      if (label !== 'building') {
+        await page.locator('.edit-toggle').click()
+        await page.mouse.move(5, 790)
+        await page.waitForTimeout(400)
+      }
+      const { box, copy } = await widths()
+      expect(Number.isInteger(box), `${label}: the box is not fractional here, so this proves nothing`).toBe(false)
+      expect(Math.abs(copy - box), `${label}: the copy is not the box's width`).toBeLessThan(0.01)
+    }
+  })
+})
