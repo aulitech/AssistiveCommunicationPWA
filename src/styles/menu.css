@@ -9,6 +9,9 @@
 .icon-btn.menu-btn {
   margin-left: 4px;
   margin-right: 0;
+  /* A bare glyph, with no ground or edge of its own: the bar's shows through. */
+  background: transparent;
+  border-color: transparent;
 }
 
 /* At the bar's left end, and lit while the keyboard is up — the same cue the mode

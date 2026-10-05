@@ -340,6 +340,43 @@ export function Topbar({
    */
   const messageEdges = useScrollEdges(textareaRef)
   const heardEdges = useScrollEdges(heardRef, listener.open)
+  /**
+   * **Focus is always in a box**: the question's while it is open, the
+   * message's otherwise. Put there as the question opens and as it closes, and
+   * put back whenever it falls to nothing — a panel or a dialog closing, a
+   * press on empty space — so a key typed always lands in one of the two.
+   * Moved to another field or a control by Tab, it is left there: that is
+   * somebody choosing where it goes. The message box gets back the caret its
+   * own state says it had, since Chrome moves an unfocused box's caret to the
+   * start with no event at all.
+   */
+  const caretAt = editMode ? editor.cursor : composer.cursorPos
+  const caretRef = useRef(caretAt)
+  useEffect(() => {
+    caretRef.current = caretAt
+  }, [caretAt])
+  const focusBox = useCallback(() => {
+    const heard = listener.open ? heardRef.current : null
+    if (heard) return heard.focus({ preventScroll: true })
+    const box = textareaRef.current
+    if (!box) return
+    box.focus({ preventScroll: true })
+    const at = Math.min(caretRef.current, box.value.length)
+    box.setSelectionRange(at, at)
+  }, [listener.open, textareaRef])
+  useEffect(() => {
+    focusBox()
+  }, [focusBox])
+  useEffect(() => {
+    const backToBox = () =>
+      setTimeout(() => {
+        const at = document.activeElement
+        if (!at || at === document.body) focusBox()
+      }, 0)
+    document.addEventListener('focusout', backToBox)
+    return () => document.removeEventListener('focusout', backToBox)
+  }, [focusBox])
+
   const { update: remeasureMessage } = messageEdges
   const { update: remeasureHeard } = heardEdges
 

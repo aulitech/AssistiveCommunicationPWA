@@ -1404,6 +1404,22 @@ describe('the suggested reply', () => {
       expect(pleaseToggle().getAttribute('aria-pressed')).toBe('false')
     })
 
+    // **Focus is always in a box**: the question's while it is open, the
+    // message's otherwise — and put back there when it falls to nothing.
+    it('puts focus in the question as it opens, and back in the message as it closes', () => {
+      renderApp()
+      toggleMic()
+      expect(document.activeElement, 'the question did not take focus').toBe(heardBox())
+      act(() => (document.activeElement as HTMLElement).blur())
+      act(() => void vi.advanceTimersByTime(10))
+      expect(document.activeElement, 'focus was left on nothing').toBe(heardBox())
+      toggleMic()
+      expect(document.activeElement, 'the message did not take focus back').toBe(messageBox())
+      act(() => messageBox().blur())
+      act(() => void vi.advanceTimersByTime(10))
+      expect(document.activeElement, 'focus was left on nothing').toBe(messageBox())
+    })
+
     it('leaves the box as it is on the way out', () => {
       renderApp()
       toggleMic()

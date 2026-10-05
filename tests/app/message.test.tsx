@@ -634,6 +634,9 @@ describe('the card', () => {
       /background: *var\(--accent\)/,
     )
     expect(block('.heard-btn.is-primary'), 'ask is not filled as speak is').toMatch(/background: *var\(--accent\)/)
+    // The menu is a bare glyph: no ground or edge of its own.
+    expect(block('.icon-btn.menu-btn')).toMatch(/background: *transparent/)
+    expect(block('.icon-btn.menu-btn')).toMatch(/border-color: *transparent/)
     // The bin with nothing to delete keeps its place, unseen.
     expect(block('.icon-btn.in-card.is-absent')).toMatch(/visibility: *hidden/)
     // Clear's X in a red of its own, the danger red let down towards the grey.
@@ -1057,6 +1060,19 @@ describe('choosing one phrase after another', () => {
     click(cellFor('Thank you'))
 
     expect(message()).toBe('Once in a blue moon Thank you')
+  })
+
+  // **Focus is put back in the box when it falls to nothing — with the caret
+  // the message says it had**, not the one Chrome left on an unfocused box.
+  it('puts focus back in the box, at its own caret, when focus falls to nothing', () => {
+    seeded()
+    click(cellFor('Once in a blue moon'))
+    const node = box()
+    const placed = vi.spyOn(node, 'setSelectionRange')
+    act(() => node.blur())
+    act(() => void vi.advanceTimersByTime(10))
+    expect(document.activeElement, 'focus was left on nothing').toBe(node)
+    expect(placed).toHaveBeenLastCalledWith(message().length, message().length)
   })
 
   // A phrase is finished; a word somebody types is not. Typing after one is
