@@ -276,6 +276,31 @@ export function holdIfUnderPointer(target: Element | DOMRect, margin = 6) {
   }
 }
 
+/**
+ * **What a rest on the pointer's spot would reach**: the nearest control or
+ * field under it, rather than the exact node — a control re-creates the fill
+ * inside it as it is pressed, and that is not something else being under the
+ * pointer. Null where nothing says where the pointer is, or the browser cannot
+ * say what is there.
+ */
+export function targetUnderPointer(): Element | null {
+  if (!lastPointer || typeof document.elementFromPoint !== 'function') return null
+  const at = document.elementFromPoint(lastPointer.x, lastPointer.y)
+  return at?.closest('[tabindex], textarea, input, button, a') ?? null
+}
+
+/**
+ * **Held until the pointer moves if the screen moved something else under it**
+ * — `before` being `targetUnderPointer()` from before the change. For a change
+ * that may or may not move anything: a mode switch rearranges the message card
+ * on one screen and leaves it alone on another, and holding for nothing costs a
+ * mouse its next click on the very control it just used.
+ */
+export function holdIfMovedUnder(before: Element | null) {
+  if (!lastPointer) return
+  if (targetUnderPointer() !== before) holdDwellsUntilMoved()
+}
+
 /** Test seam: nothing in the app clears either guard early. */
 export function releaseDwells() {
   deafUntil = 0

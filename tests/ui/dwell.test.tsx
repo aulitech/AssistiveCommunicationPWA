@@ -5,9 +5,11 @@ import {
   forgetPointerStream,
   holdDwells,
   holdDwellsUntilMoved,
+  holdIfMovedUnder,
   holdIfUnderPointer,
   onDwellActivation,
   releaseDwells,
+  targetUnderPointer,
   useDwellControl,
 } from '../../src/ui/dwell'
 
@@ -744,5 +746,55 @@ describe('focus', () => {
   it('can still be reached by Tab', () => {
     render(<Probe onActivate={() => {}} />)
     expect(probe().tabIndex).toBe(0)
+  })
+})
+
+/**
+ * **Held only if the screen moved something else under the pointer** — for a
+ * change, a mode switch, that rearranges one screen and leaves another alone.
+ */
+describe('holdIfMovedUnder', () => {
+  const under = (el: Element | null) => {
+    document.elementFromPoint = () => el
+  }
+  afterEach(() => {
+    // jsdom has none; put the absence back.
+    delete (document as { elementFromPoint?: unknown }).elementFromPoint
+  })
+
+  it('holds when what a rest would reach is not what it was', () => {
+    const onActivate = vi.fn()
+    render(
+      <>
+        <Probe onActivate={onActivate} />
+        <textarea aria-label="box" />
+      </>,
+    )
+    fireEvent.pointerMove(document.body, { clientX: 10, clientY: 10 })
+    under(probe())
+    const before = targetUnderPointer()
+    under(screen.getByLabelText('box'))
+    holdIfMovedUnder(before)
+
+    fireEvent.pointerEnter(probe())
+    advance(600)
+    expect(onActivate, 'a rest landed on what slid under a still pointer').not.toHaveBeenCalled()
+  })
+
+  // The toggle re-creates the fill inside it as it is pressed: the same control.
+  it('holds nothing when the same control is still there, whatever node inside it', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    fireEvent.pointerMove(document.body, { clientX: 10, clientY: 10 })
+    const inner = document.createElement('span')
+    probe().append(inner)
+    under(probe())
+    const before = targetUnderPointer()
+    under(inner)
+    holdIfMovedUnder(before)
+
+    fireEvent.pointerEnter(probe())
+    advance(600)
+    expect(onActivate).toHaveBeenCalledTimes(1)
   })
 })

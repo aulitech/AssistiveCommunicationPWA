@@ -5,10 +5,17 @@
 // category is showing, whether the app is in edit mode or resting, and what to
 // say when an operation finishes.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { loadTranslations } from '../core/translation'
-import { cancelAllDwells, holdDwells, holdDwellsUntilMoved, RestingContext } from '../ui/dwell'
+import {
+  cancelAllDwells,
+  holdDwells,
+  holdDwellsUntilMoved,
+  holdIfMovedUnder,
+  RestingContext,
+  targetUnderPointer,
+} from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
 import { LIBRARY, compose, composeWithBlank, hasChoices, parseSegments, type Phrase } from '../core/phrases'
@@ -128,6 +135,8 @@ export function TalkScreen({
    * every time**, because being pointed at the same phrase twice is two
    * occasions and both components key on the identity.
    */
+  /** What was under the pointer as a mode was switched — see the effect after `setMode`. */
+  const beforeSwitch = useRef<Element | null | undefined>(undefined)
   const [pointing, setPointing] = useState<{ id: string; movedTo: string | null } | null>(null)
   /**
    * The last phrase deleted, and everything the delete took — see `Removed` in
@@ -856,6 +865,9 @@ export function TalkScreen({
   const setMode = useCallback(
     // `carry` is false only for the microphone, which empties the box anyway.
     (mode: 'speak' | 'compose' | 'edit', carry = true) => {
+      // What the pointer is on, to compare once the switch has been laid out —
+      // see `beforeSwitch`.
+      beforeSwitch.current = targetUnderPointer()
       update({ autoSpeak: mode === 'speak' })
       setEditMode(mode === 'edit')
       // A delete is undone in edit mode or not at all: coming back to a blank
@@ -934,6 +946,28 @@ export function TalkScreen({
       categoriesOf,
     ],
   )
+
+  /**
+   * **A mode switch can move the screen under the pointer that made it.** Edit
+   * mode brings the language, the voice and what is being edited into the
+   * card, and on some screens that grows its row of controls; leaving it
+   * shrinks the row again and the message box slides up under a pointer still
+   * resting where the toggle was. Its caret dwell then put the caret there —
+   * the very start of the words — and everything typed after went in front of
+   * what came before. So once the switch is laid out, and again a frame later
+   * when the box has been fitted, what is under the pointer is compared with
+   * what was: anything else there, and nothing may be chosen until the pointer
+   * moves. Nothing moved, nothing is held — a second click on the same toggle
+   * is still a click.
+   */
+  useLayoutEffect(() => {
+    const before = beforeSwitch.current
+    if (before === undefined) return
+    beforeSwitch.current = undefined
+    holdIfMovedUnder(before)
+    const frame = requestAnimationFrame(() => holdIfMovedUnder(before))
+    return () => cancelAnimationFrame(frame)
+  }, [editMode, settings.autoSpeak])
 
   const toggleEditMode = useCallback(() => setMode(editMode ? 'compose' : 'edit'), [editMode, setMode])
 

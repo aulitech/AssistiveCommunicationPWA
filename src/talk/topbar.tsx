@@ -485,7 +485,9 @@ export function Topbar({
       window.removeEventListener('resize', fit)
       watch.disconnect()
     }
-  }, [value, question, listener.open, textareaRef, settings.zoom, remeasureMessage, remeasureHeard])
+    // `editMode` too: it changes what stands beside the box, and so where its
+    // words break, without changing them.
+  }, [value, question, listener.open, editMode, textareaRef, settings.zoom, remeasureMessage, remeasureHeard])
 
   // A link pasted or dropped here becomes `[label](url)`, so the message reads
   // as the page's name and still carries the address when it is copied out. Into

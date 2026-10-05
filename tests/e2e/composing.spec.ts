@@ -108,3 +108,21 @@ test('puts focus back in the message box, caret and all, when it falls to nothin
   await page.keyboard.type(' there')
   await expect(box).toHaveValue('Hello there')
 })
+
+/**
+ * Regression guard, found in a browser. **Switching modes moves the screen
+ * under the pointer that switched them**: at this width edit mode brings the
+ * language and the voice into the card's row, which grows, so the toggle moves
+ * down and the second click follows it there; leaving edit mode shrinks the row
+ * again and the message box slides up under the pointer, still resting. Its
+ * caret dwell then put the caret where the pointer was — the very start of the
+ * words — and everything typed after went in front of what came before.
+ */
+test('keeps the words in order when the box slides under the pointer that switched modes', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 900 })
+  await openBoard(page)
+  await composing(page)
+  const text = 'I would like to go outside this afternoon if the weather stays fine, and could'
+  await messageBox(page).pressSequentially(text, { delay: 15 })
+  await expect(messageBox(page)).toHaveValue(text)
+})
