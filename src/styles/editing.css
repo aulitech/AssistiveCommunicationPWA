@@ -46,11 +46,9 @@
   to { background-size: 100% 3px; }
 }
 
-/* What is being edited and where it is filed, **in a row of the card's own,
-   below its controls** — see `topbar.tsx`. Below rather than above, so turning
-   edit mode on grows the card downwards and nothing in the row of controls moves
-   under the pointer that turned it on. Ruled off from them by the card's edge
-   colour, since it is about the phrase rather than a thing to do to it.
+/* What is being edited and where it is filed, **at the right end of the line
+   the words are written on** — see `topbar.tsx` — beside the words it is about.
+   It used to be a row of the card's own under the line.
 
    **It never scrolls**, which it once did: sideways, on a phone, with nothing a
    gaze could use to do it. The title is what gives way, down to an ellipsis,
@@ -61,8 +59,25 @@
   gap: 8px;
   min-width: 0;
   overflow: hidden;
-  padding: 0.5rem 0.75rem 0.6rem;
-  border-top: 1px solid var(--card-edge);
+  /* At the right end of the line, level with its last line of text as the
+     slot at the left end is. 0.75rem clear of the words, so Save after the last
+     of them and the category trigger never share a rest. */
+  flex: 0 1 auto;
+  max-width: 50%;
+  margin-left: 0.75rem;
+  margin-bottom: calc(var(--box-pad-y) + 0.945rem - 1.05rem);
+}
+
+/* A narrow card has no room for the words and this side by side: it takes a
+   line of its own under them, still at the right. */
+@container message (max-width: 38rem) {
+  .message-line:has(> .edit-bar) { flex-wrap: wrap; }
+  .message-line > .edit-bar {
+    flex-basis: 100%;
+    max-width: none;
+    justify-content: flex-end;
+    margin: 0 0 0.6rem;
+  }
 }
 
 

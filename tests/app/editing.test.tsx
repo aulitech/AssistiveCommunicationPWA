@@ -463,7 +463,7 @@ describe('edit mode', () => {
     renderApp()
     click(editToggle())
 
-    expect($('.message-wrap > .edit-bar')).not.toBeNull()
+    expect($('.message-line > .edit-bar')).not.toBeNull()
     expect($('.edit-bar .category-trigger')).not.toBeNull()
     expect($('.edit-bar .voice-trigger'), 'the strip still carries a voice of its own').toBeNull()
 
