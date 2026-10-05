@@ -31,21 +31,22 @@ They are easy to confuse, because both run on every push and both report a check
 | **Decides** | whether a change may merge | nothing |
 | **Runs** | `pnpm check` — format, types, lint, ~1,900 tests — and `pnpm e2e`, the browser tests | `pnpm build` |
 | **On a pull request** | the checks `check`, `version label` and `browser` | a deploy preview, in about 20 seconds |
-| **On `main`** | the same checks | a production build, which is **not** published |
+| **On `preview`** | `check` and `browser` | a branch deploy of what is next, which is **not** published |
+| **On `main`** | the same checks | a production build, which is **not** published until `pnpm promote` |
 | **Also** | the Publish workflow, by hand | hosting, the CDN, the redirects, and `/api/sync` with Netlify Blobs behind it |
 
-Netlify ran `pnpm check && pnpm build` as its build command until September 2026, which made every preview eight to ten minutes long and left the test suite as the only thing standing between a change and `main`. It builds now, and nothing else.
+Netlify ran `pnpm check && pnpm build` as its build command until September 2026, which made every preview eight to ten minutes long and left the test suite as the only thing standing between a change and the people using it. It builds now, and nothing else.
 
-**`main` is protected by a ruleset**: `check` and `version label`, a pull request, rebase merges only, no force pushes, no deletion, and no bypass for anybody — including the person who owns the repository. A workflow cannot push to it either, which is why the version commit is made on the branch.
+**Two branches.** **`preview` is where development lands** — the default branch: every pull request is based on it and merges into it — and **`main` is what people are using**, moved only when a release is published. **`preview` is protected by a ruleset**: `check` and `version label`, a pull request, rebase merges only, no force pushes, no deletion, and no bypass for anybody — including the person who owns the repository. A workflow cannot push to it either, which is why the version commit is made on the branch. **`main` has the same ruleset with one way past it**, a repository admin, which is what `pnpm promote` uses to fast-forward it to `preview`.
 
 **`browser` is the browser tests** — the production build in Chromium, for what the jsdom suite cannot see: where things are, what a real browser does to a text box. `pnpm e2e` runs them locally, after `pnpm exec playwright install chromium` once. It is not required by the ruleset yet; it reports, and a red one uploads its traces.
 
 ### From a change to the people using it
 
-1. **Open a pull request**, labelled `major`, `minor` or `patch`. The `version label` check fails without exactly one. It is the one thing about a change that the diff cannot tell you.
+1. **Open a pull request** against `preview` — the default — labelled `major`, `minor` or `patch`. The `version label` check fails without exactly one. It is the one thing about a change that the diff cannot tell you.
 2. **`pnpm release`** on the branch, as the last commit before merging: it reads that label, bumps `package.json` and commits `Version 1.3.4`.
-3. **`gh pr merge --auto --rebase`.** GitHub merges when the checks pass; nobody watches them.
-4. **Publishing is a separate decision, and stays one.** Auto-publishing is off. `gh workflow run publish` — or the Actions tab — refuses a `main` that does not end in a release commit, waits for Netlify's build of that exact commit, publishes that one build, and then asks the live site what version it is serving.
+3. **`gh pr merge --auto --rebase`.** GitHub merges into `preview` when the checks pass; nobody watches them.
+4. **Publishing is a separate decision, and stays one: `pnpm promote`.** Auto-publishing is off. It refuses a `preview` that does not end in a release, or whose `check` or `browser` did not pass; fast-forwards `main` to it with your own admin rights, so the two are the same commits; and runs the Publish workflow, which waits for Netlify's build of that exact commit, publishes that one build, and then asks the live site what version it is serving. `gh workflow run publish` — or the Actions tab — publishes `main` again on its own.
 
 People speak through this app. A release reaches them when somebody decides it should, not because a merge happened.
 

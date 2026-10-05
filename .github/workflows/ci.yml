@@ -1,8 +1,10 @@
-# The gate every change passes before it reaches main, and the release that
-# follows it there. See *Checks, releases and publishing* in AGENTS.md.
+# The gate every change passes before it reaches preview, where development
+# lands, and the record of each release once it is there — `pnpm promote` will
+# not move main to a release this has not passed. See *Checks, releases and
+# publishing* in AGENTS.md.
 #
-# `check` is what main requires of a pull request, and of itself once something
-# has merged. It ran as Netlify's build command until this existed, which made
+# `check` is what preview requires of a pull request, and of itself once
+# something has merged. It ran as Netlify's build command until this existed, which made
 # every deploy preview take eight to ten minutes and was the only thing standing
 # between a change and main.
 
@@ -11,14 +13,14 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [preview, main]
 
 permissions:
   contents: read
 
 concurrency:
-  # A pull request's newer push replaces its older run. Main's are left alone:
-  # each says whether what is on main now is sound, and the answer for one
+  # A pull request's newer push replaces its older run. A branch's are left
+  # alone: each says whether what is on it now is sound, and the answer for one
   # commit is not the answer for the next.
   group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -42,7 +44,8 @@ jobs:
 
   # The browser tests: the production build in Chromium, for what jsdom cannot
   # see — see `playwright.config.ts`. Beside `check` rather than inside it, so a
-  # red one names itself; and **not yet required by main's ruleset**, which is
+  # red one names itself; and **not required to merge into preview** — though
+  # `pnpm promote` publishes nothing it failed — which is
   # the choice to revisit once it has run green for a while.
   browser:
     name: browser

@@ -13,6 +13,7 @@
     "mic-probe": "open tools/mic-probe.html",
     "translate": "tsx tools/translate-table.ts",
     "release": "tsx tools/release.ts",
+    "promote": "tsx tools/promote.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",

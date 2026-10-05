@@ -1,5 +1,7 @@
-# Puts the latest release in front of the people using Peri. Run it from the
-# Actions tab or with `gh workflow run publish`. See `tools/publish.ts`.
+# Puts the release on main in front of the people using Peri. `pnpm promote`
+# moves main to preview and runs this; run on its own, from the Actions tab or
+# with `gh workflow run publish`, it publishes main again. See
+# `tools/promote.ts` and `tools/publish.ts`.
 #
 # Needs a Netlify personal access token in the repository secret
 # NETLIFY_AUTH_TOKEN. Nothing else here can read it: this is the only workflow
