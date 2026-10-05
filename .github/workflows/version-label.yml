@@ -1,5 +1,5 @@
 # Every pull request says what it does to the version, as exactly one of the
-# labels major, minor or patch, and main will not take one that does not. The
+# labels major, minor or patch, and preview will not take one that does not. The
 # release after it is bumped by the highest label it covers — see
 # `tools/release.ts` and *Versioning* in AGENTS.md.
 

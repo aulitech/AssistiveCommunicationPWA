@@ -68,7 +68,7 @@ async function main() {
   const subject = git('log', '-1', '--format=%s', sha)
   if (!RELEASE_SUBJECT.test(subject)) {
     throw new Error(
-      `main ends in "${subject}", which has not been released. CI cuts a release once main passes; if it failed, nothing is published until a fix does.`,
+      `main ends in "${subject}", which is not a release. main only ever moves to a release on preview — see \`pnpm promote\`.`,
     )
   }
   const version = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version

@@ -24,7 +24,7 @@ pnpm dev
 pnpm check     # format, typecheck, lint, test
 ```
 
-This is not advisory. GitHub Actions runs the same command on every pull request, and `main` will not take a change until it passes. Running it locally just saves you the round trip — see [README.md](README.md) for what runs where.
+This is not advisory. GitHub Actions runs the same command on every pull request, and `preview` will not take a change until it passes. Running it locally just saves you the round trip — see [README.md](README.md) for what runs where.
 
 Useful while working:
 
@@ -83,7 +83,7 @@ Three things that will bite you otherwise:
 
 ## Branches and pull requests
 
-Branch off `main` and open a pull request, labelled **`major`, `minor` or `patch`** — a check enforces exactly one, and `pnpm release` turns that label into the version commit that ends the branch. Merges are rebased to keep history linear, and `main` is protected: nobody commits to it directly, and nothing bypasses its checks. Getting a merged change in front of people is a separate, deliberate step — [README.md](README.md) describes it.
+Branch off `preview` — the default branch, where development lands — and open a pull request against it, labelled **`major`, `minor` or `patch`** — a check enforces exactly one, and `pnpm release` turns that label into the version commit that ends the branch. Merges are rebased to keep history linear, and `preview` is protected: nobody commits to it directly, and nothing bypasses its checks. `main` is what people are using, and getting a merged change there and in front of them is a separate, deliberate step — `pnpm promote` — [README.md](README.md) describes it.
 
 A PR description that says *why* is worth more than one that lists *what*; the diff already covers what.
 

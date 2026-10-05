@@ -64,7 +64,8 @@ function levelOfThisBranch(): Level {
 
 function main() {
   const branch = run('git', 'rev-parse', '--abbrev-ref', 'HEAD')
-  if (branch === 'main') throw new Error('A release is the last commit on a branch, not a commit on main.')
+  if (branch === 'main' || branch === 'preview')
+    throw new Error(`A release is the last commit on a branch, not a commit on ${branch}.`)
   if (run('git', 'status', '--porcelain'))
     throw new Error('Commit what is in the tree first; a release is its own commit.')
 
