@@ -666,11 +666,17 @@ describe('the card', () => {
   it('keeps the slot that empties the box in its place in edit mode, where it starts a new phrase instead', () => {
     renderApp()
     expect(iconBtn('Clear')!.closest('.topbar-clear')).not.toBeNull()
+    const clearX = iconBtn('Clear')!.querySelector('svg')!.outerHTML
     expect(iconBtn('Start a new phrase'), 'the phrase controls are showing already').toBeUndefined()
 
     click(editToggle())
     expect(iconBtn('Clear'), 'the message controls are still showing').toBeUndefined()
     expect(iconBtn('Start a new phrase')!.closest('.topbar-clear')).not.toBeNull()
+    // **The same X as Clear**: it empties the box here too, so it looks it.
+    expect(
+      iconBtn('Start a new phrase')!.querySelector('svg')!.outerHTML,
+      'starting a new phrase draws a different icon from Clear',
+    ).toBe(clearX)
   })
 })
 
