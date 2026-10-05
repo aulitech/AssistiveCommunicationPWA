@@ -776,20 +776,21 @@ export function Topbar({
                   ))}
               </AfterText>
             </div>
-          </div>
 
-          {/* What is being edited and where it is filed, in a row of the card's
-              own **below** the controls — so turning edit mode on grows the card
-              downwards and moves nothing under the pointer that turned it on. */}
-          {editMode && (
-            <PhraseEditBar
-              draft={draft}
-              categories={categories}
-              countFor={countFor}
-              onCategory={onChooseCategories}
-              onCreateCategory={onCreateCategory}
-            />
-          )}
+            {/* **What is being edited and where it is filed, at the right end of
+                the line** — beside the words it is about. A narrow card has no
+                room for both, so there it takes a line of its own under the
+                words, still at the right. */}
+            {editMode && (
+              <PhraseEditBar
+                draft={draft}
+                categories={categories}
+                countFor={countFor}
+                onCategory={onChooseCategories}
+                onCreateCategory={onCreateCategory}
+              />
+            )}
+          </div>
         </div>
       </div>
 

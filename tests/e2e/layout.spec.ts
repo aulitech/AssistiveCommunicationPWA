@@ -354,3 +354,32 @@ for (const width of [360, 1280]) {
     expect(busyRight, 'the busy indicator stands over the menu').toBeLessThanOrEqual(menu.left)
   })
 }
+
+/**
+ * **What is being edited stands at the right end of the line the words are
+ * written on** — on the line itself where the card has the width, and on a
+ * line of its own under the words, still at the right, where it does not.
+ */
+for (const [width, beside] of [
+  [1280, true],
+  [390, false],
+] as const) {
+  test(`puts what is being edited at the right end of the line, at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await openBoard(page)
+    await page.locator('.edit-toggle').click()
+    await page.locator('.text-display').fill('A phrase')
+    const { bar, box, line } = await page.evaluate(() => ({
+      bar: document.querySelector('.edit-bar')!.getBoundingClientRect().toJSON(),
+      box: document.querySelector('.text-display')!.getBoundingClientRect().toJSON(),
+      line: document.querySelector('.message-line')!.getBoundingClientRect().toJSON(),
+    }))
+    expect(line.right - bar.right, 'not at the right end').toBeLessThan(16)
+    if (beside) {
+      expect(bar.left, 'not after the words').toBeGreaterThanOrEqual(box.right)
+      expect(bar.top, 'not on the line').toBeLessThan(box.bottom)
+    } else {
+      expect(bar.top, 'not under the words').toBeGreaterThanOrEqual(box.bottom - 1)
+    }
+  })
+}

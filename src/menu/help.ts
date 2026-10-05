@@ -277,7 +277,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         ':delete:, at the far right of the row once you have chosen a phrase, on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
         ':add: at the left end of the line starts a new phrase — where :clear: is the rest of the time. :paste: stays where it is; :copy: is not there in edit mode.',
-        'A line at the bottom of the box, under the words, says what is being edited, and which categories it is in. Rest on :choose: beside them to open the categories. Tick as many as you like — each ticked one shows :ticked: — or none to keep it in Library alone.',
+        'At the right end of the line you write on, it says what is being edited, and which categories it is in — under the words on a narrow screen. Rest on :choose: beside them to open the categories. Tick as many as you like — each ticked one shows :ticked: — or none to keep it in Library alone.',
         'Done on the categories saves straight away. A new phrase, or a translation or answer you are keeping, is saved whole. For one already on the board only the categories are, and new words or a new voice still wait for :save:.',
         "The language and the voice in the row become this phrase's own: the voice it is said in, and the language that voice is for.",
       ),

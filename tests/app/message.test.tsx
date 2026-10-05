@@ -556,11 +556,10 @@ describe('the card', () => {
    * **The same places in edit mode**, meaning what the mode says: start a new
    * phrase where clear was, Save where Speak was — drawn once there are words —
    * paste where it was, and delete at the far right, as far from Save as the
-   * card goes. What is being edited is a row of the card's own **below** the
-   * controls, so turning the mode on moves nothing under the pointer that
-   * turned it on.
+   * card goes. What is being edited is at the right end of the line the words
+   * are written on, beside them.
    */
-  it('keeps its places in edit mode, with what is being edited below them', () => {
+  it('keeps its places in edit mode, with what is being edited at the right end of the line', () => {
     renderApp()
     click(editToggle())
     expect(labels('.message-line > .topbar-clear')).toEqual(['Start a new phrase'])
@@ -581,8 +580,11 @@ describe('the card', () => {
     click(iconBtn('Start a new phrase'))
     click(plainCell())
     expect(bin().classList.contains('is-absent'), 'the bin is hidden for a phrase off the board').toBe(false)
-    expect($('.message-line + .edit-bar'), 'the edit row is not below the line').not.toBeNull()
-    expect($('.message-wrap > .edit-bar'), 'the edit row is not inside the card').not.toBeNull()
+    // **At the right end of the line**, after the words.
+    expect(
+      [...$('.message-line')!.children].map(el => el.className.split(' ')[0]),
+      'what is being edited is not at the right end of the line',
+    ).toEqual(['topbar-clear', 'message-field', 'edit-bar'])
   })
 
   /**
