@@ -117,6 +117,35 @@ test('puts the toast in the upper third of the phrase table, across its middle',
   expect(Math.abs(middle.x - (table.left + table.width / 2))).toBeLessThan(1)
 })
 
+// Edit mode says every phrase is now something to change: a two-pixel solid
+// outline, which keeps the cells their size, where a one-pixel dashed one was
+// too faint to see. And the toast over them is at 85%, ringed in a muted
+// accent rather than the full one.
+test('outlines the phrases solid in edit mode, under a toast at 85%', async ({ page }) => {
+  await openBoard(page)
+  const cell = page.locator('.phrase-cell').first()
+  const before = await cell.evaluate(el => el.getBoundingClientRect().toJSON())
+  await page.locator('.edit-toggle').dispatchEvent('click')
+  await expect(page.locator('.toast')).toBeVisible()
+  const { outline, after, toast } = await cell.evaluate(el => {
+    const style = getComputedStyle(el)
+    const t = getComputedStyle(document.querySelector('.toast')!)
+    return {
+      outline: { width: style.outlineWidth, style: style.outlineStyle },
+      after: el.getBoundingClientRect().toJSON(),
+      toast: { opacity: t.opacity, ring: t.borderTopColor },
+    }
+  })
+  expect(outline).toEqual({ width: '2px', style: 'solid' })
+  expect(after.width).toBeCloseTo(before.width, 1)
+  expect(after.height).toBeCloseTo(before.height, 1)
+  expect(toast.opacity).toBe('0.85')
+  // Muted: no channel of the ring as far from the others as the accent's green.
+  const [r, g, b] = (toast.ring.match(/[\d.]+/g) ?? []).map(Number)
+  expect(g - Math.min(r, b)).toBeLessThan(120)
+  expect(g).toBeGreaterThan(Math.max(r, b))
+})
+
 test.describe('on a short screen', () => {
   test.use({ viewport: { width: 1024, height: 640 } })
 

@@ -6,18 +6,22 @@
    selectors have equal specificity — see *Styling* in AGENTS.md. */
 
 /* ── Edit mode ── */
+/* **Solid, and two pixels**: a one-pixel dashed outline was too faint to say
+   from across the board that every phrase on it is now something to change.
+   An outline rather than a border, so the cells keep their size and the grid
+   does not reflow under a resting pointer as the mode changes. */
 .app.edit-mode .phrase-cell.edit-mode,
 .app.edit-mode .emergency-btn.edit-mode {
   cursor: pointer;
-  outline: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 /* The box is the phrase editor in edit mode, so it keeps the text cursor it has
-   everywhere else and says which mode it is in with its own border. Dashed is
-   the same cue the phrase cells carry — which surfaces edit mode has changed the
-   meaning of — but on the box it has to be the border rather than an outline
-   over it: the box already has one, and an outline sits just outside it, so the
-   two read as a double line drawn around a single box. */
+   everywhere else and says which mode it is in with its own border, in the
+   phrase cells' colour — the surfaces edit mode has changed the meaning of —
+   and on the box it has to be the border rather than an outline over it: the
+   box already has one, and an outline sits just outside it, so the two read as
+   a double line drawn around a single box. */
 .app.edit-mode .message-wrap {
   border-style: dashed;
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
