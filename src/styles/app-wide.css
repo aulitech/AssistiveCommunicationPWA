@@ -70,7 +70,9 @@
   background: var(--toast-ground);
   background-clip: padding-box;
   color: var(--toast-text);
-  font-size: 1.15rem;
+  /* The size it always was: the ground is what makes it stand out, and a
+     larger size put four lines of it on a phone held upright. */
+  font-size: 1.05rem;
   font-weight: 600;
   box-shadow: 0 8px 40px rgba(0,0,0,0.7);
 }
