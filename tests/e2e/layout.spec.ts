@@ -141,7 +141,9 @@ test('outlines the phrases solid in edit mode, under a toast at 85%', async ({ p
   expect(after.height).toBeCloseTo(before.height, 1)
   expect(toast.opacity).toBe('0.85')
   // Muted: no channel of the ring as far from the others as the accent's green.
-  const [r, g, b] = (toast.ring.match(/[\d.]+/g) ?? []).map(Number)
+  // A colour mixed in sRGB is reported as `color(srgb …)`, each channel 0 to 1.
+  const scale = toast.ring.startsWith('color(') ? 255 : 1
+  const [r, g, b] = (toast.ring.match(/[\d.]+/g) ?? []).map(v => Number(v) * scale)
   expect(g - Math.min(r, b)).toBeLessThan(120)
   expect(g).toBeGreaterThan(Math.max(r, b))
 })
