@@ -49,6 +49,10 @@
   /* The Peri mark's own gold. Used by the logo and nothing else — the interface
      stays green, so this never competes with a control for meaning. */
   --brand: #fcdd6b;
+  /* **The toast is the board inside out** — a light ground and dark words, so
+     over the phrase table it cannot be read as one more cell. */
+  --toast-ground: #f2f2f2;
+  --toast-text: #0f0f0f;
   /* **The two boxes are cards**, the shape of a chat app's input box — the words
      and, inside along the bottom, the controls that work on them. A ground a step
      up from the bar's, as dark as it can be while the muted grey still clears 7:1
