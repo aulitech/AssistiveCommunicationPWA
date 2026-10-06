@@ -55,10 +55,11 @@
    grid rather than on this corner could miss it. It was a dark grey card a step
    up from a phrase cell, which over the table read as one more cell. So it is
    **the board turned inside out**: a light ground with dark words, the one light
-   thing on a dark screen, ringed in the accent — a wide border at 85%, so what is
-   behind shows faintly through the ring, the ground painted to the padding box
-   only or it would show through the ring instead. The rounding is the outer
-   edge's; the inner is square, the border being wider than it.
+   thing on a dark screen, ringed in the accent muted into the grey — the full
+   accent was louder than the words it was around. The whole toast is at 85%,
+   so the board shows faintly through it; the ground is painted to the padding
+   box only, or it would show through the ring as well. The rounding is the
+   outer edge's; the inner is square, the border being wider than it.
 
    `--toast-ground` and `--toast-text` are in `tokens.css`, where
    `tests/app/structure.test.ts` holds the words to 7:1 on the ground and the
@@ -66,7 +67,8 @@
 .toast {
   padding: 1rem 1.75rem;
   border-radius: 0.8rem;
-  border: 1.3rem solid color-mix(in srgb, var(--accent) 85%, transparent);
+  border: 1.3rem solid color-mix(in srgb, var(--accent) 45%, var(--text-muted));
+  opacity: 0.85;
   background: var(--toast-ground);
   background-clip: padding-box;
   color: var(--toast-text);
