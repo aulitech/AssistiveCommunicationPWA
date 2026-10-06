@@ -256,6 +256,16 @@ describe('the shape of the source tree', () => {
       ratio: Number(contrast(token('text-muted'), token(name)).toFixed(2)),
     }))
     expect(worst.filter(w => w.ratio < 7)).toEqual([])
+
+    // Regression guard: the toast was a dark grey a step up from a cell, and
+    // over the phrase table it read as one more cell. Its ground has to stand
+    // apart from every surface of the board, and its words clear 7:1 on it.
+    const apart = surfaces.map(name => ({
+      surface: name,
+      ratio: Number(contrast(token('toast-ground'), token(name)).toFixed(2)),
+    }))
+    expect(apart.filter(w => w.ratio < 7)).toEqual([])
+    expect(contrast(token('toast-text'), token('toast-ground'))).toBeGreaterThanOrEqual(7)
   })
 
   it('keeps App as the only default export', () => {

@@ -52,27 +52,27 @@
 
 /* **Made to be seen from anywhere on the board.** For a save, a refused paste
    or a blocked link it is the only thing that says anything, and a gaze on the
-   grid rather than on this corner could miss a thin grey pill. So it is roomy,
-   on a ground lighter than any phrase cell, and ringed with a wide border in
-   that same ground at 85%, so what is behind shows faintly through the ring —
-   the ground painted to the padding box only, or it would show through the ring
-   instead. The rounding is the outer edge's; the inner is square, the border
-   being wider than it.
+   grid rather than on this corner could miss it. It was a dark grey card a step
+   up from a phrase cell, which over the table read as one more cell. So it is
+   **the board turned inside out**: a light ground with dark words, the one light
+   thing on a dark screen, ringed in the accent — a wide border at 85%, so what is
+   behind shows faintly through the ring, the ground painted to the padding box
+   only or it would show through the ring instead. The rounding is the outer
+   edge's; the inner is square, the border being wider than it.
 
-   The words are the accent, muted: 60% of it into the text colour, which keeps
-   the green and clears 7:1 on this ground (7.72:1). Muted into the grey
-   instead, as it was on the darker ground, it falls under 7:1 here. */
+   `--toast-ground` and `--toast-text` are in `tokens.css`, where
+   `tests/app/structure.test.ts` holds the words to 7:1 on the ground and the
+   ground to 7:1 against every surface of the board. */
 .toast {
-  --toast-ground: #2e2e2e;
   padding: 1rem 1.75rem;
   border-radius: 0.8rem;
-  border: 1.3rem solid color-mix(in srgb, var(--toast-ground) 85%, transparent);
+  border: 1.3rem solid color-mix(in srgb, var(--accent) 85%, transparent);
   background: var(--toast-ground);
   background-clip: padding-box;
-  color: color-mix(in srgb, var(--accent) 60%, var(--text));
-  font-size: 1.05rem;
-  font-weight: 500;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  color: var(--toast-text);
+  font-size: 1.15rem;
+  font-weight: 600;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
 }
 
 /* ── Peri's own keyboard ── */
