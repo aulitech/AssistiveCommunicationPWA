@@ -82,6 +82,7 @@ function Device({
   account = ACCOUNT as string | null,
   start,
   linked = null,
+  linkedAt = 0,
   reply = '',
   replyAt = 0,
 }: {
@@ -89,6 +90,8 @@ function Device({
   start?: string
   /** The ElevenLabs account this device has linked, if any. */
   linked?: ElevenLabsAccount | null
+  /** When that account was linked or unlinked, or 0 for never. */
+  linkedAt?: number
   /** The key behind a suggested reply, which travels beside the account. */
   reply?: string
   /** When that key was given or taken away, or 0 for never. */
@@ -97,6 +100,7 @@ function Device({
   const [mine, setMine] = useState<SyncPayload>(() => ({
     backup: board(start),
     account: linked,
+    accountAt: linkedAt,
     replyKey: reply ?? '',
     replyKeyAt: replyAt,
   }))
@@ -124,6 +128,7 @@ type Props = {
   account?: string | null
   start?: string
   linked?: ElevenLabsAccount | null
+  linkedAt?: number
   reply?: string
   replyAt?: number
 }
@@ -366,18 +371,81 @@ describe('the linked account', () => {
     expect((await boardOnServer())?.account).toEqual(KEY)
   })
 
-  // Unlinking is a change like any other, and the other device follows. Said
-  // explicitly rather than by omission — see the test after this one.
-  it('goes when the board it arrives with has none', async () => {
-    show({ start: 'from the tablet', linked: null })
+  // **It keeps a time of its own**, the newer account standing whichever board
+  // is newer — see `accountFrom` in `core/sync.ts`. Every device that had never
+  // linked one used to say "no account" in every board it sent, and the others
+  // took that as an unlink.
+  const LINKED = 1_000_000
+
+  // Regression guard: linked on the phone, which then joined the tablet's board
+  // — and the board said "no account", so the phone lost it and the tablet
+  // never had it.
+  it('stays on a device that joins a board without one, and goes up with it', async () => {
+    show({ start: 'from the tablet' })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+    expect('account' in (await boardOnServer())!, 'a device that never linked one said so').toBe(false)
+
+    secondDevice({ linked: KEY, linkedAt: LINKED })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(says(applied[0].backup)).toEqual(['from the tablet'])
+    expect(applied[0].account, 'joining a board unlinked the account').toEqual(KEY)
+
+    await waitFor(async () => expect((await boardOnServer())?.account).toEqual(KEY), { timeout: 5_000 })
+  })
+
+  // Regression guard: a newer board from a device that never linked one — and
+  // every release before this one said "no account" in so many words — unlinked
+  // it here, though nobody had unlinked it anywhere.
+  it('is not unlinked by a newer board from a device that never linked one', async () => {
+    show({ start: 'mine', linked: KEY, linkedAt: LINKED })
     act(() => control.enable(PASSPHRASE))
     await waitFor(() => expect(control.status).toBe('synced'))
 
-    secondDevice({ linked: KEY })
-    act(() => control.enable(PASSPHRASE))
+    await writeAsAnotherDevice('from the phone', Date.now() + 5_000, { account: null })
+    act(() => control.syncNow())
 
     await waitFor(() => expect(applied).toHaveLength(1))
-    expect(applied[0].account, 'the account outlived the board that had none').toBeNull()
+    expect(says(applied[0].backup)).toEqual(['from the phone'])
+    expect(applied[0].account, 'a device with no account unlinked this one').toEqual(KEY)
+    await waitFor(async () => expect((await boardOnServer())?.account).toEqual(KEY), { timeout: 5_000 })
+  })
+
+  // Unlinking is a change like any other, and the other device follows — when
+  // it is newer than the linking.
+  it('goes when it was unlinked on the other device since it was linked here', async () => {
+    show({ start: 'mine', linked: KEY, linkedAt: LINKED })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    await writeAsAnotherDevice('from the phone', Date.now() + 5_000, { account: null, accountAt: LINKED + 1 })
+    act(() => control.syncNow())
+
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(applied[0].account, 'an unlinked account came back').toBeNull()
+  })
+
+  it('stays when the other device unlinked one before it was linked here', async () => {
+    show({ start: 'mine', linked: KEY, linkedAt: LINKED })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    await writeAsAnotherDevice('from the phone', Date.now() + 5_000, { account: null, accountAt: LINKED - 1 })
+    act(() => control.syncNow())
+
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(applied[0].account).toEqual(KEY)
+  })
+
+  it('says it was unlinked', async () => {
+    show({ start: 'mine', linked: KEY, linkedAt: LINKED })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    act(() => change({ account: null, accountAt: LINKED + 1 }))
+    await waitFor(async () => expect((await boardOnServer())?.account).toBeNull(), { timeout: 5_000 })
+    expect((await boardOnServer())?.accountAt).toBe(LINKED + 1)
   })
 
   /**

@@ -11,6 +11,7 @@ import { applyBackup, buildBackup } from '../core/backup'
 import {
   accountId,
   loadElevenLabs,
+  loadElevenLabsAt,
   loadRecent,
   sameAccount,
   saveElevenLabs,
@@ -61,6 +62,10 @@ export function useSynchronized({
    * arrived from another device carrying a different one.
    */
   const [account, setLinkedAccount] = useState<ElevenLabsAccount | null>(loadElevenLabs)
+  // When it was linked or unlinked, which is how two devices settle whose
+  // account stands — see `accountFrom` in `core/sync.ts`. Now, when it is linked
+  // here; the time it was linked, when it arrives from another device.
+  const [accountAt, setAccountAt] = useState(loadElevenLabsAt)
 
   /**
    * Written straight through, and `speak` reads it back per utterance, so there
@@ -75,9 +80,14 @@ export function useSynchronized({
    * cache — every clip re-fetched, on the user's own credits, for nothing. It is
    * the sort of cost that never shows up as a bug report.
    */
-  const setAccount = useCallback((next: ElevenLabsAccount | null) => {
-    if (sameAccount(next, loadElevenLabs())) return
-    saveElevenLabs(next)
+  const setAccount = useCallback((next: ElevenLabsAccount | null, at?: number) => {
+    const same = sameAccount(next, loadElevenLabs())
+    if (same && (at === undefined || at === loadElevenLabsAt())) return
+    const when = at ?? Date.now()
+    saveElevenLabs(next, when)
+    setAccountAt(when)
+    // Only the time moved: the same account, so the same audio and voices.
+    if (same) return
     clearAudioCache()
     // A remembered voice from the account that has just gone would seed the next
     // new phrase with one that no longer exists.
@@ -105,8 +115,8 @@ export function useSynchronized({
 
   /** Everything sync carries: the board, and what a backup file may not hold. */
   const syncPayload = useMemo(
-    () => ({ backup: syncBackup, account, replyKey, replyKeyAt }),
-    [syncBackup, account, replyKey, replyKeyAt],
+    () => ({ backup: syncBackup, account, accountAt, replyKey, replyKeyAt }),
+    [syncBackup, account, accountAt, replyKey, replyKeyAt],
   )
 
   // A board that arrived from another device lands exactly as a restored backup
@@ -121,7 +131,7 @@ export function useSynchronized({
       // The account travels with the board, which is what makes a phrase given
       // an ElevenLabs voice on one device still sound like itself on the next.
       // `setAccount` ignores one that has not changed — see there.
-      setAccount(incoming.account)
+      setAccount(incoming.account, incoming.accountAt)
       // And the key behind a suggested reply, for the same reason: it is what
       // makes the feature work on the second device without forty characters of
       // noise being typed into it by dwell.

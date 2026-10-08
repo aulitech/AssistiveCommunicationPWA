@@ -1,7 +1,7 @@
 // Part of `core/store.ts` — see there for what the store is, and AGENTS.md for
 // the rules each part keeps.
 
-import { ELEVENLABS_KEY, REPLY_KEY, REPLY_KEY_AT, writeKey } from './keys'
+import { ELEVENLABS_AT, ELEVENLABS_KEY, REPLY_KEY, REPLY_KEY_AT, writeKey } from './keys'
 import { storageKey } from './owner'
 
 // ── A linked ElevenLabs account ───────────────────────────────────────────────
@@ -64,9 +64,25 @@ export function loadElevenLabs(): ElevenLabsAccount | null {
   }
 }
 
-export function saveElevenLabs(account: ElevenLabsAccount | null) {
+/**
+ * When the account was last linked or unlinked on this board, or 0 for never —
+ * the time the key behind a suggested reply keeps, for the same reason: see
+ * `loadReplyKeyAt`, and `accountFrom` in `core/sync.ts`.
+ */
+export function loadElevenLabsAt(): number {
+  try {
+    const at = Number(localStorage.getItem(storageKey(ELEVENLABS_AT)))
+    return Number.isFinite(at) && at > 0 ? at : 0
+  } catch {
+    return 0
+  }
+}
+
+/** The account, or null to unlink it, and when — now, unless it arrived saying otherwise. */
+export function saveElevenLabs(account: ElevenLabsAccount | null, at = Date.now()) {
   if (account) writeKey(storageKey(ELEVENLABS_KEY), JSON.stringify(account))
   else localStorage.removeItem(storageKey(ELEVENLABS_KEY))
+  writeKey(storageKey(ELEVENLABS_AT), String(at))
 }
 
 // ── The key behind a suggested reply ──────────────────────────────────────────

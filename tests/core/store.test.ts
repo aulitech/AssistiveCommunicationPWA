@@ -33,6 +33,7 @@ import {
   writeKey,
   loadAliases,
   loadElevenLabs,
+  loadElevenLabsAt,
   loadPhraseSorts,
   loadPhraseStore,
   loadRecent,
@@ -226,6 +227,21 @@ describe('reading an arrangement back', () => {
  * than it looks: every one of these keys is a bare string under a bare name, so
  * two of them sharing one would have each quietly overwriting the other.
  */
+describe('when the linked account changed', () => {
+  beforeEach(() => localStorage.clear())
+
+  // Travels beside the account, so two devices can tell whose is newer — see
+  // `accountFrom` in `core/sync.ts`.
+  it('is kept for a link and for an unlink', () => {
+    expect(loadElevenLabsAt()).toBe(0)
+    saveElevenLabs({ apiKey: 'sk-key', voices: [] }, 1_000)
+    expect(loadElevenLabsAt()).toBe(1_000)
+    saveElevenLabs(null, 2_000)
+    expect(loadElevenLabs()).toBeNull()
+    expect(loadElevenLabsAt()).toBe(2_000)
+  })
+})
+
 describe('the key for suggested replies', () => {
   beforeEach(() => localStorage.clear())
 

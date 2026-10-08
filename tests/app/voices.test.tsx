@@ -759,6 +759,7 @@ describe('linking an ElevenLabs account', () => {
   })
 
   it('keeps the account across a reload, and the key out of sight', async () => {
+    const began = Date.now()
     renderApp()
     openSettings()
     respondWith([{ voice_id: 'v1', name: 'Rachel' }])
@@ -768,6 +769,10 @@ describe('linking an ElevenLabs account', () => {
     await flush()
 
     expect(JSON.parse(localStorage.getItem('peri_elevenlabs')!).apiKey).toBe('sk-test')
+    // And when, which is how two devices settle whose account stands.
+    const at = Number(localStorage.getItem('peri_elevenlabs_at'))
+    expect(at).toBeGreaterThanOrEqual(began)
+    expect(at).toBeLessThanOrEqual(Date.now())
     // Not in the phrase store, the profile or the settings — the three things a
     // backup is built from.
     for (const key of ['dwellspeak_phrase_store_v2', 'dwellspeak_profile', 'dwellspeak_settings']) {
