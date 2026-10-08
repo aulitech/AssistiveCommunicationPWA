@@ -1737,6 +1737,7 @@ describe('the suggested reply', () => {
    * opening the box to a key that may never have worked.
    */
   it('saves a key only once Anthropic has taken it', async () => {
+    const began = Date.now()
     renderApp({}, { key: '' })
     openSettings()
     typeKey('sk-ant-wrong')
@@ -1760,6 +1761,10 @@ describe('the suggested reply', () => {
     vi.stubGlobal('fetch', lists)
     await save()
     expect(localStorage.getItem('peri_reply')).toBe('sk-ant-wrong')
+    // And when, which is how two devices settle whose key stands.
+    const at = Number(localStorage.getItem('peri_reply_at'))
+    expect(at).toBeGreaterThanOrEqual(began)
+    expect(at).toBeLessThanOrEqual(Date.now())
     expect(String((lists.mock.calls[0] as unknown as [string])[0])).toContain('/v1/models')
     expect(answersRow().querySelector('[role="alert"]')).toBeNull()
   })
