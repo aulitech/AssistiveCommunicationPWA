@@ -5,8 +5,10 @@ import {
   SYNC_FORMAT,
   SYNC_VERSION,
   DEVICE_LOCAL_SETTINGS,
+  accountFrom,
   decideSync,
   replyKeyFrom,
+  saysAccount,
   saysReplyKey,
   keepDeviceSettings,
   newDeviceId,
@@ -416,5 +418,61 @@ describe('how large an envelope may be', () => {
   it('is large enough for a board and small enough to be a limit', () => {
     expect(MAX_ENVELOPE_BYTES).toBeGreaterThan(100_000)
     expect(MAX_ENVELOPE_BYTES).toBeLessThanOrEqual(2_000_000)
+  })
+})
+
+/** Whose ElevenLabs account stands once a board arrives — `replyKeyFrom`'s rule. */
+describe('accountFrom', () => {
+  const snap = (extra: object) => ({ updatedAt: 1, device: 'other', backup: {} as never, ...extra })
+  const A = { apiKey: 'sk-a', voices: [{ id: 'v1', name: 'Rachel' }] }
+  const B = { apiKey: 'sk-b', voices: [] }
+  const MINE = { account: A, at: 100 }
+  const NEVER = { account: null, at: 0 }
+
+  it('keeps this device’s account where the board says nothing about one', () => {
+    expect(accountFrom(snap({}), MINE)).toBeNull()
+  })
+
+  it('takes a newer account, and keeps this one against an older', () => {
+    expect(accountFrom(snap({ account: B, accountAt: 101 }), MINE)).toEqual({ account: B, at: 101 })
+    expect(accountFrom(snap({ account: B, accountAt: 99 }), MINE)).toBeNull()
+  })
+
+  it('unlinks only where it was unlinked after it was linked here', () => {
+    expect(accountFrom(snap({ account: null, accountAt: 101 }), MINE)).toEqual({ account: null, at: 101 })
+    expect(accountFrom(snap({ account: null, accountAt: 99 }), MINE)).toBeNull()
+  })
+
+  // Every device that never linked one said so, before the account had a time.
+  it('takes no instruction from an older release’s "no account"', () => {
+    expect(accountFrom(snap({ account: null }), MINE)).toBeNull()
+    expect(accountFrom(snap({ account: null }), NEVER)).toBeNull()
+  })
+
+  it('takes an older release’s account only where there is none here', () => {
+    expect(accountFrom(snap({ account: B }), NEVER)).toEqual({ account: B, at: 0 })
+    expect(accountFrom(snap({ account: B }), MINE)).toBeNull()
+  })
+
+  it('settles a tie the same way from either side', () => {
+    const a = { account: A, at: 100 }
+    const b = { account: B, at: 100 }
+    const one = accountFrom(snap({ account: B, accountAt: 100 }), a)
+    const other = accountFrom(snap({ account: A, accountAt: 100 }), b)
+    expect([one, other].filter(Boolean)).toHaveLength(1)
+  })
+
+  it('has something to say only with an account, or having unlinked one', () => {
+    expect(saysAccount(NEVER)).toBe(false)
+    expect(saysAccount(MINE)).toBe(true)
+    expect(saysAccount({ account: null, at: 5 })).toBe(true)
+  })
+
+  it('reads when, and only beside an account or its absence', () => {
+    const base = { updatedAt: 1, device: 'd', backup: {} }
+    expect(parseSnapshot({ ...base, account: A, accountAt: 5 })?.accountAt).toBe(5)
+    expect(parseSnapshot({ ...base, account: null, accountAt: 5 })?.accountAt).toBe(5)
+    expect(parseSnapshot({ ...base, accountAt: 5 })?.accountAt).toBeUndefined()
+    expect(parseSnapshot({ ...base, account: A, accountAt: 'soon' })?.accountAt).toBeUndefined()
   })
 })

@@ -71,6 +71,8 @@ export interface Snapshot {
    * to sync from an older release would take the account off the others.
    */
   account?: ElevenLabsAccount | null
+  /** When that account was linked or unlinked — see `accountFrom`. Absent before it had a time. */
+  accountAt?: number
   /**
    * The key behind a suggested reply, or null where somebody took it away.
    * Absent where the device sending it has never had one — and in a snapshot
@@ -134,6 +136,8 @@ export function keepDeviceSettings(incoming: Settings, mine: Settings): Settings
 export interface SyncPayload {
   backup: Backup
   account: ElevenLabsAccount | null
+  /** When it was last linked or unlinked on the device holding it, or 0 for never. */
+  accountAt: number
   /**
    * The key behind a suggested reply, or empty for a device without one.
    *
@@ -177,7 +181,39 @@ export function replyKeyFrom(snapshot: Snapshot, mine: ReplyKeyState): ReplyKeyS
   if (snapshot.replyKey === undefined) return null
   const key = snapshot.replyKey ?? ''
   const at = snapshot.replyKeyAt ?? (key ? 0 : -1)
-  return at > mine.at || (at === mine.at && key > mine.key) ? { key, at } : null
+  return newer(at, key, mine.at, mine.key) ? { key, at } : null
+}
+
+/** The newer of two, a tie to the greater — the same answer asked from either side. */
+const newer = (at: number, tie: string, mineAt: number, mineTie: string) =>
+  at > mineAt || (at === mineAt && tie > mineTie)
+
+/** The linked ElevenLabs account as one device holds it. */
+export interface AccountState {
+  account: ElevenLabsAccount | null
+  /** When it was linked or unlinked, or 0 for never. */
+  at: number
+}
+
+/** Whether a device has anything to say about the account: one, or having unlinked one. */
+export const saysAccount = (mine: AccountState) => mine.account !== null || mine.at > 0
+
+/** An account as something two devices can break a tie on, the same way round from either. */
+const accountTie = (account: ElevenLabsAccount | null) => (account ? JSON.stringify(account) : '')
+
+/**
+ * The account that stands once a snapshot has arrived — its own, or null where
+ * this device's stands instead. **The rule `replyKeyFrom` follows, for the same
+ * reason**: the account went with the newest board, and every device that had
+ * never linked one said "no account" in every board it sent — so an account
+ * linked on one device was unlinked on all of them by the next edit anywhere
+ * else, and one linked before joining was gone the moment the device joined.
+ */
+export function accountFrom(snapshot: Snapshot, mine: AccountState): AccountState | null {
+  if (snapshot.account === undefined) return null
+  const account = snapshot.account
+  const at = snapshot.accountAt ?? (account ? 0 : -1)
+  return newer(at, accountTie(account), mine.at, accountTie(mine.account)) ? { account, at } : null
 }
 
 /** A snapshot, or null — the same guard, on the inside of the lock. */
@@ -193,6 +229,9 @@ export function parseSnapshot(value: unknown): Snapshot | null {
   // first two are instructions — see `Snapshot.account`.
   if (s.account === null) snapshot.account = null
   else if (isAccount(s.account)) snapshot.account = s.account
+  if (snapshot.account !== undefined && typeof s.accountAt === 'number' && Number.isFinite(s.accountAt)) {
+    snapshot.accountAt = Math.max(0, s.accountAt)
+  }
   // The same three, for the same reason: a snapshot written before this existed
   // says nothing about the key, and silence must not read as "take it away".
   if (s.replyKey === null) snapshot.replyKey = null
