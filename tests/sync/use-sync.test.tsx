@@ -74,6 +74,8 @@ async function boardOnServer(passphrase = PASSPHRASE, account = ACCOUNT) {
 
 let control: SyncControl
 let applied: { backup: Backup; account: ElevenLabsAccount | null; replyKey: string; from: string }[] = []
+/** Changes what this device holds, as the screen would. */
+let change: (patch: Partial<SyncPayload>) => void
 
 /** One device. Its board changes only when the test says so. */
 function Device({
@@ -81,6 +83,7 @@ function Device({
   start,
   linked = null,
   reply = '',
+  replyAt = 0,
 }: {
   account?: string | null
   start?: string
@@ -88,11 +91,14 @@ function Device({
   linked?: ElevenLabsAccount | null
   /** The key behind a suggested reply, which travels beside the account. */
   reply?: string
+  /** When that key was given or taken away, or 0 for never. */
+  replyAt?: number
 }) {
   const [mine, setMine] = useState<SyncPayload>(() => ({
     backup: board(start),
     account: linked,
     replyKey: reply ?? '',
+    replyKeyAt: replyAt,
   }))
   const sync = useSync({
     accountId: account,
@@ -109,11 +115,18 @@ function Device({
   // thrown away, and the test would then be holding a control that never was.
   useEffect(() => {
     control = sync
+    change = patch => setMine(current => ({ ...current, ...patch }))
   })
   return <button onClick={() => setMine(current => ({ ...current, backup: board('an edit') }))}>edit</button>
 }
 
-type Props = { account?: string | null; start?: string; linked?: ElevenLabsAccount | null }
+type Props = {
+  account?: string | null
+  start?: string
+  linked?: ElevenLabsAccount | null
+  reply?: string
+  replyAt?: number
+}
 const show = (props: Props = {}) => render(<Device {...props} />)
 
 /**
@@ -121,10 +134,10 @@ const show = (props: Props = {}) => render(<Device {...props} />)
  * key, so it is indistinguishable from a real one — which is what makes it
  * usable for the cases that need a board to change behind this device's back.
  */
-async function writeAsAnotherDevice(phrase: string, updatedAt: number) {
+async function writeAsAnotherDevice(phrase: string, updatedAt: number, extra: object = {}) {
   const { address, key } = await deriveSyncKeys(PASSPHRASE, ACCOUNT)
   const slot = blobs.get(address) as { revision: number } | undefined
-  const sealed = await seal(key, { updatedAt, device: 'otherdev', backup: board(phrase), account: null })
+  const sealed = await seal(key, { updatedAt, device: 'otherdev', backup: board(phrase), account: null, ...extra })
   const res = await handler(
     new Request('https://peri.test/api/sync', {
       method: 'PUT',
@@ -406,6 +419,124 @@ describe('the linked account', () => {
     await waitFor(() => expect(applied).toHaveLength(1))
     expect(says(applied[0].backup)).toEqual(['from an older release'])
     expect(applied[0].account, 'an older snapshot unlinked the account').toEqual(KEY)
+  })
+})
+
+/**
+ * The key behind a suggested reply, which keeps a time of its own rather than
+ * going with whichever board is newer — see `replyKeyFrom` in `core/sync.ts`.
+ *
+ * Every device without a key used to say so in every board it sent, and the
+ * other devices took that as an instruction: a key reached nobody for long.
+ */
+describe('the key behind a suggested reply', () => {
+  const KEY = 'sk-ant-the-key'
+  const SET = 1_000_000
+
+  /** This device, with a key, already synchronized. */
+  const withKey = async () => {
+    show({ start: 'from the tablet', reply: KEY, replyAt: SET } as Props)
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+  }
+
+  it('travels to a device that has none', async () => {
+    await withKey()
+
+    secondDevice()
+    act(() => control.enable(PASSPHRASE))
+
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(applied[0].replyKey).toBe(KEY)
+  })
+
+  it('is not readable on the server', async () => {
+    await withKey()
+    expect(JSON.stringify([...blobs.values()])).not.toContain(KEY)
+    expect((await boardOnServer())?.replyKey).toBe(KEY)
+  })
+
+  // Regression guard: the phone was given the key, and then joined the board
+  // the tablet had put up without one. It took that board, and the board said
+  // "no key" — so the key went, and never reached the tablet either.
+  it('stays on a device that joins a board without one, and goes up with it', async () => {
+    show({ start: 'from the tablet' })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    secondDevice({ reply: KEY, replyAt: SET })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(says(applied[0].backup)).toEqual(['from the tablet'])
+    expect(applied[0].replyKey, 'joining a board took the key away').toBe(KEY)
+
+    await waitFor(async () => expect((await boardOnServer())?.replyKey).toBe(KEY), { timeout: 5_000 })
+    expect(says((await boardOnServer())?.backup)).toEqual(['from the tablet'])
+  })
+
+  // Regression guard: a newer board from a device that never had a key — and
+  // every release before this one said "no key" in so many words — took the
+  // key off this one, though nobody had taken it away anywhere.
+  it('is not taken away by a newer board from a device that never had one', async () => {
+    await withKey()
+
+    await writeAsAnotherDevice('from the phone', Date.now() + 5_000, { replyKey: null })
+    act(() => control.syncNow())
+
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(says(applied[0].backup)).toEqual(['from the phone'])
+    expect(applied[0].replyKey, 'a device with no key took this one away').toBe(KEY)
+    // And it goes back up, or the phone would never have it.
+    await waitFor(async () => expect((await boardOnServer())?.replyKey).toBe(KEY), { timeout: 5_000 })
+    expect(says((await boardOnServer())?.backup)).toEqual(['from the phone'])
+  })
+
+  it('goes when it was taken away on the other device since it was given here', async () => {
+    await withKey()
+
+    await writeAsAnotherDevice('from the phone', Date.now() + 5_000, { replyKey: null, replyKeyAt: SET + 1 })
+    act(() => control.syncNow())
+
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(applied[0].replyKey, 'a key taken away came back').toBe('')
+  })
+
+  it('stays when the other device took one away before it was given here', async () => {
+    await withKey()
+
+    await writeAsAnotherDevice('from the phone', Date.now() + 5_000, { replyKey: null, replyKeyAt: SET - 1 })
+    act(() => control.syncNow())
+
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(applied[0].replyKey).toBe(KEY)
+  })
+
+  it('gives way to a newer key from the other device', async () => {
+    await withKey()
+
+    await writeAsAnotherDevice('from the phone', Date.now() + 5_000, {
+      replyKey: 'sk-ant-newer',
+      replyKeyAt: SET + 1,
+    })
+    act(() => control.syncNow())
+
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(applied[0].replyKey).toBe('sk-ant-newer')
+  })
+
+  // Taking it away is the one time having none is news, and it travels as such.
+  it('says it was taken away, and says nothing from a device that never had one', async () => {
+    show({ start: 'from the tablet' })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+    expect('replyKey' in (await boardOnServer())!, 'a device with no key said so').toBe(false)
+
+    act(() => change({ replyKey: KEY, replyKeyAt: SET }))
+    await waitFor(async () => expect((await boardOnServer())?.replyKey).toBe(KEY), { timeout: 5_000 })
+
+    act(() => change({ replyKey: '', replyKeyAt: SET + 1 }))
+    await waitFor(async () => expect((await boardOnServer())?.replyKey).toBeNull(), { timeout: 5_000 })
+    expect((await boardOnServer())?.replyKeyAt).toBe(SET + 1)
   })
 })
 

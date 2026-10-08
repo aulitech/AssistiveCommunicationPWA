@@ -1,7 +1,7 @@
 // Part of `core/store.ts` — see there for what the store is, and AGENTS.md for
 // the rules each part keeps.
 
-import { ELEVENLABS_KEY, REPLY_KEY, writeKey } from './keys'
+import { ELEVENLABS_KEY, REPLY_KEY, REPLY_KEY_AT, writeKey } from './keys'
 import { storageKey } from './owner'
 
 // ── A linked ElevenLabs account ───────────────────────────────────────────────
@@ -90,8 +90,31 @@ export function loadReplyKey(): string {
   }
 }
 
-export function saveReplyKey(key: string) {
+/**
+ * When the key was last given or taken away on this board, or 0 for never.
+ *
+ * **The key keeps its own time, apart from the board's**, because the board's
+ * rule — the last change wins, whole — was the wrong rule for it. Every device
+ * without a key said so in each board it sent, and a board sent for any reason
+ * at all took the key off every device it reached: a key typed on a phone was
+ * gone the moment the phone joined a board from a tablet that had none. With a
+ * time of its own, the newer of two keys stands, and having no key is only an
+ * instruction when somebody took one away — see `replyKeyFrom` in
+ * `core/sync.ts`.
+ */
+export function loadReplyKeyAt(): number {
+  try {
+    const at = Number(localStorage.getItem(storageKey(REPLY_KEY_AT)))
+    return Number.isFinite(at) && at > 0 ? at : 0
+  } catch {
+    return 0
+  }
+}
+
+/** The key, or empty to take it away, and when — now, unless it arrived saying otherwise. */
+export function saveReplyKey(key: string, at = Date.now()) {
   const trimmed = key.trim()
   if (trimmed) writeKey(storageKey(REPLY_KEY), trimmed)
   else localStorage.removeItem(storageKey(REPLY_KEY))
+  writeKey(storageKey(REPLY_KEY_AT), String(at))
 }

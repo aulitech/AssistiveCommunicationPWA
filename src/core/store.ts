@@ -86,6 +86,7 @@ export {
   type ElevenLabsAccount,
   loadElevenLabs,
   loadReplyKey,
+  loadReplyKeyAt,
   type RemoteVoice,
   sameAccount,
   saveElevenLabs,

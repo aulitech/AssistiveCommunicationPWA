@@ -6,6 +6,8 @@ import {
   SYNC_VERSION,
   DEVICE_LOCAL_SETTINGS,
   decideSync,
+  replyKeyFrom,
+  saysReplyKey,
   keepDeviceSettings,
   newDeviceId,
   portableSettings,
@@ -177,6 +179,66 @@ describe('reading a snapshot', () => {
       expect(parseSnapshot({ ...base, replyKey: 7 })?.replyKey).toBeUndefined()
       expect(parseSnapshot({ ...base, replyKey: {} })?.replyKey).toBeUndefined()
     })
+
+    it('takes when it was given or taken away, and only beside a key or its absence', () => {
+      expect(parseSnapshot({ ...base, replyKey: 'sk-ant-key', replyKeyAt: 5 })?.replyKeyAt).toBe(5)
+      expect(parseSnapshot({ ...base, replyKey: null, replyKeyAt: 5 })?.replyKeyAt).toBe(5)
+      expect(parseSnapshot({ ...base, replyKeyAt: 5 })?.replyKeyAt).toBeUndefined()
+      expect(parseSnapshot({ ...base, replyKey: 'sk-ant-key', replyKeyAt: 'soon' })?.replyKeyAt).toBeUndefined()
+      expect(parseSnapshot({ ...base, replyKey: 'sk-ant-key', replyKeyAt: Infinity })?.replyKeyAt).toBeUndefined()
+    })
+  })
+})
+
+/**
+ * Whose key stands once a board arrives. **Not the board's rule** — the newer
+ * board winning took the key off every device a board without one reached.
+ */
+describe('replyKeyFrom', () => {
+  const snap = (extra: object) => ({ updatedAt: 1, device: 'other', backup: {} as never, ...extra })
+  const MINE = { key: 'sk-ant-mine', at: 100 }
+  const NEVER = { key: '', at: 0 }
+
+  it('keeps this device’s key where the board says nothing about one', () => {
+    expect(replyKeyFrom(snap({}), MINE)).toBeNull()
+  })
+
+  it('takes a newer key, and keeps this one against an older', () => {
+    expect(replyKeyFrom(snap({ replyKey: 'sk-ant-theirs', replyKeyAt: 101 }), MINE)).toEqual({
+      key: 'sk-ant-theirs',
+      at: 101,
+    })
+    expect(replyKeyFrom(snap({ replyKey: 'sk-ant-theirs', replyKeyAt: 99 }), MINE)).toBeNull()
+  })
+
+  it('takes a key away only where it was taken away after it was given here', () => {
+    expect(replyKeyFrom(snap({ replyKey: null, replyKeyAt: 101 }), MINE)).toEqual({ key: '', at: 101 })
+    expect(replyKeyFrom(snap({ replyKey: null, replyKeyAt: 99 }), MINE)).toBeNull()
+  })
+
+  // Every device without a key said so, before the key had a time.
+  it('takes no instruction from an older release’s "no key"', () => {
+    expect(replyKeyFrom(snap({ replyKey: null }), MINE)).toBeNull()
+    expect(replyKeyFrom(snap({ replyKey: null }), NEVER)).toBeNull()
+  })
+
+  it('takes an older release’s key only where there is none here', () => {
+    expect(replyKeyFrom(snap({ replyKey: 'sk-ant-old' }), NEVER)).toEqual({ key: 'sk-ant-old', at: 0 })
+    expect(replyKeyFrom(snap({ replyKey: 'sk-ant-old' }), MINE)).toBeNull()
+  })
+
+  // Two devices must settle a tie the same way, or they hand it back and forth.
+  it('settles a tie the same way from either side', () => {
+    const a = { key: 'sk-ant-a', at: 100 }
+    const b = { key: 'sk-ant-b', at: 100 }
+    expect(replyKeyFrom(snap({ replyKey: b.key, replyKeyAt: b.at }), a)).toEqual(b)
+    expect(replyKeyFrom(snap({ replyKey: a.key, replyKeyAt: a.at }), b)).toBeNull()
+  })
+
+  it('has something to say only with a key, or having taken one away', () => {
+    expect(saysReplyKey(NEVER)).toBe(false)
+    expect(saysReplyKey(MINE)).toBe(true)
+    expect(saysReplyKey({ key: '', at: 5 })).toBe(true)
   })
 })
 

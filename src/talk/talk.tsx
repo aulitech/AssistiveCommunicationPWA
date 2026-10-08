@@ -24,6 +24,7 @@ import { openLink } from '../core/links'
 import {
   forgetReplyContext,
   loadReplyKey,
+  loadReplyKeyAt,
   loadRecent,
   saveReplyKey,
   saveRecent,
@@ -96,14 +97,20 @@ export function TalkScreen({
    * different one.
    */
   const [replyKey, setStoredReplyKey] = useState(loadReplyKey)
-  const setReplyKey = useCallback((next: string) => {
-    if (next === loadReplyKey()) return
-    saveReplyKey(next)
+  // When it was given or taken away, which is how two devices settle whose key
+  // stands — see `replyKeyFrom` in `core/sync.ts`. Now, when it is typed here;
+  // the time it was given, when it arrives from another device.
+  const [replyKeyAt, setReplyKeyAt] = useState(loadReplyKeyAt)
+  const setReplyKey = useCallback((next: string, at?: number) => {
+    if (next === loadReplyKey() && (at === undefined || at === loadReplyKeyAt())) return
+    const when = at ?? Date.now()
+    saveReplyKey(next, when)
     // Taking the key away takes today's conversation with it. What is left
     // otherwise is a transcript of what somebody was asked, kept on behalf of a
     // feature they have just switched off.
     if (!next) forgetReplyContext()
     setStoredReplyKey(next)
+    setReplyKeyAt(when)
   }, [])
 
   const { toast, flashToast } = useToast()
@@ -1079,6 +1086,7 @@ export function TalkScreen({
     settings,
     update,
     replyKey,
+    replyKeyAt,
     setReplyKey,
     flashToast,
   })

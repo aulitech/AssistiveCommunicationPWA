@@ -20,6 +20,8 @@ export const ALIAS_SORT_KEY = 'peri_alias_sort'
 export const USER_KEY = 'dwellspeak_user'
 export const ELEVENLABS_KEY = 'peri_elevenlabs'
 export const REPLY_KEY = 'peri_reply'
+// When the key above was last given or taken away — see `loadReplyKeyAt`.
+export const REPLY_KEY_AT = 'peri_reply_at'
 export const REPLY_CONTEXT_KEY = 'peri_reply_context'
 export const ANSWERS_KEY = 'peri_answers'
 export const APOLOGIES_KEY = 'peri_apologies'
@@ -50,6 +52,7 @@ export const RESETTABLE_KEYS = [
   ALIAS_SORT_KEY,
   ELEVENLABS_KEY,
   REPLY_KEY,
+  REPLY_KEY_AT,
   REPLY_CONTEXT_KEY,
   ANSWERS_KEY,
   APOLOGIES_KEY,

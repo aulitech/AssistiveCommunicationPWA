@@ -24,6 +24,8 @@ import {
   decideSync,
   hasOwnBoard,
   parseSnapshot,
+  replyKeyFrom,
+  saysReplyKey,
   SYNC_FORMAT,
   SYNC_VERSION,
   type Envelope,
@@ -236,6 +238,11 @@ export function useSync({
       const snapshot = parseSnapshot(opened)
       if (!snapshot) return fail('The board on the server could not be read')
 
+      // The newer of the two keys stands, whichever board is newer — see
+      // `replyKeyFrom`.
+      const mine = { key: payloadRef.current.replyKey, at: payloadRef.current.replyKeyAt }
+      const theirs = replyKeyFrom(snapshot, mine)
+      const reply = theirs ?? mine
       adoptRef.current = true
       applyRef.current(
         {
@@ -244,14 +251,28 @@ export function useSync({
           // a snapshot from a release before this carried one says nothing, and
           // taking that as an unlink would strip the account off every device.
           account: snapshot.account === undefined ? payloadRef.current.account : snapshot.account,
-          // The same three states, read the same way: nothing said leaves this
-          // device's own key alone, and an explicit null takes it away.
-          replyKey: snapshot.replyKey === undefined ? payloadRef.current.replyKey : (snapshot.replyKey ?? ''),
+          replyKey: reply.key,
+          replyKeyAt: reply.at,
         },
         snapshot.device,
       )
       setLastFrom(snapshot.device === configRef.current.device ? null : snapshot.device)
-      writeConfig({ updatedAt: snapshot.updatedAt, dirty: false, revision, lastSyncedAt: Date.now() })
+      // This device's key is the newer and the board that arrived did not carry
+      // it: the board goes back up with the key in it, or the device that sent
+      // it would never have the key at all. Newer than the board it came in
+      // on, which may be stamped by a clock ahead of this one.
+      const carried = (snapshot.replyKey ?? '') === mine.key && snapshot.replyKeyAt === mine.at
+      const sendBack = !theirs && saysReplyKey(mine) && !carried
+      writeConfig(
+        sendBack
+          ? {
+              updatedAt: Math.max(Date.now(), snapshot.updatedAt + 1),
+              dirty: true,
+              revision,
+              lastSyncedAt: Date.now(),
+            }
+          : { updatedAt: snapshot.updatedAt, dirty: false, revision, lastSyncedAt: Date.now() },
+      )
       setStatus('synced')
       setError(null)
     },
@@ -267,9 +288,12 @@ export function useSync({
         device: configRef.current.device,
         backup: payloadRef.current.backup,
         account: payloadRef.current.account,
-        // Null rather than absent for a device with no key, so turning one off
-        // travels as the instruction it is.
-        replyKey: payloadRef.current.replyKey || null,
+        // A key, or null where one was taken away — and nothing at all from a
+        // device that has never had one, which is no instruction to anybody.
+        ...(saysReplyKey({ key: payloadRef.current.replyKey, at: payloadRef.current.replyKeyAt }) && {
+          replyKey: payloadRef.current.replyKey || null,
+          replyKeyAt: payloadRef.current.replyKeyAt,
+        }),
       }
       const sealed = await seal(keySet.key, snapshot)
       const envelope: Envelope = {

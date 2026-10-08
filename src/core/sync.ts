@@ -72,12 +72,13 @@ export interface Snapshot {
    */
   account?: ElevenLabsAccount | null
   /**
-   * The key behind a suggested reply, or null for a device with none. Optional
-   * and three-stated for exactly the reason above: a snapshot written before
-   * this existed says nothing about it, and silence must not read as an
-   * instruction to take it away.
+   * The key behind a suggested reply, or null where somebody took it away.
+   * Absent where the device sending it has never had one — and in a snapshot
+   * written before this existed — and silence is never an instruction.
    */
   replyKey?: string | null
+  /** When that key was given or taken away — see `replyKeyFrom`. Absent before it had a time. */
+  replyKeyAt?: number
 }
 
 /**
@@ -141,6 +142,42 @@ export interface SyncPayload {
    * into it by dwell. Never in a backup, for the reason that one is not.
    */
   replyKey: string
+  /** When it was last given or taken away on the device holding it, or 0 for never. */
+  replyKeyAt: number
+}
+
+/** The key behind a suggested reply as one device holds it. */
+export interface ReplyKeyState {
+  key: string
+  /** When it was given or taken away, or 0 for never. */
+  at: number
+}
+
+/** Whether a device has anything to say about the key: one, or having taken one away. */
+export const saysReplyKey = (mine: ReplyKeyState) => mine.key !== '' || mine.at > 0
+
+/**
+ * The key that stands once a snapshot has arrived — its own, or null where this
+ * device's stands instead.
+ *
+ * **Not the board's rule.** A board is taken whole, the newest one winning; the
+ * key used to go with it, and every device without one said so in every board
+ * it sent — so a board sent for any reason took the key off every device it
+ * reached. The key has a time of its own instead, and **the newer of the two
+ * stands**, whichever board is newer: a key typed on one device reaches the
+ * others, and having none only travels as an instruction when somebody took a
+ * key away. A tie goes to the greater key, which is arbitrary and the same on
+ * both devices, so two of them cannot hand two keys back and forth for ever.
+ *
+ * A snapshot from a release before the key had a time says when by nothing. Its
+ * key is older than any change made since, and its "none" is no instruction at
+ * all: every device without a key said it.
+ */
+export function replyKeyFrom(snapshot: Snapshot, mine: ReplyKeyState): ReplyKeyState | null {
+  if (snapshot.replyKey === undefined) return null
+  const key = snapshot.replyKey ?? ''
+  const at = snapshot.replyKeyAt ?? (key ? 0 : -1)
+  return at > mine.at || (at === mine.at && key > mine.key) ? { key, at } : null
 }
 
 /** A snapshot, or null — the same guard, on the inside of the lock. */
@@ -160,6 +197,9 @@ export function parseSnapshot(value: unknown): Snapshot | null {
   // says nothing about the key, and silence must not read as "take it away".
   if (s.replyKey === null) snapshot.replyKey = null
   else if (typeof s.replyKey === 'string' && s.replyKey !== '') snapshot.replyKey = s.replyKey
+  if (snapshot.replyKey !== undefined && typeof s.replyKeyAt === 'number' && Number.isFinite(s.replyKeyAt)) {
+    snapshot.replyKeyAt = Math.max(0, s.replyKeyAt)
+  }
   return snapshot
 }
 
