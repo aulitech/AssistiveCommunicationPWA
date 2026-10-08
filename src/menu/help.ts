@@ -381,7 +381,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Saying something again',
     blocks: [
       text(
-        'Every message you speak or copy is kept in Library as a phrase of its own, unless Library has it already. It counts as just used, so it comes first under Recently used and first among what typing finds.',
+        'Every message you speak or copy is kept in Library as a phrase of its own, unless Library has it already — a phrase with its choices made counts as the phrase it came from. It counts as just used, so it comes first under Recently used and first among what typing finds.',
       ),
       list(
         'Type the start of it, or the start of any word in it, to find it again.',
