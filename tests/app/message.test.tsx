@@ -260,14 +260,44 @@ describe('what is said', () => {
     expect(kept()).toEqual([])
   })
 
-  // Said on the spot, a phrase with its slots filled is a sentence Library does
-  // not have yet.
-  it('keeps what a phrase with its slots filled said, in auto-speak', () => {
+  // **A phrase with its choices made is a repeat of that phrase**, not a new
+  // one: kept as new, every combination anybody chose would be a phrase of its
+  // own beside the one it came from. Choosing it counted the phrase it came
+  // from, and nothing counts it again.
+  it('keeps nothing for a phrase with its choices made, in auto-speak, and counts the phrase', () => {
     renderApp({ autoSpeak: true })
-    click(slotCell())
+    const cell = slotCell()
+    const id = cell.getAttribute('data-phrase')!
+    click(cell)
     fillEverySlot()
     expect(spoken).toHaveLength(1)
-    expect(kept()).toEqual([spoken[0]])
+    expect(kept(), 'a phrase with its choices made was kept as a new one').toEqual([])
+    expect(Object.keys(usage())).toEqual([id])
+    expect(usage()[id].count).toBe(1)
+  })
+
+  it('keeps nothing for a phrase with its choices made, spoken from the box', () => {
+    renderApp()
+    const cell = slotCell()
+    const id = cell.getAttribute('data-phrase')!
+    click(cell)
+    fillEverySlot()
+    expect(box().value).not.toBe('')
+    click(iconBtn('Speak'))
+    expect(spoken).toHaveLength(1)
+    expect(kept(), 'a phrase with its choices made was kept as a new one').toEqual([])
+    expect(usage()[id].count).toBe(1)
+  })
+
+  // More than the phrase is a message of its own.
+  it('keeps a message that says more than a phrase with its choices made', () => {
+    renderApp()
+    click(slotCell())
+    fillEverySlot()
+    const message = `${box().value} and then some`
+    writeIn(box(), message)
+    click(iconBtn('Speak'))
+    expect(kept()).toEqual([message])
   })
 
   /**
@@ -295,12 +325,14 @@ describe('what is said', () => {
       expect(spoken[1]).toBe('Some toast')
     })
 
-    it('says it after a phrase off the board, and keeps a filled one without it', () => {
+    // And a phrase with its choices made is still the phrase it came from, said
+    // with please or without.
+    it('says it after a phrase off the board, and keeps nothing of a filled one', () => {
       renderApp({ autoSpeak: true, please: true })
       click(slotCell())
       fillEverySlot()
       expect(spoken[0]).toMatch(/, please[.!?]*$/)
-      expect(kept()).toEqual([spoken[0].replace(/, please([.!?]*)$/, '$1')])
+      expect(kept()).toEqual([])
     })
 
     it('copies the words without it', async () => {

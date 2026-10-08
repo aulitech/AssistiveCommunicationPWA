@@ -359,6 +359,54 @@ export function hasBlank(segments: Segment[]): boolean {
   return segments.some(s => s.kind === 'slot' && s.options.length === 0)
 }
 
+/**
+ * **Whether some words are this phrase with its choices made** — one of each
+ * slot's options, or its label where it was left as it was, and anything at
+ * all typed into a blank. "I want the red one" is `I want the {['red',
+ * 'blue']} one` said, not a new phrase, and keeping it in Library as one would
+ * fill Library with every combination anybody ever chose.
+ *
+ * Asked of the phrase as `compose` writes it, with a mark standing in each
+ * slot, so the spacing and the dropped full stop come out exactly as they do
+ * for the words being asked about. Case and runs of spaces do not count, as
+ * they do not for `wordingKey`. Only for a phrase with a slot in it: one
+ * without is a wording, and is asked about as one.
+ */
+export function isFilledFrom(segments: Segment[], text: string): boolean {
+  let pattern = filledPatterns.get(segments)
+  if (pattern === undefined) {
+    pattern = filledPattern(segments)
+    filledPatterns.set(segments, pattern)
+  }
+  return pattern !== null && pattern.test(text.trim().toLowerCase().replace(/\s+/g, ' '))
+}
+
+/** Built once for each phrase: a table of several thousand is asked every time something is said. */
+const filledPatterns = new WeakMap<Segment[], RegExp | null>()
+
+/** Private-use characters standing in for slots while the phrase is composed, one each. */
+const SLOT_MARK = 0xe100
+
+function filledPattern(segments: Segment[]): RegExp | null {
+  const slots = segments.filter((s): s is Slot => s.kind === 'slot')
+  if (!slots.length) return null
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const loose = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+  const marked = compose(
+    segments,
+    slots.map((_, i) => String.fromCharCode(SLOT_MARK + i)),
+  ).toLowerCase()
+  let source = ''
+  for (const ch of marked) {
+    const i = ch.charCodeAt(0) - SLOT_MARK
+    const slot = i >= 0 && i < slots.length ? slots[i] : undefined
+    if (!slot) source += escape(ch)
+    else if (!slot.options.length) source += '.*'
+    else source += `(?:${[...slot.options, slot.label].map(o => escape(loose(o))).join('|')})`
+  }
+  return new RegExp(`^${source}$`)
+}
+
 // ── Stable ids ────────────────────────────────────────────────────────────────
 // Keyed by content, not array position, so saved edits survive edits to
 // phrasetable.json instead of silently reattaching to a neighbouring phrase.
