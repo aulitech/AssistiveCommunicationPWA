@@ -10,6 +10,7 @@ import {
   loadReplyContext,
   loadSettings,
   loadReplyKey,
+  loadReplyKeyAt,
   loadSent,
   moveInOrder,
   orderByIds,
@@ -247,6 +248,17 @@ describe('the key for suggested replies', () => {
     saveReplyKey('   ')
     expect(loadReplyKey()).toBe('')
     expect(localStorage.getItem('peri_reply')).toBeNull()
+  })
+
+  // When it was given or taken away travels beside it, so two devices can tell
+  // whose key is newer — see `replyKeyFrom` in `core/sync.ts`.
+  it('keeps when it was given, and when it was taken away', () => {
+    expect(loadReplyKeyAt()).toBe(0)
+    saveReplyKey('sk-ant-key', 1_000)
+    expect(loadReplyKeyAt()).toBe(1_000)
+    saveReplyKey('', 2_000)
+    expect(loadReplyKey()).toBe('')
+    expect(loadReplyKeyAt()).toBe(2_000)
   })
 
   it('is kept under a name of its own', () => {

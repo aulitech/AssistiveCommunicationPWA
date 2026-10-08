@@ -31,6 +31,7 @@ export function useSynchronized({
   settings,
   update,
   replyKey,
+  replyKeyAt,
   setReplyKey,
   flashToast,
 }: {
@@ -40,7 +41,10 @@ export function useSynchronized({
   update: (patch: Partial<Settings>) => void
   /** The key behind a suggested reply, which travels beside the board. */
   replyKey: string
-  setReplyKey: (next: string) => void
+  /** When it was given or taken away — the key keeps a time of its own, see `replyKeyFrom`. */
+  replyKeyAt: number
+  /** The key, and when — a key that arrived keeps the time it was given. */
+  setReplyKey: (next: string, at?: number) => void
   flashToast: (message: string) => void
 }) {
   const { store } = board
@@ -100,7 +104,10 @@ export function useSynchronized({
   )
 
   /** Everything sync carries: the board, and what a backup file may not hold. */
-  const syncPayload = useMemo(() => ({ backup: syncBackup, account, replyKey }), [syncBackup, account, replyKey])
+  const syncPayload = useMemo(
+    () => ({ backup: syncBackup, account, replyKey, replyKeyAt }),
+    [syncBackup, account, replyKey, replyKeyAt],
+  )
 
   // A board that arrived from another device lands exactly as a restored backup
   // does — in one go, with a line saying where it came from, because a grid that
@@ -118,7 +125,7 @@ export function useSynchronized({
       // And the key behind a suggested reply, for the same reason: it is what
       // makes the feature work on the second device without forty characters of
       // noise being typed into it by dwell.
-      setReplyKey(incoming.replyKey)
+      setReplyKey(incoming.replyKey, incoming.replyKeyAt)
       flashToast(`Board updated from your other device (${from})`)
     },
     [board, store, settings, update, flashToast, setAccount, setReplyKey],
