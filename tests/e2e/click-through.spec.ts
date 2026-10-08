@@ -32,13 +32,18 @@ test('refuses a click on a cell scrolled under a resting pointer, until it is ai
   )
   expect(arrived, 'nothing new came under the pointer').toBeTruthy()
 
+  // Resting on it chooses nothing — past any dwell time the board starts with.
+  await page.mouse.move(at.x + 1, at.y)
+  await page.waitForTimeout(2_500)
+  await expect(messageBox(page), 'a rest on a cell that came to the pointer was answered').toHaveValue('')
+
   await page.mouse.down()
   await page.mouse.up()
   await page.waitForTimeout(100)
   await expect(messageBox(page), 'a click on a cell that came to the pointer was answered').toHaveValue('')
 
   // Aimed: the pointer moves across the cell, and the same click is answered.
-  await page.mouse.move(at.x + 30, at.y, { steps: 4 })
+  await page.mouse.move(at.x + 31, at.y, { steps: 4 })
   await page.mouse.down()
   await page.mouse.up()
   await expect(messageBox(page)).not.toHaveValue('')

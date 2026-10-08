@@ -793,8 +793,106 @@ describe('holdIfMovedUnder', () => {
     under(inner)
     holdIfMovedUnder(before)
 
+    // Entered from elsewhere: the question is only whether a hold was taken.
+    under(null)
     fireEvent.pointerEnter(probe())
     advance(600)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * **A control that came to the pointer**, rather than the pointer to it: where
+ * the pointer last was is the control now. Every other guard is called by
+ * whatever moved the screen; this one asks the control, so it holds for moves
+ * nobody remembered to guard. `e2e/click-through.spec.ts` drives it in a real
+ * browser, which is the only place that can say what is under a point.
+ */
+describe('a control that came to the pointer', () => {
+  const under = (el: Element | null) => {
+    document.elementFromPoint = () => el
+  }
+  afterEach(() => {
+    delete (document as { elementFromPoint?: unknown }).elementFromPoint
+  })
+
+  /** The pointer at rest at (100, 100), and the probe now where it is. */
+  const arrive = () => {
+    fireEvent.pointerMove(document.body, { clientX: 100, clientY: 100 })
+    under(probe())
+    fireEvent.pointerEnter(probe(), { clientX: 101, clientY: 100 })
+  }
+
+  it('is not chosen by resting on it', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    arrive()
+    advance(600)
+    expect(onActivate, 'a rest on a control that came to the pointer was answered').not.toHaveBeenCalled()
+  })
+
+  // A gaze rig can send a real click where it rests: the click is the dwell.
+  it('is not chosen by a click either', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    arrive()
+    fireEvent.click(probe())
+    expect(onActivate, 'a click on a control that came to the pointer was answered').not.toHaveBeenCalled()
+  })
+
+  it('is chosen once the pointer is aimed at it, by a rest or a click', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    arrive()
+    // Jitter is not aiming.
+    fireEvent.pointerMove(probe(), { clientX: 110, clientY: 104 })
+    fireEvent.click(probe())
+    expect(onActivate).not.toHaveBeenCalled()
+
+    fireEvent.pointerMove(probe(), { clientX: 130, clientY: 100 })
+    advance(500)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  it('is chosen by a click once the pointer has moved across it', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    arrive()
+    fireEvent.pointerMove(probe(), { clientX: 130, clientY: 100 })
+    fireEvent.click(probe())
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  it('is chosen as usual by a pointer that left and came back', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    arrive()
+    fireEvent.pointerLeave(probe())
+    fireEvent.pointerMove(document.body, { clientX: 300, clientY: 300 })
+    under(document.body)
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  it('is chosen as usual by a pointer that travelled into it', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    fireEvent.pointerMove(document.body, { clientX: 300, clientY: 300 })
+    under(document.body)
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  // A finger has no place between taps; every tap is aimed.
+  it('leaves a touch alone', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    fireEvent.pointerMove(document.body, { clientX: 100, clientY: 100 })
+    under(probe())
+    fireEvent.pointerEnter(probe(), { pointerType: 'touch' })
+    fireEvent.click(probe())
     expect(onActivate).toHaveBeenCalledTimes(1)
   })
 })
