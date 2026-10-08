@@ -8,7 +8,7 @@
 // two chances for the emergency bar to come out differently on the one screen
 // where it has to be right.
 
-import { EMERGENCY_PHRASES, LIBRARY, compose, parseSegments, type Phrase } from './phrases'
+import { EMERGENCY_PHRASES, LIBRARY, compose, isFilledFrom, parseSegments, type Phrase } from './phrases'
 import { orderByIds, wordingKey, type PhraseStore } from './store'
 
 /**
@@ -44,21 +44,32 @@ export function libraryOf(table: Phrase[], store: PhraseStore): Phrase[] {
  * category, unless Library already says it. Handed the ids to give them, so the
  * caller knows which to count as used; one whose wording is here already — or
  * earlier in the same list — is left out, and so is one that is only spaces.
+ *
+ * **A phrase with its choices made is already here**: "I want the red one" is
+ * `I want the {['red', 'blue']} one` said, a repeat of that phrase rather than
+ * a new one — see `isFilledFrom`. Kept as new, every combination anybody chose
+ * would be a phrase of its own, crowding the one they chose it from.
  */
 export function keepingSaid(
   table: Phrase[],
   store: PhraseStore,
   said: { id: string; text: string }[],
 ): PhraseStore {
-  const known = new Set(libraryOf(table, store).map(p => wordingKey(p.source)))
+  const library = libraryOf(table, store)
+  const known = new Set(library.map(p => wordingKey(p.source)))
   const custom = [...store.custom]
   for (const { id, text } of said) {
     const words = text.trim()
-    if (!words || known.has(wordingKey(words))) continue
+    if (!words || known.has(wordingKey(words)) || saysWithChoices(library, words)) continue
     known.add(wordingKey(words))
     custom.push({ id, text: words, category: LIBRARY })
   }
   return custom.length === store.custom.length ? store : { ...store, custom }
+}
+
+/** Whether the words are one of these phrases with its choices made — see `keepingSaid`. */
+export function saysWithChoices(library: Phrase[], words: string): boolean {
+  return library.some(p => isFilledFrom(p.segments, words))
 }
 
 /**

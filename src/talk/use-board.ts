@@ -15,7 +15,14 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { LIBRARY, buildPhrases, type Phrase, type AliasStore } from '../core/phrases'
 import { stripMarkdown } from '../core/markdown'
-import { emergencyPhrasesOf, keepingSaid, libraryOf, phrasesIn, withoutEmptyCategories } from '../core/board'
+import {
+  emergencyPhrasesOf,
+  keepingSaid,
+  libraryOf,
+  phrasesIn,
+  saysWithChoices,
+  withoutEmptyCategories,
+} from '../core/board'
 import { audioKey, warmAudio } from '../voice/audio-cache'
 import { remoteVoiceId } from '../voice/elevenlabs'
 import { useSettings } from '../ui/settings'
@@ -263,13 +270,16 @@ export function useBoard() {
   /**
    * **Keeps a message just said in Library**, as a phrase in no category, and
    * hands back the id it went in under — or nothing, when Library says it
-   * already. See `keepingSaid`. Written against the store as it stands when the
+   * already, a phrase with its choices made among what it says. See
+   * `keepingSaid`. Written against the store as it stands when the
    * write lands rather than as this render saw it, so two messages said without
    * a render between them are both kept, and one said twice is kept once.
    */
   const keepSaid = useCallback(
     (text: string) => {
-      if (!text.trim() || libraryKeys.has(wordingKey(text))) return undefined
+      if (!text.trim() || libraryKeys.has(wordingKey(text)) || saysWithChoices(mainPhrases, text.trim())) {
+        return undefined
+      }
       const id = newPhraseId()
       setStore(s => {
         const next = keepingSaid(tablePhrases, s, [{ id, text }])
@@ -278,7 +288,7 @@ export function useBoard() {
       })
       return id
     },
-    [libraryKeys, tablePhrases],
+    [libraryKeys, mainPhrases, tablePhrases],
   )
 
   const phraseCountByCategory = useMemo(() => {

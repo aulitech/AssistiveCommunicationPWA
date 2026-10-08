@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { plainPhrase } from '../../src/core/phrases'
-import { keepingSaid } from '../../src/core/board'
+import { buildPhrase, keepingSaid } from '../../src/core/board'
 import { emptyStore, forgetSent, loadSent } from '../../src/core/store'
 
 // What was said, kept in Library. Driven through the app in
@@ -45,6 +45,13 @@ describe('keeping what was said', () => {
       'Hello',
       'Yes please',
     ])
+  })
+
+  // A phrase with its choices made is a repeat of the phrase it came from.
+  it('leaves out a phrase with its choices made, and keeps what says more', () => {
+    const table = [...TABLE, buildPhrase('s3', "I want the {['red', 'blue']} one", 'Library')]
+    const kept = keepingSaid(table, emptyStore(), said('I want the blue one', 'I want the blue one too'))
+    expect(kept.custom.map(p => p.text)).toEqual(['I want the blue one too'])
   })
 
   it('is not fooled by a phrase on the emergency bar, which is not in Library', () => {

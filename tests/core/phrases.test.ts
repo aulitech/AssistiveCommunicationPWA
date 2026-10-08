@@ -7,6 +7,7 @@ import {
   compose,
   hasBlank,
   hasChoices,
+  isFilledFrom,
   makePhrase,
   parseSegments,
   plainPhrase,
@@ -105,6 +106,56 @@ describe('slot helpers', () => {
 
   it('reports no choices for a phrase whose only slot is a blank', () => {
     expect(hasChoices(parseSegments('Did you see {}'))).toBe(false)
+  })
+})
+
+/**
+ * Whether some words are a phrase with its choices made — which is what keeps
+ * "I want the red one" from being kept in Library as a phrase of its own.
+ */
+describe('isFilledFrom', () => {
+  const choices = parseSegments("I want the {['red', 'blue']} one.")
+
+  it('takes any one of a slot’s options, whatever the case and the spaces', () => {
+    expect(isFilledFrom(choices, 'I want the red one')).toBe(true)
+    expect(isFilledFrom(choices, '  i want the   BLUE one ')).toBe(true)
+  })
+
+  it('takes the slot left as it reads, unchosen', () => {
+    expect(isFilledFrom(choices, compose(choices))).toBe(true)
+  })
+
+  it('refuses a word that is not one of the options, and anything said around it', () => {
+    expect(isFilledFrom(choices, 'I want the green one')).toBe(false)
+    expect(isFilledFrom(choices, 'I want the red one now')).toBe(false)
+    expect(isFilledFrom(choices, 'Now I want the red one')).toBe(false)
+  })
+
+  it('takes anything at all typed into a blank', () => {
+    const blank = parseSegments('Did you see {}')
+    expect(isFilledFrom(blank, 'Did you see the game')).toBe(true)
+    expect(isFilledFrom(blank, 'Did I see the game')).toBe(false)
+  })
+
+  it('takes every slot, in its place', () => {
+    const two = parseSegments("Call {['Sam', 'Jo']} about the {['bill', 'rent']}")
+    expect(isFilledFrom(two, 'Call Jo about the rent')).toBe(true)
+    expect(isFilledFrom(two, 'Call rent about the Jo')).toBe(false)
+  })
+
+  // An option is words, not a pattern.
+  it('reads an option’s punctuation as written', () => {
+    const odd = parseSegments("Is it {['3.5', 'a+b']}")
+    expect(hasChoices(odd), 'the phrase did not parse as one with choices').toBe(true)
+    expect(isFilledFrom(odd, 'Is it 3.5')).toBe(true)
+    expect(isFilledFrom(odd, 'Is it 395')).toBe(false)
+    expect(isFilledFrom(odd, 'Is it a+b')).toBe(true)
+    expect(isFilledFrom(odd, 'Is it aab')).toBe(false)
+  })
+
+  // A phrase with no slot is a wording, asked about as one.
+  it('says nothing about a phrase without a slot', () => {
+    expect(isFilledFrom(parseSegments('Hello'), 'Hello')).toBe(false)
   })
 })
 
