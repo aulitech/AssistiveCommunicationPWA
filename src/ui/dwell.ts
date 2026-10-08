@@ -331,6 +331,30 @@ function screenJustMoved(): boolean {
 }
 
 /**
+ * **A control that came to the pointer, rather than the pointer to it** —
+ * where the pointer was before it entered the control, the control is now.
+ * Returned as that place, or null for a pointer that travelled in.
+ *
+ * Every other guard here is called by whatever moved the screen, and so covers
+ * only the moves somebody remembered to guard: a panel closing, the text size,
+ * a mode switch. This one asks the control itself, so it covers every button
+ * that appears, moves or is replaced under a pointer at rest — a dialog opening
+ * where the pointer is, a list scrolling under it, a row arriving above it —
+ * whatever moved it. **The browser tells a control the pointer has entered it
+ * before it reports the move that did it**, so the last place the pointer was
+ * seen is still where it came from; where that is inside the control, the
+ * control is what moved.
+ *
+ * **Not for touch**: a finger has no place between taps, so where it last was
+ * says nothing about the next, and every tap is aimed.
+ */
+function cameToPointer(e: React.PointerEvent<HTMLElement>): { x: number; y: number } | null {
+  if (e.pointerType === 'touch' || !lastPointer || typeof document.elementFromPoint !== 'function') return null
+  const there = document.elementFromPoint(lastPointer.x, lastPointer.y)
+  return there && e.currentTarget.contains(there) ? { ...lastPointer } : null
+}
+
+/**
  * **No control takes focus.** A press moves the browser's focus to what was
  * pressed, which takes it — and the caret — out of the message box: the next
  * key typed, from a real keyboard or Peri's own, goes nowhere, and the caret
@@ -366,6 +390,12 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
   const dwellFiredRef = useRef(false)
   /** Held back because the pointer went quiet. Movement is what lets it go. */
   const stalledRef = useRef(false)
+  /**
+   * Where the pointer was when this control came to it — see `cameToPointer`.
+   * Nothing fires, by a rest or a click, until the pointer is aimed: it leaves,
+   * or moves the distance that counts as aiming somewhere new.
+   */
+  const arrivedRef = useRef<{ x: number; y: number } | null>(null)
 
   // The running timer reads the latest callback and timings through refs so
   // that a re-render mid-dwell doesn't restart it. Syncing them in an effect
@@ -433,26 +463,48 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     }, durationRef.current)
   }, [stall])
 
+  const onPointerEnter = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      arrivedRef.current = cameToPointer(e)
+      if (!arrivedRef.current) start()
+    },
+    [start],
+  )
+
   const onPointerLeave = useCallback(() => {
     cancel()
     dwellFiredRef.current = false
     stalledRef.current = false
+    arrivedRef.current = null
   }, [cancel])
 
-  const onPointerMove = useCallback(() => {
-    // The only way back. Nothing fires when the pointer returns either — the
-    // browser never noticed it leave, so the element is still `:hover` and no
-    // `pointerenter` is coming. Movement is the whole of the news.
-    if (!stalledRef.current) return
-    stalledRef.current = false
-    start()
-  }, [start])
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      // Came to the pointer: aimed once it has moved as far as aiming takes,
+      // and the dwell starts from there.
+      const arrived = arrivedRef.current
+      if (arrived) {
+        if (Math.abs(e.clientX - arrived.x) + Math.abs(e.clientY - arrived.y) <= MOVED_AWAY_PX) return
+        arrivedRef.current = null
+        start()
+        return
+      }
+      // The only way back. Nothing fires when the pointer returns either — the
+      // browser never noticed it leave, so the element is still `:hover` and no
+      // `pointerenter` is coming. Movement is the whole of the news.
+      if (!stalledRef.current) return
+      stalledRef.current = false
+      start()
+    },
+    [start],
+  )
 
   const onClick = useCallback(() => {
     // The dwell already handled this hover; don't count the click as a second hit.
     if (disabledRef.current || dwellFiredRef.current) return
-    // And a click gets the same answer a dwell would — see `screenJustMoved`.
-    if (screenJustMoved()) return
+    // And a click gets the same answer a dwell would — see `screenJustMoved` —
+    // and so does a control that came to the pointer.
+    if (screenJustMoved() || arrivedRef.current) return
     cancel()
     noteActivation()
     activateRef.current()
@@ -476,7 +528,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
   /** Spread onto the control's element. */
   const props = {
     tabIndex: disabled ? -1 : 0,
-    onPointerEnter: disabled ? undefined : start,
+    onPointerEnter: disabled ? undefined : onPointerEnter,
     onPointerMove: disabled ? undefined : onPointerMove,
     onPointerLeave,
     onMouseDown: keepFocus,
