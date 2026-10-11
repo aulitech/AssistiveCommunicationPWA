@@ -298,6 +298,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Paste or drag a web link into the message box or a phrase and it becomes the name of the page. The address is still there when you copy the message, but it is not read aloud.',
         'A phrase that is only a link opens it in a new tab instead of speaking. A phrase with words around a link is still spoken as usual.',
         'If a link does not open, allow pop-ups for Peri in your browser settings. Browsers only open new tabs off the back of a tap or a key press, and dwelling is neither.',
+        "A link opens in the browser profile Peri is running in, signed in to whatever accounts that profile is. If several people share a computer, install Peri from each person's own browser profile, and their links will open with their own accounts.",
       ),
       text('Turn :edit: off again to go back to speaking.'),
     ],
