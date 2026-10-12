@@ -282,8 +282,9 @@ describe('the picture behind it, in Settings', () => {
 
     const input = row().querySelector<HTMLInputElement>('input[type="file"]')!
     fireEvent.change(input, { target: { files: [new File(['x'], 'beach.jpg', { type: 'image/jpeg' })] } })
-    await act(async () => {})
-    expect(loadPresentationBackground()).toBe('data:image/jpeg;base64,c21hbGw=')
+    // Named from its bytes before it is kept, which is real work rather than a
+    // tick — so waited for, not assumed done.
+    await act(() => vi.waitFor(() => expect(loadPresentationBackground()).toBe('data:image/jpeg;base64,c21hbGw=')))
     expect(row().querySelector('img')?.getAttribute('src')).toBe('data:image/jpeg;base64,c21hbGw=')
 
     settle()

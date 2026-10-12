@@ -61,6 +61,15 @@ test('shows what is said in the lower third, scrolling up as more is said', asyn
 
   const say = (text: string) =>
     win.evaluate(t => (window as unknown as { periStage: { show: (t: string) => void } }).periStage.show(t), text)
+  // One line, short of a full band, still sits at its foot.
+  await say('Hello')
+  const one = await win.evaluate(() => {
+    const band = document.querySelector('.presentation-said')!.getBoundingClientRect()
+    const line = document.querySelector('.presentation-latest')!.getBoundingClientRect()
+    return band.bottom - line.bottom
+  })
+  expect(one, 'a single line floated to the top of the band').toBeLessThan(40)
+
   for (let n = 1; n <= 12; n++)
     await say(`Line ${n} of what was said, long enough to want a second line in the band`)
   await expect(win.locator('.presentation-latest')).toContainText('Line 12')
