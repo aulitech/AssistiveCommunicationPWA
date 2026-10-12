@@ -139,6 +139,27 @@ describe('the presentation picture', () => {
     expect(await getClip(keys, pictureClip({ id: await pictureId(GARDEN), at: 6 }))).toBeNull()
   })
 
+  // Its address says when as well as which, or a removal owed for the picture
+  // chosen first would take away the same picture chosen again since, elsewhere.
+  it('takes off only the picture replaced, not the same picture chosen again since', async () => {
+    await choose(BEACH, 5)
+    await carryPicture(clips)
+    await choose(GARDEN, 6)
+
+    const again = pictureClip({ id: await pictureId(BEACH), at: 7 })
+    await putClip(keys, 'phone', again, new Blob([atob(BEACH.split(',')[1])], { type: 'image/jpeg' }))
+    await carryPicture(clips)
+    expect(await getClip(keys, again), 'the picture chosen again was taken off').not.toBeNull()
+  })
+
+  it('does not send a picture again once it is up', async () => {
+    await choose(BEACH, 5)
+    await carryPicture(clips)
+    const upload = vi.fn(async () => true)
+    await carryPicture({ ...clips, upload })
+    expect(upload).not.toHaveBeenCalled()
+  })
+
   // Only what went up is owed a removal: a picture never sent has nothing there.
   it('owes no removal for a picture that never went up', async () => {
     await choose(BEACH, 5)

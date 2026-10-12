@@ -381,6 +381,15 @@ describe('saying whether a clip is up there', () => {
     expect(await putClip(keys, 'phone', KEY, clip('the audio'))).toBe(true)
   })
 
+  it('says not when the clip itself could not be written', async () => {
+    let puts = 0
+    const real = globalThis.fetch
+    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === 'PUT' && ++puts === 2 ? Promise.reject(new Error('offline')) : real(input, init),
+    )
+    expect(await putClip(keys, DEVICE, KEY, clip('the audio'))).toBe(false)
+  })
+
   it('says not when the list of them could not be written', async () => {
     vi.stubGlobal('fetch', () => Promise.reject(new Error('offline')))
     expect(await clipStore(keys, DEVICE).upload(KEY, clip('the audio'))).toBe(false)
