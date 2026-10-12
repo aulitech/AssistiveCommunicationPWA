@@ -89,12 +89,18 @@
 }
 
 /* The one control, in the corner a shared window's viewers look at least. */
+/* Stacked up from the corner — the camera at the foot, the microphone above it,
+   anything said about either above that — so the band of words beside them
+   stays clear of all of it whichever are showing. **The camera never moves**:
+   the microphone arrives above it rather than in its place, where the pointer
+   that turned the camera on is resting. */
 .presentation-tools {
   position: absolute;
   right: 1.5rem;
   bottom: 1.5rem;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 1rem;
 }
 .presentation-note {
@@ -105,7 +111,8 @@
   color: var(--text-muted);
   font-size: 1rem;
 }
-.presentation-camera-toggle {
+.presentation-camera-toggle,
+.presentation-mic-toggle {
   position: relative;
   overflow: hidden;
   display: grid;
@@ -118,17 +125,20 @@
   color: var(--text);
   cursor: pointer;
 }
-.presentation-camera-toggle svg {
+.presentation-camera-toggle svg,
+.presentation-mic-toggle svg {
   position: relative;
   width: 1.75rem;
   height: 1.75rem;
 }
-.presentation-camera-toggle.active {
+.presentation-camera-toggle.active,
+.presentation-mic-toggle.active {
   background: var(--accent);
   color: var(--bg);
 }
 /* The fill rising from the bottom that every dwell control here shows. */
-.presentation-camera-toggle::before {
+.presentation-camera-toggle::before,
+.presentation-mic-toggle::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -137,7 +147,8 @@
   transform: scaleY(0);
   transform-origin: bottom;
 }
-.presentation-camera-toggle.dwelling::before {
+.presentation-camera-toggle.dwelling::before,
+.presentation-mic-toggle.dwelling::before {
   animation: presentationFill var(--dwell-ms) linear forwards;
 }
 @keyframes presentationFill {

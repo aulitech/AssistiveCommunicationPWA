@@ -4,9 +4,10 @@
 import { expect, test } from '@playwright/test'
 import { openBoard } from './board'
 
-// A camera that is a test pattern, and permission to use it without asking.
+// A camera that is a test pattern and a microphone that is a tone, and
+// permission to use both without asking.
 test.use({
-  permissions: ['camera'],
+  permissions: ['camera', 'microphone'],
   launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] },
 })
 
@@ -100,6 +101,40 @@ test('shows what is said in the lower third, scrolling up as more is said', asyn
   expect(where.latest[1]).toBeLessThanOrEqual(where.band[1])
   // And the camera button is clear of it.
   expect(where.button[0]).toBeGreaterThanOrEqual(where.band[3])
+  expect(errors).toEqual([])
+})
+
+// The microphone mixed into the window beside Peri's voice, with the browser's
+// echo cancellation actually on — asked for is not the same as given.
+test('mixes in the microphone with the camera on, echo cancelled', async ({ page }) => {
+  const { errors } = await openBoard(page)
+  const [win] = await Promise.all([page.waitForEvent('popup'), page.locator('.present-toggle').click()])
+  await expect(win.locator('.presentation-mic-toggle')).toHaveCount(0)
+
+  await win.locator('.presentation-camera-toggle').click()
+  await expect(win.locator('video.presentation-camera')).toBeVisible()
+  // The microphone arrives above the camera, never where the pointer that
+  // turned the camera on is resting.
+  const camera = await win.locator('.presentation-camera-toggle').boundingBox()
+  const mic = await win.locator('.presentation-mic-toggle').boundingBox()
+  expect(mic!.y + mic!.height, 'the microphone landed under the pointer').toBeLessThanOrEqual(camera!.y)
+  await win.locator('.presentation-mic-toggle').click()
+  await expect(win.locator('.presentation-mic-toggle')).toHaveClass(/active/)
+
+  const heard = await win.evaluate(async () => {
+    const out = document.querySelector<HTMLAudioElement>('audio.presentation-heard')!
+    for (let i = 0; i < 50 && out.paused; i++) await new Promise(r => setTimeout(r, 100))
+    const track = (out.srcObject as MediaStream | null)?.getAudioTracks()[0]
+    return { playing: !out.paused, live: track?.readyState, echo: track?.getSettings().echoCancellation }
+  })
+  expect(heard).toEqual({ playing: true, live: 'live', echo: true })
+
+  // The camera going takes the microphone with it.
+  await win.locator('.presentation-camera-toggle').click()
+  await expect(win.locator('.presentation-mic-toggle')).toHaveCount(0)
+  expect(
+    await win.evaluate(() => document.querySelector<HTMLAudioElement>('audio.presentation-heard')!.srcObject),
+  ).toBeNull()
   expect(errors).toEqual([])
 })
 
