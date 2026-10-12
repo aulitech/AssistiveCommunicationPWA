@@ -34,6 +34,7 @@ import {
   MenuIcon,
   PasteIcon,
   PleaseIcon,
+  PresentIcon,
   QuestionIcon,
   SpeakIcon,
   TrashIcon,
@@ -228,6 +229,8 @@ export function Topbar({
   onPasted,
   listener,
   onToggleListen,
+  presenting,
+  onTogglePresenting,
 }: {
   composer: Composer
   /** The phrase being written, which in edit mode is what the box holds. */
@@ -274,6 +277,9 @@ export function Topbar({
    * belongs beside `setMode` in `talk.tsx` rather than here.
    */
   onToggleListen: () => void
+  /** Whether the presentation window is open — see `talk/use-presentation.ts`. */
+  presenting: boolean
+  onTogglePresenting: () => void
 }) {
   const { settings, update } = useSettings()
   const wide = useMediaQuery(WIDE_ENOUGH)
@@ -622,6 +628,19 @@ export function Topbar({
                   label={settings.please ? 'Stop saying please' : 'Say please at the end of everything spoken'}
                 >
                   <PleaseIcon />
+                </ModeToggle>
+
+                {/* **Presentation mode**: a window of its own showing what is
+                    said, playing the audio, and a dwell away from the camera —
+                    see `talk/use-presentation.ts`. Last, being about where what is
+                    said goes rather than how it is said. */}
+                <ModeToggle
+                  className="present-toggle"
+                  on={presenting}
+                  onToggle={onTogglePresenting}
+                  label={presenting ? 'Stop presenting' : 'Present: show what is said in a window of its own'}
+                >
+                  <PresentIcon />
                 </ModeToggle>
               </div>
             </div>

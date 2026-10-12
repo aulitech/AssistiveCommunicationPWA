@@ -1,0 +1,138 @@
+/* The presentation window — `talk/presentation.tsx`, and docs/decisions/presentation-mode.md.
+
+   One of the stylesheet's parts, imported by `index.css` in its place. **Order
+   is load-bearing**: the files are the stylesheet in the order it was written,
+   and a rule moved from one to another changes the cascade wherever two
+   selectors have equal specificity — see *Styling* in AGENTS.md.
+
+   **Made to be read from across a room, or in a corner of a call.** The newest
+   thing said is as large as the window allows — scaled with the window rather
+   than fixed, since it is the window somebody resizes to fit their screen —
+   and the few before it smaller and muted above. Over a picture or the camera
+   they sit on a band of the page's own ground, so they never have to be read
+   off a face or a photograph. */
+.presentation {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: var(--bg) center / cover no-repeat;
+  color: var(--text);
+}
+
+/* **As large as the window allows, its shape kept**: `contain` fills one
+   dimension and leaves the other to the picture or the ground behind it,
+   rather than stretching a face or cropping it. */
+.presentation-camera {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.presentation-said {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: min(90vw, 70rem);
+  padding: 1rem 2rem;
+  text-align: center;
+}
+.presentation.has-background .presentation-said,
+.presentation.has-camera .presentation-said {
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
+  border-radius: 1rem;
+}
+/* With the camera on, the words go to its foot, as captions do. */
+.presentation.has-camera {
+  justify-content: flex-end;
+}
+.presentation.has-camera .presentation-said {
+  margin-bottom: 6rem;
+}
+
+.presentation-latest {
+  font-size: clamp(2rem, 5vw, 5rem);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.presentation-earlier {
+  font-size: clamp(1.1rem, 2.2vw, 2.2rem);
+  color: var(--text-muted);
+}
+.presentation-waiting {
+  font-size: 1.4rem;
+  color: var(--text-muted);
+}
+
+/* The one control, in the corner a shared window's viewers look at least. */
+.presentation-tools {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.presentation-note {
+  max-width: 24rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+.presentation-camera-toggle {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.presentation-camera-toggle svg {
+  position: relative;
+  width: 1.75rem;
+  height: 1.75rem;
+}
+.presentation-camera-toggle.active {
+  background: var(--accent);
+  color: var(--bg);
+}
+/* The fill rising from the bottom that every dwell control here shows. */
+.presentation-camera-toggle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--dwell-color);
+  opacity: 0.4;
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+.presentation-camera-toggle.dwelling::before {
+  animation: presentationFill var(--dwell-ms) linear forwards;
+}
+@keyframes presentationFill {
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* Its row in Settings: the picture chosen, small, beside the controls for it. */
+.presentation-background-preview {
+  width: 5rem;
+  height: 3rem;
+  object-fit: cover;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border);
+}

@@ -17,6 +17,7 @@
 
 import {
   AliasesIcon,
+  CameraIcon,
   AutoSpeakIcon,
   BackIcon,
   BackupIcon,
@@ -49,6 +50,7 @@ import {
   MicIcon,
   PasteIcon,
   PleaseIcon,
+  PresentIcon,
   PlusIcon,
   QuestionIcon,
   ReorderIcon,
@@ -74,6 +76,8 @@ export const PROSE_ICONS: Record<string, () => React.ReactElement> = {
   copy: CopyIcon,
   paste: PasteIcon,
   please: PleaseIcon,
+  present: PresentIcon,
+  camera: CameraIcon,
   save: CheckIcon,
   delete: TrashIcon,
   add: PlusIcon,
@@ -127,6 +131,8 @@ export const PROSE_ICON_NAMES: Record<string, string> = {
   copy: 'Copy',
   paste: 'Paste',
   please: 'Please',
+  present: 'Present',
+  camera: 'Camera',
   save: 'Save',
   delete: 'Delete',
   add: 'Add',

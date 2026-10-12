@@ -73,6 +73,49 @@ export interface SpeakOptions {
    * English one stuck on the end of another language.
    */
   please?: boolean
+  /**
+   * **Heard by the person choosing, and nobody else**: a voice sample in the
+   * picker. Not shown in the presentation window — see `Stage` — which shows
+   * what was said to somebody.
+   */
+  sample?: boolean
+}
+
+/**
+ * **The presentation window**, while one is open — see `talk/presentation.tsx`.
+ * Everything said is shown there, and audio is played there, so that sharing
+ * that one window in a call carries both.
+ *
+ * Installed from above rather than imported, as the audio cache's third layer
+ * is: the window is a screen, and a screen sits above this in the layering.
+ *
+ * **It can fail and must never cost a phrase**: a window closed under it, or one
+ * the browser will not let play sound, and the audio is played here instead.
+ * The device's own voice cannot be sent anywhere at all — a browser gives a page
+ * no way to route its synthesiser — so it is always said here.
+ */
+export interface Stage {
+  show(text: string): void
+  /** Plays a clip there. Rejects if it cannot, and the clip is played here. */
+  play(url: string, volume: number, rate: number, onEnded: () => void): Promise<void>
+  stop(): void
+}
+
+let stage: Stage | null = null
+
+/** Puts the presentation window in place, or takes it away. */
+export function setStage(next: Stage | null) {
+  stage = next
+}
+
+/** Asked of the stage, which belongs to another window that may close at any moment. */
+function onStage(act: (s: Stage) => void) {
+  if (!stage) return
+  try {
+    act(stage)
+  } catch {
+    // A window gone. What it was asked to do is done here, or not at all.
+  }
 }
 
 // Read per utterance rather than mirrored in a variable here. A JSON parse of
@@ -100,6 +143,7 @@ function stopEverything() {
     playing.pause()
     playing = null
   }
+  onStage(s => s.stop())
 }
 
 function speakOnDevice(text: string, settings: VoiceSettings) {
@@ -125,6 +169,25 @@ function speakOnDevice(text: string, settings: VoiceSettings) {
 
 function playAudio(blob: Blob, settings: VoiceSettings, onFailure: () => void) {
   const url = URL.createObjectURL(blob)
+  const done = () => URL.revokeObjectURL(url)
+  // In the presentation window if there is one, and here if it cannot.
+  if (stage) {
+    const mine = generation
+    let asked: Promise<void>
+    try {
+      asked = stage.play(url, settings.volume, settings.rate, done)
+    } catch {
+      asked = Promise.reject(new Error('The presentation window is gone'))
+    }
+    asked.catch(() => {
+      if (mine === generation) playHere(url, settings, onFailure)
+    })
+    return
+  }
+  playHere(url, settings, onFailure)
+}
+
+function playHere(url: string, settings: VoiceSettings, onFailure: () => void) {
   const audio = new Audio(url)
   audio.volume = settings.volume
   // ElevenLabs has no rate of its own to ask for, and the speed control has to
@@ -222,6 +285,8 @@ function politely(words: string, tag: string, options: SpeakOptions, then: (text
 
 /** Everything from the words onward, once it is settled what the words are. */
 function say(text: string, settings: VoiceSettings, options: SpeakOptions) {
+  // Shown as said — translated, please and all — the moment it is settled.
+  if (!options.sample) onStage(s => s.show(text))
   // A phrase's own voice wins over the one in settings. Both are `voiceURI`s, so
   // everything downstream — the fallback, the device lookup — is unchanged.
   const chosen = { ...settings, voiceURI: options.voiceURI || settings.voiceURI }

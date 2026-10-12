@@ -174,10 +174,17 @@ describe('auto-speak', () => {
   it('sits to the right of Rest, with edit to its left', () => {
     renderApp()
     const strip = $$('.topbar-modes > *')
-    expect(strip.map(el => el.className.split(' ')[0])).toEqual(['mode-btn', 'rest-btn', 'mode-btn', 'mode-btn'])
+    expect(strip.map(el => el.className.split(' ')[0])).toEqual([
+      'mode-btn',
+      'rest-btn',
+      'mode-btn',
+      'mode-btn',
+      'mode-btn',
+    ])
     expect(strip[0].getAttribute('aria-label')).toMatch(/edit/i)
     expect(strip[2].getAttribute('aria-label')).toMatch(/auto-speak/i)
     expect(strip[3].getAttribute('aria-label')).toMatch(/please/i)
+    expect(strip[4].getAttribute('aria-label')).toMatch(/present/i)
   })
 
   // The empty box is where somebody looks to learn what a dwell on a phrase

@@ -36,7 +36,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'At the far left of the top row: :copy: and :paste:.',
-        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then the three modes — :edit:, the Rest bar, and :auto-speak: — and :please:.',
+        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then the three modes — :edit:, the Rest bar, and :auto-speak: — then :please: and :present:.',
         'At the right of the top row, on a wide screen: the language and the voice.',
         'At the left end of the line: :clear:, which empties the box — and afterwards offers :undo:.',
         'Right after the last word you write: :speak:, filled in green, because it is the one the whole board exists to reach. It is there once there is something in the box, and moves along as the words do.',
@@ -137,6 +137,17 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'Please is only said: it is not added to the phrase, to what is kept, or to what is copied. On the emergency bar it is said only if Peri already has the word for that language, so nothing there ever waits.',
+      ),
+      text(
+        ':present:, at the end of the row, opens a presentation window: everything Peri says appears there in large writing, the newest at the middle. Share that one window in a video call, or turn a second screen towards the room, and people can read along.',
+      ),
+      list(
+        ':camera: in the corner of the window shows your camera, as large as the window allows without stretching it, with what you say written across its foot. The picture stays on this device.',
+        'Sound from an ElevenLabs voice plays in the presentation window, so sharing the window shares the sound. A device voice always plays from Peri itself — browsers give it no other way out.',
+        'If the window says the sound is playing from Peri, select the window once — browsers only play sound in a window somebody has pressed in.',
+        'If the window does not open, allow pop-ups for Peri in your browser settings, as for links.',
+        'A picture behind the words can be chosen under Settings, as Presentation background.',
+        'Rest on :present: again, or close the window, to stop.',
       ),
       text(
         'If a paste says it was blocked, allow clipboard access for Peri in your browser settings. Firefox does not offer the clipboard to a web page at all — there, use Ctrl+V if you have a keyboard.',
@@ -352,6 +363,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Peri’s keyboard — adds :keyboard: at the left of the message, for a device you cannot otherwise type on, such as an iPad. Each device keeps its own answer.',
         'Getting started — this guide, one part at a time, each part you have been through marked :ticked:. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',
         'Spoken language — see Speaking another language.',
+        'Presentation background — a picture to show behind the words in the presentation window. It stays on this device: it is not in backups, and does not go to your other devices.',
         'Voice — :choose: opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
         'Synchronize, ElevenLabs and Suggested answers — see Keeping two devices the same, Better voices and Getting suggested answers.',
         'Reset to Factory Defaults, at the very bottom, puts this board back to how Peri arrived — phrases, categories, lists, settings and any linked account. It offers to save a backup first, and you stay signed in.',

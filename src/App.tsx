@@ -25,6 +25,8 @@ import { SettingsCtx } from './ui/settings'
 import { SignInPage } from './signin/signin'
 import { LegalPage } from './legal/legal-page'
 import { TalkScreen } from './talk/talk'
+import { PresentationPage } from './talk/presentation'
+import { PRESENTATION_PATH } from './talk/use-presentation'
 import { ErrorBoundary } from './talk/error-boundary'
 
 export default function App() {
@@ -130,6 +132,11 @@ export default function App() {
       <ErrorBoundary>
         {legalDoc ? (
           <LegalPage doc={legalDoc} />
+        ) : window.location.pathname === PRESENTATION_PATH ? (
+          // The window presentation mode opens — see `talk/use-presentation.ts`.
+          // Read through the same board as the Peri that opened it, so its
+          // picture and its dwell times are this person's.
+          <PresentationPage />
         ) : user ? (
           <TalkScreen user={user} onSignOut={handleSignOut} arrivedBySignIn={signedInHere} />
         ) : (
