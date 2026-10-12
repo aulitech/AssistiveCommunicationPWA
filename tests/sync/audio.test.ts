@@ -295,7 +295,7 @@ describe('when it does not work', () => {
 
   it('sends nothing, and does not throw, when the server cannot be reached', async () => {
     vi.stubGlobal('fetch', () => Promise.reject(new Error('offline')))
-    await expect(putClip(keys, DEVICE, KEY, clip('the audio'))).resolves.toBeUndefined()
+    await expect(putClip(keys, DEVICE, KEY, clip('the audio'))).resolves.toBe(false)
     expect(blobs.size).toBe(0)
   })
 
@@ -368,8 +368,32 @@ describe('when it does not work', () => {
    * works exactly as before — locally, and bought once per device.
    */
   it('keeps a clip too large to send at home', async () => {
-    await putClip(keys, DEVICE, KEY, new Blob([new Uint8Array(MAX_CLIP_BYTES + 1)]))
+    expect(await putClip(keys, DEVICE, KEY, new Blob([new Uint8Array(MAX_CLIP_BYTES + 1)]))).toBe(false)
     expect(blobs.size).toBe(0)
+  })
+})
+
+// The presentation window's picture goes up this way and has to know it did,
+// or it is owed for ever — see `sync/picture.ts`.
+describe('saying whether a clip is up there', () => {
+  it('says so once it is, and again when another device put it there first', async () => {
+    expect(await putClip(keys, DEVICE, KEY, clip('the audio'))).toBe(true)
+    expect(await putClip(keys, 'phone', KEY, clip('the audio'))).toBe(true)
+  })
+
+  it('says not when the list of them could not be written', async () => {
+    vi.stubGlobal('fetch', () => Promise.reject(new Error('offline')))
+    expect(await clipStore(keys, DEVICE).upload(KEY, clip('the audio'))).toBe(false)
+  })
+
+  it('takes one clip away, and says whether it went', async () => {
+    const store = clipStore(keys, DEVICE)
+    await store.upload(KEY, clip('the audio'))
+    expect(await store.remove(KEY)).toBe(true)
+    expect(await getClip(keys, KEY)).toBeNull()
+
+    vi.stubGlobal('fetch', () => Promise.reject(new Error('offline')))
+    expect(await store.remove(KEY)).toBe(false)
   })
 })
 

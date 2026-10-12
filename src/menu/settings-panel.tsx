@@ -20,9 +20,7 @@ import {
   chooseLanguage,
   chooseVoice,
   factoryReset,
-  loadPresentationBackground,
   replyModelName,
-  savePresentationBackground,
 } from '../core/store'
 import {
   DwellInput,
@@ -172,6 +170,8 @@ export function SettingsPanel({
   onAccountChange,
   replyKey,
   onReplyKeyChange,
+  picture,
+  onPictureChange,
   onForgetConversation,
   onOpenIntroduction,
 }: {
@@ -189,6 +189,13 @@ export function SettingsPanel({
   /** The key behind a suggested reply, held by the screen because sync sends it. */
   replyKey: string
   onReplyKeyChange: (next: string) => void
+  /**
+   * The picture behind the presentation window, held by the screen because
+   * synchronizing carries it — a picture arriving from another device shows
+   * here as it lands. Choosing one says whether it could be kept.
+   */
+  picture: string
+  onPictureChange: (next: string) => Promise<boolean>
   /**
    * Forget today's questions, the answers chosen, and the answers on the board.
    * The screen's to do rather than this row's, since the answers on the board
@@ -339,7 +346,7 @@ export function SettingsPanel({
         </SettingRow>
         <LanguageRow />
         <VoiceRow />
-        <PresentationBackgroundRow />
+        <PresentationBackgroundRow picture={picture} onChange={onPictureChange} />
         <SyncRow sync={sync} />
         <ElevenLabsRow account={account} onChange={onAccountChange} />
         <SuggestedRepliesRow value={replyKey} onChange={onReplyKeyChange} onForget={onForgetConversation} />
@@ -516,24 +523,31 @@ function SecretField({
  * `core/store/presentation.ts`. Made small before it is kept, and the window
  * shows a new one the moment it is chosen.
  */
-function PresentationBackgroundRow() {
-  const [picture, setPicture] = useState(loadPresentationBackground)
+function PresentationBackgroundRow({
+  picture,
+  onChange,
+}: {
+  picture: string
+  onChange: (next: string) => Promise<boolean>
+}) {
   const [problem, setProblem] = useState('')
-  const choose = useCallback((file: File) => {
-    setProblem('')
-    shrinkPicture(file).then(
-      url => {
-        if (savePresentationBackground(url)) setPicture(url)
-        else setProblem('That picture could not be kept on this device. Try a smaller one.')
-      },
-      () => setProblem('That file could not be read as a picture.'),
-    )
-  }, [])
+  const choose = useCallback(
+    (file: File) => {
+      setProblem('')
+      shrinkPicture(file).then(
+        url =>
+          onChange(url).then(kept => {
+            if (!kept) setProblem('That picture could not be kept on this device. Try a smaller one.')
+          }),
+        () => setProblem('That file could not be read as a picture.'),
+      )
+    },
+    [onChange],
+  )
   const remove = useCallback(() => {
-    savePresentationBackground('')
-    setPicture('')
+    void onChange('')
     setProblem('')
-  }, [])
+  }, [onChange])
   const refused = useCallback(
     () => setProblem('Your browser only opens a file on a real click or tap, so choose the picture with one.'),
     [],
@@ -543,8 +557,8 @@ function PresentationBackgroundRow() {
       label="Presentation background"
       note={
         picture
-          ? 'Shown behind what is said in the presentation window. It stays on this device: it is not in backups and does not synchronize.'
-          : 'A picture to show behind what is said in the presentation window. It stays on this device: it is not in backups and does not synchronize.'
+          ? 'Shown behind what is said in the presentation window. It is not in backups. With Synchronize on it goes to your own devices, encrypted, like the board.'
+          : 'A picture to show behind what is said in the presentation window. It is not in backups. With Synchronize on it goes to your own devices, encrypted, like the board.'
       }
     >
       <div className="sync-actions">
@@ -676,8 +690,8 @@ function SyncRow({ sync }: { sync: SyncControl }) {
           {sync.status === 'choose'
             ? "Keeping this device's board replaces the synchronized one on every other device. Using the synchronized board replaces what is on this device. Nothing has changed yet."
             : sync.enabled
-              ? 'Every device signed in to this account and given the same passphrase keeps the same board. The last change wins, so editing on two devices at once loses the earlier edit. Audio from a linked ElevenLabs account waits there too, so a phrase paid for here is not paid for again elsewhere; erasing the copy takes it as well. Everything on the server is encrypted before it leaves this device and cannot be read without the passphrase — which nobody can reset for you.'
-              : 'Optional. Keeps your phrases, categories and settings the same on every device you sign in to — apart from text size and volume, which stay as you set them on each one. It also keeps the audio a linked ElevenLabs account has made, so no phrase is paid for twice. The copy is encrypted here first, so the passphrase is the only thing that can open it — write it down somewhere safe.'}
+              ? 'Every device signed in to this account and given the same passphrase keeps the same board. The last change wins, so editing on two devices at once loses the earlier edit. Audio from a linked ElevenLabs account waits there too, so a phrase paid for here is not paid for again elsewhere, and so does the presentation background; erasing the copy takes them as well. Everything on the server is encrypted before it leaves this device and cannot be read without the passphrase — which nobody can reset for you.'
+              : 'Optional. Keeps your phrases, categories and settings the same on every device you sign in to — apart from text size and volume, which stay as you set them on each one. It also keeps the audio a linked ElevenLabs account has made, so no phrase is paid for twice, and the presentation background. The copy is encrypted here first, so the passphrase is the only thing that can open it — write it down somewhere safe.'}
         </p>
       </div>
 
@@ -706,9 +720,9 @@ function ConfirmForgetSync({ onConfirm, onCancel }: { onConfirm: () => void; onC
       <div className="confirm-dialog" role="dialog" aria-modal="true" aria-label="Stop synchronizing">
         <h3 className="confirm-title">Stop synchronizing?</h3>
         <p className="confirm-text">
-          This device keeps its board and its audio. The encrypted copy on the server is erased, along with every
-          clip of ElevenLabs audio kept beside it, and any other device still synchronizing will put its own copy
-          back up the next time it looks.
+          This device keeps its board, its audio and its picture. The encrypted copy on the server is erased, along
+          with every clip of ElevenLabs audio and the presentation background kept beside it, and any other device
+          still synchronizing will put its own copy back up the next time it looks.
         </p>
         <div className="confirm-actions">
           <PanelButton kind="plain" label="Cancel" onActivate={onCancel} />

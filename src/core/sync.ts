@@ -81,6 +81,14 @@ export interface Snapshot {
   replyKey?: string | null
   /** When that key was given or taken away — see `replyKeyFrom`. Absent before it had a time. */
   replyKeyAt?: number
+  /**
+   * Which picture is behind the presentation window, by name — never the
+   * picture, which goes up on its own (`sync/picture.ts`) — or null where it
+   * was taken away. Absent from a device that has never had one, as the key is.
+   */
+  picture?: string | null
+  /** When that picture was chosen or taken away — see `pictureFrom`. */
+  pictureAt?: number
 }
 
 /**
@@ -148,6 +156,10 @@ export interface SyncPayload {
   replyKey: string
   /** When it was last given or taken away on the device holding it, or 0 for never. */
   replyKeyAt: number
+  /** Which picture is behind the presentation window, or empty for none — see `Snapshot.picture`. */
+  picture: string
+  /** When it was chosen or taken away on the device holding it, or 0 for never. */
+  pictureAt: number
 }
 
 /** The key behind a suggested reply as one device holds it. */
@@ -182,6 +194,30 @@ export function replyKeyFrom(snapshot: Snapshot, mine: ReplyKeyState): ReplyKeyS
   const key = snapshot.replyKey ?? ''
   const at = snapshot.replyKeyAt ?? (key ? 0 : -1)
   return newer(at, key, mine.at, mine.key) ? { key, at } : null
+}
+
+/** The presentation window's picture as one device holds it, by name. */
+export interface PictureState {
+  id: string
+  /** When it was chosen or taken away, or 0 for never. */
+  at: number
+}
+
+/** Whether a device has anything to say about the picture: one, or having taken one away. */
+export const saysPicture = (mine: PictureState) => mine.id !== '' || mine.at > 0
+
+/**
+ * The picture that stands once a snapshot has arrived — its own, or null where
+ * this device's stands instead. **`replyKeyFrom`'s rule, for its reason**: the
+ * newer of the two, whichever board is newer, so a picture chosen on one device
+ * is not taken off the others by the next board from a device that never had
+ * one.
+ */
+export function pictureFrom(snapshot: Snapshot, mine: PictureState): PictureState | null {
+  if (snapshot.picture === undefined) return null
+  const id = snapshot.picture ?? ''
+  const at = snapshot.pictureAt ?? (id ? 0 : -1)
+  return newer(at, id, mine.at, mine.id) ? { id, at } : null
 }
 
 /** The newer of two, a tie to the greater — the same answer asked from either side. */
@@ -238,6 +274,13 @@ export function parseSnapshot(value: unknown): Snapshot | null {
   else if (typeof s.replyKey === 'string' && s.replyKey !== '') snapshot.replyKey = s.replyKey
   if (snapshot.replyKey !== undefined && typeof s.replyKeyAt === 'number' && Number.isFinite(s.replyKeyAt)) {
     snapshot.replyKeyAt = Math.max(0, s.replyKeyAt)
+  }
+  // And the picture, by its name alone — which is all it may be, since it names
+  // a file on the server.
+  if (s.picture === null) snapshot.picture = null
+  else if (typeof s.picture === 'string' && /^[0-9a-f]{32}$/.test(s.picture)) snapshot.picture = s.picture
+  if (snapshot.picture !== undefined && typeof s.pictureAt === 'number' && Number.isFinite(s.pictureAt)) {
+    snapshot.pictureAt = Math.max(0, s.pictureAt)
   }
   return snapshot
 }

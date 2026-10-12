@@ -73,7 +73,14 @@ async function boardOnServer(passphrase = PASSPHRASE, account = ACCOUNT) {
 }
 
 let control: SyncControl
-let applied: { backup: Backup; account: ElevenLabsAccount | null; replyKey: string; from: string }[] = []
+let applied: {
+  backup: Backup
+  account: ElevenLabsAccount | null
+  replyKey: string
+  picture: string
+  pictureAt: number
+  from: string
+}[] = []
 /** Changes what this device holds, as the screen would. */
 let change: (patch: Partial<SyncPayload>) => void
 
@@ -85,6 +92,8 @@ function Device({
   linkedAt = 0,
   reply = '',
   replyAt = 0,
+  picture = '',
+  pictureAt = 0,
 }: {
   account?: string | null
   start?: string
@@ -96,6 +105,10 @@ function Device({
   reply?: string
   /** When that key was given or taken away, or 0 for never. */
   replyAt?: number
+  /** Which picture is behind the presentation window, by name. */
+  picture?: string
+  /** When it was chosen or taken away, or 0 for never. */
+  pictureAt?: number
 }) {
   const [mine, setMine] = useState<SyncPayload>(() => ({
     backup: board(start),
@@ -103,12 +116,21 @@ function Device({
     accountAt: linkedAt,
     replyKey: reply ?? '',
     replyKeyAt: replyAt,
+    picture,
+    pictureAt,
   }))
   const sync = useSync({
     accountId: account,
     payload: mine,
     onApply: (incoming, from) => {
-      applied.push({ backup: incoming.backup, account: incoming.account, replyKey: incoming.replyKey, from })
+      applied.push({
+        backup: incoming.backup,
+        account: incoming.account,
+        replyKey: incoming.replyKey,
+        picture: incoming.picture,
+        pictureAt: incoming.pictureAt,
+        from,
+      })
       // What the screen does: what is on this device becomes what arrived.
       // Without it the hook would be tested against a device that ignores
       // everything it is sent.
@@ -131,6 +153,8 @@ type Props = {
   linkedAt?: number
   reply?: string
   replyAt?: number
+  picture?: string
+  pictureAt?: number
 }
 const show = (props: Props = {}) => render(<Device {...props} />)
 
@@ -605,6 +629,79 @@ describe('the key behind a suggested reply', () => {
     act(() => change({ replyKey: '', replyKeyAt: SET + 1 }))
     await waitFor(async () => expect((await boardOnServer())?.replyKey).toBeNull(), { timeout: 5_000 })
     expect((await boardOnServer())?.replyKeyAt).toBe(SET + 1)
+  })
+})
+
+/**
+ * Which picture is behind the presentation window: by name, and by the rule
+ * the key follows — the newer of two devices' stands, whichever board is newer.
+ * The picture itself goes up on its own; see `tests/sync/picture.test.ts`.
+ */
+describe('the presentation picture', () => {
+  const MINE = 'a'.repeat(32)
+  const THEIRS = 'b'.repeat(32)
+  const SET = 1_000_000
+
+  it('is named to a device that has none, and the picture is not in the board', async () => {
+    show({ start: 'from the tablet', picture: MINE, pictureAt: SET })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+    expect((await boardOnServer())?.picture).toBe(MINE)
+
+    secondDevice()
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(applied[0]).toMatchObject({ picture: MINE, pictureAt: SET })
+  })
+
+  // The regression the key had, guarded here from the start: a newer board from
+  // a device that never chose a picture must not take this one's away.
+  it('is not taken away by a newer board from a device that never had one, and goes back up', async () => {
+    show({ start: 'from the tablet', picture: MINE, pictureAt: SET })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    await writeAsAnotherDevice('from the phone', Date.now() + 5_000)
+    act(() => control.syncNow())
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(says(applied[0].backup)).toEqual(['from the phone'])
+    expect(applied[0].picture, 'a device with no picture took this one away').toBe(MINE)
+    await waitFor(async () => expect((await boardOnServer())?.picture).toBe(MINE), { timeout: 5_000 })
+  })
+
+  it('gives way to a newer one, and to one taken away since, and not to an older', async () => {
+    show({ start: 'from the tablet', picture: MINE, pictureAt: SET })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+
+    await writeAsAnotherDevice('older', Date.now() + 5_000, { picture: THEIRS, pictureAt: SET - 1 })
+    act(() => control.syncNow())
+    await waitFor(() => expect(applied).toHaveLength(1))
+    expect(applied[0].picture).toBe(MINE)
+
+    await writeAsAnotherDevice('newer', Date.now() + 10_000, { picture: THEIRS, pictureAt: SET + 1 })
+    act(() => control.syncNow())
+    await waitFor(() => expect(applied).toHaveLength(2))
+    expect(applied[1]).toMatchObject({ picture: THEIRS, pictureAt: SET + 1 })
+
+    await writeAsAnotherDevice('gone', Date.now() + 15_000, { picture: null, pictureAt: SET + 2 })
+    act(() => control.syncNow())
+    await waitFor(() => expect(applied).toHaveLength(3))
+    expect(applied[2]).toMatchObject({ picture: '', pictureAt: SET + 2 })
+  })
+
+  it('says it was taken away, and says nothing from a device that never had one', async () => {
+    show({ start: 'from the tablet' })
+    act(() => control.enable(PASSPHRASE))
+    await waitFor(() => expect(control.status).toBe('synced'))
+    expect('picture' in (await boardOnServer())!, 'a device with no picture said so').toBe(false)
+
+    act(() => change({ picture: MINE, pictureAt: SET }))
+    await waitFor(async () => expect((await boardOnServer())?.picture).toBe(MINE), { timeout: 5_000 })
+
+    act(() => change({ picture: '', pictureAt: SET + 1 }))
+    await waitFor(async () => expect((await boardOnServer())?.picture).toBeNull(), { timeout: 5_000 })
+    expect((await boardOnServer())?.pictureAt).toBe(SET + 1)
   })
 })
 

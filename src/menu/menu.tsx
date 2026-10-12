@@ -140,6 +140,8 @@ export function TopPanel({
   onAccountChange,
   replyKey,
   onReplyKeyChange,
+  picture,
+  onPictureChange,
   onForgetConversation,
   onOpenIntroduction,
 }: {
@@ -162,6 +164,9 @@ export function TopPanel({
   /** The key behind a suggested reply, which the screen holds because sync sends it. */
   replyKey: string
   onReplyKeyChange: (next: string) => void
+  /** The presentation window's picture, which the screen holds because sync carries it. */
+  picture: string
+  onPictureChange: (next: string) => Promise<boolean>
   /** Today's questions and the answers on the board, which the screen holds too. */
   onForgetConversation: () => void
   /** Opens Getting started, which stands where the board is — so the screen does it. */
@@ -262,6 +267,8 @@ export function TopPanel({
                 onAccountChange={onAccountChange}
                 replyKey={replyKey}
                 onReplyKeyChange={onReplyKeyChange}
+                picture={picture}
+                onPictureChange={onPictureChange}
                 onForgetConversation={onForgetConversation}
                 onOpenIntroduction={onOpenIntroduction}
               />
