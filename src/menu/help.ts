@@ -142,7 +142,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         ':present:, at the end of the row on a computer or tablet, opens a presentation window: everything Peri says appears there in large writing, the newest at the middle. Share that one window in a video call, or turn a second screen towards the room, and people can read along.',
       ),
       list(
-        ':camera: in the corner of the window shows your camera, as large as the window allows without stretching it, with what you say written across its foot. The picture stays on this device.',
+        ':camera: in the corner of the window shows your camera, as large as the window allows without stretching it, with what you say written across its foot, and the background picture out of the way. The camera stays on this device.',
         'Sound from an ElevenLabs voice plays in the presentation window, so sharing the window shares the sound. A device voice always plays from Peri itself — browsers give it no other way out.',
         'If the window says the sound is playing from Peri, select the window once — browsers only play sound in a window somebody has pressed in.',
         'If the window does not open, allow pop-ups for Peri in your browser settings, as for links.',
