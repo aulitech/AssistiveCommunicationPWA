@@ -139,7 +139,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Please is only said: it is not added to the phrase, to what is kept, or to what is copied. On the emergency bar it is said only if Peri already has the word for that language, so nothing there ever waits.',
       ),
       text(
-        ':present:, at the end of the row, opens a presentation window: everything Peri says appears there in large writing, the newest at the middle. Share that one window in a video call, or turn a second screen towards the room, and people can read along.',
+        ':present:, at the end of the row on a computer or tablet, opens a presentation window: everything Peri says appears there in large writing, the newest at the middle. Share that one window in a video call, or turn a second screen towards the room, and people can read along.',
       ),
       list(
         ':camera: in the corner of the window shows your camera, as large as the window allows without stretching it, with what you say written across its foot. The picture stays on this device.',
