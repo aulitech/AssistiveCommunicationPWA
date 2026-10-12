@@ -50,3 +50,12 @@ test('shows what is said in a window of its own, and the camera as large as it f
   await expect(page.locator('.present-toggle')).toHaveAttribute('aria-pressed', 'false')
   expect(errors).toEqual([])
 })
+
+// A second window on a phone is a tab nobody can share beside the board, and
+// the row of modes has no room for one more there.
+test('is not offered on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openBoard(page)
+  await expect(page.locator('.please-toggle')).toBeVisible()
+  await expect(page.locator('.present-toggle')).toHaveCount(0)
+})

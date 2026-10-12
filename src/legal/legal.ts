@@ -163,6 +163,20 @@ export const PRIVACY: ProseDocument = {
       ],
     },
     {
+      title: 'Presentation mode',
+      blocks: [
+        text(
+          'Presentation mode opens a second window on your device showing what Peri says and, if you ask it to, your camera. The camera picture is shown in that window and nowhere else: Peri does not record it, keep it or send it anywhere.',
+        ),
+        text(
+          "A picture you choose for that window's background is kept on your device only. It is not in backups and is not synchronized.",
+        ),
+        text(
+          "If you share the window in a video call, what it shows and plays is sent by the app you are calling with, under that app's privacy policy rather than this one.",
+        ),
+      ],
+    },
+    {
       title: 'Hosting',
       blocks: [
         text(

@@ -106,6 +106,14 @@ function ActionButton({
 const WIDE_ENOUGH = '(min-width: 1100px)'
 
 /**
+ * **Too narrow to present from** — a phone, where a second window is a tab
+ * nobody can share beside the board, and where the row of modes has no room
+ * for one more at 360px. Asked this way round so that a screen nothing can
+ * measure keeps the toggle.
+ */
+const PHONE = '(max-width: 700px)'
+
+/**
  * One of the two value controls in the card's row, before the actions.
  *
  * A face that says the value rather than a glyph that says the subject: `en-US`
@@ -283,6 +291,7 @@ export function Topbar({
 }) {
   const { settings, update } = useSettings()
   const wide = useMediaQuery(WIDE_ENOUGH)
+  const phone = useMediaQuery(PHONE)
 
   // Written through the same two helpers the settings panel uses, so the pair
   // cannot drift about what choosing one does to the other — which matters more
@@ -633,15 +642,17 @@ export function Topbar({
                 {/* **Presentation mode**: a window of its own showing what is
                     said, playing the audio, and a dwell away from the camera —
                     see `talk/use-presentation.ts`. Last, being about where what is
-                    said goes rather than how it is said. */}
-                <ModeToggle
-                  className="present-toggle"
-                  on={presenting}
-                  onToggle={onTogglePresenting}
-                  label={presenting ? 'Stop presenting' : 'Present: show what is said in a window of its own'}
-                >
-                  <PresentIcon />
-                </ModeToggle>
+                    said goes rather than how it is said; not on a phone. */}
+                {!phone && (
+                  <ModeToggle
+                    className="present-toggle"
+                    on={presenting}
+                    onToggle={onTogglePresenting}
+                    label={presenting ? 'Stop presenting' : 'Present: show what is said in a window of its own'}
+                  >
+                    <PresentIcon />
+                  </ModeToggle>
+                )}
               </div>
             </div>
             <div className="tools-values">
