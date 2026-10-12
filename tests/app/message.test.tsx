@@ -588,12 +588,14 @@ describe('the card', () => {
     const row = () => [...$('.message-tools')!.children].map(el => el.className.split(' ')[0])
     expect(row()).toEqual(['tools-clipboard', 'tools-modes', 'tools-values'])
     expect(labels('.tools-clipboard')).toEqual(['Copy to clipboard', 'Paste from clipboard'])
-    // Please after auto-speak: it is about how what is said comes out.
+    // Please after auto-speak: it is about how what is said comes out. Present
+    // last, being about where it goes.
     expect(labels('.tools-modes')).toEqual([
       'Edit phrases',
       expect.stringMatching(/rest/i),
       expect.stringMatching(/auto-speak/i),
       'Say please at the end of everything spoken',
+      'Present: show what is said in a window of its own',
     ])
   })
 

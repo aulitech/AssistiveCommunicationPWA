@@ -20,10 +20,13 @@ import {
   chooseLanguage,
   chooseVoice,
   factoryReset,
+  loadPresentationBackground,
   replyModelName,
+  savePresentationBackground,
 } from '../core/store'
 import {
   DwellInput,
+  FileButton,
   PanelButton,
   PickerModal,
   PickerTile,
@@ -38,6 +41,7 @@ import { useDwellControl } from '../ui/dwell'
 import { CopyIcon, EyeIcon, EyeOffIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { downloadBackup } from './backup-file'
+import { shrinkPicture } from './picture'
 
 /**
  * The confirmation in front of a factory reset.
@@ -335,6 +339,7 @@ export function SettingsPanel({
         </SettingRow>
         <LanguageRow />
         <VoiceRow />
+        <PresentationBackgroundRow />
         <SyncRow sync={sync} />
         <ElevenLabsRow account={account} onChange={onAccountChange} />
         <SuggestedRepliesRow value={replyKey} onChange={onReplyKeyChange} onForget={onForgetConversation} />
@@ -504,6 +509,63 @@ function SecretField({
  * different board. Nothing arrives, nothing is lost, and it looks exactly like
  * sync being broken. Two devices showing the same six characters agree.
  */
+/**
+ * **The picture behind the presentation window** — see
+ * `talk/presentation.tsx`. This device's alone: kept apart from the settings,
+ * so it is in no backup and goes to no other device — see
+ * `core/store/presentation.ts`. Made small before it is kept, and the window
+ * shows a new one the moment it is chosen.
+ */
+function PresentationBackgroundRow() {
+  const [picture, setPicture] = useState(loadPresentationBackground)
+  const [problem, setProblem] = useState('')
+  const choose = useCallback((file: File) => {
+    setProblem('')
+    shrinkPicture(file).then(
+      url => {
+        if (savePresentationBackground(url)) setPicture(url)
+        else setProblem('That picture could not be kept on this device. Try a smaller one.')
+      },
+      () => setProblem('That file could not be read as a picture.'),
+    )
+  }, [])
+  const remove = useCallback(() => {
+    savePresentationBackground('')
+    setPicture('')
+    setProblem('')
+  }, [])
+  const refused = useCallback(
+    () => setProblem('Your browser only opens a file on a real click or tap, so choose the picture with one.'),
+    [],
+  )
+  return (
+    <SettingRow
+      label="Presentation background"
+      note={
+        picture
+          ? 'Shown behind what is said in the presentation window. It stays on this device: it is not in backups and does not synchronize.'
+          : 'A picture to show behind what is said in the presentation window. It stays on this device: it is not in backups and does not synchronize.'
+      }
+    >
+      <div className="sync-actions">
+        {picture && <img className="presentation-background-preview" src={picture} alt="" />}
+        <FileButton
+          label={picture ? 'Choose another' : 'Choose a picture'}
+          accept="image/*"
+          onFile={choose}
+          onRefused={refused}
+        />
+        {picture && <PanelButton kind="danger" label="Remove" onActivate={remove} />}
+      </div>
+      {problem && (
+        <p className="eleven-error" role="alert">
+          {problem}
+        </p>
+      )}
+    </SettingRow>
+  )
+}
+
 function SyncRow({ sync }: { sync: SyncControl }) {
   const [passphrase, setPassphrase] = useState('')
   const [confirmingForget, setConfirmingForget] = useState(false)

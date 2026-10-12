@@ -56,6 +56,7 @@ import { useNotKeeping } from './use-not-keeping'
 import { useGridOrder } from './use-grid-order'
 import { useUsage } from './use-usage'
 import { useToast } from './use-toast'
+import { usePresentation } from './use-presentation'
 import { ToastRegion } from './toast'
 import { BESIDE_THE_BOARD, Introduction } from '../menu/introduction'
 import { useMediaQuery } from '../ui/media'
@@ -114,6 +115,14 @@ export function TalkScreen({
   }, [])
 
   const { toast, flashToast } = useToast()
+
+  // Presentation mode — see `use-presentation.ts`. Refused the way a link is,
+  // and answered the same way: allowing pop-ups is the one thing that fixes it.
+  const presentationBlocked = useCallback(
+    () => flashToast('Blocked. Allow pop-ups for Peri to open the presentation window by dwelling'),
+    [flashToast],
+  )
+  const { presenting, toggle: togglePresenting } = usePresentation(presentationBlocked)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState(LIBRARY)
@@ -1175,6 +1184,8 @@ export function TalkScreen({
                   onPasted={reportPaste}
                   listener={listener}
                   onToggleListen={toggleListen}
+                  presenting={presenting}
+                  onTogglePresenting={togglePresenting}
                   categories={allCategories}
                   countFor={countFor}
                   onChooseCategories={chooseCategories}
