@@ -5,11 +5,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { isPresentationBackground, loadPresentationBackground } from '../core/store'
 import { DwellButton } from '../ui/controls'
-import { CameraIcon } from '../ui/icons'
+import { CameraIcon, MicIcon } from '../ui/icons'
 import { useSettings } from '../ui/settings'
 import { cx } from '../ui/style'
 import { type Stage } from '../voice/speech'
 import { STAGE_READY, type PresentingWindow } from './use-presentation'
+
+/**
+ * The microphone as a call app asks for it: what this window plays comes out
+ * of the speakers and back into the microphone, and played out again that is
+ * a howl. The browser's echo cancellation takes its own output back out.
+ */
+const MICROPHONE: MediaTrackConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
 
 /**
  * How many things said are kept: the newest, large, and those before it,
@@ -29,6 +36,11 @@ const SHOWN = 20
  * through it plays here, so sharing this window shares the sound; one the
  * browser will not let play is played in Peri's window instead, and this says
  * so until the window has been selected once, which is what lets it play.
+ *
+ * **With the camera on, the microphone is a dwell away too**, played out of
+ * this window beside Peri's voice — so a call or a recording of the window
+ * carries the room and Peri together. With the browser's echo cancellation on,
+ * since what this window plays reaches the microphone from the speakers.
  */
 export function PresentationPage() {
   const { settings } = useSettings()
@@ -37,6 +49,11 @@ export function PresentationPage() {
   const [camera, setCamera] = useState<MediaStream | null>(null)
   const [cameraProblem, setCameraProblem] = useState('')
   const [soundElsewhere, setSoundElsewhere] = useState(false)
+  const [microphone, setMicrophone] = useState<MediaStream | null>(null)
+  const [microphoneProblem, setMicrophoneProblem] = useState('')
+  /** The microphone is open but the browser will not play it until the window is pressed in. */
+  const [microphoneWaiting, setMicrophoneWaiting] = useState(false)
+  const heard = useRef<HTMLAudioElement>(null)
   const playing = useRef<HTMLAudioElement | null>(null)
   const video = useRef<HTMLVideoElement>(null)
   const band = useRef<HTMLDivElement>(null)
@@ -86,7 +103,16 @@ export function PresentationPage() {
   // Selecting the window is what lets it play — a browser plays sound only in a
   // window somebody has pressed in.
   useEffect(() => {
-    const pressed = () => setSoundElsewhere(false)
+    const pressed = () => {
+      setSoundElsewhere(false)
+      // The press that lets this window play is the moment to start the microphone.
+      if (heard.current?.srcObject) {
+        heard.current.play().then(
+          () => setMicrophoneWaiting(false),
+          () => {},
+        )
+      }
+    }
     window.addEventListener('pointerdown', pressed)
     return () => window.removeEventListener('pointerdown', pressed)
   }, [])
@@ -96,8 +122,50 @@ export function PresentationPage() {
     return () => camera?.getTracks().forEach(t => t.stop())
   }, [camera])
 
+  /** Plays the microphone out of this window — or says it is waiting on a press to. */
+  const playMicrophone = useCallback((stream: MediaStream) => {
+    const out = heard.current
+    if (!out) return
+    out.srcObject = stream
+    out.play().then(
+      () => setMicrophoneWaiting(false),
+      () => setMicrophoneWaiting(true),
+    )
+  }, [])
+
+  /** Lets the microphone go: nothing more played, and stopped by the effect below. */
+  const releaseMicrophone = useCallback(() => {
+    const out = heard.current
+    if (out) out.srcObject = null
+    setMicrophone(null)
+    setMicrophoneWaiting(false)
+  }, [])
+
+  // Stopped whenever it is let go — and on the way out, so a closed window
+  // leaves no microphone open.
+  useEffect(() => () => microphone?.getTracks().forEach(t => t.stop()), [microphone])
+
+  const toggleMicrophone = useCallback(() => {
+    if (microphone) return releaseMicrophone()
+    setMicrophoneProblem('')
+    if (!navigator.mediaDevices?.getUserMedia) return setMicrophoneProblem('This browser offers no microphone.')
+    navigator.mediaDevices.getUserMedia({ audio: MICROPHONE, video: false }).then(
+      stream => {
+        setMicrophone(stream)
+        playMicrophone(stream)
+      },
+      () =>
+        setMicrophoneProblem('The microphone could not be opened. Allow Peri to use it in your browser settings.'),
+    )
+  }, [microphone, releaseMicrophone, playMicrophone])
+
   const toggleCamera = useCallback(() => {
-    if (camera) return setCamera(null)
+    // The microphone is offered with the camera, and goes with it.
+    if (camera) {
+      releaseMicrophone()
+      setMicrophoneProblem('')
+      return setCamera(null)
+    }
     setCameraProblem('')
     if (!navigator.mediaDevices?.getUserMedia) return setCameraProblem('This browser offers no camera.')
     navigator.mediaDevices
@@ -105,7 +173,7 @@ export function PresentationPage() {
       .then(setCamera, () =>
         setCameraProblem('The camera could not be opened. Allow Peri to use it in your browser settings.'),
       )
-  }, [camera])
+  }, [camera, releaseMicrophone])
 
   // Each new thing said scrolls what came before up and out of the band —
   // smoothly, unless somebody has asked for less motion (the stylesheet's).
@@ -124,6 +192,8 @@ export function PresentationPage() {
       style={behind ? { backgroundImage: `url("${behind}")` } : undefined}
     >
       {camera && <video ref={video} className="presentation-camera" autoPlay muted playsInline />}
+      {/* The microphone, played out of this window beside Peri's voice. */}
+      <audio ref={heard} className="presentation-heard" />
       <div ref={band} className="presentation-said" aria-live="polite">
         {said.length === 0 && <p className="presentation-waiting">What Peri says appears here.</p>}
         {said.slice(0, -1).map(s => (
@@ -144,6 +214,20 @@ export function PresentationPage() {
           </p>
         )}
         {cameraProblem && <p className="presentation-note">{cameraProblem}</p>}
+        {microphoneWaiting && (
+          <p className="presentation-note">Select this window once to play the microphone here.</p>
+        )}
+        {microphoneProblem && <p className="presentation-note">{microphoneProblem}</p>}
+        {camera && (
+          <DwellButton
+            className={cx('presentation-mic-toggle', microphone && 'active')}
+            onSelect={toggleMicrophone}
+            label={microphone ? 'Turn the microphone off' : 'Mix in the microphone'}
+            durationMs={settings.actionDwellMs}
+          >
+            <MicIcon />
+          </DwellButton>
+        )}
         <DwellButton
           className={cx('presentation-camera-toggle', camera && 'active')}
           onSelect={toggleCamera}

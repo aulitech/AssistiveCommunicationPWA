@@ -26,7 +26,7 @@ export const PRIVACY: ProseDocument = {
   title: 'Privacy Policy',
   updated: PRIVACY_UPDATED,
   intro:
-    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device. Five things are exceptions, and each is yours to switch on. Linking an ElevenLabs account sends the words you speak to ElevenLabs to be turned into audio. Setting a spoken language sends the phrases you wrote yourself to Google to be translated. Turning on Synchronize puts an encrypted copy of your board on our server so your other devices can fetch it, and we cannot read that copy. Using the microphone lets your browser send what it hears to a speech service of its own. And asking for suggested answers sends that question, with the phrases on your board, to Anthropic on your own account.',
+    'Peri is built for people who rely on it to say things they cannot otherwise say. That makes what happens to those words important. The short version: they stay on your device. Five things are exceptions, and each is yours to switch on. Linking an ElevenLabs account sends the words you speak to ElevenLabs to be turned into audio. Setting a spoken language sends the phrases you wrote yourself to Google to be translated. Turning on Synchronize puts an encrypted copy of your board on our server so your other devices can fetch it, and we cannot read that copy. Listening with the microphone lets your browser send what it hears to a speech service of its own. And asking for suggested answers sends that question, with the phrases on your board, to Anthropic on your own account.',
   sections: [
     {
       title: 'What we collect',
@@ -71,7 +71,7 @@ export const PRIVACY: ProseDocument = {
       title: 'Listening',
       blocks: [
         text(
-          "The microphone is off until you press :listen: on the message box. While it is on, Peri asks your browser to turn what the microphone hears into words, and shows them in a box of its own beside the message, with :mic: in that box's lower right corner for as long as sound is coming in. It only listens with an Anthropic key set up for suggested answers, since that is what the box is for.",
+          "The microphone is off until you press :listen: on the message box, or turn it on in the presentation window, where what it hears is only played out of that window — see Presentation mode. While :listen: is on, Peri asks your browser to turn what the microphone hears into words, and shows them in a box of its own beside the message, with :mic: in that box's lower right corner for as long as sound is coming in. It only listens with an Anthropic key set up for suggested answers, since that is what the box is for.",
         ),
         text(
           "The listening is your browser's, not ours. Most browsers do it by sending the audio to a speech service of their own — the same one behind dictation elsewhere on your device — and what they do with it is governed by their privacy policy and your device maker's, not by this one. It does not pass through us and we never receive it. Your browser asks your permission the first time, and you can take it back in your browser at any point.",
@@ -147,7 +147,7 @@ export const PRIVACY: ProseDocument = {
       title: 'Speech',
       blocks: [
         text(
-          'Speech is produced by the voices built into your device or browser, through a standard web feature. The app does not record audio and has no access to your microphone.',
+          'Speech is produced by the voices built into your device or browser, through a standard web feature. The app does not record audio. It uses your microphone only when you turn it on — to listen, or in the presentation window — as those sections say.',
         ),
         text(
           'One caveat worth knowing: some operating systems offer higher-quality voices that run in the cloud rather than on the device. If you select one of those, your browser or operating system may send the text to be spoken to its own servers. That is between you, your browser and your device maker — it does not pass through us — but if it matters to you, choose a voice marked as on-device in your system settings.',
@@ -171,6 +171,9 @@ export const PRIVACY: ProseDocument = {
       blocks: [
         text(
           'Presentation mode opens a second window on your device showing what Peri says and, if you ask it to, your camera. The camera picture is shown in that window and nowhere else: Peri does not record it, keep it or send it anywhere.',
+        ),
+        text(
+          'With the camera on you can also mix in your microphone. What it hears is played out of that window, beside Peri’s voice, so that anyone you share the window with hears it too. Peri does not record it, keep it or send it anywhere, and it stops when you turn it off or turn the camera off.',
         ),
         text(
           "A picture you choose for that window's background is kept on your device. It is not in backups. If you turn on Synchronize it is kept on our server too, encrypted like your board, so your other devices can show it — see the Synchronizing section.",

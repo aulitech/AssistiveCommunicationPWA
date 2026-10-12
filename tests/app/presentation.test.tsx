@@ -241,6 +241,100 @@ describe('the window', () => {
     expect($('.presentation')?.style.backgroundImage).toContain('bmV3')
   })
 
+  describe('the microphone, mixed in with the camera on', () => {
+    /** A camera and a microphone, each a stream whose tracks say when they are stopped. */
+    function devices() {
+      const stopped = { camera: vi.fn(), microphone: vi.fn() }
+      const getUserMedia = vi.fn(async (asked: MediaStreamConstraints) => ({
+        getTracks: () => [{ stop: asked.audio ? stopped.microphone : stopped.camera }],
+      }))
+      Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia }, configurable: true })
+      return { getUserMedia, stopped }
+    }
+    const mic = () => $('.presentation-mic-toggle')
+    const pause = () => {
+      settle()
+      act(() => void vi.advanceTimersByTime(1100))
+    }
+    const cameraOn = async () => {
+      click($('.presentation-camera-toggle'))
+      await act(async () => {})
+      pause()
+    }
+
+    it('is offered only while the camera is on', async () => {
+      devices()
+      openPage()
+      expect(mic()).toBeNull()
+      await cameraOn()
+      expect(mic()).not.toBeNull()
+    })
+
+    // Played out of the speakers, it comes back into the microphone.
+    it('opens the microphone with echo cancellation, and plays it out of this window', async () => {
+      const { getUserMedia } = devices()
+      openPage()
+      await cameraOn()
+      click(mic())
+      await act(async () => {})
+
+      expect(getUserMedia).toHaveBeenLastCalledWith({
+        audio: expect.objectContaining({ echoCancellation: true }),
+        video: false,
+      })
+      const out = $<HTMLAudioElement>('audio.presentation-heard')!
+      expect(out.srcObject, 'the microphone is not played out of the window').not.toBeNull()
+      expect(mic()?.classList.contains('active')).toBe(true)
+    })
+
+    it('lets it go when turned off, and when the camera is', async () => {
+      const { stopped } = devices()
+      openPage()
+      await cameraOn()
+      click(mic())
+      await act(async () => {})
+      pause()
+      click(mic())
+      expect(stopped.microphone).toHaveBeenCalledTimes(1)
+      expect($<HTMLAudioElement>('audio.presentation-heard')!.srcObject).toBeNull()
+
+      pause()
+      click(mic())
+      await act(async () => {})
+      pause()
+      click($('.presentation-camera-toggle'))
+      expect(stopped.microphone).toHaveBeenCalledTimes(2)
+      expect(mic()).toBeNull()
+    })
+
+    it('says so when the microphone cannot be opened', async () => {
+      const { getUserMedia } = devices()
+      openPage()
+      await cameraOn()
+      getUserMedia.mockRejectedValueOnce(new Error('denied'))
+      click(mic())
+      await act(async () => {})
+      expect($('.presentation-note')?.textContent).toMatch(/microphone could not be opened/i)
+    })
+
+    // A browser plays nothing in a window nobody has pressed in.
+    it('says when it cannot play until the window is pressed in, and plays once it is', async () => {
+      devices()
+      openPage()
+      await cameraOn()
+      const play = vi
+        .spyOn(HTMLMediaElement.prototype, 'play')
+        .mockRejectedValueOnce(new DOMException('no', 'NotAllowedError'))
+      click(mic())
+      await act(async () => {})
+      expect($('.presentation-note')?.textContent).toMatch(/play the microphone here/i)
+
+      await act(async () => void window.dispatchEvent(new Event('pointerdown')))
+      expect(play).toHaveBeenCalledTimes(2)
+      expect($('.presentation-note')).toBeNull()
+    })
+  })
+
   it('says so when the camera cannot be opened', async () => {
     Object.defineProperty(navigator, 'mediaDevices', {
       value: { getUserMedia: vi.fn(async () => Promise.reject(new Error('denied'))) },
