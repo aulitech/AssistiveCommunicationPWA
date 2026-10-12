@@ -196,6 +196,28 @@ describe('the window', () => {
     expect(stop).toHaveBeenCalled()
   })
 
+  // Two pictures would compete, and the face is the one being watched.
+  it('hides the picture behind it while the camera is on, and shows it again after', async () => {
+    const stream = { getTracks: () => [{ stop: vi.fn() }] }
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getUserMedia: vi.fn(async () => stream) },
+      configurable: true,
+    })
+    savePresentationBackground('data:image/jpeg;base64,bmV3')
+    openPage()
+    expect($('.presentation')?.style.backgroundImage).toContain('bmV3')
+
+    click($('.presentation-camera-toggle'))
+    await act(async () => {})
+    expect($('.presentation')?.style.backgroundImage, 'the picture stayed up behind the camera').toBe('')
+    expect($('.presentation')?.classList.contains('has-background')).toBe(false)
+
+    settle()
+    act(() => void vi.advanceTimersByTime(1100))
+    click($('.presentation-camera-toggle'))
+    expect($('.presentation')?.style.backgroundImage).toContain('bmV3')
+  })
+
   it('says so when the camera cannot be opened', async () => {
     Object.defineProperty(navigator, 'mediaDevices', {
       value: { getUserMedia: vi.fn(async () => Promise.reject(new Error('denied'))) },

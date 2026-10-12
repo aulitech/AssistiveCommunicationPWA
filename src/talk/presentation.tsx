@@ -103,10 +103,13 @@ export function PresentationPage() {
   }, [camera])
 
   const latest = said[said.length - 1]
+  // The camera is the picture while it is on: the background showing round it
+  // would be two pictures competing, and the face is the one being watched.
+  const behind = camera ? '' : background
   return (
     <div
-      className={cx('presentation', camera && 'has-camera', background && 'has-background')}
-      style={background ? { backgroundImage: `url("${background}")` } : undefined}
+      className={cx('presentation', camera && 'has-camera', behind && 'has-background')}
+      style={behind ? { backgroundImage: `url("${behind}")` } : undefined}
     >
       {camera && <video ref={video} className="presentation-camera" autoPlay muted playsInline />}
       <div className="presentation-said" aria-live="polite">
