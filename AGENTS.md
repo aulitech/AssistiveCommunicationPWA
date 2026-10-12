@@ -239,6 +239,7 @@ Paths below are relative to `tests/`.
 - `sync/client.test.ts` - The answers a server can give that the function never would: the app's own HTML at 200, a truncated body, a 500
 - `sync/picture.test.ts` - The presentation window's picture through the real Netlify function: up from one device and down on another, unreadable on the server, refused when what is there is not the picture named, not shown over one chosen meanwhile, still owed where it could not go up, taken off the server once replaced, and gone with the copy
 - `talk/use-picture.test.tsx` - The picture as the screen holds it: chosen and named, taken away as news, a board naming none or another, a picture from before named at the beginning of time, and shown the moment it arrives
+- `talk/use-synchronized.test.tsx` - What the screen hands synchronizing and does with what comes back, the exchange stood in for: the picture named in what is sent, taken from what arrives, and carried while it runs
 - `menu/picture.test.ts` - A picture shrunk to a screen's width, and to no more than synchronizing can send — a lower quality first, then smaller
 - `sync/use-sync.test.tsx` - Two devices and the box between them, driven through **the real Netlify function** with only the blob store replaced. A second device is this device with its memory wiped and the server left standing
 - `functions/sync.test.ts` - The handler itself: revisions, the 409 and what comes back with it, and every way a body can be refused
