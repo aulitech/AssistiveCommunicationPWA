@@ -1,10 +1,11 @@
 // The board going to the user's other devices, and what arrives from them.
 //
 // Out of `talk.tsx`, where it was a hundred lines of a twelve-hundred-line
-// screen with nothing to say to the rest of it but three values back: the sync
-// control the settings row works, and the linked account with its setter. It
-// reads the board, the settings and the reply key, and writes them only when a
-// board arrives — in one place, which is here.
+// screen with nothing to say to the rest of it but a few values back: the sync
+// control the settings row works, the linked account with its setter, and the
+// presentation window's picture with its own. It reads the board, the settings
+// and the reply key, and writes them only when a board arrives — in one place,
+// which is here.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { applyBackup, buildBackup } from '../core/backup'
@@ -25,6 +26,7 @@ import { useSync } from '../sync/use-sync'
 import { clearAudioCache, setRemoteClips } from '../voice/audio-cache'
 import { REMOTE_PREFIX } from '../voice/elevenlabs'
 import { type Board } from './use-board'
+import { useCarriedPicture, usePicture } from './use-picture'
 
 export function useSynchronized({
   user,
@@ -98,6 +100,11 @@ export function useSynchronized({
     setLinkedAccount(next)
   }, [])
 
+  // The picture behind the presentation window, which travels by name in the
+  // board and goes up on its own — see `talk/use-picture.ts`.
+  const pictures = usePicture()
+  const { state: pictureState, arrive: pictureArrived } = pictures
+
   const syncBackup = useMemo(
     () =>
       buildBackup({
@@ -115,8 +122,16 @@ export function useSynchronized({
 
   /** Everything sync carries: the board, and what a backup file may not hold. */
   const syncPayload = useMemo(
-    () => ({ backup: syncBackup, account, accountAt, replyKey, replyKeyAt }),
-    [syncBackup, account, accountAt, replyKey, replyKeyAt],
+    () => ({
+      backup: syncBackup,
+      account,
+      accountAt,
+      replyKey,
+      replyKeyAt,
+      picture: pictureState.id,
+      pictureAt: pictureState.at,
+    }),
+    [syncBackup, account, accountAt, replyKey, replyKeyAt, pictureState],
   )
 
   // A board that arrived from another device lands exactly as a restored backup
@@ -136,9 +151,12 @@ export function useSynchronized({
       // makes the feature work on the second device without forty characters of
       // noise being typed into it by dwell.
       setReplyKey(incoming.replyKey, incoming.replyKeyAt)
+      // And which picture is behind the presentation window; the picture
+      // itself follows.
+      pictureArrived(incoming.picture, incoming.pictureAt)
       flashToast(`Board updated from your other device (${from})`)
     },
-    [board, store, settings, update, flashToast, setAccount, setReplyKey],
+    [board, store, settings, update, flashToast, setAccount, setReplyKey, pictureArrived],
   )
 
   const sync = useSync({
@@ -163,5 +181,7 @@ export function useSynchronized({
     return () => setRemoteClips(null)
   }, [sync.clips])
 
-  return { sync, account, setAccount }
+  useCarriedPicture(sync.clips, pictures)
+
+  return { sync, account, setAccount, picture: pictures.picture, choosePicture: pictures.choose }
 }

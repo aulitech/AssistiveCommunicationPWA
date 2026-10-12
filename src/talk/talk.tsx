@@ -1089,7 +1089,7 @@ export function TalkScreen({
 
   // Synchronizing — see `use-synchronized.ts`: the board and the account going
   // to the user's other devices, and what arrives from them landing here.
-  const { sync, account, setAccount } = useSynchronized({
+  const { sync, account, setAccount, picture, choosePicture } = useSynchronized({
     user,
     board,
     settings,
@@ -1279,6 +1279,8 @@ export function TalkScreen({
             onAccountChange={setAccount}
             replyKey={replyKey}
             onReplyKeyChange={setReplyKey}
+            picture={picture}
+            onPictureChange={choosePicture}
             onForgetConversation={forgetConversation}
             onOpenIntroduction={() => {
               setMenuOpen(false)

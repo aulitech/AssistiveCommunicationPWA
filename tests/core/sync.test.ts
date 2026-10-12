@@ -7,8 +7,10 @@ import {
   DEVICE_LOCAL_SETTINGS,
   accountFrom,
   decideSync,
+  pictureFrom,
   replyKeyFrom,
   saysAccount,
+  saysPicture,
   saysReplyKey,
   keepDeviceSettings,
   newDeviceId,
@@ -189,6 +191,72 @@ describe('reading a snapshot', () => {
       expect(parseSnapshot({ ...base, replyKey: 'sk-ant-key', replyKeyAt: 'soon' })?.replyKeyAt).toBeUndefined()
       expect(parseSnapshot({ ...base, replyKey: 'sk-ant-key', replyKeyAt: Infinity })?.replyKeyAt).toBeUndefined()
     })
+  })
+
+  /**
+   * The presentation window's picture, by name — the same three states, and a
+   * name that is only ever one: it names a file on the server.
+   */
+  describe('the picture it may name', () => {
+    const NAME = '0123456789abcdef0123456789abcdef'
+
+    it('takes a name, an explicit "no picture", and leaves it out where nothing was said', () => {
+      expect(parseSnapshot({ ...base, picture: NAME })?.picture).toBe(NAME)
+      expect(parseSnapshot({ ...base, picture: null })?.picture).toBeNull()
+      expect('picture' in parseSnapshot(base)!, 'silence was turned into a removal').toBe(false)
+    })
+
+    it('says nothing rather than taking something that is not a name', () => {
+      for (const picture of ['', 'data:image/jpeg;base64,AAAA', NAME.toUpperCase(), NAME + '0', '../x', 7, {}]) {
+        expect(parseSnapshot({ ...base, picture })?.picture, String(picture)).toBeUndefined()
+      }
+    })
+
+    it('takes when it was chosen or taken away, and only beside a name or its absence', () => {
+      expect(parseSnapshot({ ...base, picture: NAME, pictureAt: 5 })?.pictureAt).toBe(5)
+      expect(parseSnapshot({ ...base, picture: null, pictureAt: 5 })?.pictureAt).toBe(5)
+      expect(parseSnapshot({ ...base, pictureAt: 5 })?.pictureAt).toBeUndefined()
+      expect(parseSnapshot({ ...base, picture: NAME, pictureAt: Infinity })?.pictureAt).toBeUndefined()
+    })
+  })
+})
+
+/** Which picture stands once a board arrives — `replyKeyFrom`'s rule. */
+describe('pictureFrom', () => {
+  const snap = (extra: object) => ({ updatedAt: 1, device: 'other', backup: {} as never, ...extra })
+  const MINE = { id: 'a'.repeat(32), at: 100 }
+  const NEVER = { id: '', at: 0 }
+
+  it('keeps this device’s where the board says nothing', () => {
+    expect(pictureFrom(snap({}), MINE)).toBeNull()
+  })
+
+  it('takes a newer one or a newer removal, and keeps this one against an older', () => {
+    expect(pictureFrom(snap({ picture: 'b'.repeat(32), pictureAt: 101 }), MINE)).toEqual({
+      id: 'b'.repeat(32),
+      at: 101,
+    })
+    expect(pictureFrom(snap({ picture: 'b'.repeat(32), pictureAt: 99 }), MINE)).toBeNull()
+    expect(pictureFrom(snap({ picture: null, pictureAt: 101 }), MINE)).toEqual({ id: '', at: 101 })
+    expect(pictureFrom(snap({ picture: null, pictureAt: 99 }), MINE)).toBeNull()
+  })
+
+  it('takes no instruction from a removal with no time', () => {
+    expect(pictureFrom(snap({ picture: null }), MINE)).toBeNull()
+    expect(pictureFrom(snap({ picture: null }), NEVER)).toBeNull()
+  })
+
+  it('settles a tie the same way from either side', () => {
+    const a = { id: 'a'.repeat(32), at: 100 }
+    const b = { id: 'b'.repeat(32), at: 100 }
+    expect(pictureFrom(snap({ picture: b.id, pictureAt: b.at }), a)).toEqual(b)
+    expect(pictureFrom(snap({ picture: a.id, pictureAt: a.at }), b)).toBeNull()
+  })
+
+  it('has something to say only with a picture, or having taken one away', () => {
+    expect(saysPicture(NEVER)).toBe(false)
+    expect(saysPicture(MINE)).toBe(true)
+    expect(saysPicture({ id: '', at: 5 })).toBe(true)
   })
 })
 

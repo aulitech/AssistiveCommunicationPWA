@@ -139,15 +139,15 @@ async function noteClip(keys: SyncKeys, device: string, cacheKey: string): Promi
 }
 
 /**
- * Offers a clip to the user's other devices.
+ * Offers a clip to the user's other devices, and says whether it is there now.
  *
  * The index first and the clip second, so the server never holds a clip nothing
  * knows the address of. A clip too large to send simply stays here.
  */
-export async function putClip(keys: SyncKeys, device: string, cacheKey: string, blob: Blob): Promise<void> {
-  if (blob.size > MAX_CLIP_BYTES) return
+export async function putClip(keys: SyncKeys, device: string, cacheKey: string, blob: Blob): Promise<boolean> {
+  if (blob.size > MAX_CLIP_BYTES) return false
   try {
-    if (!(await noteClip(keys, device, cacheKey))) return
+    if (!(await noteClip(keys, device, cacheKey))) return false
 
     const address = await keys.clipAddress(cacheKey)
     const bytes = new Uint8Array(await blob.arrayBuffer())
@@ -158,10 +158,11 @@ export async function putClip(keys: SyncKeys, device: string, cacheKey: string, 
     // A clip never changes, so it is only ever written once. A refusal here
     // means another device wrote the same bytes first, which is the outcome
     // anyway.
-    await push(address, envelope, 0)
+    return (await push(address, envelope, 0)).status !== 'error'
   } catch {
     // Nothing is owed here. The clip is in hand and already being spoken, and
     // failing to offer it costs another device one purchase.
+    return false
   }
 }
 
@@ -203,6 +204,10 @@ export async function forgetClips(keys: SyncKeys): Promise<void> {
 export interface ClipStore {
   get: (cacheKey: string) => Promise<Blob | null>
   put: (cacheKey: string, blob: Blob) => void
+  /** `put`, waited on — whether it is up there now. The presentation window's picture goes up this way. */
+  upload: (cacheKey: string, blob: Blob) => Promise<boolean>
+  /** Takes one off the server — whether it is gone. Its name stays in the index, which may name what is not there. */
+  remove: (cacheKey: string) => Promise<boolean>
 }
 
 export function clipStore(keys: SyncKeys, device: string): ClipStore {
@@ -211,5 +216,13 @@ export function clipStore(keys: SyncKeys, device: string): ClipStore {
     // Never waited on: this is somebody mid-sentence, and the clip they are
     // about to hear is already in hand.
     put: (cacheKey, blob) => void putClip(keys, device, cacheKey, blob),
+    upload: (cacheKey, blob) => putClip(keys, device, cacheKey, blob),
+    remove: async cacheKey => {
+      try {
+        return await drop(await keys.clipAddress(cacheKey))
+      } catch {
+        return false
+      }
+    },
   }
 }

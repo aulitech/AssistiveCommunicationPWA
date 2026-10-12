@@ -37,6 +37,8 @@ export const SYNC_KEY = 'peri_sync'
 export const INTRODUCTION_KEY = 'peri_introduction'
 // The picture behind the presentation window — see `store/presentation.ts`.
 export const PRESENTATION_BACKGROUND_KEY = 'peri_presentation_background'
+// Which picture that is, when it was chosen, and what is owed the server for it.
+export const PRESENTATION_BACKGROUND_AT = 'peri_presentation_background_at'
 
 /**
  * Everything this app has ever written down, except who is signed in and who
@@ -70,6 +72,7 @@ export const RESETTABLE_KEYS = [
   SYNC_KEY,
   INTRODUCTION_KEY,
   PRESENTATION_BACKGROUND_KEY,
+  PRESENTATION_BACKGROUND_AT,
 ] as const
 
 // ── Writing it down ───────────────────────────────────────────────────────────

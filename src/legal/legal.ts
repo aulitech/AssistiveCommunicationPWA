@@ -44,6 +44,7 @@ export const PRIVACY: ProseDocument = {
           'Your Anthropic API key, if you set one up for suggested answers.',
           'The audio a linked ElevenLabs account has made for you, so that a phrase you have paid to have spoken is not paid for twice.',
           'Your Synchronize passphrase, if you turned that on.',
+          "A picture for the presentation window's background, if you chose one.",
           'How often you use each phrase and when you last used one, which is what lets the grid be ordered by what you use.',
           'What you have said in another language, and which language, under the Translations tab.',
           'Questions you asked for a suggested reply to, and the replies, for a day.',
@@ -105,20 +106,23 @@ export const PRIVACY: ProseDocument = {
           'If you have linked an ElevenLabs account, the audio it makes is kept there too, one clip at a time and separately from the board. This is so that a phrase you have already paid to have spoken on one device is not paid for again on the next. Each clip is encrypted exactly as the board is, under an address worked out from the words and the voice, and nobody without your passphrase can work out either. Erasing the copy erases the audio with it.',
         ),
         text(
+          "If you chose a picture for the presentation window's background, it is kept there too, encrypted the same way and apart from the board, so your other devices can show it. A picture you replace or remove is taken off the server, and erasing the copy erases the picture with it.",
+        ),
+        text(
           'That copy is encrypted on your device before it is sent, using a key made from the passphrase you choose. We never receive the passphrase, and the key is never sent anywhere. We hold a block of bytes we cannot open, and neither can anyone who obtains it from us.',
         ),
         text('What we can see, and it is worth being exact about it:'),
         list(
           'That some board exists, stored under a 64-character address. The address is derived from your passphrase, so it is not your name, your email or your account — we cannot connect it to a person, and we cannot list one from the other.',
-          'That some number of audio clips exist, each under an address of the same kind. An address tells us nothing about the words in the clip, and two people saying the same thing have two different addresses.',
+          'That some number of audio clips exist, each under an address of the same kind — and, if you chose one, a picture among them, which we cannot tell from a clip. An address tells us nothing about the words in the clip, and two people saying the same thing have two different addresses.',
           'When it was last written, and an eight-character label naming which of your own devices wrote it. Both are needed for your devices to tell whose copy is newer.',
           'How large it is, and the usual request information any web server records — see Hosting below.',
         ),
         text(
-          'We cannot see a single phrase, category, contact, setting or key, and we cannot listen to a single clip. We cannot reset the passphrase, recover the board without it, or tell you whether you have typed it correctly. If you lose it, the copy on the server is lost with it — your devices keep their own boards, and you start again with a new passphrase.',
+          'We cannot see a single phrase, category, contact, setting or key, we cannot listen to a single clip, and we cannot see the picture. We cannot reset the passphrase, recover the board without it, or tell you whether you have typed it correctly. If you lose it, the copy on the server is lost with it — your devices keep their own boards, and you start again with a new passphrase.',
         ),
         text(
-          'Turning the setting off stops the exchange and leaves the copy where it is. "Stop and erase the copy", in the same row, deletes it from the server — the board and every clip of audio with it. A factory reset removes the passphrase from this device but does not erase the copy — use the button first if you want both.',
+          'Turning the setting off stops the exchange and leaves the copy where it is. "Stop and erase the copy", in the same row, deletes it from the server — the board, every clip of audio and the picture with it. A factory reset removes the passphrase from this device but does not erase the copy — use the button first if you want both.',
         ),
       ],
     },
@@ -169,7 +173,7 @@ export const PRIVACY: ProseDocument = {
           'Presentation mode opens a second window on your device showing what Peri says and, if you ask it to, your camera. The camera picture is shown in that window and nowhere else: Peri does not record it, keep it or send it anywhere.',
         ),
         text(
-          "A picture you choose for that window's background is kept on your device only. It is not in backups and is not synchronized.",
+          "A picture you choose for that window's background is kept on your device. It is not in backups. If you turn on Synchronize it is kept on our server too, encrypted like your board, so your other devices can show it — see the Synchronizing section.",
         ),
         text(
           "If you share the window in a video call, what it shows and plays is sent by the app you are calling with, under that app's privacy policy rather than this one.",

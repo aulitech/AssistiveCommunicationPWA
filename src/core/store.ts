@@ -115,7 +115,16 @@ export { emptySync, loadSync, saveSync, type SyncConfig } from './store/sync-con
 export { factoryReset, factoryState } from './store/reset'
 export {
   isPresentationBackground,
+  loadPictureRecord,
   loadPresentationBackground,
+  NO_PICTURE,
+  pictureBytes,
+  pictureClip,
+  pictureId,
+  pictureUrl,
+  replacing,
+  savePictureRecord,
   savePresentationBackground,
+  type PictureRecord,
 } from './store/presentation'
 export { moveInOrder, newPhraseId, orderByIds, orderCategories, renameCategory, wordingKey } from './store/arrange'

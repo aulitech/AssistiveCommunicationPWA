@@ -146,7 +146,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Sound from an ElevenLabs voice plays in the presentation window, so sharing the window shares the sound. A device voice always plays from Peri itself — browsers give it no other way out.',
         'If the window says the sound is playing from Peri, select the window once — browsers only play sound in a window somebody has pressed in.',
         'If the window does not open, allow pop-ups for Peri in your browser settings, as for links.',
-        'A picture behind the words can be chosen under Settings, as Presentation background.',
+        'A picture behind the words can be chosen under Settings, as Presentation background. With Synchronize on, your other devices show it too.',
         'Rest on :present: again, or close the window, to stop.',
       ),
       text(
@@ -363,7 +363,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Peri’s keyboard — adds :keyboard: at the left of the message, for a device you cannot otherwise type on, such as an iPad. Each device keeps its own answer.',
         'Getting started — this guide, one part at a time, each part you have been through marked :ticked:. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',
         'Spoken language — see Speaking another language.',
-        'Presentation background — a picture to show behind the words in the presentation window. It stays on this device: it is not in backups, and does not go to your other devices.',
+        'Presentation background — a picture to show behind the words in the presentation window. It is not in backups. With Synchronize on it goes to your other devices, locked with your passphrase like the board.',
         'Voice — :choose: opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
         'Synchronize, ElevenLabs and Suggested answers — see Keeping two devices the same, Better voices and Getting suggested answers.',
         'Reset to Factory Defaults, at the very bottom, puts this board back to how Peri arrived — phrases, categories, lists, settings and any linked account. It offers to save a backup first, and you stay signed in.',
@@ -624,10 +624,13 @@ export const HELP_SECTIONS: ProseSection[] = [
         'If you have linked an ElevenLabs account, the audio it makes waits on the server too, so the second device does not spend your credits saying what the first already said. It is kept clip by clip, apart from the board, and locked the same way.',
       ),
       text(
+        'So does the picture behind the presentation window, if you chose one: it goes up once, apart from the board and locked the same way, and the other devices show it as soon as they have fetched it.',
+      ),
+      text(
         'Synchronize is not a backup. It keeps devices alike, which means a phrase deleted on one is deleted on the others — that is the point of it, and it is also why a saved backup file is still worth having.',
       ),
       text(
-        'Stop, and this device stops sending and receiving while the copy stays where it is for the other devices. Stop and erase the copy, beside it, removes it from the server as well — the board and every clip of audio with it. Your passphrase stays either way, so starting again does not mean typing it again.',
+        'Stop, and this device stops sending and receiving while the copy stays where it is for the other devices. Stop and erase the copy, beside it, removes it from the server as well — the board, every clip of audio and the picture with it. Your passphrase stays either way, so starting again does not mean typing it again.',
       ),
     ],
   },

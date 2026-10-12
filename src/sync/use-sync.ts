@@ -25,8 +25,10 @@ import {
   hasOwnBoard,
   accountFrom,
   parseSnapshot,
+  pictureFrom,
   replyKeyFrom,
   saysAccount,
+  saysPicture,
   saysReplyKey,
   SYNC_FORMAT,
   SYNC_VERSION,
@@ -240,14 +242,18 @@ export function useSync({
       const snapshot = parseSnapshot(opened)
       if (!snapshot) return fail('The board on the server could not be read')
 
-      // The newer of the two keys stands, and the newer of the two accounts,
-      // whichever board is newer — see `replyKeyFrom` and `accountFrom`.
+      // The newer of the two keys stands, the newer of the two accounts and the
+      // newer of the two pictures, whichever board is newer — see
+      // `replyKeyFrom`, `accountFrom` and `pictureFrom`.
       const mine = { key: payloadRef.current.replyKey, at: payloadRef.current.replyKeyAt }
       const theirs = replyKeyFrom(snapshot, mine)
       const reply = theirs ?? mine
       const mineLinked = { account: payloadRef.current.account, at: payloadRef.current.accountAt }
       const theirsLinked = accountFrom(snapshot, mineLinked)
       const linked = theirsLinked ?? mineLinked
+      const minePicture = { id: payloadRef.current.picture, at: payloadRef.current.pictureAt }
+      const theirsPicture = pictureFrom(snapshot, minePicture)
+      const picture = theirsPicture ?? minePicture
       adoptRef.current = true
       applyRef.current(
         {
@@ -256,19 +262,24 @@ export function useSync({
           accountAt: linked.at,
           replyKey: reply.key,
           replyKeyAt: reply.at,
+          picture: picture.id,
+          pictureAt: picture.at,
         },
         snapshot.device,
       )
       setLastFrom(snapshot.device === configRef.current.device ? null : snapshot.device)
-      // This device's key or account is the newer and the board that arrived did
-      // not carry it: the board goes back up with it in, or the device that sent
-      // it would never have it at all. Newer than the board it came in on, which
-      // may be stamped by a clock ahead of this one.
+      // This device's key, account or picture is the newer and the board that
+      // arrived did not carry it: the board goes back up with it in, or the
+      // device that sent it would never have it at all. Newer than the board it
+      // came in on, which may be stamped by a clock ahead of this one.
       const carried = (snapshot.replyKey ?? '') === mine.key && snapshot.replyKeyAt === mine.at
       const carriedLinked =
         sameAccount(snapshot.account ?? null, mineLinked.account) && snapshot.accountAt === mineLinked.at
+      const carriedPicture = (snapshot.picture ?? '') === minePicture.id && snapshot.pictureAt === minePicture.at
       const sendBack =
-        (!theirs && saysReplyKey(mine) && !carried) || (!theirsLinked && saysAccount(mineLinked) && !carriedLinked)
+        (!theirs && saysReplyKey(mine) && !carried) ||
+        (!theirsLinked && saysAccount(mineLinked) && !carriedLinked) ||
+        (!theirsPicture && saysPicture(minePicture) && !carriedPicture)
       writeConfig(
         sendBack
           ? {
@@ -304,6 +315,11 @@ export function useSync({
         ...(saysReplyKey({ key: payloadRef.current.replyKey, at: payloadRef.current.replyKeyAt }) && {
           replyKey: payloadRef.current.replyKey || null,
           replyKeyAt: payloadRef.current.replyKeyAt,
+        }),
+        // Which picture, by name, the same way again.
+        ...(saysPicture({ id: payloadRef.current.picture, at: payloadRef.current.pictureAt }) && {
+          picture: payloadRef.current.picture || null,
+          pictureAt: payloadRef.current.pictureAt,
         }),
       }
       const sealed = await seal(keySet.key, snapshot)
