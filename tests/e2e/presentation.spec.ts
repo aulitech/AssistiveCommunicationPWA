@@ -51,6 +51,49 @@ test('shows what is said in a window of its own, and the camera as large as it f
   expect(errors).toEqual([])
 })
 
+// Captions: the lower third of the window, the newest at its foot, what came
+// before scrolled up out of the band as more is said.
+test('shows what is said in the lower third, scrolling up as more is said', async ({ page }) => {
+  const { errors } = await openBoard(page)
+  const [win] = await Promise.all([page.waitForEvent('popup'), page.locator('.present-toggle').click()])
+  await win.setViewportSize({ width: 1200, height: 720 })
+  await expect(win.locator('.presentation-waiting')).toBeVisible()
+
+  const say = (text: string) =>
+    win.evaluate(t => (window as unknown as { periStage: { show: (t: string) => void } }).periStage.show(t), text)
+  for (let n = 1; n <= 12; n++)
+    await say(`Line ${n} of what was said, long enough to want a second line in the band`)
+  await expect(win.locator('.presentation-latest')).toContainText('Line 12')
+
+  const band = win.locator('.presentation-said')
+  // Smooth, so it is waited out rather than read mid-scroll.
+  await expect
+    .poll(() => band.evaluate(b => b.scrollHeight - b.clientHeight - b.scrollTop), { timeout: 5_000 })
+    .toBeLessThanOrEqual(1)
+  const where = await win.evaluate(() => {
+    const band = document.querySelector('.presentation-said')!
+    const box = band.getBoundingClientRect()
+    const latest = document.querySelector('.presentation-latest')!.getBoundingClientRect()
+    const button = document.querySelector('.presentation-camera-toggle')!.getBoundingClientRect()
+    return {
+      band: [box.top, box.bottom, box.left, box.right],
+      latest: [latest.top, latest.bottom],
+      scrolled: band.scrollTop,
+      button: [button.left, button.right],
+      height: innerHeight,
+    }
+  })
+  expect(where.band[0]).toBeCloseTo((where.height * 2) / 3, 0)
+  expect(where.band[1]).toBeCloseTo(where.height, 0)
+  expect(where.scrolled, 'nothing scrolled up').toBeGreaterThan(0)
+  // The newest is whole, at the foot of the band.
+  expect(where.latest[0]).toBeGreaterThanOrEqual(where.band[0])
+  expect(where.latest[1]).toBeLessThanOrEqual(where.band[1])
+  // And the camera button is clear of it.
+  expect(where.button[0]).toBeGreaterThanOrEqual(where.band[3])
+  expect(errors).toEqual([])
+})
+
 // A second window on a phone is a tab nobody can share beside the board, and
 // the row of modes has no room for one more there.
 test('is not offered on a phone', async ({ page }) => {

@@ -152,12 +152,35 @@ describe('the window', () => {
     expect($('.presentation-waiting')?.textContent).toMatch(/what peri says appears here/i)
   })
 
-  it('shows the newest thing said large, and the three before it smaller', () => {
+  it('shows the newest thing said large, and what came before it smaller above', () => {
     openPage()
     for (const words of ['One', 'Two', 'Three', 'Four', 'Five']) said(words)
     expect($('.presentation-latest')?.textContent).toBe('Five')
-    expect($$('.presentation-earlier').map(p => p.textContent)).toEqual(['Two', 'Three', 'Four'])
+    expect($$('.presentation-earlier').map(p => p.textContent)).toEqual(['One', 'Two', 'Three', 'Four'])
     expect($('.presentation-waiting')).toBeNull()
+  })
+
+  // Scrolled up out of the band rather than taken off it, so twenty are kept —
+  // more than the band ever shows — and no more.
+  it('keeps the last twenty things said, the newest last', () => {
+    openPage()
+    for (let n = 1; n <= 25; n++) said(`Line ${n}`)
+    const lines = $$('.presentation-said p').map(p => p.textContent)
+    expect(lines).toHaveLength(20)
+    expect(lines[0]).toBe('Line 6')
+    expect(lines.at(-1)).toBe('Line 25')
+  })
+
+  it('scrolls to the newest each time something is said', () => {
+    openPage()
+    const band = $('.presentation-said')!
+    let top = 0
+    Object.defineProperty(band, 'scrollHeight', { configurable: true, get: () => 300 + top })
+    Object.defineProperty(band, 'scrollTop', { configurable: true, get: () => top, set: v => void (top = v) })
+    said('One')
+    expect(top).toBe(300)
+    said('Two')
+    expect(top).toBe(600)
   })
 
   // A browser plays sound only in a window somebody has pressed in; until then

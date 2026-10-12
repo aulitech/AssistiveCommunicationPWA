@@ -5,10 +5,11 @@
    and a rule moved from one to another changes the cascade wherever two
    selectors have equal specificity — see *Styling* in AGENTS.md.
 
-   **Made to be read from across a room, or in a corner of a call.** The newest
-   thing said is as large as the window allows — scaled with the window rather
-   than fixed, since it is the window somebody resizes to fit their screen —
-   and the few before it smaller and muted above. Over a picture or the camera
+   **Made to be read from across a room, or in a corner of a call.** The words
+   are in the lower third of the window, as captions are: the newest at the
+   foot, scaled with the window rather than fixed — it is the window somebody
+   resizes to fit their screen — and what came before smaller and muted above
+   it, scrolled up and faded out as more is said. Over a picture or the camera
    they sit on a band of the page's own ground, so they never have to be read
    off a face or a photograph. */
 .presentation {
@@ -35,29 +36,46 @@
 }
 
 .presentation-said {
-  position: relative;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  /* Clear of the camera button in the corner on either side, so the two never
+     overlap however narrow the window. */
+  width: min(100vw - 12rem, 70rem);
+  height: calc(100vh / 3);
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-width: min(90vw, 70rem);
   padding: 1rem 2rem;
+  box-sizing: border-box;
   text-align: center;
+  /* Scrolled by the page as each thing is said, never by hand: there is
+     nothing to reach up there that was not just read. */
+  overflow: hidden;
+  scroll-behavior: smooth;
+  /* What has scrolled up fades out rather than being cut off at the top. */
+  mask-image: linear-gradient(to bottom, transparent, black 40%);
+}
+/* Short of a full band, the words still sit at its foot. Not
+   `justify-content: flex-end`, which would put what overflows out of reach of
+   scrolling above the top. */
+.presentation-said > :first-child {
+  margin-top: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .presentation-said {
+    scroll-behavior: auto;
+  }
 }
 .presentation.has-background .presentation-said,
 .presentation.has-camera .presentation-said {
   background: color-mix(in srgb, var(--bg) 75%, transparent);
-  border-radius: 1rem;
-}
-/* With the camera on, the words go to its foot, as captions do. */
-.presentation.has-camera {
-  justify-content: flex-end;
-}
-.presentation.has-camera .presentation-said {
-  margin-bottom: 6rem;
+  border-radius: 1rem 1rem 0 0;
 }
 
 .presentation-latest {
-  font-size: clamp(2rem, 5vw, 5rem);
+  font-size: clamp(1.75rem, 4vw, 4rem);
   font-weight: 600;
   line-height: 1.2;
 }
