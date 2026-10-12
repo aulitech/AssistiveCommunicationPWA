@@ -11,15 +11,19 @@ import { cx } from '../ui/style'
 import { type Stage } from '../voice/speech'
 import { STAGE_READY, type PresentingWindow } from './use-presentation'
 
-/** How many things said stay on screen: the newest, large, and those before it. */
-const SHOWN = 4
+/**
+ * How many things said are kept: the newest, large, and those before it,
+ * scrolled up out of the band at the foot of the window as more is said.
+ */
+const SHOWN = 20
 
 /**
  * **What is said, to whoever is watching** — shared in a call, or on a screen
- * turned towards the room. The newest thing said large in the middle, the few
- * before it smaller above, on this device's own picture if it has one; and, a
- * dwell away, the camera, as large as the window allows without stretching it,
- * with the words over its foot.
+ * turned towards the room. In the lower third of the window, as captions are:
+ * the newest thing said large at the foot, what came before it smaller above,
+ * **scrolled up as each new thing arrives** and fading as it goes; on this
+ * device's own picture if it has one, and, a dwell away, the camera, as large
+ * as the window allows without stretching it.
  *
  * It puts the stage on its own window and tells Peri it is ready. Audio played
  * through it plays here, so sharing this window shares the sound; one the
@@ -35,6 +39,7 @@ export function PresentationPage() {
   const [soundElsewhere, setSoundElsewhere] = useState(false)
   const playing = useRef<HTMLAudioElement | null>(null)
   const video = useRef<HTMLVideoElement>(null)
+  const band = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     document.title = 'Peri — presentation'
@@ -102,6 +107,13 @@ export function PresentationPage() {
       )
   }, [camera])
 
+  // Each new thing said scrolls what came before up and out of the band —
+  // smoothly, unless somebody has asked for less motion (the stylesheet's).
+  useEffect(() => {
+    const box = band.current
+    if (box) box.scrollTop = box.scrollHeight
+  }, [said])
+
   const latest = said[said.length - 1]
   // The camera is the picture while it is on: the background showing round it
   // would be two pictures competing, and the face is the one being watched.
@@ -112,7 +124,7 @@ export function PresentationPage() {
       style={behind ? { backgroundImage: `url("${behind}")` } : undefined}
     >
       {camera && <video ref={video} className="presentation-camera" autoPlay muted playsInline />}
-      <div className="presentation-said" aria-live="polite">
+      <div ref={band} className="presentation-said" aria-live="polite">
         {said.length === 0 && <p className="presentation-waiting">What Peri says appears here.</p>}
         {said.slice(0, -1).map(s => (
           <p key={s.id} className="presentation-earlier">
