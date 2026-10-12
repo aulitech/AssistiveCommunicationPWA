@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { speak, warmVoice } from '../../src/voice/speech'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { setStage, speak, warmVoice, type Stage } from '../../src/voice/speech'
 import { remoteVoiceURI } from '../../src/voice/elevenlabs'
 import { audioKey, cachedAudio, clearAudioCache, rememberAudio } from '../../src/voice/audio-cache'
 import { saveElevenLabs } from '../../src/core/store'
@@ -713,5 +713,109 @@ describe('saying please', () => {
     speak('Help me!', SPANISH, { please: true })
     await flush()
     expect(spoken).toEqual(['¡Ayúdenme!'])
+  })
+})
+
+/**
+ * **The presentation window, as a stage** — see `Stage`. Everything said is
+ * shown there as said, and an account's audio plays there; nothing that goes
+ * wrong with the window costs a phrase.
+ */
+describe('with a presentation window open', () => {
+  let shown: string[]
+  let playedThere: { url: string; volume: number; rate: number }[]
+  let stopped: number
+  const stage = (
+    play: Stage['play'] = async (url, volume, rate) => void playedThere.push({ url, volume, rate }),
+  ) => setStage({ show: t => void shown.push(t), play, stop: () => void stopped++ })
+
+  beforeEach(() => {
+    shown = []
+    playedThere = []
+    stopped = 0
+  })
+  afterEach(() => setStage(null))
+
+  it('shows what is said, as it is said, and still says it here in the device voice', () => {
+    stage()
+    speak('**Hello** there', { ...SETTINGS }, { please: true })
+    expect(shown).toEqual(['Hello there, please'])
+    expect(spoken).toEqual(['Hello there, please'])
+  })
+
+  // A voice sample is said to the person choosing a voice, and nobody else.
+  it('does not show a voice sample', () => {
+    stage()
+    speak('Hello, this is my voice', SETTINGS, { sample: true })
+    expect(shown).toEqual([])
+    expect(spoken).toHaveLength(1)
+  })
+
+  it('plays an account voice there, and not here', async () => {
+    link()
+    audioReturns(true)
+    stage()
+    speak('Hello', REMOTE)
+    await flush()
+    expect(playedThere).toEqual([{ url: expect.stringMatching(/^blob:/), volume: 0.5, rate: 1.5 }])
+    expect(played).toEqual([])
+    expect(spoken).toEqual([])
+  })
+
+  // The browser refusing to play in a window nobody has pressed in is the
+  // likeliest failure, and the phrase is said here instead.
+  it('plays it here when the window cannot', async () => {
+    link()
+    audioReturns(true)
+    stage(async () => {
+      throw new DOMException('not allowed', 'NotAllowedError')
+    })
+    speak('Hello', REMOTE)
+    await flush()
+    await flush()
+    expect(played).toHaveLength(1)
+  })
+
+  // A window closed under it throws rather than rejecting.
+  it('plays it here when the window has gone', async () => {
+    link()
+    audioReturns(true)
+    stage(() => {
+      throw new Error('gone')
+    })
+    speak('Hello', REMOTE)
+    await flush()
+    await flush()
+    expect(played).toHaveLength(1)
+  })
+
+  it('still says the words when showing them fails', () => {
+    setStage({
+      show: () => {
+        throw new Error('gone')
+      },
+      play: async () => {},
+      stop: () => {},
+    })
+    speak('Hello', SETTINGS)
+    expect(spoken).toEqual(['Hello'])
+  })
+
+  it('stops what is playing there when something else is said', () => {
+    stage()
+    speak('One', SETTINGS)
+    speak('Two', SETTINGS)
+    expect(stopped).toBe(2)
+  })
+
+  it('shows nothing, and plays here, once the window is taken away', async () => {
+    link()
+    audioReturns(true)
+    stage()
+    setStage(null)
+    speak('Hello', REMOTE)
+    await flush()
+    expect(shown).toEqual([])
+    expect(played).toHaveLength(1)
   })
 })

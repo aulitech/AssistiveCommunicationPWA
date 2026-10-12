@@ -1,0 +1,260 @@
+// Presentation mode through the real app: the toggle beside please opening a
+// window of its own, what is said reaching it, the window's page itself — the
+// words, the camera and the picture behind them — and the picture's row in
+// Settings. See docs/decisions/presentation-mode.md.
+//
+// jsdom opens no windows, so the window here is an object standing in for one,
+// carrying the stage its page would put on itself. That the real page does so,
+// in a real second window, is `e2e/presentation.spec.ts`'s question.
+
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { act, fireEvent } from '@testing-library/react'
+import { buildBackup } from '../../src/core/backup'
+import { EMPTY_ALIASES } from '../../src/core/phrases'
+import {
+  DEFAULT_SETTINGS,
+  emptyStore,
+  loadPresentationBackground,
+  savePresentationBackground,
+  storageKey,
+} from '../../src/core/store'
+import { PRESENTATION_BACKGROUND_KEY } from '../../src/core/store/keys'
+import { setStage, type Stage } from '../../src/voice/speech'
+import { PRESENTATION_PATH, STAGE_READY, type PresentingWindow } from '../../src/talk/use-presentation'
+import { $, $$, click, mount, plainCell, renderApp, settle } from './harness'
+
+vi.mock('../../src/menu/picture', () => ({
+  shrinkPicture: vi.fn(async () => 'data:image/jpeg;base64,c21hbGw='),
+}))
+
+const presentToggle = () => $('.present-toggle')!
+
+/** A window as `window.open` hands one back, with the stage its page would put on it. */
+function fakeWindow() {
+  const stage = { show: vi.fn(), play: vi.fn(async () => {}), stop: vi.fn() }
+  const w = { closed: false, close: vi.fn(), periStage: stage as Stage }
+  w.close.mockImplementation(() => {
+    w.closed = true
+  })
+  return { w: w as unknown as PresentingWindow & { closed: boolean }, stage }
+}
+
+/** The window's page saying it is ready, as `talk/presentation.tsx` does. */
+function ready(source: unknown) {
+  const ev = new MessageEvent('message', { data: STAGE_READY, origin: location.origin })
+  Object.defineProperty(ev, 'source', { value: source })
+  act(() => void window.dispatchEvent(ev))
+}
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  setStage(null)
+})
+
+describe('the toggle', () => {
+  it('opens a window of its own, and is lit while it is open', () => {
+    const { w } = fakeWindow()
+    const open = vi.spyOn(window, 'open').mockReturnValue(w)
+    renderApp()
+    expect(presentToggle().getAttribute('aria-pressed')).toBe('false')
+
+    click(presentToggle())
+    expect(open).toHaveBeenCalledWith(PRESENTATION_PATH, 'peri-presentation', expect.stringContaining('popup'))
+    expect(presentToggle().getAttribute('aria-pressed')).toBe('true')
+  })
+
+  // Opened off a dwell, which a browser does not count as a press.
+  it('says how to let it open when the browser refuses', () => {
+    vi.spyOn(window, 'open').mockReturnValue(null)
+    renderApp()
+    click(presentToggle())
+    expect($('.toast')?.textContent).toMatch(/allow pop-ups/i)
+    expect(presentToggle().getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('shows there what is said once the window is ready, and nothing before', () => {
+    const { w, stage } = fakeWindow()
+    vi.spyOn(window, 'open').mockReturnValue(w)
+    renderApp({ autoSpeak: true })
+    click(presentToggle())
+
+    const first = plainCell()
+    click(first)
+    expect(stage.show, 'spoken through a window that had not said it was ready').not.toHaveBeenCalled()
+
+    ready(w)
+    const next = plainCell([first.textContent ?? ''])
+    click(next)
+    expect(stage.show).toHaveBeenCalledWith(next.textContent)
+  })
+
+  // Somebody else's window saying it is ready is no reason to speak through it.
+  it('takes no notice of a window it did not open', () => {
+    const { w, stage } = fakeWindow()
+    vi.spyOn(window, 'open').mockReturnValue(w)
+    renderApp({ autoSpeak: true })
+    click(presentToggle())
+    ready(fakeWindow().w)
+    click(plainCell())
+    expect(stage.show).not.toHaveBeenCalled()
+  })
+
+  it('closes the window when it is turned off, and shows nothing more there', () => {
+    const { w, stage } = fakeWindow()
+    vi.spyOn(window, 'open').mockReturnValue(w)
+    renderApp({ autoSpeak: true })
+    click(presentToggle())
+    ready(w)
+
+    click(presentToggle())
+    expect(w.close).toHaveBeenCalled()
+    expect(presentToggle().getAttribute('aria-pressed')).toBe('false')
+    click(plainCell())
+    expect(stage.show).not.toHaveBeenCalled()
+  })
+
+  // A window closed from its own side says nothing as it goes.
+  it('goes out when the window is closed from its own side', () => {
+    const { w, stage } = fakeWindow()
+    vi.spyOn(window, 'open').mockReturnValue(w)
+    renderApp({ autoSpeak: true })
+    click(presentToggle())
+    ready(w)
+
+    w.closed = true
+    act(() => void vi.advanceTimersByTime(1000))
+    expect(presentToggle().getAttribute('aria-pressed')).toBe('false')
+    click(plainCell())
+    expect(stage.show).not.toHaveBeenCalled()
+  })
+})
+
+describe('the window', () => {
+  const opener = { postMessage: vi.fn() }
+  const openPage = () => {
+    window.history.pushState({}, '', PRESENTATION_PATH)
+    Object.defineProperty(window, 'opener', { value: opener, configurable: true })
+    localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
+    mount()
+  }
+  const stage = () => (window as PresentingWindow).periStage!
+  const said = (text: string) => act(() => stage().show(text))
+
+  afterEach(() => {
+    window.history.pushState({}, '', '/')
+    Object.defineProperty(window, 'opener', { value: null, configurable: true })
+    opener.postMessage.mockClear()
+  })
+
+  it('tells Peri it is ready, and waits with a line saying what it is for', () => {
+    openPage()
+    expect(opener.postMessage).toHaveBeenCalledWith(STAGE_READY, location.origin)
+    expect($('.presentation-waiting')?.textContent).toMatch(/what peri says appears here/i)
+  })
+
+  it('shows the newest thing said large, and the three before it smaller', () => {
+    openPage()
+    for (const words of ['One', 'Two', 'Three', 'Four', 'Five']) said(words)
+    expect($('.presentation-latest')?.textContent).toBe('Five')
+    expect($$('.presentation-earlier').map(p => p.textContent)).toEqual(['Two', 'Three', 'Four'])
+    expect($('.presentation-waiting')).toBeNull()
+  })
+
+  // A browser plays sound only in a window somebody has pressed in; until then
+  // Peri plays it, and the window says so.
+  it('says when the sound is playing from Peri instead, until it is pressed in', async () => {
+    openPage()
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValueOnce(new DOMException('no', 'NotAllowedError'))
+    await act(async () => {
+      await stage()
+        .play('blob:x', 1, 1, () => {})
+        .catch(() => {})
+    })
+    expect($('.presentation-note')?.textContent).toMatch(/playing from peri/i)
+
+    act(() => void window.dispatchEvent(new Event('pointerdown')))
+    expect($('.presentation-note')).toBeNull()
+  })
+
+  it('shows the camera a dwell away, and lets it go again', async () => {
+    const stop = vi.fn()
+    const stream = { getTracks: () => [{ stop }] }
+    const getUserMedia = vi.fn(async () => stream)
+    Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia }, configurable: true })
+    openPage()
+
+    click($('.presentation-camera-toggle'))
+    await act(async () => {})
+    expect(getUserMedia).toHaveBeenCalledWith({ video: true, audio: false })
+    expect($('video.presentation-camera')).not.toBeNull()
+    expect($('.presentation')?.classList.contains('has-camera')).toBe(true)
+
+    settle()
+    act(() => void vi.advanceTimersByTime(1100))
+    click($('.presentation-camera-toggle'))
+    expect($('video.presentation-camera')).toBeNull()
+    expect(stop).toHaveBeenCalled()
+  })
+
+  it('says so when the camera cannot be opened', async () => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getUserMedia: vi.fn(async () => Promise.reject(new Error('denied'))) },
+      configurable: true,
+    })
+    openPage()
+    click($('.presentation-camera-toggle'))
+    await act(async () => {})
+    expect($('.presentation-note')?.textContent).toMatch(/camera could not be opened/i)
+  })
+
+  it('shows the picture chosen in Settings, and a new one the moment it is chosen', () => {
+    openPage()
+    expect($('.presentation')?.style.backgroundImage).toBe('')
+
+    savePresentationBackground('data:image/jpeg;base64,bmV3')
+    act(
+      () =>
+        void window.dispatchEvent(new StorageEvent('storage', { key: storageKey(PRESENTATION_BACKGROUND_KEY) })),
+    )
+    expect($('.presentation')?.style.backgroundImage).toContain('data:image/jpeg;base64,bmV3')
+  })
+})
+
+describe('the picture behind it, in Settings', () => {
+  const openSettings = () => {
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+  }
+  const row = () =>
+    $$('.setting-row').find(r => r.querySelector('.setting-label')?.textContent === 'Presentation background')!
+  const button = (label: string) =>
+    [...row().querySelectorAll('[role="button"]')].find(b => b.getAttribute('aria-label') === label)
+
+  it('keeps a picture chosen, small, and takes it away again', async () => {
+    renderApp()
+    openSettings()
+    expect(row().querySelector('img')).toBeNull()
+
+    const input = row().querySelector<HTMLInputElement>('input[type="file"]')!
+    fireEvent.change(input, { target: { files: [new File(['x'], 'beach.jpg', { type: 'image/jpeg' })] } })
+    await act(async () => {})
+    expect(loadPresentationBackground()).toBe('data:image/jpeg;base64,c21hbGw=')
+    expect(row().querySelector('img')?.getAttribute('src')).toBe('data:image/jpeg;base64,c21hbGw=')
+
+    settle()
+    act(() => void vi.advanceTimersByTime(1100))
+    click(button('Remove'))
+    expect(loadPresentationBackground()).toBe('')
+    expect(row().querySelector('img')).toBeNull()
+  })
+
+  // Hundreds of times the size of everything else in a backup put together.
+  it('is in no backup', () => {
+    renderApp()
+    savePresentationBackground('data:image/jpeg;base64,c21hbGw=')
+    const backup = JSON.stringify(
+      buildBackup({ store: emptyStore(), aliases: EMPTY_ALIASES, settings: DEFAULT_SETTINGS }),
+    )
+    expect(backup).not.toContain('data:image')
+  })
+})
