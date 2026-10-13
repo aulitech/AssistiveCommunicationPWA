@@ -361,6 +361,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Phrase dwell — how long to rest on a phrase before it is chosen. The blue bar takes this one too.',
         'Action dwell — how long to rest on buttons and menus.',
         'Auto-repeat — how quickly a button that keeps going, such as a scroll arrow, goes again while you go on resting on it.',
+        'Pause after choosing — after a rest or a click is taken, others are ignored for this long, so resting where you last chose, or clicking twice, does not choose again. A second to begin with; Off turns it off.',
         'Volume and Speed — how the voice sounds.',
         'Peri’s keyboard — adds :keyboard: at the left of the message, for a device you cannot otherwise type on, such as an iPad. Each device keeps its own answer.',
         'Getting started — this guide, one part at a time, each part you have been through marked :ticked:. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',

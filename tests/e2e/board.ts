@@ -32,18 +32,30 @@ export const many = () =>
  * The board, signed in as a guest, with whatever the test put in the store.
  * **Page errors fail the test**: nothing that throws is allowed to pass for
  * having left the right text on screen.
+ *
+ * **The pause after choosing is off unless `pause` is set**, as it is in the
+ * jsdom tests and for the same reason: these click one thing after another far
+ * faster than anybody could with it on, and they are about everything else.
+ * Written only where nothing is stored yet, so a test that reloads keeps
+ * whatever it changed.
  */
-export async function openBoard(page: Page, { phrases = [] as Seeded[], store = {} as object } = {}) {
+export async function openBoard(
+  page: Page,
+  { phrases = [] as Seeded[], store = {} as object, pause = false } = {},
+) {
   const errors: string[] = []
   page.on('pageerror', e => errors.push(String(e)))
   await page.addInitScript(
-    ({ phrases, store }) => {
+    ({ phrases, store, pause }) => {
       localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
       if (phrases.length || Object.keys(store).length) {
         localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringify({ custom: phrases, ...store }))
       }
+      if (!pause && !localStorage.getItem('dwellspeak_settings')) {
+        localStorage.setItem('dwellspeak_settings', JSON.stringify({ selectionPauseMs: 0 }))
+      }
     },
-    { phrases, store },
+    { phrases, store, pause },
   )
   await page.goto('/')
   await expect(page.locator('.app, .still-talking').first()).toBeVisible()

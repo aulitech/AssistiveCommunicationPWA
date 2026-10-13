@@ -331,6 +331,7 @@ function readSettings(v: unknown): Settings | undefined {
     phraseDwellMs: num(v.phraseDwellMs, SETTING_LIMITS.phraseDwellMs, DEFAULT_SETTINGS.phraseDwellMs),
     actionDwellMs: num(v.actionDwellMs, SETTING_LIMITS.actionDwellMs, DEFAULT_SETTINGS.actionDwellMs),
     repeatDelayMs: num(v.repeatDelayMs, SETTING_LIMITS.repeatDelayMs, DEFAULT_SETTINGS.repeatDelayMs),
+    selectionPauseMs: num(v.selectionPauseMs, SETTING_LIMITS.selectionPauseMs, DEFAULT_SETTINGS.selectionPauseMs),
     // Shape-checked rather than taken as written. It cannot be held to the
     // languages *this* device speaks — the setting travels, and the device that
     // wrote it may have voices this one has never had — but a language tag is a

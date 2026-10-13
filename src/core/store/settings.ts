@@ -23,6 +23,14 @@ export interface Settings {
    */
   repeatDelayMs: number
   /**
+   * How long nothing answers — no dwell and no click — after one has been
+   * accepted. A gaze rests where it last fired and a hand that clicks can
+   * click twice; either way the next thing chosen in that second is seldom
+   * meant. A dwell begun in it starts filling once it is over, so a pointer
+   * that stays where it was put still gets its answer. 0 turns it off.
+   */
+  selectionPauseMs: number
+  /**
    * The language the board is spoken in, as a BCP-47 tag. Empty follows the
    * device, which is what Peri did before this existed.
    *
@@ -202,6 +210,7 @@ export const DEFAULT_SETTINGS: Settings = {
   phraseDwellMs: 1500,
   actionDwellMs: 800,
   repeatDelayMs: 1000,
+  selectionPauseMs: 1000,
   language: '',
   voiceURI: '',
   voicesByLanguage: {},
@@ -234,6 +243,9 @@ export const SETTING_LIMITS = {
   // on its own limit leaves half the spinner inert, which reads as broken — and
   // somebody who wants a whole second between repeats may well want more.
   repeatDelayMs: { min: 100, max: 2000 },
+  // Off at the floor, for somebody whose next choice is quick and meant; three
+  // seconds at the top, which is longer than any dwell.
+  selectionPauseMs: { min: 0, max: 3000 },
   volume: { min: 0, max: 1 },
   rate: { min: 0.5, max: 2 },
   /**
@@ -343,11 +355,12 @@ export function chooseLanguage(settings: Settings, tag: string, voices: VoiceLan
  * What the sign-in page needs of somebody's settings to be worked at all: how
  * long a dwell takes, and how big the text is.
  */
-const reaching = ({ zoom, phraseDwellMs, actionDwellMs, repeatDelayMs }: Settings) => ({
+const reaching = ({ zoom, phraseDwellMs, actionDwellMs, repeatDelayMs, selectionPauseMs }: Settings) => ({
   zoom,
   phraseDwellMs,
   actionDwellMs,
   repeatDelayMs,
+  selectionPauseMs,
 })
 
 /**

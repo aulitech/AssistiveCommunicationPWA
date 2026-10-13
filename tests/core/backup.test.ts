@@ -312,6 +312,8 @@ describe('reading a backup back', () => {
           // A repeat this fast empties a list in the time it takes to notice —
           // and the control to slow it back down repeats at the same rate.
           repeatDelayMs: 1,
+          // A pause longer than anybody would wait, after every choice.
+          selectionPauseMs: 60_000,
           volume: 99,
           rate: 40,
           voiceURI: 7,
@@ -334,6 +336,7 @@ describe('reading a backup back', () => {
       phraseDwellMs: 500,
       actionDwellMs: 300,
       repeatDelayMs: 100,
+      selectionPauseMs: 3000,
       voiceURI: '',
       // Not the shape of a language tag, so it is not handed to a synthesiser.
       language: '',

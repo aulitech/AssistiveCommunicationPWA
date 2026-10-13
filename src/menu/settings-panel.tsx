@@ -284,6 +284,24 @@ export function SettingsPanel({
             onValue={v => update({ repeatDelayMs: v })}
           />
         </SettingRow>
+        {/* The last of the timings: how long nothing answers after something has
+            — see `setSelectionPause` in `ui/dwell.ts`. Down to off, for
+            somebody whose next choice is quick and meant. */}
+        <SettingRow
+          label="Pause after choosing"
+          note="After a dwell or a click is taken, others are ignored for this long, so a pointer resting where it last chose — or a second click — does not choose again. A rest begun in the pause starts filling when it ends."
+        >
+          <SettingSpinner
+            value={settings.selectionPauseMs}
+            defaultValue={DEFAULT_SETTINGS.selectionPauseMs}
+            name="pause after choosing"
+            min={0}
+            max={3000}
+            step={250}
+            format={v => (v === 0 ? 'Off' : seconds(v))}
+            onValue={v => update({ selectionPauseMs: v })}
+          />
+        </SettingRow>
         <SettingRow label="Volume">
           <SettingSpinner
             value={Math.round(settings.volume * 100)}
