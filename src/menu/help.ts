@@ -144,7 +144,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         'The words run across the bottom third of the window, as captions do. The newest is at the foot, and the rest scrolls up as more is said.',
         ':camera: in the corner of the window shows your camera, as large as the window allows without stretching it, with what you say written across its lower third, and the background picture out of the way. The camera stays on this device.',
-        'With the camera on, :mic: above it mixes in your microphone: what it hears plays from the presentation window beside Peri’s voice, so a call sharing that window hears the room too. Echo cancellation is on, but headphones are best.',
+        ':mic: above it mixes in your microphone, with the camera on or off: what it hears plays from the presentation window beside Peri’s voice, so a call sharing that window hears the room too. Echo cancellation is on, but headphones are best.',
         'Sound from an ElevenLabs voice plays in the presentation window, so sharing the window shares the sound. A device voice always plays from Peri itself — browsers give it no other way out.',
         'If the window says the sound is playing from Peri, select the window once — browsers only play sound in a window somebody has pressed in.',
         'If the window does not open, allow pop-ups for Peri in your browser settings, as for links.',

@@ -37,9 +37,9 @@ const SHOWN = 20
  * browser will not let play is played in Peri's window instead, and this says
  * so until the window has been selected once, which is what lets it play.
  *
- * **With the camera on, the microphone is a dwell away too**, played out of
- * this window beside Peri's voice — so a call or a recording of the window
- * carries the room and Peri together. With the browser's echo cancellation on,
+ * **The microphone is a dwell away too**, with the camera or without it,
+ * played out of this window beside Peri's voice — so a call or a recording of
+ * the window carries the room and Peri together. With the browser's echo cancellation on,
  * since what this window plays reaches the microphone from the speakers.
  */
 export function PresentationPage() {
@@ -160,12 +160,8 @@ export function PresentationPage() {
   }, [microphone, releaseMicrophone, playMicrophone])
 
   const toggleCamera = useCallback(() => {
-    // The microphone is offered with the camera, and goes with it.
-    if (camera) {
-      releaseMicrophone()
-      setMicrophoneProblem('')
-      return setCamera(null)
-    }
+    // The microphone is its own: it stays on or off whatever the camera does.
+    if (camera) return setCamera(null)
     setCameraProblem('')
     if (!navigator.mediaDevices?.getUserMedia) return setCameraProblem('This browser offers no camera.')
     navigator.mediaDevices
@@ -173,7 +169,7 @@ export function PresentationPage() {
       .then(setCamera, () =>
         setCameraProblem('The camera could not be opened. Allow Peri to use it in your browser settings.'),
       )
-  }, [camera, releaseMicrophone])
+  }, [camera])
 
   // Each new thing said scrolls what came before up and out of the band —
   // smoothly, unless somebody has asked for less motion (the stylesheet's).
@@ -218,16 +214,14 @@ export function PresentationPage() {
           <p className="presentation-note">Select this window once to play the microphone here.</p>
         )}
         {microphoneProblem && <p className="presentation-note">{microphoneProblem}</p>}
-        {camera && (
-          <DwellButton
-            className={cx('presentation-mic-toggle', microphone && 'active')}
-            onSelect={toggleMicrophone}
-            label={microphone ? 'Turn the microphone off' : 'Mix in the microphone'}
-            durationMs={settings.actionDwellMs}
-          >
-            <MicIcon />
-          </DwellButton>
-        )}
+        <DwellButton
+          className={cx('presentation-mic-toggle', microphone && 'active')}
+          onSelect={toggleMicrophone}
+          label={microphone ? 'Turn the microphone off' : 'Mix in the microphone'}
+          durationMs={settings.actionDwellMs}
+        >
+          <MicIcon />
+        </DwellButton>
         <DwellButton
           className={cx('presentation-camera-toggle', camera && 'active')}
           onSelect={toggleCamera}

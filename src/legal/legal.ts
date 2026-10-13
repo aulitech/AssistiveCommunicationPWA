@@ -173,7 +173,7 @@ export const PRIVACY: ProseDocument = {
           'Presentation mode opens a second window on your device showing what Peri says and, if you ask it to, your camera. The camera picture is shown in that window and nowhere else: Peri does not record it, keep it or send it anywhere.',
         ),
         text(
-          'With the camera on you can also mix in your microphone. What it hears is played out of that window, beside Peri’s voice, so that anyone you share the window with hears it too. Peri does not record it, keep it or send it anywhere, and it stops when you turn it off or turn the camera off.',
+          'You can also mix in your microphone there, with or without the camera. What it hears is played out of that window, beside Peri’s voice, so that anyone you share the window with hears it too. Peri does not record it, keep it or send it anywhere, and it stops when you turn it off or close the window.',
         ),
         text(
           "A picture you choose for that window's background is kept on your device. It is not in backups. If you turn on Synchronize it is kept on our server too, encrypted like your board, so your other devices can show it — see the Synchronizing section.",
