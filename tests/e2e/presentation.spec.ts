@@ -105,36 +105,39 @@ test('shows what is said in the lower third, scrolling up as more is said', asyn
 })
 
 // The microphone mixed into the window beside Peri's voice, with the browser's
-// echo cancellation actually on — asked for is not the same as given.
-test('mixes in the microphone with the camera on, echo cancelled', async ({ page }) => {
+// echo cancellation actually on — asked for is not the same as given — and
+// with the camera or without it.
+test('mixes in the microphone, echo cancelled, camera or not', async ({ page }) => {
   const { errors } = await openBoard(page)
   const [win] = await Promise.all([page.waitForEvent('popup'), page.locator('.present-toggle').click()])
-  await expect(win.locator('.presentation-mic-toggle')).toHaveCount(0)
+  await expect(win.locator('video.presentation-camera')).toHaveCount(0)
 
-  await win.locator('.presentation-camera-toggle').click()
-  await expect(win.locator('video.presentation-camera')).toBeVisible()
-  // The microphone arrives above the camera, never where the pointer that
-  // turned the camera on is resting.
+  // Above the camera button, so neither is where the other was.
   const camera = await win.locator('.presentation-camera-toggle').boundingBox()
   const mic = await win.locator('.presentation-mic-toggle').boundingBox()
-  expect(mic!.y + mic!.height, 'the microphone landed under the pointer').toBeLessThanOrEqual(camera!.y)
+  expect(mic!.y + mic!.height).toBeLessThanOrEqual(camera!.y)
+
   await win.locator('.presentation-mic-toggle').click()
   await expect(win.locator('.presentation-mic-toggle')).toHaveClass(/active/)
+  const heard = () =>
+    win.evaluate(async () => {
+      const out = document.querySelector<HTMLAudioElement>('audio.presentation-heard')!
+      for (let i = 0; i < 50 && out.paused; i++) await new Promise(r => setTimeout(r, 100))
+      const track = (out.srcObject as MediaStream | null)?.getAudioTracks()[0]
+      return { playing: !out.paused, live: track?.readyState, echo: track?.getSettings().echoCancellation }
+    })
+  expect(await heard()).toEqual({ playing: true, live: 'live', echo: true })
+  await expect(win.locator('video.presentation-camera')).toHaveCount(0)
 
-  const heard = await win.evaluate(async () => {
-    const out = document.querySelector<HTMLAudioElement>('audio.presentation-heard')!
-    for (let i = 0; i < 50 && out.paused; i++) await new Promise(r => setTimeout(r, 100))
-    const track = (out.srcObject as MediaStream | null)?.getAudioTracks()[0]
-    return { playing: !out.paused, live: track?.readyState, echo: track?.getSettings().echoCancellation }
-  })
-  expect(heard).toEqual({ playing: true, live: 'live', echo: true })
-
-  // The camera going takes the microphone with it.
+  // The camera coming and going leaves it alone.
   await win.locator('.presentation-camera-toggle').click()
-  await expect(win.locator('.presentation-mic-toggle')).toHaveCount(0)
-  expect(
-    await win.evaluate(() => document.querySelector<HTMLAudioElement>('audio.presentation-heard')!.srcObject),
-  ).toBeNull()
+  await expect(win.locator('video.presentation-camera')).toBeVisible()
+  await win.locator('.presentation-camera-toggle').click()
+  await expect(win.locator('video.presentation-camera')).toHaveCount(0)
+  expect(await heard()).toEqual({ playing: true, live: 'live', echo: true })
+
+  await win.locator('.presentation-mic-toggle').click()
+  await expect(win.locator('.presentation-mic-toggle')).not.toHaveClass(/active/)
   expect(errors).toEqual([])
 })
 

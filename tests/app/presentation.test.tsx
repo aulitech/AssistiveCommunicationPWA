@@ -241,7 +241,7 @@ describe('the window', () => {
     expect($('.presentation')?.style.backgroundImage).toContain('bmV3')
   })
 
-  describe('the microphone, mixed in with the camera on', () => {
+  describe('the microphone, mixed in with the camera or without it', () => {
     /** A camera and a microphone, each a stream whose tracks say when they are stopped. */
     function devices() {
       const stopped = { camera: vi.fn(), microphone: vi.fn() }
@@ -262,19 +262,23 @@ describe('the window', () => {
       pause()
     }
 
-    it('is offered only while the camera is on', async () => {
-      devices()
+    // Somebody presenting with no camera wants the room heard just the same.
+    it('is offered with no camera, and opens without one', async () => {
+      const { getUserMedia } = devices()
       openPage()
-      expect(mic()).toBeNull()
-      await cameraOn()
-      expect(mic()).not.toBeNull()
+      expect($('video.presentation-camera')).toBeNull()
+      click(mic())
+      await act(async () => {})
+      expect(getUserMedia).toHaveBeenCalledTimes(1)
+      expect(getUserMedia).toHaveBeenCalledWith(expect.objectContaining({ video: false }))
+      expect(mic()?.classList.contains('active')).toBe(true)
+      expect($('video.presentation-camera'), 'the microphone brought the camera with it').toBeNull()
     })
 
     // Played out of the speakers, it comes back into the microphone.
     it('opens the microphone with echo cancellation, and plays it out of this window', async () => {
       const { getUserMedia } = devices()
       openPage()
-      await cameraOn()
       click(mic())
       await act(async () => {})
 
@@ -287,7 +291,35 @@ describe('the window', () => {
       expect(mic()?.classList.contains('active')).toBe(true)
     })
 
-    it('lets it go when turned off, and when the camera is', async () => {
+    it('lets it go when turned off', async () => {
+      const { stopped } = devices()
+      openPage()
+      click(mic())
+      await act(async () => {})
+      pause()
+      click(mic())
+      expect(stopped.microphone).toHaveBeenCalledTimes(1)
+      expect($<HTMLAudioElement>('audio.presentation-heard')!.srcObject).toBeNull()
+      expect(mic()?.classList.contains('active')).toBe(false)
+    })
+
+    it('is left alone by the camera coming and going', async () => {
+      const { stopped } = devices()
+      openPage()
+      click(mic())
+      await act(async () => {})
+      pause()
+      await cameraOn()
+      click($('.presentation-camera-toggle'))
+      await act(async () => {})
+
+      expect(stopped.camera).toHaveBeenCalledTimes(1)
+      expect(stopped.microphone, 'the camera took the microphone with it').not.toHaveBeenCalled()
+      expect($<HTMLAudioElement>('audio.presentation-heard')!.srcObject).not.toBeNull()
+      expect(mic()?.classList.contains('active')).toBe(true)
+    })
+
+    it('leaves the camera alone when it is turned off', async () => {
       const { stopped } = devices()
       openPage()
       await cameraOn()
@@ -295,22 +327,14 @@ describe('the window', () => {
       await act(async () => {})
       pause()
       click(mic())
-      expect(stopped.microphone).toHaveBeenCalledTimes(1)
-      expect($<HTMLAudioElement>('audio.presentation-heard')!.srcObject).toBeNull()
-
-      pause()
-      click(mic())
       await act(async () => {})
-      pause()
-      click($('.presentation-camera-toggle'))
-      expect(stopped.microphone).toHaveBeenCalledTimes(2)
-      expect(mic()).toBeNull()
+      expect(stopped.camera).not.toHaveBeenCalled()
+      expect($('video.presentation-camera')).not.toBeNull()
     })
 
     it('says so when the microphone cannot be opened', async () => {
       const { getUserMedia } = devices()
       openPage()
-      await cameraOn()
       getUserMedia.mockRejectedValueOnce(new Error('denied'))
       click(mic())
       await act(async () => {})
@@ -321,7 +345,6 @@ describe('the window', () => {
     it('says when it cannot play until the window is pressed in, and plays once it is', async () => {
       devices()
       openPage()
-      await cameraOn()
       const play = vi
         .spyOn(HTMLMediaElement.prototype, 'play')
         .mockRejectedValueOnce(new DOMException('no', 'NotAllowedError'))
