@@ -3,8 +3,30 @@
 import { afterEach, beforeEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { clearAudioCache, setRemoteClips } from '../src/voice/audio-cache'
-import { forgetPointerStream, releaseDwells } from '../src/ui/dwell'
+import { forgetPointerStream, releaseDwells, setSelectionPause } from '../src/ui/dwell'
 import { forgetWhoseBoard } from '../src/core/store'
+
+/**
+ * **The pause after a selection is off unless a test turns it on.** Nearly
+ * every test here chooses one thing after another far faster than anybody could
+ * with it on, and they are about everything else; a test about the pause calls
+ * `withSelectionPause()` first, and then gets whatever the settings say — a
+ * second, unless it set another. See `setSelectionPause` in `ui/dwell.ts`.
+ *
+ * In here rather than in each file's settings because a dozen files write their
+ * own settings, and one switch is one place to be right.
+ */
+const pause = vi.hoisted(() => ({ on: false }))
+vi.mock('../src/ui/dwell', async importOriginal => {
+  const real = await importOriginal<typeof import('../src/ui/dwell')>()
+  return { ...real, setSelectionPause: (ms: number) => real.setSelectionPause(pause.on ? ms : 0) }
+})
+
+/** The pause after a selection, as the app has it — for the tests about it. */
+export function withSelectionPause(ms = 1000) {
+  pause.on = true
+  setSelectionPause(ms)
+}
 
 /** Everything spoken during a test, in order. */
 export const spoken: string[] = []
@@ -196,6 +218,8 @@ beforeEach(() => {
   // Module state: one test going deaf must not leave the next one unable to
   // dwell at all. See `holdDwells`.
   releaseDwells()
+  pause.on = false
+  setSelectionPause(0)
   forgetPointerStream()
   warnings.length = 0
   localStorage.clear()

@@ -78,8 +78,39 @@ export function onDwellActivation(listener: () => void): () => void {
 }
 
 function noteActivation() {
+  pausedUntil = Date.now() + selectionPauseMs
   for (const listener of [...activationListeners]) listener()
 }
+
+// ── The pause after a selection ──────────────────────────────────────────────
+// **After anything is accepted, nothing else is for a moment** — a second by
+// default, `settings.selectionPauseMs`. A gaze rests where it last fired and
+// drifts on to whatever is beside it; a hand, or a rig sending real clicks, can
+// click twice. Either way, the next thing chosen inside that second is seldom
+// the thing meant.
+//
+// - **A click in it is dropped.**
+// - **A dwell begun in it waits**, unfilled, and starts filling the moment the
+//   pause is over if the pointer is still there — so somebody who moves
+//   straight on to their next choice and stays on it is answered, a pause
+//   later, without having to move away and back.
+// - **A control already repeating carries on**: a held nudge is one choice
+//   being made over and over, not a new one.
+// - **The keyboard is not held to it**, for the reason `screenJustMoved` gives:
+//   Enter and Space are aimed by focus, not by where a pointer happens to rest.
+
+/** How long the pause is — set from the settings by `App`. */
+let selectionPauseMs = 1000
+/** Nothing is accepted before this moment. */
+let pausedUntil = 0
+
+/** The pause after a selection, in milliseconds; 0 for none. */
+export function setSelectionPause(ms: number) {
+  selectionPauseMs = Math.max(0, ms)
+}
+
+/** How long is left of the pause after the last selection, or 0. */
+const pauseLeft = () => Math.max(0, pausedUntil - Date.now())
 
 // ── The pointer that never holds still ─────────────────────────────────────
 //
@@ -305,6 +336,7 @@ export function holdIfMovedUnder(before: Element | null) {
 export function releaseDwells() {
   deafUntil = 0
   heldUntilMoved = false
+  pausedUntil = 0
 }
 
 /**
@@ -430,12 +462,25 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     cancel()
   }, [cancel])
 
+  // `start` waits out the pause after a selection by calling itself again.
+  const startRef = useRef<() => void>(() => {})
+
   const start = useCallback(() => {
     if (disabledRef.current || timerRef.current || repeatRef.current) return
     // Deaf: the screen moved under the pointer a moment ago, so whatever it is
     // resting on now is not what it was aimed at — either for a moment, or
     // until the pointer is aimed somewhere else.
     if (screenJustMoved()) return
+    // Something was chosen a moment ago. The fill waits, unlit, and starts
+    // when the pause is over if the pointer is still here.
+    const wait = pauseLeft()
+    if (wait > 0) {
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null
+        startRef.current()
+      }, wait)
+      return
+    }
     dwellFiredRef.current = false
     stalledRef.current = false
     setActive(true)
@@ -462,6 +507,10 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
       }
     }, durationRef.current)
   }, [stall])
+
+  useEffect(() => {
+    startRef.current = start
+  })
 
   const onPointerEnter = useCallback(
     (e: React.PointerEvent<HTMLElement>) => {
@@ -503,8 +552,9 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     // The dwell already handled this hover; don't count the click as a second hit.
     if (disabledRef.current || dwellFiredRef.current) return
     // And a click gets the same answer a dwell would — see `screenJustMoved` —
-    // and so does a control that came to the pointer.
-    if (screenJustMoved() || arrivedRef.current) return
+    // and so does a control that came to the pointer, and one in the pause
+    // after the last thing chosen.
+    if (screenJustMoved() || arrivedRef.current || pauseLeft() > 0) return
     cancel()
     noteActivation()
     activateRef.current()

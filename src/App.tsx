@@ -20,7 +20,7 @@ import {
   type Settings,
   type User,
 } from './core/store'
-import { holdDwells } from './ui/dwell'
+import { holdDwells, setSelectionPause } from './ui/dwell'
 import { SettingsCtx } from './ui/settings'
 import { SignInPage } from './signin/signin'
 import { LegalPage } from './legal/legal-page'
@@ -117,6 +117,10 @@ export default function App() {
     if (appliedZoom.current !== null && appliedZoom.current !== settings.zoom) holdDwells()
     appliedZoom.current = settings.zoom
   }, [settings.zoom])
+
+  // The pause after a selection is the dwell module's to keep, since every
+  // control asks it — see `setSelectionPause`.
+  useEffect(() => setSelectionPause(settings.selectionPauseMs), [settings.selectionPauseMs])
 
   const ctx = useMemo(() => ({ settings, update }), [settings, update])
 

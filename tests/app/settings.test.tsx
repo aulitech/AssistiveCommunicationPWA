@@ -336,6 +336,7 @@ describe('putting settings back', () => {
         'Reset phrase dwell to 1.500s',
         'Reset action dwell to 0.800s',
         'Reset auto-repeat to 1s',
+        'Reset pause after choosing to 1s',
         'Reset volume to 100%',
         'Reset speed to 1.0×',
       ])
@@ -363,7 +364,7 @@ describe('putting settings back', () => {
       const revert = stepBtn('Reset phrase dwell', dwell)
 
       expect(revert.getAttribute('aria-disabled')).toBe('true')
-      expect($$('.setting-row .step-btn').length, 'a control went missing').toBe(18)
+      expect($$('.setting-row .step-btn').length, 'a control went missing').toBe(21)
     })
   })
 

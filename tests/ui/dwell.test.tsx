@@ -9,9 +9,11 @@ import {
   holdIfUnderPointer,
   onDwellActivation,
   releaseDwells,
+  setSelectionPause,
   targetUnderPointer,
   useDwellControl,
 } from '../../src/ui/dwell'
+import { withSelectionPause } from '../setup'
 
 function Probe({
   onActivate,
@@ -894,5 +896,117 @@ describe('a control that came to the pointer', () => {
     fireEvent.pointerEnter(probe(), { pointerType: 'touch' })
     fireEvent.click(probe())
     expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * After anything is accepted, nothing else is for a moment — a second by
+ * default. A click in it is dropped; a dwell begun in it starts filling when it
+ * ends. See `setSelectionPause`.
+ */
+describe('the pause after choosing', () => {
+  function Two({ a, b, repeatMs }: { a: () => void; b: () => void; repeatMs?: number }) {
+    const first = useDwellControl(500, a, { repeatMs })
+    const second = useDwellControl(500, b)
+    return (
+      <>
+        <div role="button" aria-label="a" data-active={first.active} {...first.props} />
+        <div role="button" aria-label="b" data-active={second.active} {...second.props} />
+      </>
+    )
+  }
+  const a = () => screen.getByRole('button', { name: 'a' })
+  const b = () => screen.getByRole('button', { name: 'b' })
+
+  beforeEach(() => withSelectionPause())
+
+  it('drops a click in the second after a click, and takes one after it', () => {
+    const [onA, onB] = [vi.fn(), vi.fn()]
+    render(<Two a={onA} b={onB} />)
+    fireEvent.click(a())
+    fireEvent.click(b())
+    expect(onA).toHaveBeenCalledTimes(1)
+    expect(onB, 'a second click straight after the first was taken').not.toHaveBeenCalled()
+
+    advance(999)
+    fireEvent.click(b())
+    expect(onB).not.toHaveBeenCalled()
+    advance(1)
+    fireEvent.click(b())
+    expect(onB).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops a click in the second after a dwell', () => {
+    const [onA, onB] = [vi.fn(), vi.fn()]
+    render(<Two a={onA} b={onB} />)
+    fireEvent.pointerEnter(a())
+    advance(500)
+    expect(onA).toHaveBeenCalledTimes(1)
+    fireEvent.pointerLeave(a())
+    fireEvent.click(b())
+    expect(onB).not.toHaveBeenCalled()
+  })
+
+  // Somebody who moves straight on to their next choice and stays on it.
+  it('starts a dwell begun in the pause filling once the pause is over', () => {
+    const [onA, onB] = [vi.fn(), vi.fn()]
+    render(<Two a={onA} b={onB} />)
+    fireEvent.click(a())
+    advance(200)
+    fireEvent.pointerEnter(b())
+    expect(b().dataset.active, 'it filled during the pause').toBe('false')
+
+    advance(800)
+    expect(b().dataset.active).toBe('true')
+    advance(499)
+    expect(onB).not.toHaveBeenCalled()
+    advance(1)
+    expect(onB).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts nothing for a pointer that left before the pause was over', () => {
+    const [onA, onB] = [vi.fn(), vi.fn()]
+    render(<Two a={onA} b={onB} />)
+    fireEvent.click(a())
+    fireEvent.pointerEnter(b())
+    advance(500)
+    fireEvent.pointerLeave(b())
+    advance(2000)
+    expect(onB).not.toHaveBeenCalled()
+  })
+
+  // A held nudge is one choice made over and over, not a new one each time.
+  it('lets a control already repeating carry on', () => {
+    const [onA, onB] = [vi.fn(), vi.fn()]
+    render(<Two a={onA} b={onB} repeatMs={100} />)
+    fireEvent.pointerEnter(a())
+    advance(500)
+    advance(300)
+    expect(onA).toHaveBeenCalledTimes(4)
+  })
+
+  // Aimed by focus, not by where a pointer rests.
+  it('does not hold the keyboard to it', () => {
+    const [onA, onB] = [vi.fn(), vi.fn()]
+    render(<Two a={onA} b={onB} />)
+    fireEvent.click(a())
+    fireEvent.keyDown(b(), { key: 'Enter' })
+    expect(onB).toHaveBeenCalledTimes(1)
+  })
+
+  it('is as long as the setting says, and nothing at all when it is off', () => {
+    const [onA, onB] = [vi.fn(), vi.fn()]
+    render(<Two a={onA} b={onB} />)
+    setSelectionPause(2000)
+    fireEvent.click(a())
+    advance(1500)
+    fireEvent.click(b())
+    expect(onB).not.toHaveBeenCalled()
+
+    setSelectionPause(0)
+    advance(600)
+    fireEvent.click(a())
+    fireEvent.click(b())
+    expect(onB).toHaveBeenCalledTimes(1)
   })
 })
