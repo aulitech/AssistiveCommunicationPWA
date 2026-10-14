@@ -70,12 +70,28 @@ describe('the user guide', () => {
     ['putting a deleted phrase back', /After a delete/],
     ['arranging the category tabs', /rearranges the tabs/],
     ['what uses the internet', /A few things use the internet/],
+    ['the presentation window', /opens a presentation window/],
+    ['captions in the presentation window', /bottom third of the window, as captions do/],
+    ['the camera and the microphone working apart', /Each works on its own/],
+    ['mixing in the microphone', /mixes in your microphone/],
+    ['the presentation background', /Presentation background/],
+    ['the pause after choosing', /lets a second go by before it answers again/],
+    ['a button arriving under a still pointer', /does not answer until you move the pointer/],
   ])('covers %s', (_feature, pattern) => {
     expect(allText.some(line => pattern.test(line))).toBe(true)
   })
 
   // Somebody opening the guide is usually looking for one thing. The first
   // section says what the screen is made of, so they know which heading to open.
+  // Presentation mode grew a camera, a microphone and a picture inside
+  // Building a message; it is a part of the guide of its own now.
+  it('gives presenting a section of its own', () => {
+    const presenting = HELP_SECTIONS.find(s => s.title === 'Presenting to a call or a room')
+    expect(presenting, 'no section on presenting').toBeDefined()
+    const words = JSON.stringify(presenting)
+    for (const icon of [':present:', ':camera:', ':mic:']) expect(words).toContain(icon)
+  })
+
   it('opens with an overview of the whole screen', () => {
     expect(HELP_SECTIONS[0].title).toBe('Overview')
     const overview = HELP_SECTIONS[0].blocks.flatMap(b => (b.kind === 'text' ? [b.text] : b.items))
