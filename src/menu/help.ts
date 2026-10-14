@@ -104,6 +104,17 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text('Move away before the bar fills and nothing happens, so a wrong turn costs you nothing.'),
       text('Clicking, tapping and the keyboard all work too, if any of those are easier for you.'),
+      text(
+        'After something is chosen, Peri lets a second go by before it answers again. Clicking twice, or resting on the next button straight away, does not choose a second thing by accident.',
+      ),
+      list(
+        'A rest begun in that second is not lost: its bar starts filling as soon as the second is over.',
+        'A button that keeps going while you rest on it, such as a scroll arrow, carries on as usual.',
+        'Change how long it is, or turn it off, under Settings, as Pause after choosing.',
+      ),
+      text(
+        'When the screen changes under a pointer that is holding still, whatever lands under it does not answer until you move the pointer a little. Nothing is chosen that you were not aiming at.',
+      ),
     ],
   },
   {
@@ -139,17 +150,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Please is only said: it is not added to the phrase, to what is kept, or to what is copied. On the emergency bar it is said only if Peri already has the word for that language, so nothing there ever waits.',
       ),
       text(
-        ':present:, at the end of the row on a computer or tablet, opens a presentation window: everything Peri says appears there in large writing. Share that one window in a video call, or turn a second screen towards the room, and people can read along.',
-      ),
-      list(
-        'The words run across the bottom third of the window, as captions do. The newest is at the foot, and the rest scrolls up as more is said.',
-        ':camera: in the corner of the window shows your camera, as large as the window allows without stretching it, with what you say written across its lower third, and the background picture out of the way. The camera stays on this device.',
-        ':mic: above it mixes in your microphone, with the camera on or off: what it hears plays from the presentation window beside Peri’s voice, so a call sharing that window hears the room too. Echo cancellation is on, but headphones are best.',
-        'Sound from an ElevenLabs voice plays in the presentation window, so sharing the window shares the sound. A device voice always plays from Peri itself — browsers give it no other way out.',
-        'If the window says the sound is playing from Peri, select the window once — browsers only play sound in a window somebody has pressed in.',
-        'If the window does not open, allow pop-ups for Peri in your browser settings, as for links.',
-        'A picture behind the words can be chosen under Settings, as Presentation background. With Synchronize on, your other devices show it too.',
-        'Rest on :present: again, or close the window, to stop.',
+        ':present:, at the end of the row on a computer or tablet, opens a window that shows everything Peri says in large writing — see Presenting to a call or a room.',
       ),
       text(
         'If a paste says it was blocked, allow clipboard access for Peri in your browser settings. Firefox does not offer the clipboard to a web page at all — there, use Ctrl+V if you have a keyboard.',
@@ -591,6 +592,43 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'Peri fetches that phrase the moment you choose the voice and keeps it, so saying it later is instant. That is also why an emergency phrase can have its own voice: it is already here, with nothing to wait for. If it ever is not, the emergency bar speaks with the device voice straight away rather than pausing.',
+      ),
+    ],
+  },
+  // On its own rather than inside Building a message, where it began as a
+  // paragraph and grew a camera, a microphone and a picture.
+  {
+    title: 'Presenting to a call or a room',
+    blocks: [
+      text(
+        ':present:, at the end of the row along the top of the message box, opens a presentation window: everything Peri says appears there in large writing. It is on a computer or tablet, not a phone.',
+      ),
+      text(
+        'Share that one window in a video call, or put it on a second screen turned towards the room, and people can read along while the board stays yours.',
+      ),
+      list(
+        'The words run across the bottom third of the window, as captions do. The newest is at the foot, and the rest scrolls up as more is said.',
+        'Make the window as large as you like. The writing grows with it.',
+        'Rest on :present: again, or close the window, to stop. Closing Peri closes it too.',
+      ),
+      text('In the corner of the window are two buttons. Each works on its own, so use either, both or neither.'),
+      list(
+        ':camera: shows your camera behind the words, as large as the window allows without stretching it. The background picture steps aside while it is on.',
+        ':mic: mixes in your microphone: what it hears plays from the window beside Peri’s voice, so a call sharing the window hears the room too. Echo cancellation is on, but headphones are best.',
+      ),
+      text('The sound:'),
+      list(
+        'An ElevenLabs voice plays in the presentation window, so sharing the window shares the sound. If your call app offers to share sound with a window, turn that on.',
+        'A device voice always plays from Peri itself — browsers give it no other way out. A call hears it if your call app shares your computer’s sound, or through your microphone.',
+        'If the window says the sound is playing from Peri, select the window once. Browsers only play sound in a window somebody has pressed in, and the microphone waits for the same.',
+      ),
+      text(
+        'A picture behind the words can be chosen under Settings, as Presentation background. It is not in backups; with Synchronize on, your other devices show it too.',
+      ),
+      list(
+        'If the window does not open, allow pop-ups for Peri in your browser settings, as for links.',
+        'If the camera or microphone does not start, allow Peri to use it in your browser settings.',
+        'Nothing in the window is recorded, kept or sent by Peri. The camera and microphone stay on this device unless you share the window yourself.',
       ),
     ],
   },
