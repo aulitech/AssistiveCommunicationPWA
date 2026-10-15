@@ -289,6 +289,16 @@ describe('what is said', () => {
     expect(usage()[id].count).toBe(1)
   })
 
+  // Composed before it is said, as everything that speaks is: a blank in the
+  // box is a gap, not two brackets read out.
+  it('says a blank in the box as the gap it is', () => {
+    renderApp()
+    writeIn(box(), 'I need {} now')
+    click(iconBtn('Speak'))
+    expect(spoken).toHaveLength(1)
+    expect(spoken[0]).toMatch(/^I need\s+now$/)
+  })
+
   // More than the phrase is a message of its own.
   it('keeps a message that says more than a phrase with its choices made', () => {
     renderApp()

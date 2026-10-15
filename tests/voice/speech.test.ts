@@ -252,21 +252,38 @@ describe('while something is being said', () => {
     }
   })
 
+  // One slow to say it has been handed the words is not taken for one that
+  // has finished with them.
+  it('gives the device voice a moment to say it is busy', () => {
+    vi.useFakeTimers()
+    try {
+      vi.spyOn(speechSynthesis, 'speaking', 'get').mockReturnValue(false)
+      speak('Hello', SETTINGS)
+      act250()
+      act250()
+      expect(isSpeaking(), 'its silence was believed straight away').toBe(true)
+      vi.advanceTimersByTime(1_000)
+      expect(isSpeaking()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   // Waiting on the clip is part of saying it, and Stop then stops that.
   it('is speaking while a clip is fetched, and until it has played', async () => {
     link()
     audioReturns(true)
-    let audio: HTMLMediaElement | null = null
+    const audios: HTMLMediaElement[] = []
     HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
-      audio = this
+      audios.push(this)
       return Promise.resolve()
     }
     speak('Hello', REMOTE)
     expect(isSpeaking()).toBe(true)
     await flush()
-    expect(audio).not.toBeNull()
+    expect(audios).toHaveLength(1)
     expect(isSpeaking()).toBe(true)
-    audio!.dispatchEvent(new Event('ended'))
+    audios[0].dispatchEvent(new Event('ended'))
     expect(isSpeaking()).toBe(false)
   })
 

@@ -1379,11 +1379,11 @@ export function TalkScreen({
                 const { phrase, then, voiceURI } = filling
                 setFilling(null)
                 // Chosen in auto-speak: said as any phrase chosen there is, and
-                // the box left holding it as edit mode shows it.
-                if (then === 'say') {
+                // the box left holding it as edit mode shows it. Nothing to keep —
+                // a phrase with its choices made is the phrase it came from.
+                if (then === 'say')
                   speak(text, settings, { voiceURI, onTranslated: recordTranslated, please: settings.please })
-                  keepSaid(text)
-                } else sayMessage(composeWritten(phrase.segments, choices))
+                else sayMessage(composeWritten(phrase.segments, choices))
               }}
               onCancel={() => setFilling(null)}
             />
