@@ -5,7 +5,7 @@
 // cannot place it by clicking, so the app moves it deliberately and tracks where
 // it went.
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { BLANK } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { speak, type SpeakOptions } from '../voice/speech'
@@ -55,8 +55,16 @@ export function useComposer({
    * of the word the change is in — see `setText`.
    */
   const [phrased, setPhrased] = useState('')
-  /** What auto-speak last put in the box — see `showSaid`. */
-  const [shown, setShown] = useState('')
+  /**
+   * What auto-speak last put in the box, and how it was said — the phrase's
+   * own voice, and the language it already is where it is not the board's —
+   * see `showSaid`. `selecting` counts the times it has been put there, for the
+   * effect that selects it.
+   */
+  const [shown, setShown] = useState<{ text: string; voiceURI?: string; alreadyIn?: string; selecting: number }>({
+    text: '',
+    selecting: 0,
+  })
   const phraseEnd = useMemo(() => phraseEndIn(text, phrased), [text, phrased])
 
   /**
@@ -207,20 +215,24 @@ export function useComposer({
    * was most often what somebody typed to find the phrase, and Undo only ever
    * brings back the last thing cleared, which would be this.
    */
-  const showSaid = useCallback((said: string) => {
+  const showSaid = useCallback((said: string, how: { voiceURI?: string; alreadyIn?: string } = {}) => {
     setTextState(said)
     setPhrased(said)
-    setShown(said)
+    setShown(s => ({ text: said, ...how, selecting: s.selecting + 1 }))
     setCursorPos(said.length)
-    const el = textareaRef.current
-    // After the render that wrote the text, or the box is still holding the
-    // old value and the selection covers the wrong words.
-    setTimeout(() => {
-      if (!el || el.value !== said) return
-      el.focus()
-      el.setSelectionRange(0, said.length)
-    }, 0)
   }, [])
+
+  // Selected in the commit that wrote it, rather than on a timer after it. A
+  // dwell fires from a timer, and the render it asks for can come after a
+  // timer set beside it — which found the box still holding the old words,
+  // and selected nothing. A click happened to render first, which is why it
+  // worked one way and not the other.
+  useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!shown.selecting || !el || el.value !== shown.text) return
+    el.focus()
+    el.setSelectionRange(0, shown.text.length)
+  }, [shown])
 
   /**
    * The box holding `next`, with `phrased` what was put there rather than
@@ -270,9 +282,25 @@ export function useComposer({
       .catch(() => false)
   }, [text])
 
+  /** The box holds only what auto-speak just said, untouched. */
+  const holdsSaid = text !== '' && text === shown.text
+
+  /**
+   * Said as the phrase was, while the box holds it untouched: in its own voice,
+   * and in the language it already is — a cell off Translations is not sent to
+   * be translated a second time, nor kept a second time.
+   */
   const speakIt = useCallback(
-    () => speak(text, settings, { onTranslated, please: settings.please }),
-    [text, settings, onTranslated],
+    () =>
+      holdsSaid
+        ? speak(text, settings, {
+            voiceURI: shown.voiceURI,
+            alreadyIn: shown.alreadyIn,
+            onTranslated,
+            please: settings.please,
+          })
+        : speak(text, settings, { onTranslated, please: settings.please }),
+    [text, settings, onTranslated, holdsSaid, shown],
   )
 
   return {
@@ -287,7 +315,9 @@ export function useComposer({
      * already rather than a message being written, so it does not count as one
      * where a half-written message would hold something back.
      */
-    holdsSaid: text !== '' && text === shown,
+    holdsSaid,
+    /** The language what the box holds already is, while it holds a phrase said from Translations. */
+    saidIn: holdsSaid ? shown.alreadyIn : undefined,
     textareaRef,
     trackCursor,
     setCursor,

@@ -160,3 +160,27 @@ test('builds after a phrase auto-speak said once it is turned off', async ({ pag
   expect(both.startsWith(first + ' '), `built in front of what was said: ${both}`).toBe(true)
   expect(errors).toEqual([])
 })
+
+// Chosen by resting, with no click at all: a dwell fires from a timer, and the
+// box was once selected on a timer set beside it, which a real browser could
+// run before the box had the phrase — selected one time and not the next.
+test('selects the phrase auto-speak said when it was chosen by resting, every time', async ({ page }) => {
+  const { errors } = await openBoard(page)
+  const box = messageBox(page)
+  for (const n of [0, 1, 2]) {
+    const cell = page.locator('.phrase-cell').nth(n)
+    const at = (await cell.boundingBox())!
+    await page.mouse.move(at.x + at.width / 2 - 40, at.y + at.height / 2, { steps: 4 })
+    await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2, { steps: 4 })
+    await expect(box).toHaveValue((await cell.textContent())!.trim(), { timeout: 5_000 })
+    await expect
+      .poll(() =>
+        box.evaluate(b => {
+          const t = b as HTMLTextAreaElement
+          return [t.selectionStart, t.selectionEnd, t.value.length, document.activeElement === t]
+        }),
+      )
+      .toEqual([0, (await box.inputValue()).length, (await box.inputValue()).length, true])
+  }
+  expect(errors).toEqual([])
+})

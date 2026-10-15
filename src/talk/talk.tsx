@@ -18,7 +18,15 @@ import {
 } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
-import { LIBRARY, compose, composeWithBlank, hasChoices, parseSegments, type Phrase } from '../core/phrases'
+import {
+  LIBRARY,
+  compose,
+  composeWithBlank,
+  composeWritten,
+  hasChoices,
+  parseSegments,
+  type Phrase,
+} from '../core/phrases'
 import { soleLink, stripMarkdown } from '../core/markdown'
 import { openLink } from '../core/links'
 import {
@@ -191,6 +199,7 @@ export function TalkScreen({
     propose: proposeMessage,
     showSaid,
     holdsSaid,
+    saidIn,
     text: message,
     typed,
     load: loadMessage,
@@ -432,10 +441,13 @@ export function TalkScreen({
    * it is composed into the message for the user to send when ready.
    */
   const deliverPhrase = useCallback(
-    (phraseText: string, voiceURI?: string, blankAt = -1, alreadyIn?: string) => {
+    (phraseText: string, voiceURI?: string, blankAt = -1, alreadyIn?: string, written = phraseText) => {
       // In auto-speak the phrase is the message — it is spoken, and this is the
       // moment it counts as said. It goes in the box as well, in place of what
-      // was there and selected, so it can be copied, said again or typed over.
+      // was there and selected, so it can be copied, said again or typed over:
+      // **as it was written** (`written`, see `composeWritten`), markup and
+      // full stop and all, and remembered with the voice and the language it
+      // was said in, so Speak says it again the same way.
       if (settings.autoSpeak) {
         speak(phraseText, settings, {
           voiceURI,
@@ -451,12 +463,9 @@ export function TalkScreen({
           please: settings.please,
         })
         // Not a cell off Translations, which is in another language and is
-        // kept there already — and not put in the box either, where Speak would
-        // send words already translated to be translated again.
-        if (!alreadyIn) {
-          keepSaid(phraseText)
-          showSaid(phraseText)
-        }
+        // kept there already.
+        if (!alreadyIn) keepSaid(phraseText)
+        showSaid(written, { voiceURI, alreadyIn })
       } else {
         insertPhrase(phraseText, blankAt)
       }
@@ -538,6 +547,7 @@ export function TalkScreen({
         phrase.lang ? voiceForTranslated(settings, phrase.lang) : voiceFor(phrase.id),
         blankAt,
         phrase.lang,
+        composeWritten(phrase.segments),
       )
     },
     [
@@ -1055,8 +1065,10 @@ export function TalkScreen({
   const handleSpeak = useCallback(() => {
     if (!message.trim()) return
     speakMessage()
-    keepSaid(message)
-  }, [message, speakMessage, keepSaid])
+    // Not words off Translations, said again: they are in another language
+    // and kept there already, as auto-speak leaves them.
+    if (!saidIn) keepSaid(message)
+  }, [message, speakMessage, keepSaid, saidIn])
 
   // Copying is the other way a message leaves — into a text, an email, someone
   // else's screen. It was still said.
@@ -1318,11 +1330,17 @@ export function TalkScreen({
           {filling && (
             <SlotPicker
               phrase={filling}
-              onComplete={(text, blankAt) => {
+              onComplete={(text, blankAt, choices) => {
                 setFilling(null)
                 // A phrase can have both kinds: options to pick from, and a
                 // blank to type into. The caret goes to whatever is left.
-                deliverPhrase(text, voiceFor(filling.id), blankAt)
+                deliverPhrase(
+                  text,
+                  voiceFor(filling.id),
+                  blankAt,
+                  undefined,
+                  composeWritten(filling.segments, choices),
+                )
               }}
               onCancel={() => setFilling(null)}
             />
