@@ -51,6 +51,7 @@ import type { Composer } from './use-composer'
 import type { Editor } from './use-editor'
 import type { Listener } from './use-listen'
 import { HeardBox } from './heard'
+import { LinkFields } from './link-fields'
 
 /**
  * **Stop, over the whole of the top row, while anything is being said** — the
@@ -818,11 +819,7 @@ export function Topbar({
                 onClick={track}
                 onKeyUp={track}
                 placeholder={
-                  editMode
-                    ? 'Write a phrase, or hold one on the board to edit it…'
-                    : settings.autoSpeak
-                      ? 'Immediately speak selected phrase'
-                      : 'Dwell on a phrase or type…'
+                  editMode ? 'Write a phrase, or choose one to edit it…' : 'Immediately speak selected phrase'
                 }
                 rows={1}
                 spellCheck
@@ -885,6 +882,10 @@ export function Topbar({
               />
             )}
           </div>
+
+          {/* **Each link in the box as its text and its address**, under the
+              line, while there is one — see `link-fields.tsx`. */}
+          <LinkFields text={value} onChange={write} />
         </div>
       </div>
 
