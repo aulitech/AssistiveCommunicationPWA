@@ -1089,7 +1089,8 @@ export function TalkScreen({
           voiceURI,
         })
       } else speak(plain, settings, { voiceURI, onTranslated: recordTranslated, please: settings.please })
-      if (draft.canSave) handleSave()
+      // Save refuses words Library holds already, so those are only said.
+      handleSave()
       return
     }
     if (hasChoices(segments)) {
@@ -1105,7 +1106,6 @@ export function TalkScreen({
     editMode,
     draft.text,
     draft.voice,
-    draft.canSave,
     message,
     sayMessage,
     board.aliases,
