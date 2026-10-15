@@ -146,3 +146,17 @@ test('puts a phrase said in auto-speak in the box, selected, and typing writes o
   await expect(box).toHaveValue('x')
   expect(errors).toEqual([])
 })
+
+// With the phrase said still selected, turning auto-speak off and choosing
+// another builds after it — the caret is the end of the selection, not its start.
+test('builds after a phrase auto-speak said once it is turned off', async ({ page }) => {
+  const { errors } = await openBoard(page)
+  const cells = page.locator('.phrase-cell')
+  await cells.nth(0).click()
+  const first = await messageBox(page).inputValue()
+  await page.locator('.autospeak-toggle').click()
+  await cells.nth(1).click()
+  const both = await messageBox(page).inputValue()
+  expect(both.startsWith(first + ' '), `built in front of what was said: ${both}`).toBe(true)
+  expect(errors).toEqual([])
+})

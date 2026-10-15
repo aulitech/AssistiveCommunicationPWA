@@ -72,7 +72,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'With auto-speak on, every phrase you choose is spoken the moment you choose it. This suits quick back-and-forth conversation.',
       ),
       text(
-        'The phrase also goes into the message box, in place of what was there, and is selected. Type and your words replace it; :copy: copies it, and :speak: says it again. Anything you had written there comes back with :undo: after :clear:.',
+        'The phrase also goes into the message box, in place of what was there, and is selected. Type and your words replace it; :copy: copies it, and :speak: says it again.',
       ),
       text('The two buttons either side of Rest move between three ways of working:'),
       list(
