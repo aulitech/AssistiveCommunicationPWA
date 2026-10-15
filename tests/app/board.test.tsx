@@ -301,6 +301,8 @@ describe('auto-speak', () => {
     expect(spoken).toHaveLength(1)
     expect(spoken[0]).not.toMatch(/[{}]/)
     expect(message(), 'the choices went into the box unmade').not.toMatch(/[{}]/)
+    // The choices made, as written: what was said, with the phrase's own ending.
+    expect(message().replace(/\.$/, ''), 'the box does not hold the choices made').toBe(spoken[0])
   })
 
   // **Switching one off says nothing about the other.** This landed in edit
