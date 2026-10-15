@@ -48,13 +48,6 @@ function renderApp(settings: Record<string, unknown> = {}, { key = 'sk-ant-test'
   localStorage.setItem(STORE_KEY, JSON.stringify({ custom: BOARD }))
   container = render(<App />).container
   settle()
-  // The board opens in auto-speak whatever was stored, so a test about what
-  // lands in the message box has to switch out of it: two dwells on the edit
-  // toggle, auto-speak to edit to composing.
-  if (settings.autoSpeak !== true) {
-    click($('.edit-toggle'))
-    click($('.edit-toggle'))
-  }
 }
 
 const openSettings = () => {
@@ -378,6 +371,8 @@ describe('the control', () => {
    */
   it('puts the board in auto-speak on the way in', () => {
     renderApp()
+    // Edit mode, the only other way of working.
+    click($('.edit-toggle'))
     expect(speaking(), 'the board was already talking, so this proves nothing').toBe(false)
 
     toggleMic()

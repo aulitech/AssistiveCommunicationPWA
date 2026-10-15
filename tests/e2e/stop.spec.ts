@@ -5,7 +5,7 @@
 // has just asked for.
 
 import { expect, test, type Page } from '@playwright/test'
-import { composing, messageBox, openBoard } from './board'
+import { messageBox, openBoard } from './board'
 
 /**
  * A synthesiser that goes on talking until it is cancelled, and counts the
@@ -70,7 +70,6 @@ test('covers the whole top row while a phrase is said, and stops it', async ({ p
 test('refuses the pointer that rested on Speak, until it is aimed', async ({ page }) => {
   await talkingUntilStopped(page)
   const { errors } = await openBoard(page)
-  await composing(page)
   await messageBox(page).fill('Hello there')
   const speak = page.locator('.icon-btn[aria-label="Speak"]')
   const box = (await speak.boundingBox())!

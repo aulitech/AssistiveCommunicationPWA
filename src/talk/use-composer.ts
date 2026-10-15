@@ -6,7 +6,6 @@
 // it went.
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { BLANK } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { speak, type SpeakOptions } from '../voice/speech'
 import { keepPhrased, phraseEndIn, typedFrom as typedFromIn } from './typed'
@@ -110,72 +109,6 @@ export function useComposer({
     const pos = Math.min(cursorPos, text.length)
     return text.slice(typedFrom(pos), pos).trim()
   }, [text, cursorPos, typedFrom])
-
-  /**
-   * Replace the partial word left of the cursor with `phraseText`.
-   *
-   * `blankAt` is where that phrase's first unfilled blank sits within it, or -1.
-   * It has to be handed in rather than searched for: a blank is empty text now,
-   * and searching a string for an empty one matches at the first position asked
-   * about — which would land the caret at the start of every phrase inserted,
-   * blank or not. `composeWithBlank` is what knows.
-   */
-  const insert = useCallback(
-    (phraseText: string, blankAt = -1) => {
-      const el = textareaRef.current
-      // **Where the composer says the caret is, not where the box says.** A box
-      // without focus does not keep its caret: Chrome puts it back to the start
-      // when somebody rests on a category tab, with no event and no call on the
-      // box at all — and the next phrase chosen went in *before* the one before
-      // it. Unreachable while choosing a phrase took the tabs away, and found in
-      // a browser the day it stopped doing that. `cursorPos` is what the word
-      // the board narrows to is read from already, so the two now agree.
-      const pos = Math.min(cursorPos, text.length)
-      const before = text.slice(0, pos)
-      const after = text.slice(pos)
-      // What was being typed is replaced, the space between it and what came
-      // before kept — and none kept where nothing came before. A caret against
-      // the end of a phrase has nothing typed after it, so the phrase is kept
-      // whole.
-      const from = typedFrom(pos)
-      const stripped = from > 0 ? text.slice(0, from) + (before.slice(from).match(/^\s*/)?.[0] ?? '') : ''
-      const separator = stripped.length > 0 && !stripped.endsWith(' ') ? ' ' : ''
-      const inserted = stripped + separator + phraseText
-      const newText = inserted + (after.startsWith(' ') || after === '' ? '' : ' ') + after
-
-      setHistory(h => [...h, { text, phrased }])
-      setTextState(newText)
-      // The end of the phrase, wherever the caret goes: in a blank, a word is
-      // exactly what comes next — but a caret taken from the blank to the end
-      // without typing is still against a phrase that ended there.
-      setPhrased(inserted)
-
-      // Land the cursor in the first unfilled blank if there is one, so the word
-      // can be typed straight into the gap; otherwise sit at the end of what was
-      // just inserted.
-      const at = blankAt >= 0 ? stripped.length + separator.length + blankAt : -1
-      setTimeout(() => {
-        // **Typed into since, it is theirs.** Chrome takes a key press ahead of
-        // a timer, so on a board busy redrawing itself after the choice, what
-        // somebody typed next can arrive first — and putting the caret back at
-        // the phrase then put the letters after it behind it.
-        if (el && el.value !== newText) return
-        if (el) {
-          if (at >= 0) {
-            el.selectionStart = at
-            // Empty selects nothing and simply places the caret, which is the
-            // whole of what a blank offers once it has no characters of its own.
-            el.selectionEnd = at + BLANK.length
-            el.focus()
-          } else {
-            el.selectionStart = el.selectionEnd = inserted.length
-          }
-        }
-        setCursorPos(at >= 0 ? at : inserted.length)
-      }, 0)
-    },
-    [text, phrased, cursorPos, typedFrom],
-  )
 
   /**
    * Put something in the box that the user did not type.
@@ -321,7 +254,6 @@ export function useComposer({
     textareaRef,
     trackCursor,
     setCursor,
-    insert,
     propose,
     showSaid,
     load,

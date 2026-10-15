@@ -23,7 +23,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Peri is a board of phrases you speak with, and it opens ready to talk. Rest the pointer on a phrase and it is said straight away, because :auto-speak: is on every time Peri is opened. Nothing needs a click.',
       ),
       text(
-        'To build a longer message first, turn :auto-speak: off. Then each phrase you rest on goes into the message box at the top, and :speak: says the whole of it.',
+        'To build a longer message first, turn on :edit:. Then each phrase you rest on goes into the message box at the top, where the caret is, and :speak: says the whole of it.',
       ),
       text('The screen has three parts:'),
       list(
@@ -36,7 +36,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'At the far left of the top row: :copy: and :paste:.',
-        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then the three modes — :edit:, the Rest bar, and :auto-speak: — then :please: and :present:.',
+        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then :edit:, the Rest bar and :auto-speak: — then :please: and :present:.',
         'At the right of the top row, on a wide screen: the language and the voice.',
         'At the left end of the line: :clear:, which empties the box — and afterwards offers :undo:.',
         'Right after the last word you write: :speak:, filled in green, because it is the one the whole board exists to reach. It is there once there is something in the box, and moves along as the words do.',
@@ -74,19 +74,18 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'The phrase also goes into the message box as it was written, in place of what was there, and is selected. Type and your words replace it; :copy: copies it, and :speak: says it again in the same voice and language.',
       ),
-      text('The two buttons either side of Rest move between three ways of working:'),
+      text('The two buttons either side of Rest move between two ways of working:'),
       list(
         ':auto-speak: Auto-speak — a phrase is spoken the moment you choose it.',
-        ':edit: Edit — a phrase you choose opens in the box to be reworded.',
-        'Neither one on — a phrase you choose goes into the box, to be part of a longer sentence.',
+        ':edit: Edit — a phrase you choose goes into the box: into an empty box it opens to be reworded, and into one with words in it, it goes in where the caret is.',
       ),
       text(
-        'Each button means its own way of working and nothing else. Turning :auto-speak: off comes back to building a message, and turning :edit: off does the same — neither one takes you to the other.',
+        'One of the two is always on. Turning :auto-speak: off turns :edit: on, and turning :edit: off turns :auto-speak: back on.',
       ),
       text(
         'Switching between them never changes what is in the message box or which phrases are showing. Turning :edit: off keeps what you wrote in the box as your message.',
       ),
-      text('Turning either one on turns the other off, so any of the three is one rest away from any other.'),
+
       text(
         'While Peri is speaking, a wide red :stop: bar covers the whole top row, over the message box and the menu. Rest on it to stop. Once the words end it goes, and the row is back as it was.',
       ),
@@ -126,9 +125,12 @@ export const HELP_SECTIONS: ProseSection[] = [
   {
     title: 'Building a message',
     blocks: [
-      text('The box at the top holds the message you are putting together.'),
+      text(
+        'The box at the top holds the message you are putting together. A message of several phrases is built in :edit: mode.',
+      ),
       list(
-        'Rest on any phrase in the grid to add it to the box, as it was written: the same words, marks and full stop you see when you edit it.',
+        'In :edit: mode, rest on a phrase to put it in the box where the caret is, as it was written: the same words, marks and full stop you see when you edit it. Into an empty box, it opens to be reworded instead.',
+        ':speak: after :save: says what is in the box and saves it as a phrase, in one rest. If Library has those words already, it only says them.',
         'Type in the box to find phrases in Library. After you choose a phrase, what you type next starts a new search.',
         'Phrases that begin with what you typed come first, then phrases with a word that begins with it. Last are phrases whose first letters it spells, so "ttyl" finds "Talk to you later".',
         'In each of those groups, the phrase you used most recently comes first.',
@@ -230,7 +232,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'With auto-speak on, the chooser opens as soon as you choose the phrase.',
-        'Building a message, it opens when you rest on :speak:. The box keeps the phrase, so the next :speak: asks again.',
+        'In :edit: mode, the phrase goes in where the caret is, and the chooser opens when you rest on :speak:. The box keeps the phrase, so the next :speak: asks again.',
       ),
       text(
         'A phrase showing ___ has a blank with nothing behind it yet. It is added as it stands, with the blank ready to type over.',
@@ -293,11 +295,12 @@ export const HELP_SECTIONS: ProseSection[] = [
         'In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again.',
       ),
       text(
-        'Turning edit mode on changes nothing you can see: the box keeps its words and the phrases stay as they were. Typing searches the phrases, just as it does while building a message, so you can find the one to change by writing it. :clear: on the left starts a new phrase.',
+        'Turning edit mode on changes nothing you can see: the box keeps its words and the phrases stay as they were. Typing searches the phrases, so you can find the one to change by writing it. :clear: on the left starts a new phrase.',
       ),
       text('The controls on the box mean something else while it is on, in the same places:'),
       list(
         ':save:, right after the last word, saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for. Like Speak, it is there once there is something to save.',
+        ':speak: after :save: says what is in the box and saves it too, so a message you build is kept as a phrase.',
         ':delete:, at the far right of the row once you have chosen a phrase, on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
         ':clear: at the left end of the line starts a new phrase — the same button that empties the message the rest of the time. :paste: stays where it is; :copy: is not there in edit mode.',
@@ -307,7 +310,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text('And on the board itself:'),
       list(
-        'Choose any phrase to bring it into the box and change its wording.',
+        'Choose any phrase into an empty box to bring it in and change its wording. With words in the box, a phrase you choose goes in where the caret is; :clear: first to change a different phrase.',
         'A new phrase starts in the category and voice you last used, so adding several in a row takes one choice rather than one each.',
         'After a delete, or taking a phrase out of a category, :undo: where :clear: was puts it back where it was, until you start on something else.',
         ':add: among the tools at the end of the category tabs makes a new category. So does New category… at the end of the grid of categories under the box.',

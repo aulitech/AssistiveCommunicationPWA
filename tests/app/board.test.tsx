@@ -4,7 +4,7 @@ import { cleanup, fireEvent, act } from '@testing-library/react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import App from '../../src/App'
-import { PHRASES, composeWithBlank, hasBlank } from '../../src/core/phrases'
+import { PHRASES, hasChoices, parseSegments } from '../../src/core/phrases'
 import { DEFAULT_SETTINGS } from '../../src/core/store'
 import { lastUtterance, spoken, unmeasuredGrid } from '../setup'
 import {
@@ -114,10 +114,11 @@ describe('resting', () => {
 })
 
 describe('choosing a phrase', () => {
-  it('composes it into the message', () => {
+  it('says it, and puts it in the box', () => {
     renderApp()
     const cell = plainCell()
     click(cell)
+    expect(spoken).toEqual([cell.textContent])
     expect(message()).toBe(cell.textContent)
   })
 
@@ -129,18 +130,16 @@ describe('choosing a phrase', () => {
     expect(message()).toBe(cell.textContent)
   })
 
-  // **As edit mode opens it**, in every mode: the full stop at the end is the
-  // phrase's own and stays, and it is put there rather than selected. Edit mode
-  // turned on opens the phrase itself, the box holding its own wording — cut
-  // down, it was a copy that could not be saved.
+  // **As edit mode opens it**: the full stop at the end is the phrase's own and
+  // stays. Edit mode turned on opens the phrase itself, the box holding its own
+  // wording — cut down, it was a copy that could not be saved.
   it('puts the phrase in the box as it was written, which edit mode opens', () => {
     // The whole board on screen, to find one phrase among thousands.
     unmeasuredGrid()
-    renderApp({ autoSpeak: false })
+    renderApp()
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
     expect(message()).toBe('I want a hug.')
-    expect([box().selectionStart, box().selectionEnd], 'a phrase built on was selected').toEqual([13, 13])
 
     click(editToggle())
     expect(box().value).toBe('I want a hug.')
@@ -148,23 +147,120 @@ describe('choosing a phrase', () => {
   })
 
   // Said as the board says it, and the phrase it came from rather than a new one.
-  it('says a phrase built on without its full stop, and keeps nothing new', () => {
+  it('says it again without its full stop, and keeps nothing new', () => {
     unmeasuredGrid()
-    renderApp({ autoSpeak: false })
+    renderApp()
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
     click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak')!)
-    expect(spoken).toEqual(['I want a hug'])
+    expect(spoken).toEqual(['I want a hug', 'I want a hug'])
     const kept = JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}').custom ?? []
     expect(kept, 'the phrase was kept again for its full stop').toEqual([])
   })
 
-  it('speaks the composed message with the user settings', () => {
-    renderApp({ rate: 1.5, volume: 0.4, autoSpeak: false })
+  it('speaks with the user settings', () => {
+    renderApp({ rate: 1.5, volume: 0.4 })
     click(plainCell())
-    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak')!)
     expect(spoken).toEqual([message()])
     expect(lastUtterance).toMatchObject({ rate: 1.5, volume: 0.4 })
+  })
+})
+
+/**
+ * **Edit mode is where a sentence is built out of phrases**, now that there is
+ * no composing mode beside it: a phrase chosen into an empty box opens, to be
+ * reworded or deleted, and one chosen into words goes in at the caret. Speak,
+ * after Save, says the phrase being written and saves it.
+ */
+describe('building in edit mode', () => {
+  const speakAndSave = () => $$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak and save')!
+  const store = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}')
+  const usage = () => JSON.parse(localStorage.getItem('peri_usage') ?? '{}')
+
+  it('opens a phrase chosen into an empty box', () => {
+    unmeasuredGrid()
+    renderApp()
+    click(editToggle())
+    click(cells().find(c => c.textContent === 'I want a hug.')!)
+    settle()
+    expect(box().value).toBe('I want a hug.')
+    expect(spoken).toEqual([])
+    expect($('.phrase-edit-bar')?.textContent ?? '', 'the phrase was not opened').not.toMatch(/new phrase/i)
+  })
+
+  it('puts a phrase chosen into words at the caret, and counts it as used', () => {
+    unmeasuredGrid()
+    renderApp()
+    click(editToggle())
+    click(cells().find(c => c.textContent === 'I want a hug.')!)
+    settle()
+    const next = plainCell(['I want a hug.'])
+    const id = next.getAttribute('data-phrase')!
+    click(next)
+    settle()
+    expect(box().value).toBe(`I want a hug. ${next.textContent}`)
+    expect([box().selectionStart, box().selectionEnd]).toEqual([box().value.length, box().value.length])
+    expect(spoken, 'a phrase put in the box was said').toEqual([])
+    expect(usage()[id]?.count).toBe(1)
+  })
+
+  it('puts it in at the caret rather than at the end', () => {
+    unmeasuredGrid()
+    renderApp()
+    click(editToggle())
+    click(cells().find(c => c.textContent === 'I want a hug.')!)
+    settle()
+    // The caret taken back to the start of the phrase.
+    act(() => {
+      box().setSelectionRange(0, 0)
+      fireEvent.select(box())
+    })
+    const next = plainCell(['I want a hug.'])
+    click(next)
+    settle()
+    expect(box().value).toBe(`${next.textContent} I want a hug.`)
+  })
+
+  it('says the phrase being written, and saves it', () => {
+    renderApp()
+    click(editToggle())
+    writeIn(box(), 'Nobody has written this before')
+    click(speakAndSave())
+    expect(spoken).toEqual(['Nobody has written this before'])
+    expect(store().custom.map((c: { text: string }) => c.text)).toEqual(['Nobody has written this before'])
+    expect(box().value, 'saved, the draft starts again').toBe('')
+  })
+
+  // Library has it already: said, and nothing saved twice.
+  it('only says words that are on the board already', () => {
+    unmeasuredGrid()
+    renderApp()
+    click(editToggle())
+    writeIn(box(), 'I want a hug.')
+    click(speakAndSave())
+    expect(spoken).toEqual(['I want a hug'])
+    expect(store().custom ?? []).toEqual([])
+  })
+
+  it('asks for the choices before saying them, and keeps the phrase with them', () => {
+    renderApp()
+    click(editToggle())
+    writeIn(box(), "I want the {['red', 'blue']} one")
+    click(speakAndSave())
+    expect($('.slot-picker')).not.toBeNull()
+    click($$('.slot-option').find(o => o.textContent === 'blue'))
+    expect(spoken).toEqual(['I want the blue one'])
+    expect(store().custom.map((c: { text: string }) => c.text)).toEqual(["I want the {['red', 'blue']} one"])
+  })
+
+  it('has Save first and Speak after it', () => {
+    renderApp()
+    click(editToggle())
+    writeIn(box(), 'Some words')
+    expect($$('.after-text .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual([
+      'Save phrase',
+      'Speak and save',
+    ])
   })
 })
 
@@ -193,48 +289,45 @@ describe('fill-in-the-blank phrases', () => {
       (p: { id: string }) => p.id,
     )
 
-  it('puts it in the box as edit mode shows it, and asks nothing yet', () => {
+  it('asks for the choices as it is chosen, and keeps the phrase in the box', () => {
     visit()
     renderApp()
     click(visitCell())
-    settle()
-
-    expect($('.slot-picker'), 'the choices were asked for before anything was said').toBeNull()
+    expect($('.slot-picker')).not.toBeNull()
     expect(message()).toBe(VISIT.text)
     expect(spoken).toEqual([])
-  })
-
-  it('asks for the choices when it is said, and says the ones chosen', () => {
-    visit()
-    renderApp()
-    click(visitCell())
-    settle()
-    click(speakButton())
-
-    expect($('.slot-picker')).not.toBeNull()
-    expect(spoken, 'said before the choices were made').toEqual([])
     click(option('nurse'))
     expect($('.slot-picker')).toBeNull()
     expect(spoken).toEqual(['I need to see the nurse today'])
-    // The box still holds the phrase, so the next Speak asks again.
     expect(message()).toBe(VISIT.text)
     expect(kept(), 'the phrase was kept again with its choices made').toEqual(['custom-visit'])
+  })
 
+  // The box still holds the phrase, so Speak asks again.
+  it('asks again when it is said again', () => {
+    visit()
+    renderApp()
+    click(visitCell())
+    click(option('nurse'))
     click(speakButton())
+    expect($('.slot-picker')).not.toBeNull()
     click(option('doctor'))
     expect(spoken).toEqual(['I need to see the nurse today', 'I need to see the doctor today'])
   })
 
-  // Choices anywhere in the box, after a phrase put there before it.
-  it('asks for them after another phrase in the box', () => {
+  // Built in edit mode, after another phrase: in at the caret as edit mode
+  // shows it, and asked for when it is said.
+  it('goes in at the caret in edit mode, and is asked for when said', () => {
     visit()
     renderApp()
+    click(editToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
     click(visitCell())
     settle()
-    expect(message()).toBe(`I want a hug. ${VISIT.text}`)
-    click(speakButton())
+    expect(box().value).toBe(`I want a hug. ${VISIT.text}`)
+    expect($('.slot-picker')).toBeNull()
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak and save')!)
     click(option('doctor'))
     expect(spoken).toEqual(['I want a hug. I need to see the doctor today'])
   })
@@ -243,8 +336,6 @@ describe('fill-in-the-blank phrases', () => {
     visit()
     renderApp()
     click(visitCell())
-    settle()
-    click(speakButton())
     click($('.slot-cancel'))
 
     expect($('.slot-picker')).toBeNull()
@@ -257,7 +348,7 @@ describe('fill-in-the-blank phrases', () => {
     visit()
     renderApp()
     click(visitCell())
-    settle()
+    click($('.slot-cancel'))
     click(editToggle())
     expect(box().value).toBe(VISIT.text)
     expect($('.toast')?.textContent).toMatch(/^Editing this phrase/)
@@ -407,25 +498,24 @@ describe('auto-speak', () => {
     expect(message()).toBe(held)
   })
 
-  // **Switching one off says nothing about the other.** This landed in edit
-  // mode for most of the app's life, on the grounds that somebody who does not
-  // want a phrase spoken must want to change it — so the one toggle a person
-  // building a sentence reaches for put them in the one mode where a dwell
-  // rewrites the board, and composing, which is what they were after, took a
-  // second dwell on the other control to reach.
-  it('goes to composing when it is switched off, never to edit mode', () => {
-    renderApp({ autoSpeak: true })
+  // **Two ways of working, and always one of them.** There was a third —
+  // composing — and it was taken out on request: switching auto-speak off is
+  // switching edit mode on, and the other way round.
+  it('goes to edit mode when it is switched off, and back when edit goes off', () => {
+    renderApp()
     click(speakToggle())
-
     expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
-    expect(editToggle().getAttribute('aria-pressed')).toBe('false')
-    expect($('.app')?.classList.contains('edit-mode')).toBe(false)
+    expect(editToggle().getAttribute('aria-pressed')).toBe('true')
+    expect($('.app')?.classList.contains('edit-mode')).toBe(true)
 
-    // The board is collecting rather than saying or opening, in one dwell.
-    const cell = plainCell()
-    click(cell)
-    expect(spoken).toEqual([])
-    expect(message()).toBe(cell.textContent)
+    click(editToggle())
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
+    expect(editToggle().getAttribute('aria-pressed')).toBe('false')
+
+    click(editToggle())
+    click(speakToggle())
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
+    expect(editToggle().getAttribute('aria-pressed')).toBe('false')
   })
 
   // Stored like every other setting, and ignored on the way back in. A board
@@ -572,61 +662,44 @@ describe('the scroll rail', () => {
   })
 })
 
+const hasChoicesIn = (source: string) => hasChoices(parseSegments(source))
+
 describe('a phrase with a blank', () => {
   // The blank is there to be typed into, and a dwell user cannot place a caret
-  // by clicking — so putting it in the gap is the whole of that feature.
-  //
-  // Found by the drawn gap rather than by looking for `BLANK` in the text: a
-  // blank leaves no characters behind, and a text search for an empty string
-  // matches the first cell on the board whether it has one or not.
-  it('lands the caret in the gap, ready to type into', () => {
+  // by clicking — so selecting it, in edit mode where the phrase goes in at
+  // the caret as edit mode shows it, is the whole of that feature: the next
+  // word typed fills it.
+  it('selects the gap in edit mode, ready to type into', () => {
     // Looks for a phrase among the table's thousands, so the board has to be
     // holding all of them rather than the windowful it renders when measured.
     unmeasuredGrid()
-    // A shipped phrase whose gap has words after it in the *composed* text, so
-    // "the caret went to the end" is a different answer from "it went to the
-    // gap". Picked from the table rather than the DOM: a cell draws the segments
-    // it was given, and composing tidies them — one ending "for {}." draws a
-    // full stop after the gap that the text it produces does not have.
-    const midBlank = PHRASES.find(p => {
-      const { text, blankAt } = composeWithBlank(p.segments)
-      return hasBlank(p.segments) && blankAt >= 0 && blankAt < text.length
-    })!
+    const midBlank = PHRASES.find(p => /\{\s*\}\s*\S/.test(p.source) && !hasChoicesIn(p.source))!
     expect(midBlank, 'no phrase on the board has a gap with words after it').toBeDefined()
 
     renderApp()
-    const blankCell = cells().find(c => c.getAttribute('aria-label') === midBlank.text)!
-    click(blankCell)
+    click(editToggle())
+    click(cells().find(c => c.textContent === 'I want a hug.')!)
+    settle()
+    click(cells().find(c => c.getAttribute('data-phrase') === midBlank.id)!)
     settle()
 
-    const box = $<HTMLTextAreaElement>('.text-display')!
-    const before = box.value.slice(0, box.selectionStart)
-    const after = box.value.slice(box.selectionEnd)
-
-    // Nothing is selected: there are no characters to type over, only a place.
-    expect(box.selectionStart).toBe(box.selectionEnd)
-    expect(after, 'the caret went to the end rather than the gap').not.toBe('')
-
-    // The property that matters, and the one the old selected `___` gave for
-    // free: a word typed here needs no spacing of its own. Asserted as tidiness
-    // rather than as "a space either side", because a gap before punctuation
-    // correctly has no space after it — "Did you see ?" takes the name straight
-    // in front of the question mark.
-    const typed = before + 'Mum' + after
-    expect(typed).toContain('Mum')
-    expect(typed, 'a word typed into the gap did not sit cleanly').toBe(
-      typed.replace(/ {2,}/g, ' ').replace(/ +([,.?!])/g, '$1'),
-    )
+    const b = box()
+    expect(b.value.slice(b.selectionStart, b.selectionEnd), 'the gap is not what is selected').toMatch(/^\{\s*\}$/)
+    expect(b.value.slice(b.selectionEnd), 'the words after the gap went').not.toBe('')
   })
 
   it('sits at the end when there is no blank to land on', () => {
+    unmeasuredGrid()
     renderApp()
-    click(plainCell())
+    click(editToggle())
+    click(cells().find(c => c.textContent === 'I want a hug.')!)
+    settle()
+    click(plainCell(['I want a hug.']))
     settle()
 
-    const box = $<HTMLTextAreaElement>('.text-display')!
-    expect(box.selectionStart).toBe(box.value.length)
-    expect(box.selectionStart).toBe(box.selectionEnd)
+    const b = box()
+    expect(b.selectionStart).toBe(b.value.length)
+    expect(b.selectionStart).toBe(b.selectionEnd)
   })
 })
 
@@ -952,15 +1025,17 @@ describe('the line that says what just happened', () => {
 
   it('is still there after the two seconds it used to last', () => {
     renderApp()
-    expect(toast()).toMatch(/auto-speak off/i)
+    click(editToggle())
+    expect(toast()).toMatch(/edit mode/i)
 
     act(() => void vi.advanceTimersByTime(5000))
 
-    expect(toast()).toMatch(/auto-speak off/i)
+    expect(toast()).toMatch(/edit mode/i)
   })
 
   it('goes on the next dwell, whatever it is', () => {
     renderApp()
+    click(editToggle())
     expect(toast()).toBeTruthy()
 
     // Translations rather than Library: Library is where the board opens, and
@@ -974,6 +1049,7 @@ describe('the line that says what just happened', () => {
   // that raises a message is not the one that takes it away.
   it('stays for the dwell that raised it', () => {
     renderApp()
+    click(editToggle())
 
     click(speakToggle())
 

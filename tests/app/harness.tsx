@@ -47,19 +47,15 @@ export function mount() {
   return container
 }
 
-/** Renders straight into the app screen by seeding a signed-in guest. */
-// The board opens in auto-speak, whatever was stored — so a test about
-// composing has to switch out of it, which is two dwells on the edit toggle:
-// auto-speak → edit → composing. Passing `{ autoSpeak: true }` leaves it where
-// it started.
+/**
+ * Renders straight into the app screen by seeding a signed-in guest. The board
+ * opens in auto-speak, whatever was stored; a test about building a message or
+ * a phrase turns edit mode on, which is the only other way of working.
+ */
 export function renderApp(settings: Record<string, unknown> = {}) {
   localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
   localStorage.setItem('dwellspeak_settings', JSON.stringify(settings))
   mount()
-  if (settings.autoSpeak !== true) {
-    click(editToggle())
-    click(editToggle())
-  }
 }
 
 /** No stored settings at all — what somebody opening Peri for the first time gets. */

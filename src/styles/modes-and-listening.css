@@ -593,6 +593,9 @@
   left: 0;
   z-index: 1;
   display: flex;
+  /* Save and Speak in edit mode: the gap every pair of controls in the card
+     keeps, so the two never share a rest. */
+  gap: 1.25rem;
 }
 
 .after-text:not(.is-placed) { visibility: hidden; }

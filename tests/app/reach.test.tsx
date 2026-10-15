@@ -55,9 +55,6 @@ function renderApp(store: Record<string, unknown> = {}) {
   localStorage.setItem(STORE_KEY, JSON.stringify(store))
   container = render(<App />).container
   settle()
-  // Out of auto-speak and into composing: two dwells round the mode ring.
-  click($('.edit-toggle'))
-  click($('.edit-toggle'))
 }
 
 const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))

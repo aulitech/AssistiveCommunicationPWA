@@ -101,8 +101,12 @@ describe('placing the caret in a phrase by dwell', () => {
   /** jsdom implements neither caret API, so the browser's answer is stubbed. */
   const answers = (offset: number) =>
     Object.assign(document, { caretPositionFromPoint: () => ({ offsetNode: field(), offset }) })
-  /** Arriving over the box — the pointer was somewhere else entirely. */
+  /**
+   * Arriving over the box — the pointer was somewhere else entirely, and moved
+   * on its way in, as a pointer does before it enters anything.
+   */
   const aimAt = (x: number, y: number) => {
+    fireEvent.pointerMove(document.body, { clientX: x - 120, clientY: y })
     fireEvent.pointerEnter(field(), { clientX: x, clientY: y })
     fireEvent.pointerMove(field(), { clientX: x, clientY: y })
     act(() => void vi.advanceTimersByTime(900))
@@ -182,6 +186,8 @@ describe('placing the caret in a phrase by dwell', () => {
   it('is not restarted by the wobble of holding still', () => {
     openEditor()
     answers(7)
+    // Moved on its way in, as a pointer is before it enters anything.
+    fireEvent.pointerMove(document.body, { clientX: 80, clientY: 100 })
     fireEvent.pointerEnter(field(), { clientX: 200, clientY: 100 })
     // Most of the wait, a small wobble, then the rest of it.
     act(() => void vi.advanceTimersByTime(600))
@@ -264,7 +270,6 @@ describe('edit mode', () => {
   // both at once.
   it('switches auto-speak off when it starts', () => {
     renderApp()
-    click(speakToggle())
     expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
 
     click(editToggle())

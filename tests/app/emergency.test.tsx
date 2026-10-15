@@ -13,22 +13,27 @@ const $ = <T extends Element = HTMLElement>(sel: string) => container.querySelec
 const $$ = <T extends Element = HTMLElement>(sel: string) => [...container.querySelectorAll<T>(sel)]
 const settle = () => act(() => void vi.advanceTimersByTime(50))
 
+/**
+ * A pointer that travelled to what it is clicking, as a real one does — and as
+ * the guard against the screen moving under a resting pointer needs, choosing a
+ * phrase in edit mode holding everything until the pointer moves.
+ */
+let pointerAt = 0
 function click(el: Element | null | undefined) {
   if (!el) throw new Error('tried to click something that is not rendered')
+  pointerAt = (pointerAt + 200) % 1000
+  fireEvent.pointerMove(document.body, { clientX: pointerAt, clientY: 300 })
   fireEvent.click(el)
   settle()
 }
 
-// The board opens in auto-speak, whatever was stored, and these tests are about
-// composing and editing — so each render switches out of it, which is two
-// dwells on the edit toggle: auto-speak → edit → composing.
+// The board opens in auto-speak, whatever was stored; a test about editing
+// turns edit mode on, the only other way of working.
 function renderApp() {
   localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
   localStorage.removeItem('dwellspeak_settings')
   container = render(<App />).container
   settle()
-  click(editToggle())
-  click(editToggle())
 }
 
 const STORE_KEY = 'dwellspeak_phrase_store_v2'

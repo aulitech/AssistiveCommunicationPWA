@@ -7,7 +7,6 @@ import {
   activeTab,
   categories,
   cell,
-  composing,
   draftCategory,
   editMode,
   fileUnder,
@@ -70,7 +69,6 @@ test('reaches a new phrase past the end of what is rendered', async ({ page }) =
 // cells and where they are scrolled to are as they were.
 test('opens the phrase in the message box, and leaves the board as it was', async ({ page }) => {
   const { errors } = await openBoard(page)
-  await composing(page)
   await cell(page, 'Once in a blue moon').first().click()
   const before = await page.evaluate(() => ({
     cells: [...document.querySelectorAll('.phrase-cell')].slice(0, 12).map(c => c.textContent),

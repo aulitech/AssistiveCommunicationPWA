@@ -653,14 +653,13 @@ describe('the board moving under a resting gaze', () => {
   }
 
   /**
-   * Composing, where a phrase chosen goes into the box and the board narrows
-   * under the pointer. Two dwells on the mode toggle: auto-speak → edit →
-   * composing.
+   * Edit mode, where a phrase chosen goes into the box — opened into an empty
+   * one, put in at the caret after that — and the box changes under the
+   * pointer that chose it.
    */
   const composing = () => {
     renderApp(SHARE_A_WORD)
     showSorted()
-    click($('.edit-toggle'))
     click($('.edit-toggle'))
   }
 
@@ -853,8 +852,6 @@ describe('the mark on the last phrase said', () => {
   // place in the grid. Typing is not a dwell, so the mark is still there.
   it('stays on the phrase when the board moves under it', () => {
     renderApp([...BOARD, { id: 'custom-split', text: 'Banana split', category: 'Library' }])
-    click($('.edit-toggle'))
-    click($('.edit-toggle'))
     const typeIn = (typed: string) => {
       fireEvent.change($('.text-display')!, { target: { value: typed } })
       fireEvent.select($('.text-display')!, {
@@ -1148,8 +1145,8 @@ describe('what is counted', () => {
     renderApp()
     showSorted()
     click(cellFor('Apple'))
+    // Edit mode opens the phrase the box holds.
     click($('.edit-toggle'))
-    click(cellFor('Apple'))
     click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Take out of Sorted'))
 
     expect(JSON.parse(localStorage.getItem('peri_usage')!)['custom-a']?.count).toBe(1)

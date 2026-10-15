@@ -16,7 +16,10 @@ import { cancelAllDwells, holdDwellsUntilMoved } from '../ui/dwell'
 import { LIBRARY, type Phrase } from '../core/phrases'
 import { TRANSLATED_CATEGORY } from './use-translated'
 import { SUGGEST_CATEGORY } from './suggestions'
-import { keepPhrased, typedIn } from './typed'
+import { insertAt, keepPhrased, typedIn } from './typed'
+
+/** A blank to type into, as a phrase's source writes it. */
+const BLANK_IN_SOURCE = /\{\s*\}/
 
 /** Neither is a category on the board, so a phrase off one is kept rather than edited. */
 const keepingOf = (phrase: Phrase | null) =>
@@ -86,6 +89,7 @@ export function useEditor({
   voiceFor,
   duplicateOf,
   categoriesOf,
+  box,
 }: {
   allCategories: string[]
   /**
@@ -99,6 +103,8 @@ export function useEditor({
   duplicateOf: (text: string, onBar: boolean, exceptId?: string) => string | undefined
   /** The categories that refer to a phrase already on the board. */
   categoriesOf: (id: string) => string[]
+  /** The box the draft is written in, for the caret a phrase put in it leaves. */
+  box: React.RefObject<HTMLTextAreaElement | null>
 }) {
   const [target, setTarget] = useState<Target | null>(null)
   const [edits, setEdits] = useState<Edits>({})
@@ -206,6 +212,59 @@ export function useEditor({
     narrowing.current = typed !== ''
   }, [typed])
 
+  /** The draft as it stands, for `choose`, which has to stay stable as `open` does. */
+  const live = useRef({ text: '', phrased: '', cursor: 0 })
+  useEffect(() => {
+    live.current = { text: draft.text, phrased, cursor }
+  }, [draft.text, phrased, cursor])
+
+  /**
+   * **A phrase chosen in edit mode**: into an empty box it opens, to be reworded
+   * or deleted; into one with words in it, it goes in at the caret, as edit
+   * mode shows it — choices and all — and what the box holds is the phrase
+   * being written. So a sentence is built out of phrases here, now that edit
+   * mode is the only place one is.
+   *
+   * Stable for the reason `open` is.
+   */
+  const choose = useCallback(
+    (phrase: Phrase | null, isEmergency = false) => {
+      const { text, phrased: was, cursor: at } = live.current
+      // **Choosing changes the box under the pointer that chose**, opened or
+      // put in — it can grow and push the grid down, and a search it ends lets
+      // the whole tab back — so nothing may be chosen until the gaze moves, as
+      // nothing could when choosing built a message outside edit mode.
+      if (phrase) holdDwellsUntilMoved()
+      if (!phrase || !text.trim()) {
+        open(phrase, isEmergency)
+        return 'opened' as const
+      }
+      cancelAllDwells()
+      const next = insertAt(text, was, at, phrase.source)
+      // **A blank is selected**, so the word typed next is the one that fills
+      // it — the gap a phrase leaves to be typed into, as edit mode shows it.
+      const gap = phrase.source.match(BLANK_IN_SOURCE)
+      const from = gap ? next.phrased.length - phrase.source.length + (gap.index ?? 0) : next.caret
+      const to = gap ? from + gap[0].length : next.caret
+      // Typing into the gap is typing, and searches the board as typing does.
+      const phrasedNow = gap ? next.text.slice(0, from) : next.phrased
+      setEdits(e => ({ ...e, text: next.text }))
+      setPhrased(phrasedNow)
+      setCursor(from)
+      live.current = { text: next.text, phrased: phrasedNow, cursor: from }
+      // After the render that writes the words, unless something was typed
+      // into the box meanwhile — then it is theirs.
+      setTimeout(() => {
+        const el = box.current
+        if (!el || el.value !== next.text) return
+        el.focus()
+        el.setSelectionRange(from, to)
+      }, 0)
+      return 'inserted' as const
+    },
+    [open, box],
+  )
+
   return {
     draft,
     isUntouched,
@@ -213,6 +272,7 @@ export function useEditor({
     phrased,
     cursor,
     open,
+    choose,
     startNew,
     setText,
     setCategories,
