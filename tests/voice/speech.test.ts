@@ -50,6 +50,15 @@ describe('with no account linked', () => {
     expect(spoken).toEqual([])
   })
 
+  // The message box holds a phrase as it was written and the board says it
+  // without its full stop: the two have to be the same words to everything
+  // keyed by them. A question mark is heard, and stays.
+  it('says a phrase without the full stop at its end, and a question as one', () => {
+    speak('I want a hug.', SETTINGS)
+    speak('**Are** you there?', SETTINGS)
+    expect(spoken).toEqual(['I want a hug', 'Are you there?'])
+  })
+
   // A backup from a device that had an account restores the chosen voice along
   // with everything else. On a device with no account it has to mean something.
   it('falls back to the device voice for a voice it cannot reach', async () => {
@@ -83,6 +92,20 @@ describe('with an account linked', () => {
     await flush()
 
     expect(played[0]).toEqual({ volume: 0.5, rate: 1.5 })
+  })
+
+  // A phrase put in the box as it was written and said again with Speak is the
+  // clip the board already paid for.
+  it('does not buy a phrase again for the full stop at its end', async () => {
+    link()
+    audioReturns(true)
+    speak('I want a hug', REMOTE)
+    await flush()
+    speak('I want a hug.', REMOTE)
+    await flush()
+
+    expect(played).toHaveLength(2)
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 
   it('still uses the device voice for a device voice', async () => {
@@ -342,6 +365,14 @@ describe('speaking a translated board', () => {
     seedTranslations('fr', { 'Help me!': 'Aidez-moi !' })
     speak('Help me!', FRENCH)
     expect(spoken).toEqual(['Aidez-moi !'])
+  })
+
+  it('finds the translation of a phrase as the box holds it, full stop and all', () => {
+    seedTranslations('fr', { 'I want a hug': 'Je veux un câlin' })
+    const onTranslated = vi.fn()
+    speak('I want a hug.', FRENCH, { onTranslated })
+    expect(spoken).toEqual(['Je veux un câlin'])
+    expect(onTranslated).toHaveBeenCalledWith('I want a hug', 'Je veux un câlin', 'fr-FR')
   })
 
   it('says one translated before, without asking again', () => {
@@ -642,13 +673,13 @@ describe('saying please', () => {
   })
 
   it('says nothing extra unless it is asked for', () => {
-    speak('I want water.', SETTINGS)
-    expect(spoken).toEqual(['I want water.'])
+    speak('I want water', SETTINGS)
+    expect(spoken).toEqual(['I want water'])
   })
 
   it('says it in English on a board spoken as it is written', () => {
-    speak('I want water.', SETTINGS, { please: true })
-    expect(spoken).toEqual(['I want water, please.'])
+    speak('I want water', SETTINGS, { please: true })
+    expect(spoken).toEqual(['I want water, please'])
   })
 
   it('says it in the language the board is spoken in, from the shipped table', () => {

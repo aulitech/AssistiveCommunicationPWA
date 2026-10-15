@@ -317,7 +317,7 @@ describe('what is said', () => {
       expect(settings().please).toBe(true)
 
       say('I would like some tea.')
-      expect(spoken).toEqual(['I would like some tea, please.'])
+      expect(spoken).toEqual(['I would like some tea, please'])
       expect(kept()).toEqual(['I would like some tea.'])
 
       click(pleaseToggle())

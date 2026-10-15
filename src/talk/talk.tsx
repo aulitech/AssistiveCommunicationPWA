@@ -436,18 +436,20 @@ export function TalkScreen({
   // ── Choosing a phrase ──────────────────────────────────────────────────────
 
   /**
-   * Where a chosen phrase goes. In auto-speak it is spoken on the spot and the
-   * message box is left alone, so the grid works as a one-tap talker; otherwise
-   * it is composed into the message for the user to send when ready.
+   * Where a chosen phrase goes. In auto-speak it is spoken on the spot and put
+   * in the box selected, so the grid works as a one-tap talker; otherwise it is
+   * composed into the message for the user to send when ready. **Either way the
+   * box holds it as it was written** (`written`, see `composeWritten`) — the
+   * words edit mode opens it on, markup and full stop and all, rather than the
+   * version cut down for speaking.
    */
   const deliverPhrase = useCallback(
     (phraseText: string, voiceURI?: string, blankAt = -1, alreadyIn?: string, written = phraseText) => {
       // In auto-speak the phrase is the message — it is spoken, and this is the
       // moment it counts as said. It goes in the box as well, in place of what
-      // was there and selected, so it can be copied, said again or typed over:
-      // **as it was written** (`written`, see `composeWritten`), markup and
-      // full stop and all, and remembered with the voice and the language it
-      // was said in, so Speak says it again the same way.
+      // was there and selected, so it can be copied, said again or typed over,
+      // and remembered with the voice and the language it was said in, so
+      // Speak says it again the same way.
       if (settings.autoSpeak) {
         speak(phraseText, settings, {
           voiceURI,
@@ -467,7 +469,7 @@ export function TalkScreen({
         if (!alreadyIn) keepSaid(phraseText)
         showSaid(written, { voiceURI, alreadyIn })
       } else {
-        insertPhrase(phraseText, blankAt)
+        insertPhrase(written, blankAt)
       }
     },
     [settings, insertPhrase, keepSaid, recordTranslated, showSaid],

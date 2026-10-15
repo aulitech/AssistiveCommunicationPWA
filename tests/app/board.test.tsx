@@ -129,6 +129,36 @@ describe('choosing a phrase', () => {
     expect(message()).toBe(cell.textContent)
   })
 
+  // **As edit mode opens it**, in every mode: the full stop at the end is the
+  // phrase's own and stays, and it is put there rather than selected. Edit mode
+  // turned on opens the phrase itself, the box holding its own wording — cut
+  // down, it was a copy that could not be saved.
+  it('puts the phrase in the box as it was written, which edit mode opens', () => {
+    // The whole board on screen, to find one phrase among thousands.
+    unmeasuredGrid()
+    renderApp({ autoSpeak: false })
+    click(cells().find(c => c.textContent === 'I want a hug.')!)
+    settle()
+    expect(message()).toBe('I want a hug.')
+    expect([box().selectionStart, box().selectionEnd], 'a phrase built on was selected').toEqual([13, 13])
+
+    click(editToggle())
+    expect(box().value).toBe('I want a hug.')
+    expect($('.toast')?.textContent).toBe('Editing this phrase, in Library')
+  })
+
+  // Said as the board says it, and the phrase it came from rather than a new one.
+  it('says a phrase built on without its full stop, and keeps nothing new', () => {
+    unmeasuredGrid()
+    renderApp({ autoSpeak: false })
+    click(cells().find(c => c.textContent === 'I want a hug.')!)
+    settle()
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak')!)
+    expect(spoken).toEqual(['I want a hug'])
+    const kept = JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}').custom ?? []
+    expect(kept, 'the phrase was kept again for its full stop').toEqual([])
+  })
+
   it('speaks the composed message with the user settings', () => {
     renderApp({ rate: 1.5, volume: 0.4, autoSpeak: false })
     click(plainCell())
@@ -155,6 +185,31 @@ describe('fill-in-the-blank phrases', () => {
 
     expect(message()).not.toMatch(/[{}]/)
     expect(message().length).toBeGreaterThan(0)
+  })
+
+  // As it was written, with its own ending — and said, it is still the phrase
+  // it came from rather than a new one for Library.
+  it('inserts it as written, and keeps nothing new when it is said', () => {
+    const VISIT = {
+      id: 'custom-visit',
+      text: "I need to see the {['doctor', 'nurse']} today.",
+      category: 'Visits',
+    }
+    localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringify({ custom: [VISIT] }))
+    unmeasuredGrid()
+    renderApp()
+    click(cells().find(c => c.textContent?.startsWith('I need to see the') && c.textContent.endsWith('today.'))!)
+    fillEverySlot()
+    settle()
+    expect(message()).toMatch(/^I need to see the \S.* today\.$/)
+
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak')!)
+    expect(spoken).toEqual([message().replace(/\.$/, '')])
+    const kept = JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}').custom ?? []
+    expect(
+      kept.map((p: { id: string }) => p.id),
+      'the phrase was kept again for its full stop',
+    ).toEqual(['custom-visit'])
   })
 
   it('can be cancelled without touching the message', () => {
