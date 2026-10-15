@@ -189,6 +189,8 @@ export function TalkScreen({
   const {
     insert: insertPhrase,
     propose: proposeMessage,
+    showSaid,
+    holdsSaid,
     text: message,
     typed,
     load: loadMessage,
@@ -235,7 +237,8 @@ export function TalkScreen({
     // Edit mode counts as not empty however little is in the draft: the box is
     // showing a phrase there, and a reply landing in the message behind it
     // would be one nobody could see and an exchange nobody asked to pay for.
-    messageEmpty: !editMode && message.trim() === '',
+    // A phrase auto-speak has just said is not a message being written.
+    messageEmpty: !editMode && (message.trim() === '' || holdsSaid),
     onWaiting: apologise,
   })
 
@@ -430,8 +433,9 @@ export function TalkScreen({
    */
   const deliverPhrase = useCallback(
     (phraseText: string, voiceURI?: string, blankAt = -1, alreadyIn?: string) => {
-      // In auto-speak the phrase is the message — it is spoken and never
-      // reaches the box, so this is the moment it counts as said.
+      // In auto-speak the phrase is the message — it is spoken, and this is the
+      // moment it counts as said. It goes in the box as well, in place of what
+      // was there and selected, so it can be copied, said again or typed over.
       if (settings.autoSpeak) {
         speak(phraseText, settings, {
           voiceURI,
@@ -447,13 +451,17 @@ export function TalkScreen({
           please: settings.please,
         })
         // Not a cell off Translations, which is in another language and is
-        // kept there already.
-        if (!alreadyIn) keepSaid(phraseText)
+        // kept there already — and not put in the box either, where Speak would
+        // send words already translated to be translated again.
+        if (!alreadyIn) {
+          keepSaid(phraseText)
+          showSaid(phraseText)
+        }
       } else {
         insertPhrase(phraseText, blankAt)
       }
     },
-    [settings, insertPhrase, keepSaid, recordTranslated],
+    [settings, insertPhrase, keepSaid, recordTranslated, showSaid],
   )
 
   const handleSelectPhrase = useCallback(
@@ -491,8 +499,13 @@ export function TalkScreen({
       // **Composing moves the board**: the phrase goes into the box, and the
       // grid narrows to the word at the caret, under a pointer resting on the
       // cell that did it. Nothing may be chosen until the gaze is aimed
-      // somewhere else. Auto-speak moves nothing, and neither does the order
-      // any more — see `ranking` above.
+      // somewhere else. Auto-speak changes the box too, in place of what was
+      // there, and that can grow the box and push the grid down or end a search
+      // and widen it — but held for every phrase, it would hold the quick
+      // back-and-forth auto-speak is for where nothing moved at all. **Every
+      // cell guards itself instead** against arriving under a pointer at rest
+      // (`cameToPointer` in `ui/dwell.ts`), which answers exactly the case where
+      // something did move. The order no longer moves — see `ranking` above.
       if (!settings.autoSpeak) holdDwellsUntilMoved()
       // A phrase that is nothing but a link is a button for going somewhere, so
       // it goes there instead of saying its own label out loud. A phrase with

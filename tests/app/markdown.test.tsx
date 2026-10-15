@@ -189,14 +189,16 @@ describe('what leaves the board', () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('**Help** me up')
   })
 
-  // Auto-speak never reaches the message box, so it is its own path to the
-  // synthesiser and its own chance to say the asterisks out loud.
+  // Auto-speak says the phrase straight off rather than through the message
+  // box, so it is its own path to the synthesiser and its own chance to say the
+  // asterisks out loud. The box then holds the phrase as written, markup and
+  // all, as it does when a phrase is put there to build a message.
   it('speaks the words in auto-speak too', () => {
     renderApp()
     click($('.autospeak-toggle'))
     click(marked())
     expect(spoken).toEqual(['Help me up'])
-    expect(message()).toBe('')
+    expect(message()).toBe('**Help** me up')
   })
 })
 
