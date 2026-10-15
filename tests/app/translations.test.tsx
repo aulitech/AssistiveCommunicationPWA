@@ -297,7 +297,8 @@ describe('saying one again', () => {
   // second time.
   it('goes in the message box, and Speak says it again as that language', () => {
     renderApp({ language: 'es-MX' })
-    seedTranslations('es-MX', { Cherry: 'Cereza' })
+    // What 'Cereza' would come out as if it were sent to be translated again.
+    seedTranslations('es-MX', { Cherry: 'Cereza', Cereza: 'Cereza otra vez' })
     showSorted()
     click(cellFor('Cherry'))
     showTranslations()
@@ -307,9 +308,12 @@ describe('saying one again', () => {
     expect($<HTMLTextAreaElement>('.text-display')!.value).toBe('Cereza')
     click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak'))
 
-    expect(spoken.slice(-2)).toEqual(['Cereza', 'Cereza'])
+    expect(spoken.slice(-2), 'translated a second time').toEqual(['Cereza', 'Cereza'])
     expect(lastUtterance?.lang).toBe('es-MX')
     expect(stored(), 'said again from the box, it was recorded again').toHaveLength(kept)
+    expect(localStorage.getItem(STORE_KEY) ?? '', 'kept in Library as a phrase of the board’s own').not.toContain(
+      'Cereza',
+    )
   })
 
   it('says them as that language', () => {

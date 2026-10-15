@@ -164,8 +164,12 @@ test('builds after a phrase auto-speak said once it is turned off', async ({ pag
 // Chosen by resting, with no click at all: a dwell fires from a timer, and the
 // box was once selected on a timer set beside it, which a real browser could
 // run before the box had the phrase — selected one time and not the next.
+//
+// With the pause after choosing on, as everybody has it: the released code
+// left the caret at the end every time there, and selected nothing.
 test('selects the phrase auto-speak said when it was chosen by resting, every time', async ({ page }) => {
-  const { errors } = await openBoard(page)
+  test.setTimeout(60_000)
+  const { errors } = await openBoard(page, { pause: true })
   const box = messageBox(page)
   for (const n of [0, 1, 2]) {
     const cell = page.locator('.phrase-cell').nth(n)
