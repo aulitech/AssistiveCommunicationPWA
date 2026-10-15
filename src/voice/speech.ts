@@ -222,7 +222,8 @@ function speakOnDevice(text: string, settings: VoiceSettings) {
   if (!utterance.voice && settings.language) utterance.lang = settings.language
   utterance.onend = () => finished(mine)
   utterance.onerror = () => finished(mine)
-  speechSynthesis.speak(utterance)
+  // Watched from before it is handed over, so an ending reported the moment
+  // it is — by a synthesiser with nothing to say — is not then watched for.
   onDevice = true
   handedAt = Date.now()
   heardBusy = false
@@ -233,6 +234,7 @@ function speakOnDevice(text: string, settings: VoiceSettings) {
       else if (heardBusy || Date.now() - handedAt > GRACE_MS) setSpeaking(false)
     }, WATCH_MS)
   }
+  speechSynthesis.speak(utterance)
 }
 
 function playAudio(blob: Blob, settings: VoiceSettings, onFailure: () => void) {
@@ -302,7 +304,9 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   const written = stripMarkdown(source).replace(/[.\s]+$/, '')
   if (!written.trim()) return
   stopEverything()
-  setSpeaking(true)
+  // A voice tried in a picker is not something said: the picker stays live,
+  // and Stop does not come up behind it.
+  if (!options.sample) setSpeaking(true)
 
   // Words that have already been translated. They are said in the language they
   // are in, and never put through the translator again.

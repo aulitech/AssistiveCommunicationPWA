@@ -58,6 +58,25 @@ export function cancelAllDwells() {
   cancelAll()
 }
 
+// ── While something is being said ────────────────────────────────────────────
+// **Nothing answers but what is marked to** — Stop, and the emergency bar,
+// which never waits on anything. Told from above, since what is being said is
+// a layer this one cannot see: `talk.tsx` sets it from `subscribeSpeaking`.
+// Every control asks at the moment it would start or fire, so nothing has to
+// render differently for it — a couple of thousand cells would otherwise
+// re-render on every word said.
+
+let speakingLock = false
+
+/** Still while something is being said, unless it is one that is not. */
+const silencedFor = (whileSpeaking: { current: boolean }) => speakingLock && !whileSpeaking.current
+
+/** Something is being said: every control but those `whileSpeaking` goes still. */
+export function setSpeakingLock(on: boolean) {
+  if (on && !speakingLock) cancelAll()
+  speakingLock = on
+}
+
 // ── Anything at all firing ────────────────────────────────────────────────────
 // One listener set, for the things that mark "what just happened" and have to
 // stop claiming it the moment anything else does. The grid's most-recently-said
@@ -337,6 +356,7 @@ export function releaseDwells() {
   deafUntil = 0
   heldUntilMoved = false
   pausedUntil = 0
+  speakingLock = false
 }
 
 /**
@@ -406,10 +426,12 @@ export interface DwellOptions {
   repeatMs?: number
   /** Stays live while the app is resting. Only the Rest control sets this. */
   ignoresRest?: boolean
+  /** Stays live while something is being said — Stop, and the emergency bar. */
+  whileSpeaking?: boolean
 }
 
 export function useDwellControl(durationMs: number, onActivate: () => void, options: DwellOptions = {}) {
-  const { disabled: disabledByCaller = false, repeatMs, ignoresRest = false } = options
+  const { disabled: disabledByCaller = false, repeatMs, ignoresRest = false, whileSpeaking = false } = options
   // Resting disables the control outright rather than only its hover path:
   // tap and Enter/Space go through the same gate, so nothing is left that can
   // fire while the app is meant to be doing nothing.
@@ -436,12 +458,14 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
   const durationRef = useRef(durationMs)
   const disabledRef = useRef(disabled)
   const repeatMsRef = useRef(repeatMs)
+  const whileSpeakingRef = useRef(whileSpeaking)
 
   useEffect(() => {
     activateRef.current = onActivate
     durationRef.current = durationMs
     disabledRef.current = disabled
     repeatMsRef.current = repeatMs
+    whileSpeakingRef.current = whileSpeaking
   })
 
   const cancel = useCallback(() => {
@@ -466,7 +490,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
   const startRef = useRef<() => void>(() => {})
 
   const start = useCallback(() => {
-    if (disabledRef.current || timerRef.current || repeatRef.current) return
+    if (disabledRef.current || timerRef.current || repeatRef.current || silencedFor(whileSpeakingRef)) return
     // Deaf: the screen moved under the pointer a moment ago, so whatever it is
     // resting on now is not what it was aimed at — either for a moment, or
     // until the pointer is aimed somewhere else.
@@ -554,7 +578,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     // And a click gets the same answer a dwell would — see `screenJustMoved` —
     // and so does a control that came to the pointer, and one in the pause
     // after the last thing chosen.
-    if (screenJustMoved() || arrivedRef.current || pauseLeft() > 0) return
+    if (screenJustMoved() || arrivedRef.current || pauseLeft() > 0 || silencedFor(whileSpeakingRef)) return
     cancel()
     noteActivation()
     activateRef.current()
@@ -562,7 +586,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (disabledRef.current || (e.key !== 'Enter' && e.key !== ' ')) return
+      if (disabledRef.current || silencedFor(whileSpeakingRef) || (e.key !== 'Enter' && e.key !== ' ')) return
       // Space would otherwise scroll the grid out from under the user.
       e.preventDefault()
       cancel()

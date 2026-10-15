@@ -5,7 +5,7 @@
 // category is showing, whether the app is in edit mode or resting, and what to
 // say when an operation finishes.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { loadTranslations } from '../core/translation'
 import {
@@ -14,6 +14,7 @@ import {
   holdDwellsUntilMoved,
   holdIfMovedUnder,
   RestingContext,
+  setSpeakingLock,
   targetUnderPointer,
 } from '../ui/dwell'
 import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
@@ -41,7 +42,7 @@ import {
   type User,
 } from '../core/store'
 import { type AppState } from '../core/backup'
-import { speak, warmVoice } from '../voice/speech'
+import { isSpeaking, speak, subscribeSpeaking, warmVoice } from '../voice/speech'
 import { cx } from '../ui/style'
 import { BusyIndicator, DwellCursor, PanelButton } from '../ui/controls'
 import { Keyboard } from '../ui/keyboard'
@@ -1208,6 +1209,22 @@ export function TalkScreen({
     },
     [chooseForDraft, recordUsed],
   )
+  /**
+   * **While something is being said, nothing answers but Stop** and the
+   * emergency bar — see `setSpeakingLock` in `ui/dwell.ts`. Told the moment it
+   * starts and stops rather than after a render, so a dwell already filling
+   * when the words begin is stopped with them; the board is dimmed to say so.
+   */
+  const speaking = useSyncExternalStore(subscribeSpeaking, isSpeaking)
+  useEffect(() => {
+    setSpeakingLock(isSpeaking())
+    const stop = subscribeSpeaking(setSpeakingLock)
+    return () => {
+      stop()
+      setSpeakingLock(false)
+    }
+  }, [])
+
   const editCtx: EditCtxValue = useMemo(() => ({ editMode, openEdit: chooseInEdit }), [editMode, chooseInEdit])
 
   const countFor = useCallback(
@@ -1218,7 +1235,15 @@ export function TalkScreen({
   return (
     <EditCtx.Provider value={editCtx}>
       <RestingContext.Provider value={resting}>
-        <div className={cx('app', editMode && 'edit-mode', resting && 'resting', keyboardOpen && 'has-keyboard')}>
+        <div
+          className={cx(
+            'app',
+            editMode && 'edit-mode',
+            resting && 'resting',
+            keyboardOpen && 'has-keyboard',
+            speaking && 'is-speaking',
+          )}
+        >
           {notKeeping && (
             <div className="not-keeping" role="alert">
               <p>

@@ -10,6 +10,7 @@ import {
   onDwellActivation,
   releaseDwells,
   setSelectionPause,
+  setSpeakingLock,
   targetUnderPointer,
   useDwellControl,
 } from '../../src/ui/dwell'
@@ -20,13 +21,15 @@ function Probe({
   durationMs = 500,
   disabled = false,
   repeatMs,
+  whileSpeaking,
 }: {
   onActivate: () => void
   durationMs?: number
   disabled?: boolean
   repeatMs?: number
+  whileSpeaking?: boolean
 }) {
-  const { active, props } = useDwellControl(durationMs, onActivate, { disabled, repeatMs })
+  const { active, props } = useDwellControl(durationMs, onActivate, { disabled, repeatMs, whileSpeaking })
   return (
     <div role="button" aria-label="probe" data-active={active} {...props}>
       probe
@@ -180,6 +183,56 @@ describe('disabled', () => {
     render(<Probe onActivate={vi.fn()} disabled />)
     expect(probe().tabIndex).toBe(-1)
     expect(probe()).toHaveProperty('ariaDisabled', 'true')
+  })
+})
+
+/**
+ * **While something is being said, nothing answers but what is marked to** —
+ * Stop, and the emergency bar. See `setSpeakingLock`.
+ */
+describe('while something is being said', () => {
+  it('ignores dwell, click and keys', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    setSpeakingLock(true)
+
+    fireEvent.pointerEnter(probe())
+    advance(1000)
+    fireEvent.click(probe())
+    fireEvent.keyDown(probe(), { key: 'Enter' })
+
+    expect(onActivate).not.toHaveBeenCalled()
+  })
+
+  it('answers again once it has been said', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    setSpeakingLock(true)
+    setSpeakingLock(false)
+    fireEvent.click(probe())
+    expect(onActivate).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops a dwell already filling when the words begin', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    fireEvent.pointerEnter(probe())
+    advance(300)
+    act(() => setSpeakingLock(true))
+    advance(1000)
+    expect(onActivate).not.toHaveBeenCalled()
+    expect(probe().dataset.active).toBe('false')
+  })
+
+  it('leaves a control marked to stay live alone', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} whileSpeaking />)
+    setSpeakingLock(true)
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    fireEvent.pointerLeave(probe())
+    fireEvent.keyDown(probe(), { key: 'Enter' })
+    expect(onActivate).toHaveBeenCalledTimes(2)
   })
 })
 

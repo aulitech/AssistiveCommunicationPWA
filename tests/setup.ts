@@ -191,14 +191,19 @@ function createObjectURL(blob: Blob) {
 }
 
 /**
- * **Speech here ends the moment it begins** — the stub says nothing is being
- * said, and the app believes it after a second. `holdSpeech` makes it go on
- * until `finishSpeech`, or until something cancels it, for the tests about
- * what the screen offers while something is being said.
+ * **Speech here ends the moment it begins**, and says so — while something is
+ * being said nothing but Stop answers, and a test clicks straight after a
+ * phrase is said. `holdSpeech` makes it go on until `finishSpeech`, or until
+ * something cancels it, for the tests about what the screen offers while
+ * something is being said; `quietSpeech` makes it end without saying so, as a
+ * synthesiser that is cancelled or fails can.
  */
-const speech = { holding: false, held: false }
+const speech = { holding: false, held: false, quiet: false }
 export function holdSpeech() {
   speech.holding = true
+}
+export function quietSpeech() {
+  speech.quiet = true
 }
 export function finishSpeech() {
   speech.held = false
@@ -212,6 +217,7 @@ function installSpeechSynthesis() {
       lastUtterance = u
       spoken.push(u.text)
       speech.held = speech.holding
+      if (!speech.holding && !speech.quiet) u.onend?.(new Event('end') as SpeechSynthesisEvent)
     },
     get speaking() {
       return speech.held
@@ -240,6 +246,7 @@ beforeEach(() => {
   stopSpeaking()
   speech.holding = false
   speech.held = false
+  speech.quiet = false
   // Module state, like the dwell guards: a test that installs the other
   // devices must not leave the next one talking to them.
   setRemoteClips(null)
@@ -319,6 +326,8 @@ beforeEach(() => {
   HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
     if (!audioPlays) return Promise.reject(new DOMException('blocked', 'NotAllowedError'))
     played.push({ volume: this.volume, rate: this.playbackRate })
+    // Played to the end at once, as speech here is, unless a test holds it.
+    if (!speech.holding) queueMicrotask(() => this.dispatchEvent(new Event('ended')))
     return Promise.resolve()
   }
   HTMLMediaElement.prototype.pause = () => {}

@@ -70,6 +70,10 @@ export function EmergencyButton({
     // A dwell landing mid-drag would lift a second button out from under the
     // one already in the pointer's hand.
     disabled: reorder?.dragging,
+    // **Live while something else is being said**, when it is saying: it
+    // never waits on anything, and saying it stops what was playing. Being
+    // arranged or edited, it is a thing to change, and waits like the rest.
+    whileSpeaking: !editMode && !reorder,
   })
 
   return (
