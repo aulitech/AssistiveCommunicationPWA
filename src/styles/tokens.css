@@ -35,6 +35,11 @@
   /* **Clear's X**: the danger red let down towards the muted grey, so it says
      *throws words away* without shouting like the bin, which deletes a phrase. */
   --clear-red: color-mix(in srgb, var(--danger) 70%, var(--text-muted));
+  /* **Stop**, over the top row while anything is being said: Clear's red taken
+     down far enough that white words on it clear 7:1. It stops words rather
+     than throwing any away, but it is the same kind of *no*. */
+  --stop-red: color-mix(in srgb, var(--clear-red) 60%, #000);
+  --stop-text: #ffffff;
   --urgent: #4fcaf0;
   --dwell-color: #22c55e;
   --selected-flash: rgba(34, 197, 94, 0.3);

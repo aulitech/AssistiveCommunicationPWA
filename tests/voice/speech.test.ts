@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { setStage, speak, warmVoice, type Stage } from '../../src/voice/speech'
+import {
+  isSpeaking,
+  setStage,
+  speak,
+  stopSpeaking,
+  subscribeSpeaking,
+  warmVoice,
+  type Stage,
+} from '../../src/voice/speech'
 import { remoteVoiceURI } from '../../src/voice/elevenlabs'
 import { audioKey, cachedAudio, clearAudioCache, rememberAudio } from '../../src/voice/audio-cache'
 import { saveElevenLabs } from '../../src/core/store'
@@ -9,7 +17,7 @@ import {
   seedTranslations,
   translationFor,
 } from '../../src/core/translation'
-import { spoken, lastUtterance, played, setAudioPlays, voices } from '../setup'
+import { finishSpeech, holdSpeech, spoken, lastUtterance, played, setAudioPlays, voices } from '../setup'
 
 // Which of the two voices a phrase comes out of, and — the point of all of it —
 // that it always comes out of one of them. Somebody's only way of speaking does
@@ -28,6 +36,9 @@ const audioReturns = (ok: boolean) =>
       return { ok: true, status: 200, blob: async () => new Blob(['audio']) }
     }),
   )
+
+/** A tick of the watch kept on the device voice. */
+const act250 = () => void vi.advanceTimersByTime(250)
 
 /** The fetch and the play are both promises; neither waits on a timer. */
 const flush = () => new Promise(resolve => setTimeout(resolve, 0))
@@ -179,6 +190,95 @@ describe('being interrupted', () => {
     await flush()
 
     expect(spoken).toEqual(['Second'])
+  })
+})
+
+/**
+ * **Whether anything is being said**, which is what puts Stop over the top row:
+ * from the moment something is asked to be said until it has been, and no
+ * longer than the latest thing asked.
+ */
+describe('while something is being said', () => {
+  it('is speaking from the moment it is asked until the words end', () => {
+    holdSpeech()
+    const told: boolean[] = []
+    const stop = subscribeSpeaking(now => told.push(now))
+    speak('Hello', SETTINGS)
+    expect(isSpeaking()).toBe(true)
+    finishSpeech()
+    expect(isSpeaking()).toBe(false)
+    expect(told).toEqual([true, false])
+    stop()
+  })
+
+  it('says nothing is being said for nothing', () => {
+    speak('   ', SETTINGS)
+    expect(isSpeaking()).toBe(false)
+  })
+
+  it('stops whatever is being said', () => {
+    holdSpeech()
+    const cancel = vi.spyOn(speechSynthesis, 'cancel')
+    speak('Hello', SETTINGS)
+    stopSpeaking()
+    expect(isSpeaking()).toBe(false)
+    expect(cancel).toHaveBeenCalled()
+  })
+
+  // Interrupted, the first one ends — and that says nothing about the second.
+  it('is not ended by something it interrupted', () => {
+    holdSpeech()
+    speak('First', SETTINGS)
+    const first = lastUtterance!
+    speak('Second', SETTINGS)
+    first.onend?.(new Event('end') as SpeechSynthesisEvent)
+    expect(isSpeaking()).toBe(true)
+  })
+
+  // A synthesiser that is cancelled, or fails, does not always say so.
+  it('ends when the device voice goes quiet without saying so', () => {
+    vi.useFakeTimers()
+    try {
+      holdSpeech()
+      speak('Hello', SETTINGS)
+      act250()
+      expect(isSpeaking()).toBe(true)
+      // Quiet, and nothing said about it.
+      speechSynthesis.cancel()
+      act250()
+      expect(isSpeaking()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // Waiting on the clip is part of saying it, and Stop then stops that.
+  it('is speaking while a clip is fetched, and until it has played', async () => {
+    link()
+    audioReturns(true)
+    let audio: HTMLMediaElement | null = null
+    HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
+      audio = this
+      return Promise.resolve()
+    }
+    speak('Hello', REMOTE)
+    expect(isSpeaking()).toBe(true)
+    await flush()
+    expect(audio).not.toBeNull()
+    expect(isSpeaking()).toBe(true)
+    audio!.dispatchEvent(new Event('ended'))
+    expect(isSpeaking()).toBe(false)
+  })
+
+  it('plays nothing fetched after it was stopped', async () => {
+    link()
+    audioReturns(true)
+    speak('Hello', REMOTE)
+    stopSpeaking()
+    await flush()
+    expect(played).toEqual([])
+    expect(spoken).toEqual([])
+    expect(isSpeaking()).toBe(false)
   })
 })
 

@@ -14,12 +14,13 @@
 // which is what makes the mode a change of meaning rather than a change of
 // layout.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { compose, parseSegments } from '../core/phrases'
 import { useSettings } from '../ui/settings'
 import { chooseLanguage, chooseVoice } from '../core/store'
 import { LanguagePicker } from '../voice/language-picker'
 import { VoicePicker } from '../voice/picker'
+import { isSpeaking, stopSpeaking, subscribeSpeaking } from '../voice/speech'
 import { useCaretDwell } from '../ui/caret'
 import { AfterText, PLACE_AGAIN } from '../ui/after-text'
 import { useDwellControl } from '../ui/dwell'
@@ -37,6 +38,7 @@ import {
   PresentIcon,
   QuestionIcon,
   SpeakIcon,
+  StopIcon,
   TrashIcon,
   UndoIcon,
 } from '../ui/icons'
@@ -49,6 +51,34 @@ import type { Composer } from './use-composer'
 import type { Editor } from './use-editor'
 import type { Listener } from './use-listen'
 import { HeardBox } from './heard'
+
+/**
+ * **Stop, over the whole of the top row, while anything is being said** — the
+ * question, the message and the menu all under it. A sentence going on after
+ * somebody has realised it was the wrong one is the moment they need a target
+ * they cannot miss, so it is the widest thing on the screen, in the muted red
+ * Clear is drawn in, and it says what it does. It covers the row rather than
+ * taking it away: the box keeps its words, its caret and its selection under
+ * it, so the row comes back exactly as it was. It arrives under a pointer
+ * resting on Speak, and like every control it answers nothing until the
+ * pointer moves (`cameToPointer` in `ui/dwell.ts`).
+ */
+function StopBar() {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, stopSpeaking)
+  return (
+    <button
+      type="button"
+      className={cx('stop-bar', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      aria-label="Stop speaking"
+      {...props}
+    >
+      <StopIcon />
+      <span>Stop</span>
+    </button>
+  )
+}
 
 function ActionButton({
   onSelect,
@@ -290,6 +320,7 @@ export function Topbar({
   onTogglePresenting: () => void
 }) {
   const { settings, update } = useSettings()
+  const speaking = useSyncExternalStore(subscribeSpeaking, isSpeaking)
   const wide = useMediaQuery(WIDE_ENOUGH)
   const phone = useMediaQuery(PHONE)
 
@@ -857,6 +888,8 @@ export function Topbar({
       <ActionButton label={menuOpen ? 'Close menu' : 'Open menu'} onSelect={onToggleMenu} className="menu-btn">
         <MenuIcon />
       </ActionButton>
+
+      {speaking && <StopBar />}
     </header>
   )
 }

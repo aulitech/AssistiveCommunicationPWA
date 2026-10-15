@@ -148,6 +148,8 @@ describe('lists a dwell can scroll', () => {
     renderApp({ custom: [{ id: 'custom-wash', text: 'Can you help me wash my {bodyparts}?', category: 'Care' }] })
     click($$('.filter-tab').find(t => t.textContent === 'Care'))
     click($$('.phrase-cell').find(c => /wash my/.test(c.textContent ?? '')))
+    // Building a message asks for the choices when it is said.
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak'))
 
     const picker = $('.slot-picker')!
     expect(picker, 'the chooser did not open').not.toBeNull()

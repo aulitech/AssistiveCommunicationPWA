@@ -168,57 +168,99 @@ describe('choosing a phrase', () => {
   })
 })
 
+/**
+ * **A phrase with choices goes in the box as edit mode shows it**, its choices
+ * still in it, and they are asked for when it is said. Filled in as it went in,
+ * the box held one wording of the phrase rather than the phrase.
+ */
 describe('fill-in-the-blank phrases', () => {
-  it('asks for the wording instead of inserting placeholder text', () => {
+  const VISIT = {
+    id: 'custom-visit',
+    text: "I need to see the {['doctor', 'nurse']} today.",
+    category: 'Visits',
+  }
+  const visit = () => {
+    localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringify({ custom: [VISIT] }))
+    // The whole board on screen, to find one phrase among thousands.
+    unmeasuredGrid()
+  }
+  const visitCell = () =>
+    cells().find(c => c.textContent?.startsWith('I need to see the') && c.textContent.endsWith('today.'))!
+  const option = (words: string) => $$('.slot-option').find(o => o.textContent === words)!
+  const speakButton = () => $$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak')!
+  const kept = () =>
+    (JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}').custom ?? []).map(
+      (p: { id: string }) => p.id,
+    )
+
+  it('puts it in the box as edit mode shows it, and asks nothing yet', () => {
+    visit()
     renderApp()
-    click(slotCell())
+    click(visitCell())
+    settle()
+
+    expect($('.slot-picker'), 'the choices were asked for before anything was said').toBeNull()
+    expect(message()).toBe(VISIT.text)
+    expect(spoken).toEqual([])
+  })
+
+  it('asks for the choices when it is said, and says the ones chosen', () => {
+    visit()
+    renderApp()
+    click(visitCell())
+    settle()
+    click(speakButton())
 
     expect($('.slot-picker')).not.toBeNull()
-    expect(message()).toBe('')
-    expect($$('.slot-option').length).toBeGreaterThan(0)
+    expect(spoken, 'said before the choices were made').toEqual([])
+    click(option('nurse'))
+    expect($('.slot-picker')).toBeNull()
+    expect(spoken).toEqual(['I need to see the nurse today'])
+    // The box still holds the phrase, so the next Speak asks again.
+    expect(message()).toBe(VISIT.text)
+    expect(kept(), 'the phrase was kept again with its choices made').toEqual(['custom-visit'])
+
+    click(speakButton())
+    click(option('doctor'))
+    expect(spoken).toEqual(['I need to see the nurse today', 'I need to see the doctor today'])
   })
 
-  it('inserts the composed sentence once every slot is chosen', () => {
+  // Choices anywhere in the box, after a phrase put there before it.
+  it('asks for them after another phrase in the box', () => {
+    visit()
     renderApp()
-    click(slotCell())
-    fillEverySlot()
-
-    expect(message()).not.toMatch(/[{}]/)
-    expect(message().length).toBeGreaterThan(0)
-  })
-
-  // As it was written, with its own ending — and said, it is still the phrase
-  // it came from rather than a new one for Library.
-  it('inserts it as written, and keeps nothing new when it is said', () => {
-    const VISIT = {
-      id: 'custom-visit',
-      text: "I need to see the {['doctor', 'nurse']} today.",
-      category: 'Visits',
-    }
-    localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringify({ custom: [VISIT] }))
-    unmeasuredGrid()
-    renderApp()
-    click(cells().find(c => c.textContent?.startsWith('I need to see the') && c.textContent.endsWith('today.'))!)
-    fillEverySlot()
+    click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
-    expect(message()).toMatch(/^I need to see the \S.* today\.$/)
-
-    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak')!)
-    expect(spoken).toEqual([message().replace(/\.$/, '')])
-    const kept = JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}').custom ?? []
-    expect(
-      kept.map((p: { id: string }) => p.id),
-      'the phrase was kept again for its full stop',
-    ).toEqual(['custom-visit'])
+    click(visitCell())
+    settle()
+    expect(message()).toBe(`I want a hug. ${VISIT.text}`)
+    click(speakButton())
+    click(option('doctor'))
+    expect(spoken).toEqual(['I want a hug. I need to see the doctor today'])
   })
 
-  it('can be cancelled without touching the message', () => {
+  it('says nothing when the choices are cancelled, and leaves the box alone', () => {
+    visit()
     renderApp()
-    click(slotCell())
+    click(visitCell())
+    settle()
+    click(speakButton())
     click($('.slot-cancel'))
 
     expect($('.slot-picker')).toBeNull()
-    expect(message()).toBe('')
+    expect(spoken).toEqual([])
+    expect(message()).toBe(VISIT.text)
+  })
+
+  // The box holds the phrase's own words, so edit mode opens the phrase.
+  it('opens the phrase itself when edit mode is turned on over it', () => {
+    visit()
+    renderApp()
+    click(visitCell())
+    settle()
+    click(editToggle())
+    expect(box().value).toBe(VISIT.text)
+    expect($('.toast')?.textContent).toMatch(/^Editing this phrase/)
   })
 })
 
@@ -347,17 +389,22 @@ describe('auto-speak', () => {
     expect(message()).toBe(`${first.textContent} ${second.textContent}`)
   })
 
-  it('still runs the slot picker, then speaks the result', () => {
+  // Said straight away, so the choices are asked for straight away — and the
+  // box holds the phrase as edit mode shows it, selected, as any phrase said is.
+  it('asks for the choices at once, says them, and puts the phrase in the box', () => {
     renderApp({ autoSpeak: true })
-    click(slotCell())
+    const cell = slotCell()
+    click(cell)
     expect($('.slot-picker')).not.toBeNull()
+    expect(message(), 'the box does not hold the phrase as edit mode does').toMatch(/\{.*\}/)
+    const box = $<HTMLTextAreaElement>('.text-display')!
+    expect([box.selectionStart, box.selectionEnd]).toEqual([0, box.value.length])
+    const held = message()
     fillEverySlot()
 
     expect(spoken).toHaveLength(1)
     expect(spoken[0]).not.toMatch(/[{}]/)
-    expect(message(), 'the choices went into the box unmade').not.toMatch(/[{}]/)
-    // The choices made, as written: what was said, with the phrase's own ending.
-    expect(message().replace(/\.$/, ''), 'the box does not hold the choices made').toBe(spoken[0])
+    expect(message()).toBe(held)
   })
 
   // **Switching one off says nothing about the other.** This landed in edit

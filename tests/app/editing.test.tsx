@@ -82,6 +82,8 @@ describe('editing a phrase that has choices behind it', () => {
 
     click(editToggle()) // leave edit mode
     click(cells().find(c => c.textContent === shown))
+    act(() => void vi.advanceTimersByTime(0))
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak'))
     expect($('.slot-picker')).not.toBeNull()
   })
 })

@@ -20,6 +20,7 @@ import { EditCtx, type EditCtxValue } from '../ui/edit-mode'
 import { useSettings } from '../ui/settings'
 import {
   LIBRARY,
+  aliasOverlay,
   compose,
   composeWithBlank,
   composeWritten,
@@ -145,7 +146,12 @@ export function TalkScreen({
   // `forDraft` marks a category being invented from inside the phrase editor,
   // which files the phrase under it as well as creating it.
   const [editingCategory, setEditingCategory] = useState<{ name: string | null; forDraft?: boolean } | null>(null)
-  const [filling, setFilling] = useState<Phrase | null>(null)
+  /**
+   * A phrase whose choices are being asked for, and what happens once they are
+   * made: said as a phrase chosen in auto-speak is, in its own voice, or said
+   * from the box as Speak says it — see `handleSpeak`.
+   */
+  const [filling, setFilling] = useState<{ phrase: Phrase; then: 'say' | 'speak'; voiceURI?: string } | null>(null)
   /**
    * The phrase the board is pointing at, and the tab it moved to to do it.
    *
@@ -533,10 +539,21 @@ export function TalkScreen({
         if (!openLink(url)) flashToast('Blocked. Allow pop-ups for Peri to open links by dwelling')
         return
       }
-      // Fill-in-the-blank phrases ask for their wording first.
+      // **A phrase with choices goes in the box as edit mode shows it**, its
+      // choices still in it, and they are asked for when it is said: straight
+      // away in auto-speak, and otherwise when Speak is rested on. Filled in as
+      // it went in, the box held one wording of it — a message somebody could
+      // not change their mind about without choosing the phrase again, and
+      // words edit mode could not open as the phrase they came from.
       if (hasChoices(phrase.segments)) {
+        if (!settings.autoSpeak) {
+          insertPhrase(phrase.source)
+          return
+        }
+        const voiceURI = voiceFor(phrase.id)
+        showSaid(phrase.source, { voiceURI })
         cancelAllDwells()
-        setFilling(phrase)
+        setFilling({ phrase, then: 'say', voiceURI })
         return
       }
       // Recomposed rather than read off the phrase, for the offset alone — a
@@ -554,6 +571,8 @@ export function TalkScreen({
     },
     [
       deliverPhrase,
+      insertPhrase,
+      showSaid,
       voiceFor,
       flashToast,
       showingTranslated,
@@ -1064,13 +1083,37 @@ export function TalkScreen({
     setResting(r => !r)
   }, [])
 
+  const sayMessage = useCallback(
+    (words: string) => {
+      speakMessage(words)
+      // Not words off Translations, said again: they are in another language
+      // and kept there already, as auto-speak leaves them.
+      if (!saidIn) keepSaid(words)
+    },
+    [speakMessage, keepSaid, saidIn],
+  )
+
+  /**
+   * **Composed before it is said**, as everything that speaks composes: a
+   * phrase goes in the box as edit mode shows it, so the box can hold choices
+   * still to be made — and those are asked for now, in the picker a phrase
+   * chosen in auto-speak opens, and the words said are the ones chosen. What
+   * the box holds is left as it was, so the next Speak asks again.
+   */
   const handleSpeak = useCallback(() => {
     if (!message.trim()) return
-    speakMessage()
-    // Not words off Translations, said again: they are in another language
-    // and kept there already, as auto-speak leaves them.
-    if (!saidIn) keepSaid(message)
-  }, [message, speakMessage, keepSaid, saidIn])
+    // Read as the board reads a phrase, with the user's own lists in it.
+    const segments = parseSegments(message, aliasOverlay(board.aliases))
+    if (hasChoices(segments)) {
+      cancelAllDwells()
+      setFilling({
+        phrase: { id: 'message', text: compose(segments), source: message, segments, category: '' },
+        then: 'speak',
+      })
+      return
+    }
+    sayMessage(segments.some(s => s.kind === 'slot') ? composeWritten(segments) : message)
+  }, [message, sayMessage, board.aliases])
 
   // Copying is the other way a message leaves — into a text, an email, someone
   // else's screen. It was still said.
@@ -1331,18 +1374,16 @@ export function TalkScreen({
 
           {filling && (
             <SlotPicker
-              phrase={filling}
-              onComplete={(text, blankAt, choices) => {
+              phrase={filling.phrase}
+              onComplete={(text, _blankAt, choices) => {
+                const { phrase, then, voiceURI } = filling
                 setFilling(null)
-                // A phrase can have both kinds: options to pick from, and a
-                // blank to type into. The caret goes to whatever is left.
-                deliverPhrase(
-                  text,
-                  voiceFor(filling.id),
-                  blankAt,
-                  undefined,
-                  composeWritten(filling.segments, choices),
-                )
+                // Chosen in auto-speak: said as any phrase chosen there is, and
+                // the box left holding it as edit mode shows it.
+                if (then === 'say') {
+                  speak(text, settings, { voiceURI, onTranslated: recordTranslated, please: settings.please })
+                  keepSaid(text)
+                } else sayMessage(composeWritten(phrase.segments, choices))
               }}
               onCancel={() => setFilling(null)}
             />

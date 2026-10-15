@@ -4,7 +4,7 @@ import { cleanup, fireEvent, act } from '@testing-library/react'
 import { BLANK } from '../../src/core/phrases'
 import { DEFAULT_SETTINGS } from '../../src/core/store'
 import { SETTLE_MS } from '../../src/ui/dwell'
-import { scrolledIntoView, unmeasuredGrid } from '../setup'
+import { scrolledIntoView, spoken, unmeasuredGrid } from '../setup'
 import { $$, $, settle, click, renderApp, message, cells } from './harness'
 
 // The lists a phrase's slots choose from. This panel was **My details**, which
@@ -160,11 +160,14 @@ describe('aliases', () => {
 
     const callCell = cells().find(c => /going to call/.test(c.textContent ?? ''))!
     click(callCell)
+    // In the box as edit mode shows it, and asked when it is said.
+    expect(message()).toMatch(/\{contacts?\}/)
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak'))
 
     expect($('.slot-picker')).not.toBeNull()
     expect($$('.slot-option').map(o => o.textContent)).toEqual(['Mum', 'Dad'])
     click($$('.slot-option')[1])
-    expect(message()).toContain('Dad')
+    expect(spoken[0]).toContain('Dad')
   })
 
   it('removes a word', () => {

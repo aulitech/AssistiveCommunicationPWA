@@ -281,9 +281,9 @@ describe('what is said', () => {
     const cell = slotCell()
     const id = cell.getAttribute('data-phrase')!
     click(cell)
-    fillEverySlot()
     expect(box().value).not.toBe('')
     click(iconBtn('Speak'))
+    fillEverySlot()
     expect(spoken).toHaveLength(1)
     expect(kept(), 'a phrase with its choices made was kept as a new one').toEqual([])
     expect(usage()[id].count).toBe(1)
@@ -293,8 +293,9 @@ describe('what is said', () => {
   it('keeps a message that says more than a phrase with its choices made', () => {
     renderApp()
     click(slotCell())
+    click(iconBtn('Speak'))
     fillEverySlot()
-    const message = `${box().value} and then some`
+    const message = `${spoken[0]} and then some`
     writeIn(box(), message)
     click(iconBtn('Speak'))
     expect(kept()).toEqual([message])
