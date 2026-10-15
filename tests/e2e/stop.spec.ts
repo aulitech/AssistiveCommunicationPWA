@@ -98,3 +98,26 @@ test('refuses the pointer that rested on Speak, until it is aimed', async ({ pag
   expect(await cancelled(page)).toBeGreaterThan(before)
   expect(errors).toEqual([])
 })
+
+// Nothing but Stop and the emergency bar answers while something is being said.
+test('refuses everything but Stop and the emergency bar while speaking', async ({ page }) => {
+  await talkingUntilStopped(page)
+  const { errors } = await openBoard(page)
+  const said = () => page.evaluate(() => (window as unknown as { said: string[] }).said.length)
+  await page.locator('.phrase-cell').first().click()
+  await expect(stop(page)).toBeVisible()
+  await expect(page.locator('.app')).toHaveClass(/is-speaking/)
+
+  // Aimed at another phrase and clicked: nothing.
+  const other = page.locator('.phrase-cell').nth(2)
+  await other.hover()
+  await page.mouse.move(10, 10)
+  await other.click()
+  await page.waitForTimeout(200)
+  expect(await said()).toBe(1)
+
+  // The emergency bar is said over it.
+  await page.locator('.emergency-btn').first().click()
+  await expect.poll(said).toBe(2)
+  expect(errors).toEqual([])
+})

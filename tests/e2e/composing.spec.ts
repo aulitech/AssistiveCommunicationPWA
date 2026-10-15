@@ -182,6 +182,28 @@ test('selects the phrase auto-speak said when it was chosen by resting, every ti
         }),
       )
       .toEqual([0, (await box.inputValue()).length, (await box.inputValue()).length, true])
+    // Nothing but Stop answers until it has been said, so the next rest waits.
+    await expect(page.locator('.app')).not.toHaveClass(/is-speaking/, { timeout: 10_000 })
   }
+  expect(errors).toEqual([])
+})
+
+// A link in the box is edited as its text and its address, in fields inside the
+// card, and what is typed there is written back into the box.
+test('edits a link in the box as its text and its address', async ({ page }) => {
+  const { errors } = await openBoard(page)
+  const box = messageBox(page)
+  await box.fill('Look at https://example.com/menu please')
+  const text = page.locator('input[aria-label="Link text"]')
+  await expect(text).toBeVisible()
+  await expect(page.locator('input[aria-label="Link address"]')).toHaveValue('https://example.com/menu')
+  // Inside the card, as every control of the message is.
+  const card = (await page.locator('.message-wrap').boundingBox())!
+  const field = (await text.boundingBox())!
+  expect(field.y + field.height).toBeLessThanOrEqual(card.y + card.height)
+
+  await text.focus()
+  await page.keyboard.type('Menu')
+  await expect(box).toHaveValue('Look at [Menu](https://example.com/menu) please')
   expect(errors).toEqual([])
 })
