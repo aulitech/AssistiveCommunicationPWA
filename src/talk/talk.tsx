@@ -954,9 +954,11 @@ export function TalkScreen({
             // holding, and the box now holds it as it was written.
             already
             ? `Editing this phrase, in ${effectiveFilter === LIBRARY || !categoriesOf(already.id).includes(effectiveFilter) ? LIBRARY : effectiveFilter}`
-            : carried
+            : // Short enough for three lines of a phone, in the wider fonts
+              // other systems draw it in.
+              carried
               ? 'Edit mode — phrases go in at the caret'
-              : 'Edit mode — choose phrases to build or edit',
+              : 'Edit mode — build or change a phrase',
       )
     },
     [
