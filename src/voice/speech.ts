@@ -138,6 +138,7 @@ let playing: HTMLAudioElement | null = null
 
 function stopEverything() {
   generation++
+  onDevice = false
   if ('speechSynthesis' in window) speechSynthesis.cancel()
   if (playing) {
     playing.pause()
@@ -146,8 +147,63 @@ function stopEverything() {
   onStage(s => s.stop())
 }
 
+// ── Whether anything is being said ───────────────────────────────────────────
+//
+// **From the moment something is asked to be said until it has been**, so the
+// screen can offer to stop it — the wait for a translation or a clip included,
+// since stopping then is stopping it too. Ended by the utterance or the clip
+// finishing, for the latest thing asked only: anything older was stopped by
+// the one after it, and its ending says nothing about whether that one is done.
+
+let speaking = false
+const listeners = new Set<(speaking: boolean) => void>()
+// The device voice, while it holds the words — asked after as well as listened
+// to, since a synthesiser that is cancelled, or fails, does not always say so.
+// Given a moment before its silence is believed, in case one is slow to report
+// what it was handed, and not given it again once it has said it is busy.
+let onDevice = false
+let handedAt = 0
+let heardBusy = false
+let watching: ReturnType<typeof setInterval> | null = null
+const WATCH_MS = 250
+const GRACE_MS = 1000
+
+function setSpeaking(next: boolean) {
+  if (!next) {
+    onDevice = false
+    if (watching) clearInterval(watching)
+    watching = null
+  }
+  if (speaking === next) return
+  speaking = next
+  for (const listener of listeners) listener(next)
+}
+
+/** Ends the speaking that `mine` began, if nothing has been asked to be said since. */
+function finished(mine: number) {
+  if (mine === generation) setSpeaking(false)
+}
+
+/** Whether anything is being said now. */
+export function isSpeaking(): boolean {
+  return speaking
+}
+
+/** Told whenever something starts or stops being said. Returns the way to stop being told. */
+export function subscribeSpeaking(onChange: (speaking: boolean) => void): () => void {
+  listeners.add(onChange)
+  return () => void listeners.delete(onChange)
+}
+
+/** **Stop**: whatever is being said, and whatever is on its way to being said. */
+export function stopSpeaking() {
+  stopEverything()
+  setSpeaking(false)
+}
+
 function speakOnDevice(text: string, settings: VoiceSettings) {
-  if (!('speechSynthesis' in window)) return
+  const mine = generation
+  if (!('speechSynthesis' in window)) return finished(mine)
 
   const utterance = new SpeechSynthesisUtterance(text)
   utterance.volume = settings.volume
@@ -164,15 +220,30 @@ function speakOnDevice(text: string, settings: VoiceSettings) {
   // device may name nothing at all. This is what stops that falling all the way
   // back to whatever the *system* speaks.
   if (!utterance.voice && settings.language) utterance.lang = settings.language
+  utterance.onend = () => finished(mine)
+  utterance.onerror = () => finished(mine)
   speechSynthesis.speak(utterance)
+  onDevice = true
+  handedAt = Date.now()
+  heardBusy = false
+  if (!watching) {
+    watching = setInterval(() => {
+      if (!onDevice) return
+      if (speechSynthesis.speaking || speechSynthesis.pending) heardBusy = true
+      else if (heardBusy || Date.now() - handedAt > GRACE_MS) setSpeaking(false)
+    }, WATCH_MS)
+  }
 }
 
 function playAudio(blob: Blob, settings: VoiceSettings, onFailure: () => void) {
   const url = URL.createObjectURL(blob)
-  const done = () => URL.revokeObjectURL(url)
+  const mine = generation
+  const done = () => {
+    URL.revokeObjectURL(url)
+    finished(mine)
+  }
   // In the presentation window if there is one, and here if it cannot.
   if (stage) {
-    const mine = generation
     let asked: Promise<void>
     try {
       asked = stage.play(url, settings.volume, settings.rate, done)
@@ -193,7 +264,15 @@ function playHere(url: string, settings: VoiceSettings, onFailure: () => void) {
   // ElevenLabs has no rate of its own to ask for, and the speed control has to
   // keep meaning something whichever voice is chosen.
   audio.playbackRate = settings.rate
-  audio.addEventListener('ended', () => URL.revokeObjectURL(url), { once: true })
+  const mine = generation
+  audio.addEventListener(
+    'ended',
+    () => {
+      URL.revokeObjectURL(url)
+      finished(mine)
+    },
+    { once: true },
+  )
   playing = audio
   // A browser that refuses to play without a recent click is one more way of
   // ending up silent, so it is treated like any other failure.
@@ -223,6 +302,7 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   const written = stripMarkdown(source).replace(/[.\s]+$/, '')
   if (!written.trim()) return
   stopEverything()
+  setSpeaking(true)
 
   // Words that have already been translated. They are said in the language they
   // are in, and never put through the translator again.

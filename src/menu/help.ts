@@ -87,6 +87,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Switching between them never changes what is in the message box or which phrases are showing. Turning :edit: off keeps what you wrote in the box as your message.',
       ),
       text('Turning either one on turns the other off, so any of the three is one rest away from any other.'),
+      text(
+        'While Peri is speaking, a wide red :stop: bar covers the whole top row, over the message box and the menu. Rest on it to stop. Once the words end it goes, and the row is back as it was.',
+      ),
     ],
   },
   {
@@ -223,7 +226,11 @@ export const HELP_SECTIONS: ProseSection[] = [
     blocks: [
       text('Some phrases have a word left open, shown underlined — for example "Please turn on/off the lights".'),
       text(
-        'Choosing one of these opens a short chooser. Pick the word you want and the finished sentence goes into your message.',
+        'Choosing one puts it in the message box as you see it in edit mode, with its choices still in curly brackets. The words are picked when it is said: a short chooser opens, you pick the word you want, and the sentence is said with it.',
+      ),
+      list(
+        'With auto-speak on, the chooser opens as soon as you choose the phrase.',
+        'Building a message, it opens when you rest on :speak:. The box keeps the phrase, so the next :speak: asks again.',
       ),
       text(
         'A phrase showing ___ has a blank with nothing behind it yet. It is added as it stands, with the blank ready to type over.',

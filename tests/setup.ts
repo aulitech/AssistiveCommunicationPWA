@@ -5,6 +5,7 @@ import { cleanup } from '@testing-library/react'
 import { clearAudioCache, setRemoteClips } from '../src/voice/audio-cache'
 import { forgetPointerStream, releaseDwells, setSelectionPause } from '../src/ui/dwell'
 import { forgetWhoseBoard } from '../src/core/store'
+import { stopSpeaking } from '../src/voice/speech'
 
 /**
  * **The pause after a selection is off unless a test turns it on.** Nearly
@@ -189,14 +190,36 @@ function createObjectURL(blob: Blob) {
   return url
 }
 
+/**
+ * **Speech here ends the moment it begins** — the stub says nothing is being
+ * said, and the app believes it after a second. `holdSpeech` makes it go on
+ * until `finishSpeech`, or until something cancels it, for the tests about
+ * what the screen offers while something is being said.
+ */
+const speech = { holding: false, held: false }
+export function holdSpeech() {
+  speech.holding = true
+}
+export function finishSpeech() {
+  speech.held = false
+  lastUtterance?.onend?.(new Event('end') as SpeechSynthesisEvent)
+}
+
 function installSpeechSynthesis() {
   const synth = {
     getVoices: () => voices,
     speak: (u: SpeechSynthesisUtterance) => {
       lastUtterance = u
       spoken.push(u.text)
+      speech.held = speech.holding
     },
-    cancel: () => {},
+    get speaking() {
+      return speech.held
+    },
+    pending: false,
+    cancel: () => {
+      speech.held = false
+    },
     addEventListener: () => {},
     removeEventListener: () => {},
   }
@@ -212,6 +235,11 @@ beforeEach(() => {
   // fetched by one test would answer the next one's request without a fetch.
   voices.length = 0
   clearAudioCache()
+  // Module state: something said in one test is not still being said in the
+  // next, with Stop over the top row.
+  stopSpeaking()
+  speech.holding = false
+  speech.held = false
   // Module state, like the dwell guards: a test that installs the other
   // devices must not leave the next one talking to them.
   setRemoteClips(null)

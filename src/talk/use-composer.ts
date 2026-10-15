@@ -291,15 +291,15 @@ export function useComposer({
    * be translated a second time, nor kept a second time.
    */
   const speakIt = useCallback(
-    () =>
+    (words: string = text) =>
       holdsSaid
-        ? speak(text, settings, {
+        ? speak(words, settings, {
             voiceURI: shown.voiceURI,
             alreadyIn: shown.alreadyIn,
             onTranslated,
             please: settings.please,
           })
-        : speak(text, settings, { onTranslated, please: settings.please }),
+        : speak(words, settings, { onTranslated, please: settings.please }),
     [text, settings, onTranslated, holdsSaid, shown],
   )
 

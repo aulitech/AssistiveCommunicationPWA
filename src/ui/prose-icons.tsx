@@ -57,6 +57,7 @@ import {
   ResetIcon,
   SortAlphaIcon,
   SpeakIcon,
+  StopIcon,
   SuggestIcon,
   TrashIcon,
   UndoIcon,
@@ -71,6 +72,7 @@ import {
  */
 export const PROSE_ICONS: Record<string, () => React.ReactElement> = {
   speak: SpeakIcon,
+  stop: StopIcon,
   clear: ClearIcon,
   undo: UndoIcon,
   copy: CopyIcon,
@@ -126,6 +128,7 @@ export const PROSE_ICONS: Record<string, () => React.ReactElement> = {
  */
 export const PROSE_ICON_NAMES: Record<string, string> = {
   speak: 'Speak',
+  stop: 'Stop',
   clear: 'Clear',
   undo: 'Undo',
   copy: 'Copy',
