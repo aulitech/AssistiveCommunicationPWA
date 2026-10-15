@@ -1145,6 +1145,31 @@ describe('the suggested reply', () => {
    * afresh on nearly every question, and would carry how often each phrase is
    * used, which is the one record Peri keeps that goes nowhere at all.
    */
+  // A phrase auto-speak has just said sits in the box — something said, not a
+  // message being written — so a question still answers itself. Changed, it is
+  // somebody answering in their own words, and the board waits for them.
+  it('answers with a phrase just said in the box, and waits once it is being changed', async () => {
+    const fetch = suggests('I am, thank you')
+    vi.stubGlobal('fetch', fetch)
+    withKey()
+
+    click($$('.filter-tab').find(t => t.textContent === 'Sorted'))
+    click($$('.phrase-cell').find(c => c.textContent === 'Apple'))
+    expect($<HTMLTextAreaElement>('.text-display')!.value).toBe('Apple')
+    heardAndDone('Are you comfortable')
+    await act(async () => {})
+    expect(fetch, 'a phrase just said held the question back').toHaveBeenCalledTimes(1)
+
+    fireEvent.change($<HTMLTextAreaElement>('.text-display')!, { target: { value: 'Apple pie' } })
+    settle()
+    click(clearHeard())
+    act(() => FakeRecognition.last!.say({ transcript: 'Anything else?', isFinal: true }))
+    act(() => FakeRecognition.last!.finish())
+    settle()
+    await act(async () => {})
+    expect(fetch, 'answered over a message being written').toHaveBeenCalledTimes(1)
+  })
+
   it('sends the board with the question, the same however it has been used since', async () => {
     const fetch = suggests('I am, thank you')
     vi.stubGlobal('fetch', fetch)

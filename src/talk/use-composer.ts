@@ -55,6 +55,8 @@ export function useComposer({
    * of the word the change is in — see `setText`.
    */
   const [phrased, setPhrased] = useState('')
+  /** What auto-speak last put in the box — see `showSaid`. */
+  const [shown, setShown] = useState('')
   const phraseEnd = useMemo(() => phraseEndIn(text, phrased), [text, phrased])
 
   /**
@@ -72,8 +74,11 @@ export function useComposer({
   /** Clear when there is something to clear; otherwise put the last one back. */
   const showUndo = !text && history.length > 0
 
+  // **The end of a selection**, where there is one: a phrase auto-speak said
+  // sits in the box selected, and the next phrase chosen once auto-speak is off
+  // belongs after it, not before it.
   const trackCursor = useCallback((e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-    setCursorPos(e.currentTarget.selectionStart ?? 0)
+    setCursorPos(e.currentTarget.selectionEnd ?? 0)
   }, [])
 
   /**
@@ -195,6 +200,31 @@ export function useComposer({
   }, [])
 
   /**
+   * **What auto-speak has just said, in the box in place of whatever was there,
+   * and selected** — so typing writes over it, :copy: copies it, and :speak:
+   * says it again. A phrase rather than typing (`phrased`), so the board does
+   * not narrow to its words. What the box held goes to Undo.
+   */
+  const showSaid = useCallback(
+    (said: string) => {
+      if (text && text !== said) setHistory(h => [...h, { text, phrased }])
+      setTextState(said)
+      setPhrased(said)
+      setShown(said)
+      setCursorPos(said.length)
+      const el = textareaRef.current
+      // After the render that wrote the text, or the box is still holding the
+      // old value and the selection covers the wrong words.
+      setTimeout(() => {
+        if (!el || el.value !== said) return
+        el.focus()
+        el.setSelectionRange(0, said.length)
+      }, 0)
+    },
+    [text, phrased],
+  )
+
+  /**
    * The box holding `next`, with `phrased` what was put there rather than
    * typed and the caret at `caret` — what the edit box held as edit mode is
    * left, so the words, the caret and the word the grid is narrowed to all
@@ -254,11 +284,18 @@ export function useComposer({
     typed,
     showUndo,
     canClear: Boolean(text) || history.length > 0,
+    /**
+     * The box holds only what auto-speak just said, untouched — something said
+     * already rather than a message being written, so it does not count as one
+     * where a half-written message would hold something back.
+     */
+    holdsSaid: text !== '' && text === shown,
     textareaRef,
     trackCursor,
     setCursor,
     insert,
     propose,
+    showSaid,
     load,
     clear,
     clearOrUndo,

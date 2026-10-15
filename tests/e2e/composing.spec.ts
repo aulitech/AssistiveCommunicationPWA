@@ -126,3 +126,23 @@ test('keeps the words in order when the box slides under the pointer that switch
   await messageBox(page).pressSequentially(text, { delay: 15 })
   await expect(messageBox(page)).toHaveValue(text)
 })
+
+// Auto-speak puts the phrase it said in the box, selected — so the next key
+// typed writes over it rather than after it, and the board stays as it was.
+test('puts a phrase said in auto-speak in the box, selected, and typing writes over it', async ({ page }) => {
+  const { errors } = await openBoard(page)
+  const box = messageBox(page)
+  await page.locator('.phrase-cell').first().click()
+  const said = await box.inputValue()
+  expect(said.length, 'nothing went into the box').toBeGreaterThan(0)
+  await expect
+    .poll(() =>
+      box.evaluate(b => [(b as HTMLTextAreaElement).selectionStart, (b as HTMLTextAreaElement).selectionEnd]),
+    )
+    .toEqual([0, said.length])
+  await expect(page.locator('.filter-bar-wrap'), 'the board narrowed to the phrase').toBeVisible()
+
+  await page.keyboard.type('x')
+  await expect(box).toHaveValue('x')
+  expect(errors).toEqual([])
+})

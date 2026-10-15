@@ -22,6 +22,7 @@ import {
   fillEverySlot,
   slotCell,
   box,
+  writeIn,
 } from './harness'
 import { stylesheet } from '../stylesheet'
 
@@ -208,16 +209,62 @@ describe('auto-speak', () => {
     const cell = plainCell()
     click(cell)
     expect(spoken).toEqual([cell.textContent])
-    expect(message()).toBe('')
   })
 
-  it('speaks the phrase and leaves the message alone', () => {
+  // In the box as well, so it can be copied, said again or typed over — and
+  // selected, so the next key typed writes over it rather than after it.
+  it('speaks the phrase and puts it in the box, selected', () => {
     renderApp({ autoSpeak: true })
     const cell = plainCell()
     click(cell)
 
     expect(spoken).toEqual([cell.textContent])
+    expect(message()).toBe(cell.textContent)
+    const box = $<HTMLTextAreaElement>('.text-display')!
+    expect([box.selectionStart, box.selectionEnd]).toEqual([0, box.value.length])
+    expect(document.activeElement).toBe(box)
+  })
+
+  it('puts each phrase said in place of what the box held, which Undo brings back', () => {
+    renderApp({ autoSpeak: true })
+    // Typed, so the board narrows to it — and the phrase chosen from what it
+    // found takes the typing's place.
+    writeIn($<HTMLTextAreaElement>('.text-display')!, 'I want')
+    const first = plainCell()
+    click(first)
+    expect(message(), 'the typing was not replaced').toBe(spoken.at(-1))
+
+    const second = plainCell([first.textContent ?? ''])
+    click(second)
+    expect(message(), 'the second phrase did not replace the first').toBe(spoken.at(-1))
+    const said = message()
+
+    const named = (label: string) => $$('.icon-btn').find(b => b.getAttribute('aria-label') === label)
+    click(named('Clear'))
     expect(message()).toBe('')
+    click(named('Undo'))
+    expect(message()).toBe(said)
+  })
+
+  // A phrase in the box is not something being typed: the board stays as it
+  // was, tabs and all, rather than narrowing to the phrase's words.
+  it('leaves the board as it was rather than searching for the phrase', () => {
+    renderApp({ autoSpeak: true })
+    const before = cells().length
+    click(plainCell())
+    expect(cells().length).toBe(before)
+    expect($('.filter-bar-wrap'), 'the tabs went, as they do for typing').not.toBeNull()
+  })
+
+  // Turned off, the board builds on what was said rather than in front of it.
+  it('builds after the phrase once auto-speak is off', () => {
+    renderApp({ autoSpeak: true })
+    const first = plainCell()
+    click(first)
+    click(speakToggle())
+    const second = plainCell([first.textContent ?? ''])
+    click(second)
+    expect(message()).toBe(`${first.textContent} ${second.textContent}`)
   })
 
   it('still runs the slot picker, then speaks the result', () => {
@@ -228,7 +275,7 @@ describe('auto-speak', () => {
 
     expect(spoken).toHaveLength(1)
     expect(spoken[0]).not.toMatch(/[{}]/)
-    expect(message()).toBe('')
+    expect(message(), 'the choices went into the box unmade').not.toMatch(/[{}]/)
   })
 
   // **Switching one off says nothing about the other.** This landed in edit

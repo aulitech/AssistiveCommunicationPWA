@@ -69,7 +69,10 @@ export const HELP_SECTIONS: ProseSection[] = [
         ':auto-speak: to the right of the Rest bar, in the message box, is auto-speak. It lights up when it is on, and it is on every time Peri is opened, so the board can always talk straight away.',
       ),
       text(
-        'With auto-speak on, every phrase you choose is spoken the moment you choose it, and nothing is collected in the message box. This suits quick back-and-forth conversation.',
+        'With auto-speak on, every phrase you choose is spoken the moment you choose it. This suits quick back-and-forth conversation.',
+      ),
+      text(
+        'The phrase also goes into the message box, in place of what was there, and is selected. Type and your words replace it; :copy: copies it, and :speak: says it again. Anything you had written there comes back with :undo: after :clear:.',
       ),
       text('The two buttons either side of Rest move between three ways of working:'),
       list(

@@ -292,6 +292,22 @@ describe('saying one again', () => {
     expect(lastUtterance?.lang).toBe('es-MX')
   })
 
+  // Already in another language: Speak on it would send it to be translated
+  // again, so it is said and the box is left as it was.
+  it('leaves the message box alone when one is said', () => {
+    renderApp({ language: 'es-MX' })
+    seedTranslations('es-MX', { Cherry: 'Cereza' })
+    showSorted()
+    click(cellFor('Cherry'))
+    const box = () => $<HTMLTextAreaElement>('.text-display')!.value
+    expect(box(), 'the board’s own phrase goes in the box').toBe('Cherry')
+    showTranslations()
+
+    click(cells()[0])
+    expect(spoken.at(-1)).toBe('Cereza')
+    expect(box()).toBe('Cherry')
+  })
+
   it('says them as that language', () => {
     renderApp({ language: 'es-MX' })
     seedTranslations('es-MX', { Cherry: 'Cereza' })
