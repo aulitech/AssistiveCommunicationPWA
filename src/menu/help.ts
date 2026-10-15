@@ -125,7 +125,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     blocks: [
       text('The box at the top holds the message you are putting together.'),
       list(
-        'Rest on any phrase in the grid to add it to the box.',
+        'Rest on any phrase in the grid to add it to the box, as it was written: the same words, marks and full stop you see when you edit it.',
         'Type in the box to find phrases in Library. After you choose a phrase, what you type next starts a new search.',
         'Phrases that begin with what you typed come first, then phrases with a word that begins with it. Last are phrases whose first letters it spells, so "ttyl" finds "Talk to you later".',
         'In each of those groups, the phrase you used most recently comes first.',

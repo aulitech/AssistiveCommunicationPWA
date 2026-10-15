@@ -151,6 +151,12 @@ describe('isFilledFrom', () => {
     expect(isFilledFrom(choices, compose(choices))).toBe(true)
   })
 
+  // The message box holds a phrase as it was written, full stop and all.
+  it('takes it with the full stop it was written with', () => {
+    expect(isFilledFrom(choices, composeWritten(choices, ['red']))).toBe(true)
+    expect(isFilledFrom(choices, 'I want the red one. ')).toBe(true)
+  })
+
   it('refuses a word that is not one of the options, and anything said around it', () => {
     expect(isFilledFrom(choices, 'I want the green one')).toBe(false)
     expect(isFilledFrom(choices, 'I want the red one now')).toBe(false)

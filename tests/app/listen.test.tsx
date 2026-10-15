@@ -737,7 +737,8 @@ describe('what the board says while a reply is being written', () => {
     waitOut(WAITING_MS + 100)
 
     expect(spoken).toHaveLength(1)
-    expect(SHIPPED_APOLOGIES).toContain(spoken[0])
+    // Said, as everything is, without the full stop it was written with.
+    expect(SHIPPED_APOLOGIES.map(a => a.replace(/\.$/, ''))).toContain(spoken[0])
   })
 
   it('says it once, however long the wait goes on', () => {
@@ -820,7 +821,7 @@ describe('what the board says while a reply is being written', () => {
     const said = JSON.parse(localStorage.getItem('peri_apologies') ?? '{}') as {
       said: { text: string }[]
     }
-    expect(said.said.map(s => s.text)).toEqual(spoken)
+    expect(said.said.map(s => s.text.replace(/\.$/, ''))).toEqual(spoken)
   })
 })
 

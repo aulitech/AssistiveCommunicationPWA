@@ -323,7 +323,7 @@ The decisions behind each part of the app are in `docs/decisions/` — read the 
 - **A pointer rests where it last fired.** Whatever moves the screen under it holds the dwells, and a tap is guarded exactly as a dwell is — [Settling after the screen moves](docs/decisions/settling-after-the-screen-moves.md).
 - **A grid with Done and Cancel waits for one of them** — `ui/pending-choice.ts`.
 - **A file somebody else made cannot take anything away**, or set a value the settings panel could not: merging never removes, and imported values are clamped — [Backups](docs/decisions/backups.md).
-- **The editor loads a phrase's source; anything that speaks composes it first; markdown comes off once, inside `speak()`** — [Phrases and slots](docs/decisions/phrases-and-slots.md), [Markdown in a phrase](docs/decisions/markdown-in-a-phrase.md).
+- **The editor loads a phrase's source, and the message box the phrase as it was written, in every mode; anything that speaks composes it first; markdown and a full stop at the end come off once, inside `speak()`** — [Phrases and slots](docs/decisions/phrases-and-slots.md), [Markdown in a phrase](docs/decisions/markdown-in-a-phrase.md).
 
 ## Decisions
 

@@ -341,10 +341,11 @@ export function composeWithBlank(
 
 /**
  * **The phrase as it was written**, its choices filled in: the full stop at the
- * end kept, which `compose` takes off so a phrase can be built on, and the
- * markup kept as everything here keeps it. What a phrase said in auto-speak
- * shows in the message box — the phrase as somebody stored it, not the version
- * cut down for building a message.
+ * end kept, which `compose` takes off, and the markup kept as everything here
+ * keeps it. What a phrase chosen puts in the message box, in every mode — the
+ * phrase as somebody stored it and as edit mode opens it, not the version cut
+ * down for speaking. `speak` takes the full stop off again, and
+ * `isFilledFrom` does not count it.
  */
 export const composeWritten = (segments: Segment[], choices?: (string | null)[]) =>
   composeWithBlank(segments, choices, { asWritten: true }).text
@@ -378,9 +379,10 @@ export function hasBlank(segments: Segment[]): boolean {
  * fill Library with every combination anybody ever chose.
  *
  * Asked of the phrase as `compose` writes it, with a mark standing in each
- * slot, so the spacing and the dropped full stop come out exactly as they do
- * for the words being asked about. Case and runs of spaces do not count, as
- * they do not for `wordingKey`. Only for a phrase with a slot in it: one
+ * slot, so the spacing comes out exactly as it does for the words being asked
+ * about — and the words lose the full stop `compose` drops, since the message
+ * box holds the phrase with it. Case and runs of spaces do not count, as they
+ * do not for `wordingKey`. Only for a phrase with a slot in it: one
  * without is a wording, and is asked about as one.
  */
 export function isFilledFrom(segments: Segment[], text: string): boolean {
@@ -389,7 +391,16 @@ export function isFilledFrom(segments: Segment[], text: string): boolean {
     pattern = filledPattern(segments)
     filledPatterns.set(segments, pattern)
   }
-  return pattern !== null && pattern.test(text.trim().toLowerCase().replace(/\s+/g, ' '))
+  return (
+    pattern !== null &&
+    pattern.test(
+      text
+        .replace(/[.\s]+$/, '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' '),
+    )
+  )
 }
 
 /** Built once for each phrase: a table of several thousand is asked every time something is said. */

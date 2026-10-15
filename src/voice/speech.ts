@@ -213,7 +213,14 @@ export function speak(source: string, settings: VoiceSettings, options: SpeakOpt
   // app that says "asterisk asterisk help" out loud has failed at its only job.
   // Doing it here also means the cache is keyed by the words, so `**Help**` and
   // `Help` are the same clip rather than two.
-  const written = stripMarkdown(source)
+  //
+  // **And the full stop at the end, as `compose` takes it off.** The message box
+  // holds a phrase as it was written, full stop and all, while the board says
+  // it without one — and a shipped translation, a remembered one, the
+  // Translations record and a clip paid for are all keyed by the words the
+  // board says. "I want a hug." built in the box would have missed every one of
+  // them. A full stop at the end is not heard; a question mark is, and stays.
+  const written = stripMarkdown(source).replace(/[.\s]+$/, '')
   if (!written.trim()) return
   stopEverything()
 
