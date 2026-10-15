@@ -7,11 +7,10 @@
 // in `ui/dwell.ts` (`cameToPointer`) can be seen working.
 
 import { expect, test } from '@playwright/test'
-import { composing, messageBox, openBoard, tab } from './board'
+import { messageBox, openBoard, tab } from './board'
 
 test('refuses a click on a cell scrolled under a resting pointer, until it is aimed', async ({ page }) => {
   await openBoard(page)
-  await composing(page)
 
   const first = page.locator('.phrase-cell').first()
   const box = (await first.boundingBox())!

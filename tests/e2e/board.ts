@@ -62,12 +62,6 @@ export async function openBoard(
   return { errors }
 }
 
-/** The board opens in auto-speak; two dwells on the edit toggle leave it composing. */
-export async function composing(page: Page) {
-  await page.locator('.edit-toggle').click()
-  await page.locator('.edit-toggle').click()
-}
-
 export const editMode = (page: Page) => page.locator('.edit-toggle').click()
 
 export const tab = (page: Page, name: string) =>

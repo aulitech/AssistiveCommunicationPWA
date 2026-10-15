@@ -623,7 +623,8 @@ describe('the card', () => {
     expect(labels('.message-line > .topbar-clear')).toEqual(['Start a new phrase'])
     expect(labels('.message-field > .after-text')).toEqual([])
     writePhrase('Something new')
-    expect(labels('.message-field > .after-text')).toEqual(['Save phrase'])
+    // Save where it always stood, and Speak after it, which saves as well.
+    expect(labels('.message-field > .after-text')).toEqual(['Save phrase', 'Speak and save'])
 
     expect(labels('.tools-clipboard')).toEqual(['Paste from clipboard'])
     expect(labels('.tools-values')).toEqual([
@@ -995,7 +996,7 @@ describe('choosing one phrase after another', () => {
   const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
   const cellFor = (text: string) => cells().find(c => c.textContent === text)
 
-  const seeded = () => {
+  const seeded = (editing = true) => {
     localStorage.setItem(
       'dwellspeak_phrase_store_v2',
       JSON.stringify({
@@ -1008,6 +1009,10 @@ describe('choosing one phrase after another', () => {
       }),
     )
     renderApp()
+    // Building a sentence out of phrases is what edit mode's box does: the
+    // first phrase into an empty box opens, and each one after goes in at the
+    // caret.
+    if (editing) click(editToggle())
     click(tab('Sayings'))
   }
   /** Written into the box as a person types it, caret at the end. */
@@ -1054,17 +1059,17 @@ describe('choosing one phrase after another', () => {
   })
 
   // Clear and then Undo put the message back as it was — phrase and all, not a
-  // phrase whose last word the board now reads as typed.
+  // phrase whose last word the board now reads as typed. Said, in auto-speak,
+  // where the box is the message and Clear and Undo are its own.
   it('keeps a phrase whole after the message is cleared and put back', () => {
-    seeded()
+    seeded(false)
     click(cellFor('Once in a blue moon'))
     click(iconBtn('Clear'))
     click(iconBtn('Undo'))
     expect(message()).toBe('Once in a blue moon')
 
-    click(cellFor('Moonlight becomes you'))
-
-    expect(message()).toBe('Once in a blue moon Moonlight becomes you')
+    expect(tab('Manners'), 'the phrase put back was read as typing').toBeDefined()
+    expect(cells().map(c => c.textContent)).toEqual(['Once in a blue moon', 'Moonlight becomes you'])
   })
 
   // A gap is where the caret goes, but the phrase still ends where it ends:
@@ -1191,7 +1196,7 @@ describe('choosing one phrase after another', () => {
 
   // Cleared, the phrase is gone with the words: what is typed next is all new.
   it('searches everything typed after the box is cleared', () => {
-    seeded()
+    seeded(false)
     click(cellFor('Once in a blue moon'))
     clearMessage()
     typeInto('Once in a blue moon moonl')

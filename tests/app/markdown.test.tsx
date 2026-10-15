@@ -37,19 +37,14 @@ const MARKED = { id: 'custom-md', text: '**Help** me up', category: 'Marked' }
 const LISTED = { id: 'custom-list', text: '# Drinks\n- water\n- juice', category: 'Marked' }
 const EMERGENCY = { id: 'custom-md-em', text: '**Stop** now', category: 'Emergency' }
 
-// The board opens in auto-speak, whatever was stored, and these tests are about
-// composing and editing — so each render switches out of it, which is two
-// dwells on the edit toggle: auto-speak → edit → composing.
+// The board opens in auto-speak, whatever was stored; a test about editing
+// turns edit mode on, the only other way of working.
 function renderApp(custom = [MARKED, LISTED, EMERGENCY], settings: Record<string, unknown> = {}) {
   localStorage.setItem('dwellspeak_user', JSON.stringify({ name: 'Guest', email: '', provider: 'guest' }))
   localStorage.setItem('dwellspeak_settings', JSON.stringify(settings))
   localStorage.setItem(STORE_KEY, JSON.stringify({ custom }))
   container = render(<App />).container
   settle()
-  if (settings.autoSpeak !== true) {
-    click($('.edit-toggle'))
-    click($('.edit-toggle'))
-  }
   showMarked()
 }
 
@@ -160,18 +155,19 @@ describe('finding a marked-up phrase', () => {
 })
 
 describe('what leaves the board', () => {
+  // Said as it is chosen, and again from the box, where it holds its markup.
   it('speaks the words without the markup', () => {
     renderApp()
     click(marked())
     click(speakBtn())
-    expect(spoken).toEqual(['Help me up'])
+    expect(spoken).toEqual(['Help me up', 'Help me up'])
   })
 
   it('speaks a list as its lines, with no markers', () => {
     renderApp()
     click(cellFor('Drinks'))
     click(speakBtn())
-    expect(spoken).toEqual(['Drinks\nwater\njuice'])
+    expect(spoken).toEqual(['Drinks\nwater\njuice', 'Drinks\nwater\njuice'])
   })
 
   // Chosen deliberately: the message box is where a message is assembled and
@@ -192,10 +188,9 @@ describe('what leaves the board', () => {
   // Auto-speak says the phrase straight off rather than through the message
   // box, so it is its own path to the synthesiser and its own chance to say the
   // asterisks out loud. The box then holds the phrase as written, markup and
-  // all, as it does when a phrase is put there to build a message.
-  it('speaks the words in auto-speak too', () => {
+  // all.
+  it('speaks the words as it is chosen', () => {
     renderApp()
-    click($('.autospeak-toggle'))
     click(marked())
     expect(spoken).toEqual(['Help me up'])
     expect(message()).toBe('**Help** me up')
@@ -375,9 +370,8 @@ describe('choosing a phrase that is a link', () => {
     expect(message()).toBe(`Have a look at [the menu](${MENU})`)
   })
 
-  it('opens rather than speaks in auto-speak too', () => {
+  it('opens rather than speaks', () => {
     showMarkedAnd([LINK])
-    click($('.autospeak-toggle'))
     click(cells()[0])
 
     expect(opened).toEqual([[MENU, '_blank']])

@@ -190,6 +190,7 @@ export function TalkScreen({
     voiceFor,
     duplicateOf: board.duplicateOf,
     categoriesOf: board.categoriesOf,
+    box: composer.textareaRef,
   })
   const { draft, startNew, open: openPhrase } = editor
   // Anything written or opened after a delete takes the offer to undo it away:
@@ -201,7 +202,6 @@ export function TalkScreen({
   // every render: a callback depending on the whole of it would change identity
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
   const {
-    insert: insertPhrase,
     propose: proposeMessage,
     showSaid,
     holdsSaid,
@@ -442,21 +442,18 @@ export function TalkScreen({
   // ── Choosing a phrase ──────────────────────────────────────────────────────
 
   /**
-   * Where a chosen phrase goes. In auto-speak it is spoken on the spot and put
-   * in the box selected, so the grid works as a one-tap talker; otherwise it is
-   * composed into the message for the user to send when ready. **Either way the
-   * box holds it as it was written** (`written`, see `composeWritten`) — the
-   * words edit mode opens it on, markup and full stop and all, rather than the
-   * version cut down for speaking.
+   * **A phrase chosen outside edit mode is said** — the board is in auto-speak
+   * whenever it is not in edit mode, there being no third way of working any
+   * more — and this is the moment it counts as said. It goes in the box as
+   * well, in place of what was there and selected, so it can be copied, said
+   * again or typed over: **as it was written** (`written`, see
+   * `composeWritten`), the words edit mode opens it on, markup and full stop
+   * and all, and remembered with the voice and the language it was said in,
+   * so Speak says it again the same way.
    */
   const deliverPhrase = useCallback(
-    (phraseText: string, voiceURI?: string, blankAt = -1, alreadyIn?: string, written = phraseText) => {
-      // In auto-speak the phrase is the message — it is spoken, and this is the
-      // moment it counts as said. It goes in the box as well, in place of what
-      // was there and selected, so it can be copied, said again or typed over,
-      // and remembered with the voice and the language it was said in, so
-      // Speak says it again the same way.
-      if (settings.autoSpeak) {
+    (phraseText: string, voiceURI?: string, alreadyIn?: string, written = phraseText) => {
+      {
         speak(phraseText, settings, {
           voiceURI,
           // Set only from the Translations tab: those words have been translated
@@ -471,14 +468,14 @@ export function TalkScreen({
           please: settings.please,
         })
         // Not a cell off Translations, which is in another language and is
-        // kept there already.
-        if (!alreadyIn) keepSaid(phraseText)
+        // kept there already. **As it was written**, as Library holds it: the
+        // words without their full stop are a wording Library does not have,
+        // and every phrase ending in one was kept a second time without it.
+        if (!alreadyIn) keepSaid(written)
         showSaid(written, { voiceURI, alreadyIn })
-      } else {
-        insertPhrase(written, blankAt)
       }
     },
-    [settings, insertPhrase, keepSaid, recordTranslated, showSaid],
+    [settings, keepSaid, recordTranslated, showSaid],
   )
 
   const handleSelectPhrase = useCallback(
@@ -505,25 +502,21 @@ export function TalkScreen({
         return
       }
       // Counted here rather than at the speaker, because this is the one place a
-      // phrase is *chosen* — whatever it then does, speak, compose or open a
-      // link. Edit mode never reaches here: a cell opens the editor instead.
+      // phrase is *chosen* to be said — or followed, for a link. Edit mode never
+      // reaches here: a cell goes to the editor instead (`chooseInEdit`).
       //
       // Not under Translations or the answers. Those ids name a translation or
       // something a model offered a minute ago rather than a phrase on the
       // board, so counting them would fill the record with ids that can never
       // match anything and never fall out.
       if (!showingTranslated && !showingSuggestions) recordUsed(phrase.id)
-      // **Composing moves the board**: the phrase goes into the box, and the
-      // grid narrows to the word at the caret, under a pointer resting on the
-      // cell that did it. Nothing may be chosen until the gaze is aimed
-      // somewhere else. Auto-speak changes the box too, in place of what was
-      // there, and that can grow the box and push the grid down or end a search
-      // and widen it — but held for every phrase, it would hold the quick
-      // back-and-forth auto-speak is for where nothing moved at all. **Every
-      // cell guards itself instead** against arriving under a pointer at rest
-      // (`cameToPointer` in `ui/dwell.ts`), which answers exactly the case where
-      // something did move. The order no longer moves — see `ranking` above.
-      if (!settings.autoSpeak) holdDwellsUntilMoved()
+      // Auto-speak changes the box, in place of what was there, and that can
+      // grow the box and push the grid down or end a search and widen it — but
+      // held for every phrase, it would hold the quick back-and-forth auto-speak
+      // is for where nothing moved at all. **Every cell guards itself instead**
+      // against arriving under a pointer at rest (`cameToPointer` in
+      // `ui/dwell.ts`), which answers exactly the case where something did
+      // move. The order no longer moves — see `ranking` above.
       // A phrase that is nothing but a link is a button for going somewhere, so
       // it goes there instead of saying its own label out loud. A phrase with
       // words around a link is still a sentence and still speaks — see
@@ -540,38 +533,27 @@ export function TalkScreen({
         return
       }
       // **A phrase with choices goes in the box as edit mode shows it**, its
-      // choices still in it, and they are asked for when it is said: straight
-      // away in auto-speak, and otherwise when Speak is rested on. Filled in as
-      // it went in, the box held one wording of it — a message somebody could
-      // not change their mind about without choosing the phrase again, and
+      // choices still in it, and they are asked for as it is said — straight
+      // away, here. Filled in as it went in, the box held one wording of it:
       // words edit mode could not open as the phrase they came from.
       if (hasChoices(phrase.segments)) {
-        if (!settings.autoSpeak) {
-          insertPhrase(phrase.source)
-          return
-        }
         const voiceURI = voiceFor(phrase.id)
         showSaid(phrase.source, { voiceURI })
         cancelAllDwells()
         setFilling({ phrase, then: 'say', voiceURI })
         return
       }
-      // Recomposed rather than read off the phrase, for the offset alone — a
-      // blank has no characters to find in `phrase.text` any more.
-      const { blankAt } = composeWithBlank(phrase.segments)
       // A translated cell carries the language it is in, and is said in the
       // voice that was chosen while the board spoke it.
       deliverPhrase(
         phrase.text,
         phrase.lang ? voiceForTranslated(settings, phrase.lang) : voiceFor(phrase.id),
-        blankAt,
         phrase.lang,
         composeWritten(phrase.segments),
       )
     },
     [
       deliverPhrase,
-      insertPhrase,
       showSaid,
       voiceFor,
       flashToast,
@@ -879,26 +861,21 @@ export function TalkScreen({
   // ── Modes ──────────────────────────────────────────────────────────────────
 
   /**
-   * What a dwell on a phrase means. Three answers, and never more than one:
+   * What a dwell on a phrase means. Two answers, and always exactly one:
    *
    *  * **speak** — it is said this instant. The board is a talker, and this is
    *    where it starts, so opening the app for the first time is enough to be
    *    able to say something.
-   *  * **compose** — it goes into the message box, to be part of a sentence
-   *    built out of several.
-   *  * **edit** — it comes into the box to be reworded.
+   *  * **edit** — into an empty box it opens, to be reworded or deleted; into
+   *    one with words in it, it goes in at the caret. A sentence built out of
+   *    several phrases is built here, and Speak beside Save says it and keeps
+   *    it — see `handleSpeak`.
    *
-   * **Switching one on switches the other off; switching one off leaves the
-   * other alone.** Speaking and rewording ask opposite things of the same
-   * dwell, so the board cannot be in both at once — but *not speaking* is not a
-   * request to start rewording. Auto-speak off used to land in edit mode, which
-   * put somebody who only wanted to build a sentence out of several phrases
-   * into the one mode where a dwell changes the board.
-   *
-   * Neither control ever does nothing, and every state is now one dwell from
-   * the other two rather than two dwells from the one across the ring —
-   * auto-speak to composing was the pair somebody uses most and the pair that
-   * was furthest apart.
+   * **Turning one on turns the other off, and turning one off turns the other
+   * on.** There was a third — composing, where a phrase went into the box and
+   * nothing else happened — and it was taken out on request: building a
+   * sentence is what edit mode's box does now, so the two toggles are one
+   * choice drawn twice, and each always does something.
    *
    * Entering edit mode carries whatever is in the message box in with it, so a
    * message worth keeping becomes a phrase without being typed again.
@@ -924,7 +901,7 @@ export function TalkScreen({
    */
   const setMode = useCallback(
     // `carry` is false only for the microphone, which empties the box anyway.
-    (mode: 'speak' | 'compose' | 'edit', carry = true) => {
+    (mode: 'speak' | 'edit', carry = true) => {
       // What the pointer is on, to compare once the switch has been laid out —
       // see `beforeSwitch`.
       beforeSwitch.current = targetUnderPointer()
@@ -947,14 +924,9 @@ export function TalkScreen({
           loadMessage(draft.text, editor.phrased, editor.cursor)
         }
       }
-      // Entering it from either of the other two, it carries the message in.
-      // Between those two the box is the message already, and nothing moves.
-      if (mode !== 'edit' && !editMode) {
-        flashToast(
-          mode === 'speak'
-            ? 'Auto-speak on — phrases speak immediately'
-            : 'Auto-speak off — phrases build a message',
-        )
+      // Already speaking, nothing moves.
+      if (mode === 'speak' && !editMode) {
+        flashToast('Auto-speak on — phrases speak immediately')
         return
       }
       const carried = mode === 'edit' ? message.trim() : ''
@@ -974,17 +946,17 @@ export function TalkScreen({
       setReorderingEmergency(false)
       setReorderingPhrases(false)
       // The lit toggle is the only other cue, and it is a 1.5rem icon in a
-      // strip — say plainly which of the three the board is now in.
+      // strip — say plainly which of the two the board is now in.
       flashToast(
         mode === 'speak'
           ? 'Auto-speak on — phrases speak immediately'
-          : mode === 'edit'
-            ? // Which is not the phrase they last said but the one they were
-              // holding, and the box now holds it as it was written.
-              already
-              ? `Editing this phrase, in ${effectiveFilter === LIBRARY || !categoriesOf(already.id).includes(effectiveFilter) ? LIBRARY : effectiveFilter}`
-              : 'Edit mode — choose a phrase to change it'
-            : 'Auto-speak off — phrases build a message',
+          : // Which is not the phrase they last said but the one they were
+            // holding, and the box now holds it as it was written.
+            already
+            ? `Editing this phrase, in ${effectiveFilter === LIBRARY || !categoriesOf(already.id).includes(effectiveFilter) ? LIBRARY : effectiveFilter}`
+            : carried
+              ? 'Edit mode — phrases go in at the caret'
+              : 'Edit mode — choose phrases to build or edit',
       )
     },
     [
@@ -1029,12 +1001,9 @@ export function TalkScreen({
     return () => cancelAnimationFrame(frame)
   }, [editMode, settings.autoSpeak])
 
-  const toggleEditMode = useCallback(() => setMode(editMode ? 'compose' : 'edit'), [editMode, setMode])
+  const toggleEditMode = useCallback(() => setMode(editMode ? 'speak' : 'edit'), [editMode, setMode])
 
-  const toggleAutoSpeak = useCallback(
-    () => setMode(settings.autoSpeak ? 'compose' : 'speak'),
-    [settings.autoSpeak, setMode],
-  )
+  const toggleAutoSpeak = useCallback(() => setMode(editMode ? 'speak' : 'edit'), [editMode, setMode])
 
   /**
    * The microphone, and the one thing it does to the board besides opening the
@@ -1065,7 +1034,7 @@ export function TalkScreen({
     // a question that settles answers itself, which it does only into an empty
     // box. Edit mode goes, and so does please: an answer is said as it is.
     if (!listening) {
-      if (!settings.autoSpeak) setMode('speak', false)
+      if (editMode) setMode('speak', false)
       clearMessage()
       if (settings.please) update({ please: false })
     }
@@ -1074,7 +1043,7 @@ export function TalkScreen({
     // microphone in its row — moves out from under the pointer that rested on it.
     holdDwells()
     toggleMic()
-  }, [listening, settings.autoSpeak, settings.please, setMode, clearMessage, update, toggleMic])
+  }, [listening, editMode, settings.please, setMode, clearMessage, update, toggleMic])
 
   // Anything part-way through when rest begins would otherwise complete after
   // it, which is the one thing resting is supposed to prevent.
@@ -1101,9 +1070,28 @@ export function TalkScreen({
    * the box holds is left as it was, so the next Speak asks again.
    */
   const handleSpeak = useCallback(() => {
-    if (!message.trim()) return
+    const words = editMode ? draft.text : message
+    if (!words.trim()) return
     // Read as the board reads a phrase, with the user's own lists in it.
-    const segments = parseSegments(message, aliasOverlay(board.aliases))
+    const segments = parseSegments(words, aliasOverlay(board.aliases))
+    const plain = segments.some(s => s.kind === 'slot') ? composeWritten(segments) : words
+    // **In edit mode, Speak beside Save says the phrase being written and
+    // saves it**, as Save would — in the voice chosen for it, and its choices
+    // asked for as anywhere else. Where Save would refuse — the words are on
+    // the board already — it is only said: Library holds it as it is.
+    if (editMode) {
+      const voiceURI = draft.voice || undefined
+      if (hasChoices(segments)) {
+        cancelAllDwells()
+        setFilling({
+          phrase: { id: 'draft', text: compose(segments), source: words, segments, category: '' },
+          then: 'say',
+          voiceURI,
+        })
+      } else speak(plain, settings, { voiceURI, onTranslated: recordTranslated, please: settings.please })
+      if (draft.canSave) handleSave()
+      return
+    }
     if (hasChoices(segments)) {
       cancelAllDwells()
       setFilling({
@@ -1112,8 +1100,19 @@ export function TalkScreen({
       })
       return
     }
-    sayMessage(segments.some(s => s.kind === 'slot') ? composeWritten(segments) : message)
-  }, [message, sayMessage, board.aliases])
+    sayMessage(plain)
+  }, [
+    editMode,
+    draft.text,
+    draft.voice,
+    draft.canSave,
+    message,
+    sayMessage,
+    board.aliases,
+    settings,
+    recordTranslated,
+    handleSave,
+  ])
 
   // Copying is the other way a message leaves — into a text, an email, someone
   // else's screen. It was still said.
@@ -1191,7 +1190,23 @@ export function TalkScreen({
   // `editor.open` is stable, which matters: this value reaches every one of a
   // couple of thousand memoised phrase cells.
 
-  const editCtx: EditCtxValue = useMemo(() => ({ editMode, openEdit: editor.open }), [editMode, editor.open])
+  /**
+   * A cell, or a button on the emergency bar, chosen in edit mode — see
+   * `choose` in `use-editor.ts`. A phrase put in at the caret was chosen to be
+   * part of what is said, so it is counted as used, as one said is; one opened
+   * to be reworded is not, and neither is a translation or an answer, whose ids
+   * name nothing on the board.
+   */
+  const { choose: chooseForDraft } = editor
+  const chooseInEdit = useCallback(
+    (phrase: Phrase | null, isEmergency = false) => {
+      const into = chooseForDraft(phrase, isEmergency)
+      const record = phrase?.category === TRANSLATED_CATEGORY || phrase?.category === SUGGEST_CATEGORY
+      if (into === 'inserted' && phrase && !isEmergency && !record) recordUsed(phrase.id)
+    },
+    [chooseForDraft, recordUsed],
+  )
+  const editCtx: EditCtxValue = useMemo(() => ({ editMode, openEdit: chooseInEdit }), [editMode, chooseInEdit])
 
   const countFor = useCallback(
     (name: string) => board.phraseCountByCategory.get(name) ?? 0,
@@ -1234,7 +1249,7 @@ export function TalkScreen({
                   composer={composer}
                   editMode={editMode}
                   onToggleEdit={toggleEditMode}
-                  autoSpeak={settings.autoSpeak}
+                  autoSpeak={!editMode}
                   onToggleAutoSpeak={toggleAutoSpeak}
                   menuOpen={menuOpen}
                   onToggleMenu={() => setMenuOpen(o => !o)}

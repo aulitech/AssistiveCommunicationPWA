@@ -37,6 +37,34 @@ export function typedFrom(text: string, phraseEnd: number, pos: number): number 
   return pos >= phraseEnd ? phraseEnd : pos - (text.slice(0, pos).match(/\S+$/)?.[0].length ?? 0)
 }
 
+/**
+ * **`words` put in the box at the caret**, in place of whatever is being typed
+ * there: the space before it kept, and one put between it and what came before
+ * where there is none. A caret against the end of a phrase has nothing typed
+ * after it, so the phrase is kept whole. What comes back is the new text, what
+ * the box now holds up to the end of the words put in — the next `phrased` —
+ * and where the caret goes, which is there.
+ */
+export function insertAt(
+  text: string,
+  phrased: string,
+  caret: number,
+  words: string,
+): { text: string; phrased: string; caret: number } {
+  const pos = Math.min(caret, text.length)
+  const before = text.slice(0, pos)
+  const after = text.slice(pos)
+  const from = typedFrom(text, phraseEndIn(text, phrased), pos)
+  const kept = from > 0 ? text.slice(0, from) + (before.slice(from).match(/^\s*/)?.[0] ?? '') : ''
+  const separator = kept.length > 0 && !/\s$/.test(kept) ? ' ' : ''
+  const inserted = kept + separator + words
+  return {
+    text: inserted + (after === '' || /^\s/.test(after) ? '' : ' ') + after,
+    phrased: inserted,
+    caret: inserted.length,
+  }
+}
+
 /** What has been typed since the last phrase, up to the caret. */
 export function typedIn(text: string, phrased: string, caret: number): string {
   const pos = Math.min(caret, text.length)

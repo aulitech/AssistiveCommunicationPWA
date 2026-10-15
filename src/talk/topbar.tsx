@@ -848,14 +848,21 @@ export function Topbar({
               >
                 {hasWords &&
                   (editMode ? (
-                    <ActionButton
-                      className="in-card is-primary"
-                      onSelect={onSavePhrase}
-                      label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
-                      disabled={!draft.canSave}
-                    >
-                      <CheckIcon />
-                    </ActionButton>
+                    <>
+                      <ActionButton
+                        className="in-card is-primary"
+                        onSelect={onSavePhrase}
+                        label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
+                        disabled={!draft.canSave}
+                      >
+                        <CheckIcon />
+                      </ActionButton>
+                      {/* **Speak, after Save**: says the phrase being written
+                          and saves it — Save stays where it always stood. */}
+                      <ActionButton className="in-card is-primary" onSelect={onSpeak} label="Speak and save">
+                        <SpeakIcon />
+                      </ActionButton>
+                    </>
                   ) : (
                     <ActionButton className="in-card is-primary" onSelect={onSpeak} label="Speak" disabled={!text}>
                       <SpeakIcon />

@@ -2,7 +2,7 @@
 // these was written in AGENTS.md as "a question for the deploy preview".
 
 import { expect, test } from '@playwright/test'
-import { composing, messageBox, openBoard } from './board'
+import { messageBox, openBoard } from './board'
 
 test.describe('on a phone held upright', () => {
   test.use({ viewport: { width: 390, height: 844 } })
@@ -184,9 +184,9 @@ for (const [width, height] of [
   test(`keeps every control inside the card, none sharing a rest, at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     await openBoard(page)
-    for (const mode of ['composing', 'editing']) {
+    for (const mode of ['speaking', 'editing']) {
       if (mode === 'editing') await page.locator('.edit-toggle').dispatchEvent('click')
-      // Words in the box, so Speak — or Save — is drawn at the end of the line.
+      // Words in the box, so Speak — or Save and Speak — is drawn at the end of the line.
       await page.locator('.text-display').fill('Could you open the window a little, please?')
       const { outside, crowded, offCentre } = await page.evaluate(() => {
         const card = document.querySelector('.message-wrap')!.getBoundingClientRect()
@@ -425,7 +425,6 @@ for (const [width, beside] of [
 test('puts Save after the last word when edit mode rewraps the words', async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 800 })
   await openBoard(page)
-  await composing(page)
   const box = page.locator('.text-display')
   await box.pressSequentially(
     'This is a rather long message that will run past the end of one line in the box, and more',
@@ -466,7 +465,6 @@ test.describe('on a high-density screen', () => {
   test('lays the copy out at the box’s own width, in every mode', async ({ page }) => {
     await page.setViewportSize({ width: 777, height: 800 })
     await openBoard(page)
-    await composing(page)
     await page
       .locator('.text-display')
       .fill('This is a rather long message that will run past the end of one line')
@@ -499,7 +497,6 @@ for (const width of [1280, 390]) {
   test(`centres Clear on the words, one line or several, at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await openBoard(page)
-    await composing(page)
     const box = page.locator('.text-display')
     const offCentre = () =>
       page.evaluate(() => {

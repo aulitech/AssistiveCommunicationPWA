@@ -371,6 +371,8 @@ describe('in edit mode', () => {
     click(cellFor('Cherry'))
     showTranslations()
     click(editToggle())
+    // Edit mode opened what the box held; a cell opens into an empty box.
+    click(action('Start a new phrase'))
   }
 
   // Somebody who has just said something private needs a way to take it off the

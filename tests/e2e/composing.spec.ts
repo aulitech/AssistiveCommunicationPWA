@@ -1,4 +1,5 @@
-// Building a message out of phrases, in a real browser.
+// Building a message out of phrases, in a real browser — in edit mode, the one
+// place a phrase goes in at the caret.
 //
 // The reason this is here and not only in jsdom: **Chrome puts an unfocused text
 // box's caret back to the start** when a category tab is rested on, with no
@@ -6,11 +7,11 @@
 // the second phrase went in before the first.
 
 import { expect, test } from '@playwright/test'
-import { categories, cell, composing, messageBox, openBoard, tab } from './board'
+import { categories, cell, editMode, messageBox, openBoard, tab } from './board'
 
 test('keeps the tabs after a phrase is chosen', async ({ page }) => {
   await openBoard(page, { phrases: categories(['Greetings']) })
-  await composing(page)
+  await editMode(page)
   // The board opens on Library, where every phrase is.
 
   await cell(page, 'Once in a blue moon').click()
@@ -21,7 +22,7 @@ test('keeps the tabs after a phrase is chosen', async ({ page }) => {
 
 test('builds a sentence from two categories, both phrases whole and in order', async ({ page }) => {
   const { errors } = await openBoard(page, { phrases: categories(['Greetings']) })
-  await composing(page)
+  await editMode(page)
   // The board opens on Library, where every phrase is.
   await cell(page, 'Once in a blue moon').click()
 
@@ -40,7 +41,7 @@ test('builds a sentence from two categories, both phrases whole and in order', a
 // keeps: several words found as a whole, then an acronym after the phrase.
 test('finds what is typed in Library, and replaces it with the phrase chosen', async ({ page }) => {
   const { errors } = await openBoard(page)
-  await composing(page)
+  await editMode(page)
   // Focused rather than clicked: a pointer left resting on the box is a dwell
   // that puts the caret under it, part-way through what is being typed.
   await messageBox(page).focus()
@@ -67,14 +68,9 @@ test('finds what is typed in Library, and replaces it with the phrase chosen', a
  */
 test('keeps the caret in the message box when a button is pressed', async ({ page }) => {
   await openBoard(page)
-  await composing(page)
   const box = messageBox(page)
   await box.pressSequentially('Hello')
-  for (const label of [
-    'Copy to clipboard',
-    'Turn on auto-speak — speak phrases immediately',
-    'Say please at the end of everything spoken',
-  ]) {
+  for (const label of ['Copy to clipboard', 'Say please at the end of everything spoken']) {
     await page.locator(`[aria-label="${label}"]`).first().click()
     expect(await page.evaluate(() => document.activeElement?.className ?? ''), `${label} took focus`).toContain(
       'text-display',
@@ -90,7 +86,6 @@ test('keeps the caret in the message box when a button is pressed', async ({ pag
  */
 test('puts focus back in the message box, caret and all, when it falls to nothing', async ({ page }) => {
   await openBoard(page)
-  await composing(page)
   const box = messageBox(page)
   await box.pressSequentially('Hello')
   // Each step waits out the second the app is deaf for after the screen moves.
@@ -121,7 +116,9 @@ test('puts focus back in the message box, caret and all, when it falls to nothin
 test('keeps the words in order when the box slides under the pointer that switched modes', async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 900 })
   await openBoard(page)
-  await composing(page)
+  // Into edit mode and out again, the pointer left where the toggle was.
+  await editMode(page)
+  await editMode(page)
   const text = 'I would like to go outside this afternoon if the weather stays fine, and could'
   await messageBox(page).pressSequentially(text, { delay: 15 })
   await expect(messageBox(page)).toHaveValue(text)
