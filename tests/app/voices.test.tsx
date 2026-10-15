@@ -211,6 +211,25 @@ describe('giving a phrase its own voice', () => {
     expect(spoken).toEqual([])
   })
 
+  // Speak after Save says the phrase being written in the voice chosen for it,
+  // as it saves it.
+  it('says the phrase being written in its own voice with Speak in edit mode', async () => {
+    linkAccount()
+    audioReplies()
+    renderApp()
+
+    enterEditMode()
+    click(plainCell())
+    await chooseVoice('Rachel')
+    await flush()
+    const before = played.length
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak and save'))
+    await flush()
+
+    expect(played.length, 'Speak said it in the board’s voice').toBe(before + 1)
+    expect(spoken).toEqual([])
+  })
+
   // Auto-speak leaves the phrase in the box, and Speak says it again as it was
   // said: in its own voice, not the board's.
   it('says it in its own voice again from the message box', async () => {
