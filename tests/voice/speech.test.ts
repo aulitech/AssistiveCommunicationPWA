@@ -17,7 +17,16 @@ import {
   seedTranslations,
   translationFor,
 } from '../../src/core/translation'
-import { finishSpeech, holdSpeech, spoken, lastUtterance, played, setAudioPlays, voices } from '../setup'
+import {
+  finishSpeech,
+  holdSpeech,
+  quietSpeech,
+  spoken,
+  lastUtterance,
+  played,
+  setAudioPlays,
+  voices,
+} from '../setup'
 
 // Which of the two voices a phrase comes out of, and — the point of all of it —
 // that it always comes out of one of them. Somebody's only way of speaking does
@@ -211,6 +220,14 @@ describe('while something is being said', () => {
     stop()
   })
 
+  // A voice tried in a picker is not something said: the picker stays live.
+  it('is not speaking for a voice being tried', () => {
+    holdSpeech()
+    speak('Hello', SETTINGS, { sample: true })
+    expect(spoken).toEqual(['Hello'])
+    expect(isSpeaking()).toBe(false)
+  })
+
   it('says nothing is being said for nothing', () => {
     speak('   ', SETTINGS)
     expect(isSpeaking()).toBe(false)
@@ -257,6 +274,7 @@ describe('while something is being said', () => {
   it('gives the device voice a moment to say it is busy', () => {
     vi.useFakeTimers()
     try {
+      quietSpeech()
       vi.spyOn(speechSynthesis, 'speaking', 'get').mockReturnValue(false)
       speak('Hello', SETTINGS)
       act250()

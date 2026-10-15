@@ -65,7 +65,7 @@ import { HeardBox } from './heard'
  */
 function StopBar() {
   const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, stopSpeaking)
+  const { active, props } = useDwellControl(settings.actionDwellMs, stopSpeaking, { whileSpeaking: true })
   return (
     <button
       type="button"
