@@ -114,3 +114,17 @@ export async function within(page: Page, element: string, container: string) {
     { element, container },
   )
 }
+
+/**
+ * **Speech that ends the moment it starts**, for a test about something other
+ * than speaking: while anything is being said nothing but Stop answers, and how
+ * long headless Chromium takes to say nothing is not something to wait on.
+ */
+export async function instantSpeech(page: Page) {
+  await page.addInitScript(() => {
+    const synth = window.speechSynthesis
+    synth.speak = (u: SpeechSynthesisUtterance) => {
+      setTimeout(() => u.onend?.(new Event('end') as SpeechSynthesisEvent), 0)
+    }
+  })
+}

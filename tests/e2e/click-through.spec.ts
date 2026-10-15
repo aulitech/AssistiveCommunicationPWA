@@ -7,7 +7,7 @@
 // in `ui/dwell.ts` (`cameToPointer`) can be seen working.
 
 import { expect, test } from '@playwright/test'
-import { messageBox, openBoard, tab } from './board'
+import { instantSpeech, messageBox, openBoard, tab } from './board'
 
 test('refuses a click on a cell scrolled under a resting pointer, until it is aimed', async ({ page }) => {
   await openBoard(page)
@@ -51,6 +51,8 @@ test('refuses a click on a cell scrolled under a resting pointer, until it is ai
 // The pause after choosing, on its real default: a second click straight after
 // the first is ignored, and one after the pause is taken.
 test('ignores a second phrase clicked straight after the first, and takes it after a second', async ({ page }) => {
+  // The pause alone, not the lock while the first is being said.
+  await instantSpeech(page)
   const { errors } = await openBoard(page, { pause: true })
   const cells = page.locator('.phrase-cell')
   const first = cells.nth(0)
