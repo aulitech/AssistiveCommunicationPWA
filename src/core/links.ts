@@ -153,3 +153,50 @@ export function openLink(url: string): boolean {
     return false
   }
 }
+
+// ── The links in a message ────────────────────────────────────────────────────
+// What the message box offers to edit beside the words: each link as its text
+// and where it goes, rather than as brackets somebody has to aim a caret into.
+
+/** A link in a piece of text: where it stands, what it says, and where it goes. */
+export interface LinkAt {
+  start: number
+  end: number
+  /** Empty for an address written as it is. */
+  label: string
+  url: string
+}
+
+/** `[label](url)`, read as the markup reader reads it — see `readLink` in `core/markdown.ts`. */
+const MARKED = /\[([^\]]+)\]\(([^)]+)\)/g
+/** An address written as it is, its trailing punctuation left to the sentence. */
+const BARE = /\b(?:https?:\/\/|mailto:)[^\s<>()[\]]+/gi
+
+/** Every link in the text, in order: marked up, or an address written out. */
+export function linksIn(text: string): LinkAt[] {
+  const found: LinkAt[] = []
+  for (const m of text.matchAll(MARKED)) {
+    found.push({ start: m.index, end: m.index + m[0].length, label: m[1], url: m[2] })
+  }
+  const inside = (at: number) => found.some(l => at >= l.start && at < l.end)
+  for (const m of text.matchAll(BARE)) {
+    if (inside(m.index)) continue
+    const url = m[0].replace(/[.,!?;:'"]+$/, '')
+    found.push({ start: m.index, end: m.index + url.length, label: '', url })
+  }
+  return found.sort((a, b) => a.start - b.start)
+}
+
+/**
+ * **A link written from its two fields**: `[text](address)`, the address alone
+ * with no text, and the text alone with no address — the link taken out and
+ * its words left. The text is written as typed, spaces and all, since it is
+ * written on every key; only what would end it early is taken out.
+ */
+export function writeLink({ label, url }: { label: string; url: string }): string {
+  const text = label.replace(/[[\]\n]/g, '')
+  const address = url.trim().replace(/\)/g, '%29').replace(/\s/g, '%20')
+  if (!address) return text
+  if (!text.trim()) return address
+  return `[${text}](${address})`
+}

@@ -87,7 +87,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
 
       text(
-        'While Peri is speaking, a wide red :stop: bar covers the whole top row, over the message box and the menu. Rest on it to stop. Once the words end it goes, and the row is back as it was.',
+        'While Peri is speaking, a wide red :stop: bar covers the whole top row, over the message box and the menu. Rest on it to stop. Until the words end, nothing else answers and the phrases are dimmed. The blue emergency bar still works: an emergency phrase stops what is playing and is said straight away.',
       ),
     ],
   },
@@ -323,6 +323,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text('Links behave a little differently from other text:'),
       list(
         'Paste or drag a web link into the message box or a phrase and it becomes the name of the page. The address is still there when you copy the message, but it is not read aloud.',
+        'While the message box holds a link, two fields sit under the words: Text, what the link says, and Link, where it goes. Change either and the box changes with it. An address with no text is shown as it is.',
         'A phrase that is only a link opens it in a new tab instead of speaking. A phrase with words around a link is still spoken as usual.',
         'If a link does not open, allow pop-ups for Peri in your browser settings. Browsers only open new tabs off the back of a tap or a key press, and dwelling is neither.',
         "A link opens in the browser profile Peri is running in, signed in to whatever accounts that profile is. If several people share a computer, install Peri from each person's own browser profile, and their links will open with their own accounts.",

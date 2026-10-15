@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { linkMarkdown, readLink } from '../../src/core/links'
+import { linkMarkdown, linksIn, readLink, writeLink } from '../../src/core/links'
 import { layout, stripMarkdown } from '../../src/core/markdown'
 
 // Reading a link out of a paste or a drop. A clipboard and a drag carry the same
@@ -106,5 +106,52 @@ describe('writing it as markdown', () => {
 
     const [piece] = layout([{ kind: 'text', text: markdown }])[0].pieces
     expect(piece.kind === 'text' && decodeURIComponent(piece.link ?? '')).toBe('https://example.com/a_(b)')
+  })
+})
+
+/**
+ * **The links in a message**, as the message box offers them to edit: each
+ * as its text and its address, wherever it stands.
+ */
+describe('linksIn', () => {
+  it('finds a link marked up, and an address written out', () => {
+    const text = 'See [the menu](https://example.com/menu) or https://example.org.'
+    expect(linksIn(text)).toEqual([
+      { start: 4, end: 40, label: 'the menu', url: 'https://example.com/menu' },
+      { start: 44, end: 63, label: '', url: 'https://example.org' },
+    ])
+  })
+
+  it('does not count the address inside a link a second time', () => {
+    expect(linksIn('[x](https://a.com)')).toHaveLength(1)
+  })
+
+  it('finds nothing in words with no address', () => {
+    expect(linksIn('Nothing to see at example dot com')).toEqual([])
+  })
+})
+
+describe('writeLink', () => {
+  it('writes the text and the address as a link', () => {
+    expect(writeLink({ label: 'Menu', url: 'https://a.com' })).toBe('[Menu](https://a.com)')
+  })
+
+  it('writes the address alone when there is no text, and the text alone when there is no address', () => {
+    expect(writeLink({ label: '', url: 'https://a.com' })).toBe('https://a.com')
+    expect(writeLink({ label: '  ', url: 'https://a.com' })).toBe('https://a.com')
+    expect(writeLink({ label: 'Menu', url: '  ' })).toBe('Menu')
+  })
+
+  // Written on every key, so a space typed between two words is kept.
+  it('keeps the spaces typed in the text', () => {
+    expect(writeLink({ label: 'the ', url: 'https://a.com' })).toBe('[the ](https://a.com)')
+  })
+
+  it('keeps out what would end it early, and reads back as it was written', () => {
+    const written = writeLink({ label: 'a [b] c', url: 'https://a.com/x) y' })
+    expect(written).toBe('[a b c](https://a.com/x%29%20y)')
+    expect(linksIn(written)).toEqual([
+      { start: 0, end: written.length, label: 'a b c', url: 'https://a.com/x%29%20y' },
+    ])
   })
 })

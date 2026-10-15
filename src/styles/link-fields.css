@@ -1,0 +1,44 @@
+/* Each link in the message box as two fields, under the line the words are
+   written on — see `talk/link-fields.tsx`. A row a link: its text, then its
+   address, which takes the rest of the width since addresses run long. The gap
+   between them is the card's target separation, so the two never share a
+   rest; on a narrow card they stack. */
+.link-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem 0.25rem;
+}
+
+.link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 1.25rem;
+}
+
+.link-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.link-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 1rem;
+  outline: none;
+}
+.link-input:focus { border-color: var(--accent); }
+
+@container message (max-width: 38rem) {
+  .link-row { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
+}
