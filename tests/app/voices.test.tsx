@@ -211,6 +211,29 @@ describe('giving a phrase its own voice', () => {
     expect(spoken).toEqual([])
   })
 
+  // Auto-speak leaves the phrase in the box, and Speak says it again as it was
+  // said: in its own voice, not the board's.
+  it('says it in its own voice again from the message box', async () => {
+    linkAccount()
+    audioReplies()
+    renderApp()
+
+    enterEditMode()
+    click(plainCell())
+    await chooseVoice('Rachel')
+    savePhrase()
+    await flush()
+
+    click(speakToggle())
+    click(plainCell())
+    await flush()
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak'))
+    await flush()
+
+    expect(played, 'Speak said it in the board’s voice').toHaveLength(2)
+    expect(spoken).toEqual([])
+  })
+
   // The point of the whole arrangement. Assigning fetches the audio, so by the
   // time the bar is pressed it is already here and there is nothing to wait for.
   // Tested from the button rather than from speak(): the option has to actually

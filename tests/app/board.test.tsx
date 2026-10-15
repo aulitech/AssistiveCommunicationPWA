@@ -232,11 +232,11 @@ describe('auto-speak', () => {
     writeIn($<HTMLTextAreaElement>('.text-display')!, 'I want')
     const first = plainCell()
     click(first)
-    expect(message(), 'the typing was not replaced').toBe(spoken.at(-1))
+    expect(message(), 'the typing was not replaced').toBe(first.textContent)
 
     const second = plainCell([first.textContent ?? ''])
     click(second)
-    expect(message(), 'the second phrase did not replace the first').toBe(spoken.at(-1))
+    expect(message(), 'the second phrase did not replace the first').toBe(second.textContent)
     const said = message()
 
     const named = (label: string) => $$('.icon-btn').find(b => b.getAttribute('aria-label') === label)
@@ -244,6 +244,31 @@ describe('auto-speak', () => {
     expect(message()).toBe('')
     click(named('Undo'))
     expect(message()).toBe(said)
+  })
+
+  // As it was stored, not as it was cut down to be built on: the full stop at
+  // the end is the phrase's own, and stays.
+  it('puts the phrase in the box as it was written', () => {
+    // The whole board on screen, to find one phrase among thousands.
+    unmeasuredGrid()
+    renderApp({ autoSpeak: true })
+    const cell = cells().find(c => c.textContent === 'I want a hug.')!
+    click(cell)
+    expect(spoken).toEqual(['I want a hug'])
+    expect(message()).toBe('I want a hug.')
+  })
+
+  // Chosen by resting rather than clicking: a dwell fires from a timer, and the
+  // box was once selected on a timer set beside it that ran first.
+  it('selects the phrase when it is chosen by resting', () => {
+    renderApp({ autoSpeak: true })
+    const cell = plainCell()
+    fireEvent.pointerMove(document.body, { clientX: 5, clientY: 5 })
+    fireEvent.pointerEnter(cell)
+    act(() => void vi.advanceTimersByTime(DEFAULT_SETTINGS.phraseDwellMs))
+    const box = $<HTMLTextAreaElement>('.text-display')!
+    expect(box.value).toBe(cell.textContent)
+    expect([box.selectionStart, box.selectionEnd]).toEqual([0, box.value.length])
   })
 
   // A phrase in the box is not something being typed: the board stays as it

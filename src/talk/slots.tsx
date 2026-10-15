@@ -32,7 +32,8 @@ export function SlotPicker({
   onCancel,
 }: {
   phrase: Phrase
-  onComplete: (text: string, blankAt: number) => void
+  /** The phrase as it reads, where its first blank is, and the choices made — see `composeWritten`. */
+  onComplete: (text: string, blankAt: number, choices: (string | null)[]) => void
   onCancel: () => void
 }) {
   const { settings } = useSettings()
@@ -73,7 +74,7 @@ export function SlotPicker({
       if (step + 1 < steps.length) setStep(step + 1)
       else {
         const { text, blankAt } = composeWithBlank(phrase.segments, next)
-        onComplete(text, blankAt)
+        onComplete(text, blankAt, next)
       }
     },
     [choices, slotIndex, step, steps.length, phrase, onComplete],

@@ -315,6 +315,7 @@ export function compose(segments: Segment[], choices?: (string | null)[]): strin
 export function composeWithBlank(
   segments: Segment[],
   choices?: (string | null)[],
+  { asWritten = false }: { asWritten?: boolean } = {},
 ): { text: string; blankAt: number } {
   let slot = -1
   const out = segments
@@ -331,12 +332,22 @@ export function composeWithBlank(
   const tidied = out
     .replace(/[^\S\n]+/g, ' ')
     .replace(/[^\S\n]+([,.?!])/g, '$1')
-    .replace(/[.\s]+$/, '')
+    .replace(asWritten ? /\s+$/ : /[.\s]+$/, '')
     .trim()
 
   const blankAt = tidied.indexOf(MARK)
   return { text: tidied.split(MARK).join(BLANK), blankAt }
 }
+
+/**
+ * **The phrase as it was written**, its choices filled in: the full stop at the
+ * end kept, which `compose` takes off so a phrase can be built on, and the
+ * markup kept as everything here keeps it. What a phrase said in auto-speak
+ * shows in the message box — the phrase as somebody stored it, not the version
+ * cut down for building a message.
+ */
+export const composeWritten = (segments: Segment[], choices?: (string | null)[]) =>
+  composeWithBlank(segments, choices, { asWritten: true }).text
 
 /**
  * Slots the user must pick a value for. A slot with exactly one value needs no

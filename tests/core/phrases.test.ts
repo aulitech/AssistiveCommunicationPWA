@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   BLANK,
   PHRASES,
+  composeWritten,
   buildPhrases,
   choosableSlots,
   compose,
@@ -73,6 +74,31 @@ describe('parseSegments', () => {
 
   it('treats an empty placeholder as a blank', () => {
     expect(display('Did you see {}')).toBe(`Did you see ${BLANK}`)
+  })
+})
+
+/**
+ * The phrase as it was written, its choices filled in — what auto-speak puts
+ * in the message box. `compose` takes the full stop off the end so a phrase can
+ * be built on; this keeps it, and the markup, as stored.
+ */
+describe('composeWritten', () => {
+  it('keeps the full stop compose takes off', () => {
+    expect(compose(parseSegments('I want a hug.'))).toBe('I want a hug')
+    expect(composeWritten(parseSegments('I want a hug.'))).toBe('I want a hug.')
+  })
+
+  it('fills in the choices made, and keeps what comes after them', () => {
+    const segments = parseSegments("I need to see the {['doctor', 'nurse']} today.")
+    expect(composeWritten(segments, ['nurse'])).toBe('I need to see the nurse today.')
+  })
+
+  it('keeps the markup', () => {
+    expect(composeWritten(parseSegments('**Help** me up.'))).toBe('**Help** me up.')
+  })
+
+  it('takes nothing but trailing space', () => {
+    expect(composeWritten(parseSegments('Is that so?  '))).toBe('Is that so?')
   })
 })
 
