@@ -203,26 +203,24 @@ export function useComposer({
    * **What auto-speak has just said, in the box in place of whatever was there,
    * and selected** — so typing writes over it, :copy: copies it, and :speak:
    * says it again. A phrase rather than typing (`phrased`), so the board does
-   * not narrow to its words. What the box held goes to Undo.
+   * not narrow to its words. **What the box held is not kept for Undo**: it
+   * was most often what somebody typed to find the phrase, and Undo only ever
+   * brings back the last thing cleared, which would be this.
    */
-  const showSaid = useCallback(
-    (said: string) => {
-      if (text && text !== said) setHistory(h => [...h, { text, phrased }])
-      setTextState(said)
-      setPhrased(said)
-      setShown(said)
-      setCursorPos(said.length)
-      const el = textareaRef.current
-      // After the render that wrote the text, or the box is still holding the
-      // old value and the selection covers the wrong words.
-      setTimeout(() => {
-        if (!el || el.value !== said) return
-        el.focus()
-        el.setSelectionRange(0, said.length)
-      }, 0)
-    },
-    [text, phrased],
-  )
+  const showSaid = useCallback((said: string) => {
+    setTextState(said)
+    setPhrased(said)
+    setShown(said)
+    setCursorPos(said.length)
+    const el = textareaRef.current
+    // After the render that wrote the text, or the box is still holding the
+    // old value and the selection covers the wrong words.
+    setTimeout(() => {
+      if (!el || el.value !== said) return
+      el.focus()
+      el.setSelectionRange(0, said.length)
+    }, 0)
+  }, [])
 
   /**
    * The box holding `next`, with `phrased` what was put there rather than
