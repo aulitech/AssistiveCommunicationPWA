@@ -78,6 +78,17 @@ export function useComposer({
     setTextState(next)
   }, [])
 
+  /**
+   * **Words changed somewhere other than the box** — a link's fields — which
+   * are not typing: the whole of it is finished, so the board searches for
+   * nothing, and the caret goes to the end.
+   */
+  const rewrite = useCallback((next: string) => {
+    setTextState(next)
+    setPhrased(next)
+    setCursorPos(next.length)
+  }, [])
+
   /** Clear when there is something to clear; otherwise put the last one back. */
   const showUndo = !text && history.length > 0
 
@@ -239,6 +250,7 @@ export function useComposer({
   return {
     text,
     setText,
+    rewrite,
     cursorPos,
     typed,
     showUndo,
