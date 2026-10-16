@@ -157,6 +157,13 @@ export function useEditor({
     setEdits(e => ({ ...e, text }))
   }, [])
 
+  /** Words changed somewhere other than the box — not typing; see the composer's `rewrite`. */
+  const rewrite = useCallback((text: string) => {
+    setEdits(e => ({ ...e, text }))
+    setPhrased(text)
+    setCursor(text.length)
+  }, [])
+
   const trackCursor = useCallback((e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     setCursor(e.currentTarget.selectionStart ?? 0)
   }, [])
@@ -275,6 +282,7 @@ export function useEditor({
     choose,
     startNew,
     setText,
+    rewrite,
     setCategories,
     setVoice,
     trackCursor,

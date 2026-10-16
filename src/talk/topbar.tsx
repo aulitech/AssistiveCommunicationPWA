@@ -885,7 +885,7 @@ export function Topbar({
 
           {/* **Each link in the box as its text and its address**, under the
               line, while there is one — see `link-fields.tsx`. */}
-          <LinkFields text={value} onChange={write} />
+          <LinkFields text={value} onChange={editMode ? editor.rewrite : composer.rewrite} />
         </div>
       </div>
 

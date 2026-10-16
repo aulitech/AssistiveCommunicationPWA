@@ -66,6 +66,58 @@ describe('the fields for a link in the message box', () => {
     expect(box().value).toBe('[One](https://one.com) and [Two](https://two.com)')
   })
 
+  // Changing a link is not typing: the board is not narrowed to the message.
+  it('leave the board as it was', () => {
+    renderApp()
+    click($$('.phrase-cell')[0])
+    writeIn(box(), 'Look at https://example.com/x')
+    typeIn(field(0, 'Link text'), 'Example')
+    expect($('.filter-bar-wrap'), 'the board was narrowed to what the fields wrote').not.toBeNull()
+  })
+
+  // Held while it is being edited only while the box still holds it.
+  it('go when the link leaves the box', () => {
+    renderApp()
+    writeIn(box(), 'Look at https://example.com/x')
+    typeIn(field(0, 'Link text'), 'X')
+    expect(box().value).toBe('Look at [X](https://example.com/x)')
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Clear'))
+    expect(box().value).toBe('')
+    expect($('.link-fields'), 'the fields stayed for a link that has gone').toBeNull()
+  })
+
+  it('go when the words are written over and the link with them', () => {
+    renderApp()
+    writeIn(box(), 'Look at https://example.com/x')
+    typeIn(field(0, 'Link text'), 'X')
+    writeIn(box(), 'Something else entirely')
+    expect($('.link-fields')).toBeNull()
+  })
+
+  // A link put in the box where the one being edited was is its own, not the
+  // old one standing in for it.
+  it('show a link put in the box in place of the one being edited', () => {
+    localStorage.setItem(
+      'dwellspeak_phrase_store_v2',
+      JSON.stringify({
+        custom: [
+          { id: 'custom-a', text: '[Ay site](https://a.com) is fine', category: 'Links' },
+          { id: 'custom-b', text: '[Bee site](https://b.com) is good', category: 'Links' },
+        ],
+      }),
+    )
+    renderApp()
+    click($$('.filter-tab[role="tab"]').find(t => t.textContent === 'Links'))
+    click($$('.phrase-cell').find(c => c.textContent?.startsWith('Ay site')))
+    typeIn(field(0, 'Link text'), 'Ay')
+    expect(box().value).toBe('[Ay](https://a.com) is fine')
+    click($$('.phrase-cell').find(c => c.textContent?.startsWith('Bee site')))
+    expect(box().value).toBe('[Bee site](https://b.com) is good')
+    expect(rows()).toHaveLength(1)
+    expect(field(0, 'Link text').value).toBe('Bee site')
+    expect(field(0, 'Link address').value).toBe('https://b.com')
+  })
+
   it('edit the phrase being written in edit mode', () => {
     renderApp()
     click(editToggle())

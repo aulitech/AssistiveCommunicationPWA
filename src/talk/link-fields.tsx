@@ -16,6 +16,8 @@ interface Editing {
   length: number
   label: string
   url: string
+  /** What the fields last wrote there, which the box has to still hold. */
+  written: string
 }
 
 export function LinkFields({ text, onChange }: { text: string; onChange: (text: string) => void }) {
@@ -24,6 +26,16 @@ export function LinkFields({ text, onChange }: { text: string; onChange: (text: 
   // emptied to be typed again is, for a moment, not a link at all, and a row
   // read from the box would go from under the field being typed in.
   const [editing, setEditing] = useState<Editing | null>(null)
+  // **Only while the box still holds what the fields wrote.** Emptied, said
+  // over in auto-speak, or given another phrase, the link has gone from where
+  // it was — and a row held then shows a link that is not there, and stands in
+  // for a new one put in its place. Let go in the render that finds it gone,
+  // as state that follows other state is here.
+  if (
+    editing &&
+    (!text.trim() || text.slice(editing.start, editing.start + editing.written.length) !== editing.written)
+  )
+    setEditing(null)
 
   const rows: (LinkAt | Editing)[] = editing
     ? [...links.filter(l => l.start !== editing.start), editing].sort((a, b) => a.start - b.start)
@@ -39,6 +51,7 @@ export function LinkFields({ text, onChange }: { text: string; onChange: (text: 
             length: 'end' in row ? row.end - row.start : row.length,
             label: row.label,
             url: row.url,
+            written: text.slice(row.start, 'end' in row ? row.end : row.start + row.length),
           },
     )
   const change = (row: LinkAt | Editing, next: { label: string; url: string }) => {
@@ -46,7 +59,7 @@ export function LinkFields({ text, onChange }: { text: string; onChange: (text: 
     const length = at ? at.length : 'end' in row ? row.end - row.start : row.length
     const written = writeLink(next)
     onChange(text.slice(0, row.start) + written + text.slice(row.start + length))
-    setEditing({ start: row.start, length: written.length, ...next })
+    setEditing({ start: row.start, length: written.length, ...next, written })
   }
   // Let go once focus leaves the row altogether — not on going from one of its
   // fields to the other.
