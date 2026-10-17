@@ -324,6 +324,13 @@ test('does not speak when Speak arrives under a resting pointer', async ({ page 
     const w = window as unknown as { said: number }
     w.said = 0
     speechSynthesis.speak = () => void w.said++
+    // **A two-second action dwell**, still under the three seconds each wait
+    // below gives Speak. Before the screen narrows, the pointer rests on what
+    // is the top row's open space on the wide one, and on a slow machine that
+    // passed the usual 0.8s and rested the app.
+    if (!localStorage.getItem('dwellspeak_settings')) {
+      localStorage.setItem('dwellspeak_settings', JSON.stringify({ selectionPauseMs: 0, actionDwellMs: 2000 }))
+    }
   })
   const said = () => page.evaluate(() => (window as unknown as { said: number }).said)
   const speakAt = () =>
@@ -345,7 +352,8 @@ test('does not speak when Speak arrives under a resting pointer', async ({ page 
   const wide = await speakAt()
   expect(Math.abs(wide.x - narrow.x) + Math.abs(wide.y - narrow.y), 'Speak did not move').toBeGreaterThan(40)
   // Not long enough to rest the app: on the wide screen this is the top row's
-  // open space, which a rest there switches dwelling off with.
+  // open space, which a rest there switches dwelling off with — see the dwell
+  // set above.
   await page.mouse.move(narrow.x, narrow.y)
   await page.waitForTimeout(300)
 
