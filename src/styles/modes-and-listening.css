@@ -462,8 +462,8 @@
   animation: dwellFillH var(--dwell-duration, 800ms) linear forwards;
 }
 
-/* The three modes — edit, Rest, auto-speak — after the microphone in the start
-   group. 0.75rem apart rather than 1.25: they are three states of one thing,
+/* The modes — edit, auto-speak — after the microphone in the start group.
+   0.75rem apart rather than 1.25: they are states of one thing,
    and picking the wrong one costs a dwell to put back. */
 .topbar-modes {
   display: flex;
@@ -473,7 +473,7 @@
 
 /* The mode toggles either side of Rest, and the microphone — the size of every
    control in the card, with an invisible area a little past their edges that a
-   head or eye tracker can hit, as `.rest-btn::before` has. */
+   head or eye tracker can hit. */
 .mode-btn {
   position: relative;
   display: flex;
@@ -511,44 +511,36 @@
   background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-.rest-btn {
-  position: relative;
-  width: 8rem;
-  height: 0.5rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--rest) 80%, transparent);
-  cursor: pointer;
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
-}
-
-/* Shorter on a phone, where the start of the card's row — the microphone, edit,
-   this and auto-speak — has under 16rem to share. Still the widest thing in it,
-   and still a bar, which is what it is found by. */
-@media (max-width: 400px) {
-  .rest-btn { width: 5rem; }
-}
-
-/* Half a rem is well under the 24px a pointing device wants, and this app is
-   driven by head and eye trackers. The painted size is what was asked for; the
-   area that answers to a pointer is taller, and invisible. */
-.rest-btn::before {
-  content: '';
+/* **Rest, the top row's open space** — see `RestSurface` in `topbar.tsx`.
+   Behind everything in the row: the row is its own stacking context, so the
+   surface sits over the row's ground and under all of what is on it. */
+.topbar { isolation: isolate; }
+.rest-surface {
   position: absolute;
-  inset: -6px 0;
+  inset: 0;
+  z-index: -1;
+  cursor: pointer;
 }
 
-/* The fill runs the whole height rather than a 3px strip along the bottom —
-   at this size that strip would be most of the control anyway. */
-.rest-btn .dwell-bar { height: 100%; border-radius: 999px; background: #000; opacity: 0.45; }
-.rest-btn.dwelling { background: var(--rest); }
-.rest-btn.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
+/* **The row lets the pointer through to it wherever nothing answers**: the
+   cards, the rows in them and the padding round them pass it on, and what can
+   be worked — a control, a box, a field, a link — keeps it. A control's
+   invisible area past its edge is its own, and stays. */
+.topbar > :not(.rest-surface),
+.topbar > :not(.rest-surface) * { pointer-events: none; }
+.topbar :is([role='button'], [role='tab'], [role='option'], button, textarea, input, a) { pointer-events: auto; }
 
-/* Resting: full strength and haloed. The app dimming behind it is the cue that
-   carries — nothing this small can say much on its own. */
-.rest-btn.is-resting {
-  background: var(--rest);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rest) 30%, transparent), 0 1px 4px rgba(0, 0, 0, 0.6);
+/* A rest filling, along the foot of the row, in the rest colour, over a wash of
+   it in the open space. */
+.rest-surface .dwell-bar { background: var(--rest); border-radius: 0; }
+.rest-surface.dwelling { background: color-mix(in srgb, var(--rest) 8%, transparent); }
+.rest-surface.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
+
+/* Resting: the open space washed in the rest colour, pulsing, under a row
+   dimmed because none of it will answer — the way back is wherever the wash
+   shows. */
+.rest-surface.is-resting {
+  background: color-mix(in srgb, var(--rest) 16%, transparent);
   animation: restPulse 1.6s ease-in-out infinite;
 }
 
@@ -558,7 +550,7 @@
 
 /* Everything else, while resting. Dimmed because none of it will answer — but
    still legible, since reading the screen is most of why someone rests. */
-.app.resting .topbar,
+.app.resting .topbar > :not(.rest-surface),
 .app.resting .filter-bar-wrap,
 .app.resting .grid-wrapper,
 .app.resting .grid-scrollbar,

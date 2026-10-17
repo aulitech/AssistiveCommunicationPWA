@@ -345,9 +345,9 @@
   /* A magnified cell is simply there at its size, without growing into it. */
   .phrase-place.is-magnified > .phrase-cell { animation: none !important; }
 
-  /* The resting lozenge stops pulsing; it stays lit, and the app is still
-     dimmed behind it. */
-  .rest-btn.is-resting { animation: none !important; }
+  /* The open space stops pulsing while resting; it stays washed in the rest
+     colour, and the row is still dimmed over it. */
+  .rest-surface.is-resting { animation: none !important; }
 
   /* The live microphone's level stands still, part full; it is still lit, and
      still there only while sound is coming in. */

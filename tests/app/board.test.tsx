@@ -27,7 +27,7 @@ import {
 import { stylesheet } from '../stylesheet'
 
 describe('resting', () => {
-  const rest = () => $('.rest-btn')!
+  const rest = () => $('.rest-surface')!
   const dwell = (el: Element, ms = 1500) => {
     fireEvent.pointerEnter(el)
     act(() => void vi.advanceTimersByTime(ms))
@@ -35,11 +35,18 @@ describe('resting', () => {
   }
   const startResting = () => click(rest())
 
-  // Among the modes in the message card's row, rather than over the phrases.
-  it('sits among the modes in the message card, not over the phrases', () => {
+  // **The top row's open space**: a surface behind everything in it, which the
+  // row lets the pointer through to wherever nothing answers. Where it is drawn
+  // and what reaches it is `e2e/layout.spec.ts`'s question; this is that it is
+  // there, and the bar it replaced is not.
+  it('is the open space of the top row, behind everything in it', () => {
     renderApp()
-    expect($('.message-wrap .message-tools .topbar-modes > .rest-btn')).not.toBeNull()
-    expect($('.grid-area .rest-btn')).toBeNull()
+    expect($('.topbar > .rest-surface')).not.toBeNull()
+    expect($('.topbar > :first-child')?.classList.contains('rest-surface')).toBe(true)
+    expect($('.rest-btn'), 'the bar it replaced').toBeNull()
+    const css = stylesheet()
+    expect(css).toMatch(/\.topbar > :not\(\.rest-surface\) \* \{ pointer-events: none; \}/)
+    expect(css).toMatch(/\.topbar :is\([^)]*\[role='button'\][^)]*textarea[^)]*\) \{ pointer-events: auto; \}/)
   })
 
   // Dwell is this app's only input, so without a way to switch it off there is
@@ -356,24 +363,18 @@ describe('fill-in-the-blank phrases', () => {
 })
 
 describe('auto-speak', () => {
-  // The three modes share one strip across the top of the message box, in the
-  // order edit, Rest, auto-speak — and please after them. DOM order is what can be checked here — jsdom
+  // The modes share one strip across the top of the message box, in the
+  // order edit, auto-speak — and please after them. DOM order is what can be checked here — jsdom
   // lays nothing out — but in a flex row with nothing setting `order` that is
   // also the order they are seen in, left to right.
-  it('sits to the right of Rest, with edit to its left', () => {
+  it('sits to the right of edit', () => {
     renderApp()
     const strip = $$('.topbar-modes > *')
-    expect(strip.map(el => el.className.split(' ')[0])).toEqual([
-      'mode-btn',
-      'rest-btn',
-      'mode-btn',
-      'mode-btn',
-      'mode-btn',
-    ])
+    expect(strip.map(el => el.className.split(' ')[0])).toEqual(['mode-btn', 'mode-btn', 'mode-btn', 'mode-btn'])
     expect(strip[0].getAttribute('aria-label')).toMatch(/edit/i)
-    expect(strip[2].getAttribute('aria-label')).toMatch(/auto-speak/i)
-    expect(strip[3].getAttribute('aria-label')).toMatch(/please/i)
-    expect(strip[4].getAttribute('aria-label')).toMatch(/present/i)
+    expect(strip[1].getAttribute('aria-label')).toMatch(/auto-speak/i)
+    expect(strip[2].getAttribute('aria-label')).toMatch(/please/i)
+    expect(strip[3].getAttribute('aria-label')).toMatch(/present/i)
   })
 
   // The empty box is where somebody looks to learn what a dwell on a phrase

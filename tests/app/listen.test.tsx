@@ -143,9 +143,9 @@ describe('the control', () => {
   it('sits at the box’s upper-left corner, and nothing else moved', () => {
     renderApp()
     expect($('.topbar-listen .listen-toggle')).not.toBeNull()
-    // The modes strip holds the three modes, please and present, and the
+    // The modes strip holds the two modes, please and present, and the
     // microphone is not among them.
-    expect($$('.topbar-modes > *')).toHaveLength(5)
+    expect($$('.topbar-modes > *')).toHaveLength(4)
     expect($('.topbar-modes .listen-toggle')).toBeNull()
   })
 

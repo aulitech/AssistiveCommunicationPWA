@@ -344,8 +344,10 @@ test('does not speak when Speak arrives under a resting pointer', async ({ page 
   await page.waitForTimeout(300)
   const wide = await speakAt()
   expect(Math.abs(wide.x - narrow.x) + Math.abs(wide.y - narrow.y), 'Speak did not move').toBeGreaterThan(40)
+  // Not long enough to rest the app: on the wide screen this is the top row's
+  // open space, which a rest there switches dwelling off with.
   await page.mouse.move(narrow.x, narrow.y)
-  await page.waitForTimeout(1500)
+  await page.waitForTimeout(300)
 
   // The screen narrows, the words rewrap, and Speak lands under the pointer.
   await page.setViewportSize({ width: 900, height: 900 })
@@ -358,6 +360,7 @@ test('does not speak when Speak arrives under a resting pointer', async ({ page 
     await page.waitForTimeout(100)
   }
   expect(await said(), 'spoken by nobody').toBe(0)
+  await expect(page.locator('.app'), 'rested on the way').not.toHaveClass(/resting/)
 
   await page.mouse.move(narrow.x + 200, narrow.y + 200, { steps: 5 })
   await page.mouse.move(narrow.x, narrow.y, { steps: 5 })
@@ -599,4 +602,36 @@ test.describe('the magnified cell', () => {
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 8 })
     await expect(messageBox(page)).toHaveValue(text!, { timeout: 5000 })
   })
+})
+
+// **Rest is the top row's open space.** Wherever nothing in the row answers —
+// the padding round the card, its edge, the gaps in its row of controls — the
+// pointer reaches the surface behind, and a click there rests the app; the
+// controls and the box answer as themselves.
+test("rests on a click in the top row's open space, and on nothing that answers", async ({ page }) => {
+  await openBoard(page)
+  const app = page.locator('.app')
+  const hits = await page.evaluate(() => {
+    const at = (x: number, y: number) => document.elementFromPoint(x, y)?.classList.contains('rest-surface')
+    const card = document.querySelector('.message-wrap')!.getBoundingClientRect()
+    const centre = (sel: string) => {
+      const r = document.querySelector(sel)!.getBoundingClientRect()
+      return [r.left + r.width / 2, r.top + r.height / 2] as const
+    }
+    return {
+      above: at(card.left + 60, card.top - 4),
+      edge: at(card.left + 3, card.top + 3),
+      edit: at(...centre('.edit-toggle')),
+      box: at(...centre('.text-display')),
+      menu: at(...centre('.menu-btn')),
+    }
+  })
+  expect(hits).toEqual({ above: true, edge: true, edit: false, box: false, menu: false })
+
+  const card = (await page.locator('.message-wrap').boundingBox())!
+  await page.mouse.click(card.x + 60, card.y - 4)
+  await expect(app).toHaveClass(/resting/)
+  await page.mouse.move(card.x + 300, card.y + 200)
+  await page.mouse.click(card.x + 60, card.y - 4)
+  await expect(app).not.toHaveClass(/resting/)
 })
