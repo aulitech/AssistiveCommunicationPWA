@@ -603,7 +603,6 @@ describe('the card', () => {
     // last, being about where it goes.
     expect(labels('.tools-modes')).toEqual([
       'Edit phrases',
-      expect.stringMatching(/rest/i),
       expect.stringMatching(/auto-speak/i),
       'Say please at the end of everything spoken',
       'Present: show what is said in a window of its own',

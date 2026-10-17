@@ -216,24 +216,31 @@ function ModeToggle({
 }
 
 /**
- * The only control that stays live while the app is resting — everything else
- * is switched off around it, so this has to be the way back. Its own dwell
- * therefore never depends on the resting state.
+ * **Rest is the top row's open space** — a dwell or a click anywhere in it that
+ * is not a control or a text box switches dwelling off, and the same again
+ * switches it back on. It was a bar among the modes, the size of a lozenge; the
+ * open space is the biggest target on the screen, and found without looking.
  *
- * A bare lozenge on the top edge of the message box: no icon, no word. The
- * name lives only in `aria-label`, and the state is told by the whole app
- * dimming behind it rather than by anything the control itself can say.
+ * A surface behind everything in the row (`.rest-surface`), which the row lets
+ * the pointer through to wherever it has nothing that answers — the cards, the
+ * rows in them and the padding round them pass it on; the controls and the
+ * boxes keep it. The only control that stays live while the app is resting,
+ * since it is the way back: its own dwell never depends on the resting state.
+ * No icon and no word: the name lives in `aria-label`, and the state is told by
+ * the row dimming over a wash of the rest colour.
  */
-function RestButton({ resting, onToggle }: { resting: boolean; onToggle: () => void }) {
+function RestSurface({ resting, onToggle }: { resting: boolean; onToggle: () => void }) {
   const { settings } = useSettings()
   const { active, props } = useDwellControl(settings.actionDwellMs, onToggle, { ignoresRest: true })
   return (
     <div
-      className={cx('rest-btn', resting && 'is-resting', active && 'dwelling')}
+      className={cx('rest-surface', resting && 'is-resting', active && 'dwelling')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
       aria-pressed={resting}
-      aria-label={resting ? 'Resume. Switch dwell back on' : 'Rest. Switch dwell off everywhere but here'}
+      aria-label={
+        resting ? 'Resume. Switch dwell back on' : 'Rest. Switch dwell off everywhere but the open space up here'
+      }
       {...props}
     >
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
@@ -557,6 +564,7 @@ export function Topbar({
 
   return (
     <header className="topbar">
+      <RestSurface resting={resting} onToggle={onToggleRest} />
       {/* At the left, as the menu is at the right, because it is the same kind
           of thing: a surface the whole app shares, rather than anything about
           the message in the box. It stays put in both modes — on a device that cannot type without it,
@@ -592,7 +600,7 @@ export function Topbar({
         {/* The message card: the words and the row of controls. */}
         <div className="message-wrap">
           {/* **The card's row of controls, above the line**: the clipboard at
-              the far left, the modes in the middle — the microphone, edit, Rest,
+              the far left, the modes in the middle — the microphone, edit,
               auto-speak — and the language and the voice at the right, with
               delete after them in edit mode, as far from Save as the card goes. */}
           <div className="message-tools">
@@ -634,8 +642,6 @@ export function Topbar({
                 >
                   <EditIcon />
                 </ModeToggle>
-
-                <RestButton resting={resting} onToggle={onToggleRest} />
 
                 <ModeToggle
                   className="autospeak-toggle"

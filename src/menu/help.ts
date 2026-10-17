@@ -36,7 +36,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'At the far left of the top row: :copy: and :paste:.',
-        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then :edit:, the Rest bar and :auto-speak: — then :please: and :present:.',
+        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then :edit: and :auto-speak: — then :please: and :present:.',
         'At the right of the top row, on a wide screen: the language and the voice.',
         'At the left end of the line: :clear:, which empties the box — and afterwards offers :undo:.',
         'Right after the last word you write: :speak:, filled in green, because it is the one the whole board exists to reach. It is there once there is something in the box, and moves along as the words do.',
@@ -55,10 +55,10 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Resting',
     blocks: [
       text(
-        'Rest, the bar among the modes in the message box, switches dwelling off everywhere but on itself. Use it to look at the screen, or away from it, without choosing anything.',
+        'Rest on any open space in the top row — anywhere that is not a button or the box you write in, such as the edges round the message box — and dwelling switches off everywhere else. Clicking there does the same. Use it to look at the screen, or away from it, without choosing anything.',
       ),
       text(
-        'While it is on, nothing answers to a rest — the blue bar included, which dims to show it — so nothing can be said by accident. Rest on the bar again to switch dwelling back on.',
+        'While it is on, the top row turns amber and nothing answers to a rest — the blue bar included, which dims to show it — so nothing can be said by accident. Rest on the open space again to switch dwelling back on.',
       ),
     ],
   },
@@ -66,7 +66,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Speaking straight away',
     blocks: [
       text(
-        ':auto-speak: to the right of the Rest bar, in the message box, is auto-speak. It lights up when it is on, and it is on every time Peri is opened, so the board can always talk straight away.',
+        ':auto-speak: to the right of :edit:, in the message box, is auto-speak. It lights up when it is on, and it is on every time Peri is opened, so the board can always talk straight away.',
       ),
       text(
         'With auto-speak on, every phrase you choose is spoken the moment you choose it. This suits quick back-and-forth conversation.',
@@ -74,7 +74,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'The phrase also goes into the message box as it was written, in place of what was there, and is selected. Type and your words replace it; :copy: copies it, and :speak: says it again in the same voice and language.',
       ),
-      text('The two buttons either side of Rest move between two ways of working:'),
+      text('The two buttons side by side move between two ways of working:'),
       list(
         ':auto-speak: Auto-speak — a phrase is spoken the moment you choose it.',
         ':edit: Edit — a phrase you choose goes into the box: into an empty box it opens to be reworded, and into one with words in it, it goes in where the caret is.',
