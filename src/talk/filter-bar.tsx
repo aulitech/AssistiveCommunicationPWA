@@ -5,24 +5,34 @@
 // whole arrangement, and both come from `ui/reorder` — the emergency bar
 // arranges by identical rules, so the rules are written once there.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useDwellControl } from '../ui/dwell'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { holdDwells, useDwellControl } from '../ui/dwell'
+import { PickerModal, PickerTile } from '../ui/controls'
+import { usePendingChoice } from '../ui/pending-choice'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
-import {
-  CustomOrderIcon,
-  EditIcon,
-  PageIcon,
-  PlusIcon,
-  ReorderIcon,
-  ScrollLeftIcon,
-  ScrollRightIcon,
-  SortAlphaIcon,
-  ToFirstIcon,
-  ToLastIcon,
-} from '../ui/icons'
+import { ChooseIcon, CustomOrderIcon, EditIcon, PlusIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { LIBRARY } from '../core/phrases'
+import { tabsThatFit } from '../core/tab-rows'
+
+/** How much of a category's name a tab shows, unless it is the tab showing. */
+const CLIP = 7
+
+/**
+ * **A tab's name, cut to its first seven characters unless it is the tab
+ * showing** — more of them to a row. The whole name stays in the page and only
+ * the cut is drawn (`data-short`, see `.tab-label`), so a screen reader, a
+ * search and everything else reading the tab reads all of it.
+ */
+function TabLabel({ label, whole }: { label: string; whole: boolean }) {
+  const short = !whole && label.length > CLIP ? `${label.slice(0, CLIP).trimEnd()}…` : undefined
+  return (
+    <span className="tab-label" data-short={short}>
+      {label}
+    </span>
+  )
+}
 
 function FilterTab({
   label,
@@ -99,9 +109,60 @@ function FilterTab({
       {...props}
       tabIndex={0}
     >
-      {label}
+      <TabLabel label={label} whole={active} />
       <div className="dwell-bar" key={dwelling ? 'a' : 'i'} />
     </div>
+  )
+}
+
+/**
+ * **More**, the last tab, for the categories that do not fit: a full-screen
+ * grid of every tab, the one showing ticked. A tile marks one and Done goes
+ * there — see `ui/pending-choice.ts`. While the tab showing is one it hides, it
+ * carries that tab's name and is drawn as the tab showing, so the bar still
+ * says where the board is.
+ */
+function MoreTab({
+  categories,
+  activeFilter,
+  hiding,
+  onSelect,
+}: {
+  categories: { id: string; label: string }[]
+  activeFilter: string
+  /** The tab showing, where More is hiding it. */
+  hiding: string | null
+  onSelect: (id: string) => void
+}) {
+  const { settings } = useSettings()
+  // However the grid closes, it closes onto a board under a resting pointer.
+  const { open, pending, mark, begin, done, cancel } = usePendingChoice(activeFilter, onSelect, holdDwells)
+  const { active: dwelling, props } = useDwellControl(settings.actionDwellMs, begin)
+  return (
+    <>
+      <div
+        className={cx('filter-tab filter-more', hiding && 'active', dwelling && 'dwelling')}
+        style={dwellVar(settings.actionDwellMs)}
+        role="tab"
+        aria-selected={Boolean(hiding)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={hiding ? `${hiding}. More categories` : 'More categories'}
+        {...props}
+        tabIndex={0}
+      >
+        {hiding ?? 'More'}
+        <ChooseIcon />
+        <div className="dwell-bar" key={dwelling ? 'a' : 'i'} />
+      </div>
+      {open && (
+        <PickerModal title="Categories" hint="Choose the one to show" onDone={done} onCancel={cancel}>
+          {categories.map(c => (
+            <PickerTile key={c.id} name={c.label} selected={c.id === pending} onSelect={() => mark(c.id)} />
+          ))}
+        </PickerModal>
+      )}
+    </>
   )
 }
 
@@ -138,41 +199,6 @@ function FilterBarButton({
   )
 }
 
-/** How far a nudge moves the tabs, and the overlap a page leaves behind it. */
-const SCROLL_STEP = 200
-
-function FilterArrow({
-  onAction,
-  repeat,
-  label,
-  className,
-  children,
-}: {
-  onAction: () => void
-  repeat?: boolean
-  label: string
-  /** `filter-arrow-end` on the two that go all the way — see the stylesheet. */
-  className?: string
-  children: React.ReactNode
-}) {
-  const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onAction, {
-    repeatMs: repeat ? settings.repeatDelayMs : undefined,
-  })
-  return (
-    <div
-      className={cx('filter-arrow', className, active && 'dwelling')}
-      style={dwellVar(settings.actionDwellMs)}
-      role="button"
-      aria-label={label}
-      {...props}
-    >
-      {children}
-      <div className="dwell-bar" key={active ? 'a' : 'i'} />
-    </div>
-  )
-}
-
 export function FilterBar({
   categories,
   activeFilter,
@@ -186,7 +212,6 @@ export function FilterBar({
   onToggleSort,
   onReorder,
   onLift,
-  pointing,
 }: {
   /** `fixed` marks a tab that is not a category: nothing to rename or move. */
   categories: { id: string; label: string; fixed?: boolean }[]
@@ -205,50 +230,50 @@ export function FilterBar({
   onReorder?: (from: string, to: string) => void
   /** Announced when a tab is picked up — the styling alone says nothing aloud. */
   onLift?: (name: string) => void
-  /**
-   * What the board went to show somebody, when it moved tabs **by itself** to
-   * do it — the moved-to tab is brought to the middle of the bar. Forty-two
-   * categories is several screens of them, so a board that changed tabs
-   * without being asked would otherwise be showing a category whose tab is off
-   * the end of a bar nobody has scrolled.
-   *
-   * By itself is the whole of the condition: a tab somebody dwelled on is one
-   * they were already looking at, and sliding it out from under a gaze that has
-   * not moved is how the next dwell lands on its neighbour. `movedTo` is null
-   * where the board stayed where it was, which is most of the time.
-   */
-  pointing?: { movedTo: string | null } | null
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null)
   /** The tab that is showing, and whether it is a category somebody can rename. */
   const showing = categories.find(c => c.id === activeFilter)
   const renameable = showing !== undefined && !showing.fixed
   // A category is named by itself, so a key here is already something to say.
   const { propsFor, release } = useReorder({ onReorder, onLift })
 
-  // Found by which tab is selected rather than by name: a category is called
-  // whatever its owner called it, and a name with a quotation mark in it is a
-  // selector that matches nothing.
-  useEffect(() => {
-    if (!pointing?.movedTo) return
-    scrollRef.current
-      ?.querySelector('[aria-selected="true"]')
-      ?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
-  }, [pointing])
-
-  const scrollTo = useCallback((pos: number) => scrollRef.current?.scrollTo({ left: pos, behavior: 'smooth' }), [])
-  const scrollBy = useCallback((dx: number) => scrollRef.current?.scrollBy({ left: dx, behavior: 'smooth' }), [])
-  // A screenful of tabs, less one nudge's worth. Tabs are pills of every
-  // different width, so a jump of exactly one screen can leave one cut in half at
-  // the edge — and half a category is a target a gaze user can hit meaning the
-  // one beside it. The floor is for a bar narrower than the overlap.
-  const scrollPage = useCallback(
-    (direction: 1 | -1) => {
-      const extent = scrollRef.current?.clientWidth ?? 0
-      scrollBy(direction * Math.max(extent - SCROLL_STEP, SCROLL_STEP))
-    },
-    [scrollBy],
-  )
+  /**
+   * **One row of tabs**, the rest behind More — a phone held upright with
+   * thirty categories was a screen of tabs and no board. Every
+   * tab is laid out once more, unseen, to be measured (`.filter-tabs-measure`),
+   * and so are the two things More can say. All of them while the tabs are
+   * being arranged: a tab behind More is one nobody could pick up or drop on.
+   */
+  const tabsRef = useRef<HTMLDivElement>(null)
+  const measureRef = useRef<HTMLDivElement>(null)
+  const [shown, setShown] = useState(categories.length)
+  const [size, setSize] = useState('')
+  const labels = categories.map(c => c.label).join('\n')
+  const activeAt = categories.findIndex(c => c.id === activeFilter)
+  useLayoutEffect(() => {
+    const bar = tabsRef.current
+    const measures = measureRef.current
+    if (!bar || !measures) return
+    const style = getComputedStyle(bar)
+    const room = bar.clientWidth - parseFloat(style.paddingLeft || '0') - parseFloat(style.paddingRight || '0')
+    const items = [...measures.children] as HTMLElement[]
+    const widths = items.slice(0, -2).map(e => e.offsetWidth)
+    const [more, moreNamed] = items.slice(-2).map(e => e.offsetWidth)
+    const fit = reordering ? widths.length : tabsThatFit(widths, room, k => (activeAt >= k ? moreNamed! : more!))
+    setShown(fit)
+  }, [labels, activeAt, reordering, size])
+  // Laid out again for a bar of another width, or text of another size.
+  useLayoutEffect(() => {
+    const bar = tabsRef.current
+    if (!bar) return
+    const observer = new ResizeObserver(() =>
+      setSize(`${bar.clientWidth} ${getComputedStyle(document.documentElement).fontSize}`),
+    )
+    observer.observe(bar)
+    return () => observer.disconnect()
+  }, [])
+  const hidden = shown < categories.length
+  const hiding = hidden && activeAt >= shown ? categories[activeAt]!.label : null
 
   // Switching the mode off puts down whatever was in the air. Without this the
   // tab stays held across the round trip, and the next dwell drops the
@@ -260,20 +285,11 @@ export function FilterBar({
 
   return (
     <div className="filter-bar-wrap" role="tablist" aria-label="Filter phrases by category">
-      <FilterArrow onAction={() => scrollTo(0)} className="filter-arrow-end" label="Go to first category">
-        <ToFirstIcon />
-      </FilterArrow>
-
-      <FilterArrow onAction={() => scrollPage(-1)} repeat label="Previous page of categories">
-        <PageIcon direction="left" />
-      </FilterArrow>
-
-      <FilterArrow onAction={() => scrollBy(-SCROLL_STEP)} repeat label="Scroll categories left">
-        <ScrollLeftIcon />
-      </FilterArrow>
-
-      <div ref={scrollRef} className="filter-scroll">
-        {categories.map(c => (
+      {/* **One row of tabs, and More for the rest**, rather than a bar that
+          scrolled: that needed six arrows for a dwell to move along it, and a
+          tab off the end of it was a category nobody could see was there. */}
+      <div ref={tabsRef} className="filter-tabs">
+        {(hidden ? categories.slice(0, shown) : categories).map(c => (
           <FilterTab
             key={c.id}
             label={c.label}
@@ -282,23 +298,31 @@ export function FilterBar({
             reorder={reordering && !c.fixed ? propsFor(c.id) : undefined}
           />
         ))}
+        {hidden && (
+          <MoreTab categories={categories} activeFilter={activeFilter} hiding={hiding} onSelect={onSelect} />
+        )}
+        {/* Every tab again, unseen and unreachable, to be measured — drawn as
+            the tab showing is, its words the heaviest a tab's get. */}
+        <div ref={measureRef} className="filter-tabs-measure" aria-hidden="true">
+          {categories.map(c => (
+            <span key={c.id} className="filter-tab active">
+              <TabLabel label={c.label} whole={c.id === activeFilter} />
+            </span>
+          ))}
+          <span className="filter-tab filter-more active">
+            More
+            <ChooseIcon />
+          </span>
+          <span className="filter-tab filter-more active">
+            {activeAt >= 0 ? categories[activeAt]!.label : 'More'}
+            <ChooseIcon />
+          </span>
+        </div>
       </div>
 
-      <FilterArrow onAction={() => scrollBy(SCROLL_STEP)} repeat label="Scroll categories right">
-        <ScrollRightIcon />
-      </FilterArrow>
-
-      <FilterArrow onAction={() => scrollPage(1)} repeat label="Next page of categories">
-        <PageIcon direction="right" />
-      </FilterArrow>
-
-      <FilterArrow onAction={() => scrollTo(999999)} className="filter-arrow-end" label="Go to last category">
-        <ToLastIcon />
-      </FilterArrow>
-
-      {/* The category tools sit past the scroll controls rather than in with
-          the tabs. Inside the scroller they were only reachable by scrolling to
-          the end — the controls a user has to find are the ones that must not
+      {/* The category tools sit at the end of the bar rather than in with the
+          tabs, where they would move every time a category was added or
+          renamed — the controls a user has to find are the ones that must not
           move.
 
           Adding and sorting share the first slot: adding a category mid-reorder

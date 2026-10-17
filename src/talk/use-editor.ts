@@ -34,7 +34,6 @@ interface Target {
 /** Only what has been changed, so everything else follows the phrase itself. */
 interface Edits {
   text?: string
-  categories?: string[]
   voice?: string
 }
 
@@ -76,15 +75,23 @@ export interface Draft {
   canSave: boolean
   /**
    * Library already holds these words — or the emergency bar does, for one
-   * going there. A second copy is nothing but a cell somebody has to read past
-   * to reach the one they meant, so it cannot be saved — and the strip says so,
-   * since a control that has gone quiet explains nothing by itself.
+   * going there. **A second copy is never made**: it is nothing but a cell
+   * somebody has to read past to reach the one they meant.
    */
   duplicate: boolean
+  /**
+   * The phrase that has these words already, where Save puts *it* in the
+   * category showing instead — `into`, which it is not in yet. Unset where
+   * there is nothing for Save to do with it, which the strip says.
+   */
+  sameAs?: string
+  /** The category whose tab is showing, which Save files into — or null on Library or a record. */
+  into: string | null
 }
 
 export function useEditor({
   allCategories,
+  tab,
   recent,
   voiceFor,
   duplicateOf,
@@ -92,12 +99,10 @@ export function useEditor({
   box,
 }: {
   allCategories: string[]
-  /**
-   * Where a new phrase starts from: the last voice used, and the category
-   * either last filed under or last looked at — `talk.tsx` writes the tab there
-   * on the way into edit mode, where that tab is a category of somebody's own.
-   */
-  recent: { category?: string; voice?: string }
+  /** The tab showing, which is where a new phrase goes where it is a category. */
+  tab: string
+  /** The voice a new phrase starts from: the last one used. */
+  recent: { voice?: string }
   voiceFor: (id: string) => string | undefined
   /** Whether Library, or the emergency bar, already holds this wording. */
   duplicateOf: (text: string, onBar: boolean, exceptId?: string) => string | undefined
@@ -167,27 +172,30 @@ export function useEditor({
   const trackCursor = useCallback((e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     setCursor(e.currentTarget.selectionStart ?? 0)
   }, [])
-  const setCategories = useCallback((categories: string[]) => setEdits(e => ({ ...e, categories })), [])
   const setVoice = useCallback((voice: string) => setEdits(e => ({ ...e, voice })), [])
 
   const draft = useMemo<Draft>(() => {
     const phrase = target?.phrase ?? null
     const isEmergency = target?.isEmergency ?? false
 
-    // A phrase on the board is in the categories that refer to it. One being
-    // written — or kept off a record, which is in none — starts in the category
-    // last filed under or looked at, where that is still one of somebody's own.
+    // **Saved into the category whose tab is showing**, as the tab is when Save
+    // is pressed — or into Library alone, where the tab is Library or a record.
+    // There is nothing else to choose it by: the tab is where somebody is
+    // looking. A phrase already on the board keeps the categories it is in and
+    // goes into this one as well; one on the emergency bar has none.
+    const into = !isEmergency && tab !== LIBRARY && allCategories.includes(tab) ? tab : null
     const startsIn = () => {
-      if (phrase && !keepingOf(phrase)) return categoriesOf(phrase.id)
-      return recent.category && recent.category !== LIBRARY && allCategories.includes(recent.category)
-        ? [recent.category]
-        : []
+      const own = phrase && !keepingOf(phrase) ? categoriesOf(phrase.id) : []
+      return into && !own.includes(into) ? [...own, into] : own
     }
 
     const text = edits.text ?? phrase?.source ?? ''
-    const categories = (edits.categories ?? startsIn()).filter(c => allCategories.includes(c) && c !== LIBRARY)
+    const categories = startsIn().filter(c => allCategories.includes(c) && c !== LIBRARY)
     // Against Library, or the bar for a phrase going there.
-    const duplicate = text.trim() !== '' && duplicateOf(text, isEmergency, phrase?.id) !== undefined
+    const existing = text.trim() !== '' ? duplicateOf(text, isEmergency, phrase?.id) : undefined
+    const duplicate = existing !== undefined
+    // The words are on the board: Save files that phrase here, where it is not yet.
+    const sameAs = existing !== undefined && into && !categoriesOf(existing).includes(into) ? existing : undefined
     return {
       phrase,
       isEmergency,
@@ -205,13 +213,15 @@ export function useEditor({
             : null,
       isNew: phrase === null,
       duplicate,
+      sameAs,
+      into,
       // Every phrase is in Library, so there is always somewhere for it to go.
-      canSave: text.trim().length > 0 && !duplicate,
+      canSave: text.trim().length > 0 && (!duplicate || sameAs !== undefined),
     }
-  }, [target, edits, allCategories, recent, voiceFor, duplicateOf, categoriesOf])
+  }, [target, edits, allCategories, tab, recent, voiceFor, duplicateOf, categoriesOf])
 
   /** Whether anything would be lost by starting again. */
-  const isUntouched = target === null && !edits.text && !edits.categories && !edits.voice
+  const isUntouched = target === null && !edits.text && !edits.voice
 
   /** What has been typed into the draft since it was loaded, which the grid searches for. */
   const typed = typedIn(draft.text, phrased, cursor)
@@ -283,7 +293,6 @@ export function useEditor({
     startNew,
     setText,
     rewrite,
-    setCategories,
     setVoice,
     trackCursor,
     setCursor,

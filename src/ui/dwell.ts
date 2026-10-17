@@ -195,7 +195,7 @@ function notePointerMove(e: PointerEvent) {
   // purpose. Measured from where the screen moved, not from the previous event:
   // a pointer crosses a cell in three-pixel steps and nothing would ever exceed
   // the tolerance one step at a time.
-  if (heldUntilMoved && Math.abs(e.clientX - heldAt.x) + Math.abs(e.clientY - heldAt.y) > MOVED_AWAY_PX) {
+  if (heldUntilMoved && Math.hypot(e.clientX - heldAt.x, e.clientY - heldAt.y) >= heldFor) {
     heldUntilMoved = false
   }
   // A gap ends the run: what is being looked for is *uninterrupted* movement.
@@ -276,6 +276,8 @@ const MOVED_AWAY_PX = 24
 /** Set while nothing may arm until the pointer is aimed somewhere else. */
 let heldUntilMoved = false
 let heldAt = { x: 0, y: 0 }
+/** How far it has to go, in a straight line, before it has been. */
+let heldFor = MOVED_AWAY_PX
 
 /**
  * Go deaf until the pointer moves, rather than until a second has passed.
@@ -296,8 +298,9 @@ let heldAt = { x: 0, y: 0 }
  * nothing lands under the pointer at all, which would otherwise leave the guard
  * up and swallow the next thing somebody deliberately aimed at.
  */
-export function holdDwellsUntilMoved() {
+export function holdDwellsUntilMoved(distance: number = MOVED_AWAY_PX) {
   heldUntilMoved = true
+  heldFor = distance
   const last = moves[moves.length - 1] ?? lastPointer
   heldAt = last ? { x: last.x, y: last.y } : { x: 0, y: 0 }
 }

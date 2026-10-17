@@ -1066,3 +1066,79 @@ describe('the line that says what just happened', () => {
     expect(toast()).toBeUndefined()
   })
 })
+
+// **The cell under the pointer, magnified**, as the Dock does: grown out of
+// the place it holds in the grid, which keeps that place, so nothing else on
+// the board moves. Where it is drawn and how big is `e2e/layout.spec.ts`'s
+// question; this is when.
+describe('the magnified cell', () => {
+  const place = (cell: Element) => cell.closest('.phrase-place')!
+  const frame = () => act(() => void vi.advanceTimersByTime(20))
+
+  // Every control asks, as the pointer enters it, whether it came to the
+  // pointer — and a cell already grown over where the pointer was would be
+  // refused as one that had.
+  it('grows a frame after the pointer arrives, not in the same event', () => {
+    renderApp()
+    const cell = plainCell()
+    fireEvent.pointerOver(cell)
+    expect(place(cell).classList.contains('is-magnified'), 'grown in the event that entered it').toBe(false)
+    frame()
+    expect(place(cell).classList.contains('is-magnified')).toBe(true)
+  })
+
+  it('goes back when the pointer moves to another, or off the grid', () => {
+    renderApp()
+    const [first, second] = cells()
+    fireEvent.pointerOver(first)
+    frame()
+    fireEvent.pointerOver(second)
+    frame()
+    expect(place(first).classList.contains('is-magnified')).toBe(false)
+    expect(place(second).classList.contains('is-magnified')).toBe(true)
+    fireEvent.pointerLeave($('.phrase-grid')!)
+    expect(place(second).classList.contains('is-magnified')).toBe(false)
+  })
+
+  // Grown with its place, it would stand over somewhere the pointer no longer
+  // is. `e2e/click-through.spec.ts` drives the board pushed down under it.
+  it('goes back when the board scrolls under it', () => {
+    renderApp()
+    const cell = plainCell()
+    fireEvent.pointerOver(cell)
+    frame()
+    fireEvent.scroll($('.grid-wrapper')!)
+    expect(place(cell).classList.contains('is-magnified')).toBe(false)
+  })
+
+  it('is not for a finger, which hovers over nothing', () => {
+    renderApp()
+    const cell = plainCell()
+    fireEvent.pointerOver(cell, { pointerType: 'touch' })
+    frame()
+    expect(place(cell).classList.contains('is-magnified')).toBe(false)
+  })
+
+  it('still says its phrase when rested on', () => {
+    renderApp()
+    const cell = plainCell()
+    const text = cell.textContent
+    fireEvent.pointerMove(document.body, { clientX: 5, clientY: 5 })
+    fireEvent.pointerOver(cell)
+    fireEvent.pointerEnter(cell)
+    frame()
+    act(() => void vi.advanceTimersByTime(DEFAULT_SETTINGS.phraseDwellMs + 100))
+    expect(spoken).toEqual([text])
+  })
+
+  it('cuts a phrase off at 15rem on one line, and wraps a magnified one at 30rem', () => {
+    const css = stylesheet()
+    const cell = css.match(/\n\.phrase-cell-text \{([^}]*)\}/)![1]
+    expect(cell).toMatch(/max-width: 15rem;/)
+    expect(cell).toMatch(/white-space: nowrap;/)
+    expect(cell).toMatch(/text-overflow: ellipsis;/)
+    const magnified = css.match(/\.phrase-place\.is-magnified \.phrase-cell-text \{([^}]*)\}/)![1]
+    expect(magnified).toMatch(/max-width: 30rem;/)
+    expect(magnified).toMatch(/white-space: normal;/)
+  })
+})

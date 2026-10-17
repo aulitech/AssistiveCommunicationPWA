@@ -28,9 +28,9 @@
   color: var(--text-muted);
 }
 
-/* Ordering controls, parked past the scroll arrows so they hold still while
-   the tabs move under them. Bigger than the pills in the scroller, since these
-   are the ones a user has to find. */
+/* Ordering controls, parked at the end of the bar so they hold still however
+   many tabs there are. Bigger than the tabs, since these are the ones a user
+   has to find. */
 .filter-bar-tools {
   display: flex;
   align-items: center;
@@ -134,8 +134,7 @@
    the user is holding — so it gets colour, weight, a socket ring and a slow
    bob. Ghosting it, as this once did, read as "disabled" instead.
 
-   The cue has to survive `.filter-scroll` clipping its vertical overflow, which
-   is why the bob is small and the padding there was widened to fit it. */
+   The bob is small so the held tab stays clear of the row above it. */
 .filter-tab.is-held {
   cursor: grabbing;
   color: #000;

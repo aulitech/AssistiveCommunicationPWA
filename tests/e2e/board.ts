@@ -14,7 +14,7 @@ export interface Seeded {
 /**
  * Categories of the board's own. Everything Peri ships is in Library, and a
  * test about moving between tabs needs more than one. `many` is enough of them
- * that the bar has to scroll to bring one to its middle.
+ * that the bar runs to several rows.
  */
 export function categories(names: string[]): Seeded[] {
   return names.flatMap((category, c) =>
@@ -67,41 +67,30 @@ export const editMode = (page: Page) => page.locator('.edit-toggle').click()
 export const tab = (page: Page, name: string) =>
   page.locator('.filter-tab[role="tab"]').filter({ hasText: new RegExp(`^${name}$`) })
 
+/**
+ * Goes to a tab — on the bar where it is there, or through More, where the
+ * bar's one row had no room for it.
+ */
+export async function goTo(page: Page, name: string) {
+  const onBar = tab(page, name)
+  if (await onBar.count()) return onBar.click()
+  await page.locator('.filter-more[role="tab"]').click()
+  await page
+    .locator('.picker-tile')
+    .filter({ hasText: new RegExp(`^${name}$`) })
+    .click()
+  await page.locator('.picker-modal-actions .panel-btn[aria-label="Done"]').click()
+  // The grid closes onto a board under a resting pointer, which is deaf for a
+  // second — as a person's next dwell would, the next click waits it out.
+  await page.waitForTimeout(1_100)
+}
+
 export const cell = (page: Page, text: string) =>
   page.locator('.phrase-cell').filter({ hasText: new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) })
 
 export const messageBox = (page: Page) => page.locator('.text-display')
 export const activeTab = (page: Page) => page.locator('.filter-tab[aria-selected="true"]')
-export const draftCategory = (page: Page) => page.locator('.category-trigger .picker-trigger-label')
 export const marked = (page: Page) => page.locator('.phrase-cell[aria-current="true"]')
-
-/** Puts the draft in this one category, and no other, through the grid the strip opens. */
-export async function fileUnder(page: Page, category: string) {
-  await page.locator('.category-trigger').click()
-  const named = (name: string) =>
-    page
-      .locator('.picker-tile')
-      .filter({ has: page.locator('.picker-tile-name', { hasText: new RegExp(`^${name}$`) }) })
-  for (const ticked of await page.locator('.picker-tile[aria-selected="true"]').all()) {
-    if ((await ticked.locator('.picker-tile-name').textContent()) !== category) await ticked.click()
-  }
-  if ((await named(category).getAttribute('aria-selected')) !== 'true') await named(category).click()
-  await page.locator('.picker-modal-actions .panel-btn[aria-label="Done"]').click()
-}
-
-/** How far an element's centre sits from its container's, across or down. */
-export async function offCentre(page: Page, element: string, container: string, axis: 'x' | 'y') {
-  return page.evaluate(
-    ({ element, container, axis }) => {
-      const e = document.querySelector(element)!.getBoundingClientRect()
-      const c = document.querySelector(container)!.getBoundingClientRect()
-      return axis === 'x'
-        ? Math.abs((e.left + e.right) / 2 - (c.left + c.right) / 2)
-        : Math.abs((e.top + e.bottom) / 2 - (c.top + c.bottom) / 2)
-    },
-    { element, container, axis },
-  )
-}
 
 /** Whether an element lies wholly inside another on screen. */
 export async function within(page: Page, element: string, container: string) {

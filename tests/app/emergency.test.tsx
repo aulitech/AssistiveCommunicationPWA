@@ -73,7 +73,6 @@ const writePhrase = (value: string) => {
   fireEvent.change(box(), { target: { value } })
   settle()
 }
-const editTitle = () => $('.edit-bar-title')?.textContent
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
@@ -232,11 +231,7 @@ describe('what a dwell does while reordering', () => {
     click(reorderBtn())
     const first = labels()[0]
     click(buttons()[0])
-    // An emergency phrase is edited without a category to file it under, which
-    // is what tells it apart from a phrase off the grid.
     expect(box().value).toBe(first)
-    expect(editTitle()).toBe('Editing emergency phrase')
-    expect($('.category-trigger')).toBeNull()
   })
 
   // Adding a phrase mid-reorder would drop whatever is in the air, so the add
@@ -252,8 +247,10 @@ describe('what a dwell does while reordering', () => {
     expect($$('.emergency-tool')).toHaveLength(before)
     expect(addBtn()?.getAttribute('aria-disabled')).toBe('true')
     click(addBtn())
-    // Still an ordinary new phrase: the add did not fire.
-    expect(editTitle()).toBe('New phrase')
+    // Still an ordinary new phrase: the add did not fire, and it is saved to Library.
+    writePhrase('Still an ordinary phrase')
+    click(iconBtn('Save phrase'))
+    expect($('.toast')?.textContent).toBe('Added to Library')
   })
 })
 

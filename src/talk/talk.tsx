@@ -144,9 +144,7 @@ export function TalkScreen({
   const [reorderingEmergency, setReorderingEmergency] = useState(false)
   const [reorderingPhrases, setReorderingPhrases] = useState(false)
   const [resting, setResting] = useState(false)
-  // `forDraft` marks a category being invented from inside the phrase editor,
-  // which files the phrase under it as well as creating it.
-  const [editingCategory, setEditingCategory] = useState<{ name: string | null; forDraft?: boolean } | null>(null)
+  const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
   /**
    * A phrase whose choices are being asked for, and what happens once they are
    * made: said as a phrase chosen in auto-speak is, in its own voice, or said
@@ -187,6 +185,7 @@ export function TalkScreen({
   // in edit mode, and there is nothing to open and nothing to close.
   const editor = useEditor({
     allCategories,
+    tab: activeFilter,
     recent,
     voiceFor,
     duplicateOf: board.duplicateOf,
@@ -410,6 +409,17 @@ export function TalkScreen({
     forgetAnswers()
   }, [forgetAnswers])
 
+  /** Whether anything is being said. */
+  const speaking = useSyncExternalStore(subscribeSpeaking, isSpeaking)
+  /**
+   * How many times something said has come to an end — which the board takes
+   * its new order after. Counted rather than read off `speaking`: words that
+   * begin and end between two renders, a clip that fails at once, would never
+   * be seen to have been said at all.
+   */
+  const [saidTimes, setSaidTimes] = useState(0)
+  useEffect(() => subscribeSpeaking(on => void (on || setSaidTimes(n => n + 1))), [])
+
   // What order the grid is in, and what it shows — see `use-grid-order.ts`.
   const { phraseSort, visiblePhrases, chooseSort, handleReorderPhrases } = useGridOrder({
     board,
@@ -421,6 +431,7 @@ export function TalkScreen({
     suggestions: listener.suggestions,
     counts: usage.counts,
     filterWord,
+    saidTimes,
   })
 
   /**
@@ -570,23 +581,6 @@ export function TalkScreen({
   // ── Editing what is on the board ───────────────────────────────────────────
 
   /**
-   * Where the next new phrase goes.
-   *
-   * Two things say so: saving one, and opening edit mode on a category — see
-   * `setMode`. Written down as well as held, for the reason the rest of
-   * `peri_recent` is, and left alone where it already says that, so going in
-   * and out of edit mode on one tab is not a write every time.
-   */
-  const fileUnder = useCallback((category: string) => {
-    setRecent(current => {
-      if (current.category === category) return current
-      const next = { ...current, category }
-      saveRecent(next)
-      return next
-    })
-  }, [])
-
-  /**
    * Where the board has to go to put a phrase in front of somebody, or null
    * where it is in front of them already.
    *
@@ -603,22 +597,10 @@ export function TalkScreen({
   )
 
   /**
-   * A tab somebody dwelled on.
-   *
-   * **In edit mode, a blank draft follows it** — the rule entering edit mode on
-   * a category already follows, applied to arriving at one. Tabs go to their
-   * category in edit mode now, and somebody moving between them before they
-   * write anything is looking for where the next phrase goes. A draft with
-   * anything in it stays where it is: words written, or a category picked, and
-   * refiling it would move a phrase somebody had already started.
+   * A tab somebody dwelled on — which, in edit mode, is also where a new
+   * phrase goes: see `startsIn` in `use-editor.ts`.
    */
-  const chooseTab = useCallback(
-    (tab: string) => {
-      setActiveFilter(tab)
-      if (editMode && editor.isUntouched && allCategories.includes(tab)) fileUnder(tab)
-    },
-    [editMode, editor.isUntouched, allCategories, fileUnder],
-  )
+  const chooseTab = setActiveFilter
 
   /** Show a tab the board chose itself, rather than one somebody dwelled on. */
   const showTab = useCallback((tab: string) => {
@@ -635,117 +617,106 @@ export function TalkScreen({
    * to a blank phrase, ready for the next one. So this is the only place that
    * can say the save happened, and it says it out loud.
    */
-  const saveDraft = useCallback(
-    /** `chosen` is what the category grid's Done just chose, before the draft has heard of it. */
-    (chosen?: string[]) => {
-      if (!draft.canSave) return
-      const { phrase, isEmergency, keeping } = draft
-      const categories = chosen ?? draft.categories
-      const text = draft.text.trim()
-      const voice = draft.voice || undefined
-
-      // Warmed against what the phrase reads as, not what it is written as: the
-      // editor holds the source, and nobody wants a clip of somebody reading
-      // "open curly bracket, quote, red, quote" aloud.
-      if (voice) void warmVoice(compose(parseSegments(text)), voice)
-      // Where the next one starts from.
-      setRecent(current => {
-        const next = { category: isEmergency ? current.category : (categories[0] ?? ''), voice }
-        saveRecent(next)
-        return next
-      })
-
-      /**
-       * Whether this is a phrase somebody is making, as against one they are
-       * rewording — which is what everything below turns on. Keeping a message
-       * is making one: the record it came off is left exactly as it was.
-       */
-      const making = phrase === null || keeping
-      /**
-       * **A phrase somebody has just made is on screen.** Filed anywhere but the
-       * tab in front of them it lands among a couple of thousand cells, and what
-       * they get for having written one is a line of text that fades.
-       *
-       * Three cases do not move, and none of them is an exception to that: on
-       * **Library**, or a category it is in, the phrase is already there, the
-       * **emergency bar** is on screen
-       * under every tab, and a phrase being **reworded** is one somebody is
-       * moving out of where they are — refiling several out of one category is a
-       * run they would be thrown out of after the first.
-       */
-      const movesTo = making && !isEmergency ? moveToShow(categories) : null
-
-      if (making) {
-        // The id comes back so a brand-new phrase can be given the voice chosen
-        // for it — there is no id to hang one on until the phrase exists.
-        const id = board.addPhrase(text, categories, isEmergency)
-        if (voice) board.setVoice(id, voice)
-        // Which cell it is, for the board to point at — see `pointing`.
-        // Nothing for the emergency bar, whose phrases are never in the grid and
-        // are on screen under every tab anyway.
-        setPointing(isEmergency ? null : { id, movedTo: movesTo })
-      } else {
-        // Fetched and stored the moment it is assigned, so the phrase can be said
-        // in that voice without waiting — including on the emergency bar, which
-        // never waits.
-        board.setVoice(phrase.id, voice)
-        board.editPhrase(phrase, text, categories, isEmergency)
-        // Nothing to point at: rewording puts no new cell anywhere, and the mark
-        // on the last one is already gone — every dwell clears it, this one
-        // included.
-      }
-      if (movesTo) showTab(movesTo)
+  const saveDraft = useCallback(() => {
+    if (!draft.canSave) return
+    const { phrase, isEmergency, keeping, categories, sameAs, into } = draft
+    // **Never a second copy.** The words are on the board already, so Save
+    // puts that phrase in the category showing, and leaves anything opened
+    // in the box as it was.
+    if (sameAs && into) {
+      board.refile(sameAs, [...categoriesOf(sameAs), into])
+      setPointing({ id: sameAs, movedTo: null })
       startNew()
-      flashToast(
-        keeping
-          ? 'Kept as a phrase'
-          : phrase === null
-            ? `Added to ${isEmergency ? 'Emergency' : [LIBRARY, ...categories].join(', ')}`
+      flashToast(`Already on the board — added to ${into}`)
+      return
+    }
+    const text = draft.text.trim()
+    const voice = draft.voice || undefined
+
+    // Warmed against what the phrase reads as, not what it is written as: the
+    // editor holds the source, and nobody wants a clip of somebody reading
+    // "open curly bracket, quote, red, quote" aloud.
+    if (voice) void warmVoice(compose(parseSegments(text)), voice)
+    // The voice the next one starts from.
+    setRecent(current => {
+      const next = { ...current, voice }
+      saveRecent(next)
+      return next
+    })
+
+    /**
+     * Whether this is a phrase somebody is making, as against one they are
+     * rewording — which is what everything below turns on. Keeping a message
+     * is making one: the record it came off is left exactly as it was.
+     */
+    const making = phrase === null || keeping
+    /**
+     * **A phrase somebody has just made is on screen.** Filed anywhere but the
+     * tab in front of them it lands among a couple of thousand cells, and what
+     * they get for having written one is a line of text that fades.
+     *
+     * Three cases do not move, and none of them is an exception to that: on
+     * **Library**, or a category it is in, the phrase is already there, the
+     * **emergency bar** is on screen
+     * under every tab, and a phrase being **reworded** is one somebody is
+     * moving out of where they are — refiling several out of one category is a
+     * run they would be thrown out of after the first.
+     */
+    const movesTo = making && !isEmergency ? moveToShow(categories) : null
+
+    if (making) {
+      // The id comes back so a brand-new phrase can be given the voice chosen
+      // for it — there is no id to hang one on until the phrase exists.
+      const id = board.addPhrase(text, categories, isEmergency)
+      if (voice) board.setVoice(id, voice)
+      // Which cell it is, for the board to point at — see `pointing`.
+      // Nothing for the emergency bar, whose phrases are never in the grid and
+      // are on screen under every tab anyway.
+      setPointing(isEmergency ? null : { id, movedTo: movesTo })
+    } else {
+      // Fetched and stored the moment it is assigned, so the phrase can be said
+      // in that voice without waiting — including on the emergency bar, which
+      // never waits.
+      board.setVoice(phrase.id, voice)
+      board.editPhrase(phrase, text, categories, isEmergency)
+      // Into the category showing, as well as the ones it was in.
+      // Nothing to point at: rewording puts no new cell anywhere, and the mark
+      // on the last one is already gone — every dwell clears it, this one
+      // included.
+    }
+    if (movesTo) showTab(movesTo)
+    startNew()
+    flashToast(
+      keeping
+        ? 'Kept as a phrase'
+        : phrase === null
+          ? `Added to ${isEmergency ? 'Emergency' : [LIBRARY, ...categories].join(', ')}`
+          : into && !categoriesOf(phrase.id).includes(into)
+            ? `Saved, and added to ${into}`
             : 'Saved',
-      )
-    },
-    [draft, board, startNew, flashToast, moveToShow, showTab],
-  )
-  const handleSave = useCallback(() => saveDraft(), [saveDraft])
+    )
+  }, [draft, board, categoriesOf, startNew, flashToast, moveToShow, showTab])
+  const handleSave = saveDraft
 
   /**
-   * **Done on the category grid files a phrase already on the board there and
-   * then.** The check was a second dwell, at the far end of the box, for a
-   * choice the grid's own Done had just made — and one easy to forget, which
-   * left the phrase where it was with nothing on screen to say so. Only which
-   * categories refer to it: its words and its voice, if they are being changed
-   * too, still wait for the check.
-   *
-   * **A phrase being written is saved whole**, words, categories and voice, as
-   * the check would save it — Done on where it goes is somebody finishing it.
-   * So is one being kept off a record, a translation or an answer, which is a
-   * phrase being made too. Not while there is nothing to save: with no words
-   * yet, or words the board has already, Done only says where the check will
-   * file it.
+   * **Words already on the board, said in a toast** as they are written — what
+   * Save will do with them, or why it has gone quiet: a control that has gone
+   * quiet explains nothing by itself. Once each time it changes, so writing on
+   * says it once rather than at every letter, and moving to another tab says
+   * what Save will do there. Nothing else in edit mode says what is being
+   * edited — the box with the words in it says that.
    */
-  const { setCategories: setDraftCategories } = editor
-  const chooseCategories = useCallback(
-    (names: string[]) => {
-      const { phrase, keeping, canSave } = draft
-      if ((!phrase || keeping) && canSave) {
-        saveDraft(names)
-        return
-      }
-      if (!phrase || keeping) {
-        setDraftCategories(names)
-        return
-      }
-      board.refile(phrase.id, names)
-      // Where the next one starts from, as the check would have left it.
-      setRecent(current => {
-        const next = { ...current, category: names[0] ?? '' }
-        saveRecent(next)
-        return next
-      })
-      flashToast(names.length ? `Filed under ${names.join(', ')}` : 'In Library only')
-    },
-    [draft, board, saveDraft, setDraftCategories, flashToast],
-  )
+  const alreadyThere =
+    editMode && draft.duplicate
+      ? draft.sameAs
+        ? `Already on the board — Save adds it to ${draft.into}`
+        : draft.into
+          ? `Already in ${draft.into}`
+          : 'Already on the board'
+      : null
+  useEffect(() => {
+    if (alreadyThere) flashToast(alreadyThere)
+  }, [alreadyThere, flashToast])
 
   /**
    * **On a category somebody made, the bin takes the phrase out of it** rather
@@ -813,27 +784,18 @@ export function TalkScreen({
     setEditingCategory({ name })
   }, [])
 
-  /** From inside the editor's category grid, which also files the phrase there. */
-  const openCategoryForDraft = useCallback(() => {
-    cancelAllDwells()
-    setEditingCategory({ name: null, forDraft: true })
-  }, [])
-
   const handleCategorySave = useCallback(
     (name: string) => {
       const current = editingCategory?.name ?? null
       if (current === null) {
         board.addCategory(name)
-        // Invented from the editor: the phrase in the box goes into it, which
-        // is the whole reason it was invented.
-        if (editingCategory?.forDraft) chooseCategories([...draft.categories, name])
       } else {
         board.renameCategoryTo(current, name)
         setActiveFilter(f => (f === current ? name : f))
       }
       setEditingCategory(null)
     },
-    [editingCategory, board, chooseCategories, draft.categories],
+    [editingCategory, board],
   )
 
   const handleCategoryDelete = useCallback(() => {
@@ -936,11 +898,6 @@ export function TalkScreen({
       // the word being typed still being typed, so the grid stays narrowed to it.
       if (already) openPhrase(already)
       else startNew(carried, typed && carried.endsWith(typed) ? carried.slice(0, -typed.length) : carried)
-      // The tab, **only where the tab is a category somebody made.** Four are
-      // not: Library, which every phrase is in whatever is ticked, and the
-      // three pinned records. They leave the last choice standing rather than
-      // throwing it away and asking again.
-      if (mode === 'edit' && allCategories.includes(effectiveFilter)) fileUnder(effectiveFilter)
       // Reordering is a mode within edit mode; leaving it should not leave
       // either of them armed for next time.
       setReordering(false)
@@ -974,9 +931,7 @@ export function TalkScreen({
       openPhrase,
       update,
       flashToast,
-      allCategories,
       effectiveFilter,
-      fileUnder,
       phraseSaying,
       categoriesOf,
     ],
@@ -1215,7 +1170,6 @@ export function TalkScreen({
    * starts and stops rather than after a render, so a dwell already filling
    * when the words begin is stopped with them; the board is dimmed to say so.
    */
-  const speaking = useSyncExternalStore(subscribeSpeaking, isSpeaking)
   useEffect(() => {
     setSpeakingLock(isSpeaking())
     const stop = subscribeSpeaking(setSpeakingLock)
@@ -1226,11 +1180,6 @@ export function TalkScreen({
   }, [])
 
   const editCtx: EditCtxValue = useMemo(() => ({ editMode, openEdit: chooseInEdit }), [editMode, chooseInEdit])
-
-  const countFor = useCallback(
-    (name: string) => board.phraseCountByCategory.get(name) ?? 0,
-    [board.phraseCountByCategory],
-  )
 
   return (
     <EditCtx.Provider value={editCtx}>
@@ -1298,10 +1247,6 @@ export function TalkScreen({
                   onToggleListen={toggleListen}
                   presenting={presenting}
                   onTogglePresenting={togglePresenting}
-                  categories={allCategories}
-                  countFor={countFor}
-                  onChooseCategories={chooseCategories}
-                  onCreateCategory={openCategoryForDraft}
                 />
 
                 {/* Hidden while a typed word is narrowing the grid: the tabs would be
@@ -1320,7 +1265,6 @@ export function TalkScreen({
                     onToggleSort={editMode ? handleToggleSort : undefined}
                     onReorder={editMode ? board.reorderCategories : undefined}
                     onLift={name => flashToast(`Holding ${name} — dwell where it should go`)}
-                    pointing={pointing}
                   />
                 )}
 

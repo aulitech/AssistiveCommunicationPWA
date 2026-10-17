@@ -123,7 +123,8 @@ function installGridViewport() {
   Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
     configurable: true,
     get() {
-      if (!gridIsLaidOut || !has(this, 'phrase-cell')) return jsdomAnswer('offsetHeight', this)
+      if (!gridIsLaidOut || !(has(this, 'phrase-cell') || has(this, 'phrase-place')))
+        return jsdomAnswer('offsetHeight', this)
       return GRID_VIEWPORT.rowHeight
     },
   })

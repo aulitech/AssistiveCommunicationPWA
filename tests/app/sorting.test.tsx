@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import App from '../../src/App'
-import { spoken, unmeasuredGrid } from '../setup'
+import { finishSpeech, holdSpeech, spoken, unmeasuredGrid } from '../setup'
 
 // The four orders the grid can be in, driven through the real board.
 //
@@ -464,17 +464,23 @@ describe('what is typed', () => {
  * use used to be applied on the very dwell that chose a phrase: the cell just
  * used slid to the front and everything else moved around it, so the next thing
  * somebody looked for was not where they had left it. The counting still
- * happens then; the rearranging waits until they look somewhere else.
+ * happens then; the rearranging waits until they look somewhere else — or
+ * until what was said has been said, when nothing can be chosen until the
+ * pointer has moved 20px.
  */
 describe('when the board takes a new order', () => {
-  it('holds still on the dwell that counted', () => {
+  it('holds still while the phrase is said, and takes the new order when it ends', () => {
     renderApp()
     showSorted()
     chooseOrder('Recently used')
+    holdSpeech()
 
     click(cellFor('Banana'))
+    expect(onBoard(), 'the board rearranged while the phrase was said').toEqual(['Cherry', 'Apple', 'Banana'])
 
-    expect(onBoard(), 'the board rearranged under the phrase just chosen').toEqual(['Cherry', 'Apple', 'Banana'])
+    act(() => finishSpeech())
+    settle()
+    expect(onBoard(), 'the board kept its order after the phrase was said').toEqual(['Banana', 'Cherry', 'Apple'])
   })
 
   it('counts it all the same, and shows the order at the next tab', () => {
@@ -734,17 +740,28 @@ describe('the board moving under a resting gaze', () => {
     expect(message()).toBe('Apple juice Orange juice')
   })
 
-  // Nothing moved, so nothing is held back: the board is still under auto-speak
-  // now that an order is taken at the tab rather than at the phrase.
-  it('holds nothing back where the board did not move', () => {
+  // Said, the board takes its new order, and the cell arriving under a
+  // pointer still resting where Banana was is not what it was aimed at.
+  it('refuses the cell the new order brings under the pointer until it has moved 20px', () => {
     renderApp()
     showSorted()
     chooseOrder('Recently used')
+    fireEvent.pointerMove(document.body, { clientX: 300, clientY: 200 })
     spoken.length = 0
 
     dwellOn('Banana')
-    arrivesUnderThePointer(1)
+    expect(onBoard()).toEqual(['Banana', 'Cherry', 'Apple'])
+    arrivesUnderThePointer(2)
+    expect(spoken, 'the cell that arrived was said').toEqual(['Banana'])
 
+    const restOn = (x: number) => {
+      fireEvent.pointerLeave(cells()[2])
+      fireEvent.pointerMove(document.body, { clientX: x, clientY: 200 })
+      arrivesUnderThePointer(2)
+    }
+    restOn(319)
+    expect(spoken, 'said before the pointer had moved 20px').toEqual(['Banana'])
+    restOn(320)
     expect(spoken).toEqual(['Banana', 'Apple'])
   })
 
@@ -889,7 +906,7 @@ describe('the mark on the last phrase said', () => {
  * newest first. See *Sent messages*.
  */
 describe('what is said', () => {
-  it('is first in Library under Recently used, from the next look on', () => {
+  it('is first in Library under Recently used, once it has been said', () => {
     renderApp()
     showSorted()
     click(cellFor('Cherry'))
@@ -901,10 +918,6 @@ describe('what is said', () => {
     settle()
     click(iconBtn('Speak'))
     click(iconBtn('Clear'))
-    expect(onBoard()[0], 'the board moved under the gaze that said it').toBe('Cherry')
-
-    click(tab('Translations'))
-    click(tab('Library'))
     expect(onBoard().slice(0, 2)).toEqual(['Something new', 'Cherry'])
   })
 })

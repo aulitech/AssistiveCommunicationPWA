@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, act } from '@testing-library/react'
 import App from '../../src/App'
-import { DEFAULT_SETTINGS } from '../../src/core/store'
 import { stylesheet } from '../stylesheet'
 
 // Category editing spans the filter bar, the rename dialog and the editor strip
@@ -98,20 +97,6 @@ const savePhrase = () => click(iconBtn('Save phrase'))
 const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
 const pickerBtn = (label: string) =>
   inDoc('.picker-modal-actions .panel-btn').find(b => b.getAttribute('aria-label') === label)
-/** Ticks or unticks each of these in the editor's category grid, then Done. */
-const toggleCategories = (...names: string[]) => {
-  click($('.category-trigger'))
-  for (const name of names)
-    click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === name))
-  click(pickerBtn('Done'))
-}
-const chooseCategory = (name: string) => {
-  click($('.category-trigger'))
-  click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === name))
-  // "New category…" closes the grid by itself, to ask for the name.
-  const done = pickerBtn('Done')
-  if (done) click(done)
-}
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
@@ -124,9 +109,10 @@ describe('outside edit mode', () => {
   })
 })
 
-// **The tab that is showing is muted**: a faint ground and a green edge, not
-// the whole pill filled. Filled, it was louder than Speak, the one control the
-// fill is kept to mean. The moment of choosing one still flashes full.
+// **The tab that is showing is part of the board under it**: the board's own
+// ground and a green edge along its top, not the whole tab filled. Filled, it
+// was louder than Speak, the one control the fill is kept to mean. The moment
+// of choosing one still flashes full.
 describe('the tab that is showing', () => {
   const rule = (selector: string) => {
     const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
@@ -135,8 +121,8 @@ describe('the tab that is showing', () => {
   }
 
   it('is not filled in the accent, though the flash of choosing it is', () => {
-    expect(rule('.filter-tab.active')).toMatch(/background: *var\(--accent-dim\)/)
-    expect(rule('.filter-tab.active')).toMatch(/border-color: *var\(--accent\)/)
+    expect(rule('.filter-tab.active')).toMatch(/background: *var\(--bg\)/)
+    expect(rule('.filter-tab.active')).toMatch(/border-top: *3px solid var\(--accent\)/)
     expect(rule('.filter-tab.flashed')).toMatch(/background: *var\(--accent\);/)
   })
 })
@@ -403,27 +389,22 @@ describe('deleting a category', () => {
     confirmDelete()
 
     expect(box().value).toBe(opened)
-    expect($('.category-trigger .picker-trigger-label')?.textContent).toBe('Library only')
   })
 
-  // Filed there by hand, rather than following the tab: the draft holds the
-  // name itself, and has to be told it has gone.
-  it('keeps new words being filed under it, and finds them another home', () => {
+  // Written on its tab, and the tab gone: Library is showing, so that is where
+  // Save puts it.
+  it('saves words being written on it into Library once it has gone', () => {
     renderApp()
     enterEditMode()
-    const filed = () => $('.category-trigger .picker-trigger-label')?.textContent
-    // Chosen before there are words: Done with words to save saves them.
-    chooseCategory('Food')
-    writePhrase('Not yet saved')
-    expect(filed()).toBe('Food')
-
     click(tabNamed('Food'))
+    writePhrase('Not yet saved')
+
     click(renameBtn())
     confirmDelete()
-
     expect(box().value).toBe('Not yet saved')
-    expect(filed()).not.toBe('Food')
-    expect(filed()).toBeTruthy()
+    savePhrase()
+
+    expect($('.toast')?.textContent).toBe('Added to Library')
   })
 })
 
@@ -488,21 +469,10 @@ describe('a category left with nothing in it', () => {
     expect(storedStore().members.Solo).toEqual(['custom-solo'])
   })
 
-  it('goes when its last phrase is moved out', () => {
-    openSolo()
-    // Out of Solo and into Drinks, which the grid does as two ticks.
-    toggleCategories('Solo', 'Drinks')
-    click(iconBtn('Save phrase'))
-
-    expect(tabLabels()).not.toContain('Solo')
-    expect(storedStore().members).not.toHaveProperty('Solo')
-    expect(storedStore().members.Drinks).toContain('custom-solo')
-  })
-
-  // Ticking a second category adds to the first rather than replacing it.
+  // Saved on a second category's tab, it is added to it and kept in the first.
   it('puts a phrase in a second category and keeps it in the first', () => {
     openSolo()
-    toggleCategories('Drinks')
+    click(tabNamed('Drinks'))
     click(iconBtn('Save phrase'))
 
     expect(storedStore().members.Solo).toEqual(['custom-solo'])
@@ -514,6 +484,8 @@ describe('a category left with nothing in it', () => {
     openSolo()
     click(tabNamed('Drinks'))
     const before = cells().map(c => c.getAttribute('data-phrase'))
+    // Another phrase opens into an empty box: the one open is put aside first.
+    click(iconBtn('Start a new phrase'))
     click(cells()[0])
     writePhrase('Tea please, strong')
     click(iconBtn('Save phrase'))
@@ -548,186 +520,35 @@ describe('a category left with nothing in it', () => {
 })
 
 /**
- * **Done on the category grid files a phrase on the board there and then**, with
- * no dwell on the check at the far end of the box. Only which categories refer
- * to it: its words and its voice, if they are being changed too, still wait for
- * the check. A phrase being written is not on the board yet, so for it Done only
- * says where the check will file it.
+ * **Save files a phrase under the category whose tab is showing**: there is no
+ * category to choose in the message card. See `into` in `talk/use-editor.ts`.
  */
-describe('Done on the category grid', () => {
-  const toast = () => $('.toast')?.textContent
-  const members = () => storedStore().members as Record<string, string[]>
-  /** In edit mode on this tab, with this phrase open in the box. */
-  const open = (tab: string, text: string) => {
-    renderApp()
-    click(tabNamed(tab))
-    enterEditMode()
-    click(cells().find(c => c.textContent === text))
-  }
-
-  it('files a phrase on the board without the check', () => {
-    open('Drinks', 'Tea please')
-    toggleCategories('Food')
-
-    expect(members().Food).toEqual(['custom-seed-3', 'custom-seed-4', 'custom-seed-0'])
-    expect(members().Drinks).toEqual(['custom-seed-0', 'custom-seed-1', 'custom-seed-2'])
-    expect(toast()).toBe('Filed under Drinks, Food')
-  })
-
-  it('takes it out of what is unticked, and says when that leaves Library alone', () => {
-    open('Evening', 'Time for bed')
-    toggleCategories('Evening')
-
-    // It was the last thing in Evening, which goes with it.
-    expect(members().Evening).toBeUndefined()
-    expect(tabLabels()).not.toContain('Evening')
-    expect(toast()).toBe('In Library only')
-  })
-
-  it('leaves the words being changed for the check', () => {
-    open('Drinks', 'Tea please')
-    writePhrase('Tea please, no sugar')
-    toggleCategories('Food')
-
-    expect(members().Food).toContain('custom-seed-0')
-    expect(storedStore().overrides?.['custom-seed-0']).toBeUndefined()
-    expect(box().value).toBe('Tea please, no sugar')
-
-    savePhrase()
-    expect(storedStore().overrides['custom-seed-0']).toBe('Tea please, no sugar')
-    expect(members().Food).toContain('custom-seed-0')
-  })
-
-  // Filed, the draft follows the store rather than a copy of the choice: a
-  // second trip to the grid opens on what is filed.
-  it('opens the grid again on what was filed', () => {
-    open('Drinks', 'Tea please')
-    toggleCategories('Drinks', 'Food')
-
-    click($('.category-trigger'))
-    const ticked = inDoc('.picker-tile[aria-selected="true"]').map(
-      t => t.querySelector('.picker-tile-name')?.textContent,
-    )
-    click(pickerBtn('Cancel'))
-    expect(ticked).toEqual(['Food'])
-    expect($('.category-trigger')?.textContent).toBe('Food')
-  })
-
-  it('files a phrase on the board under a category made from the grid', () => {
-    open('Drinks', 'Tea please')
-    chooseCategory('New category…')
-    type(nameField(), 'Invented')
-    saveModal()
-
-    expect(members().Invented).toEqual(['custom-seed-0'])
-    expect(members().Drinks).toContain('custom-seed-0')
-  })
-
-  // Done on where it goes is somebody finishing it.
-  it('saves a phrase being written, words and all', () => {
-    renderApp()
-    enterEditMode()
-    writePhrase('Nobody wrote this before')
-    toggleCategories('Food')
-
-    const added = storedStore().custom.find((p: { text: string }) => p.text === 'Nobody wrote this before')
-    expect(members().Food).toEqual(['custom-seed-3', 'custom-seed-4', added.id])
-    expect(toast()).toBe('Added to Library, Food')
-    // Saved, so the box is ready for the next one.
-    expect(box().value).toBe('')
-  })
-
-  // With no words there is nothing to save, and with words the board already
-  // has there is nothing to save either: Done only says where the check will
-  // file it.
-  for (const [what, words] of [
-    ['no words yet', ''],
-    ['words already on the board', 'Tea please'],
-  ]) {
-    it(`saves nothing for a phrase with ${what}, and holds the choice for the check`, () => {
-      renderApp()
-      enterEditMode()
-      writePhrase(words)
-      toggleCategories('Food')
-
-      expect(storedStore()).toEqual(SEEDED)
-      expect($('.category-trigger')?.textContent).toBe('Food')
-    })
-  }
-
-  // As the check leaves it: the next phrase written starts where this one went.
-  it('starts the next new phrase in the first category chosen', () => {
-    open('Drinks', 'Tea please')
-    toggleCategories('Drinks', 'Food')
-    click(iconBtn('Start a new phrase'))
-
-    expect($('.category-trigger')?.textContent).toBe('Food')
-  })
-
-  // Keeping a translation is making a phrase, so Done saves it as it saves one
-  // being written — and leaves the record it came off as it was.
-  it('keeps a translation as a phrase, filed where it was chosen', () => {
-    const record = [{ id: 'tr-1', source: 'I am cold', text: "J'ai froid", tag: 'fr' }]
-    localStorage.setItem('peri_translated', JSON.stringify(record))
-    renderApp()
-    click(tabNamed('Translations'))
-    enterEditMode()
-    // Two lines to a cell there: what was said, and what it was said as.
-    click(cells().find(c => c.textContent?.includes("J'ai froid")))
-    expect($('.edit-bar-title')?.textContent).toBe('Keep this translation')
-    const words = box().value
-    toggleCategories('Food')
-
-    const kept = storedStore().custom.find((p: { text: string }) => p.text === words)
-    expect(members().Food).toEqual(['custom-seed-3', 'custom-seed-4', kept.id])
-    expect(toast()).toBe('Kept as a phrase')
-    expect(JSON.parse(localStorage.getItem('peri_translated')!)).toEqual(record)
-  })
-
-  it('files nothing on Cancel', () => {
-    open('Drinks', 'Tea please')
-    const before = members()
-    click($('.category-trigger'))
-    click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === 'Food'))
-    click(pickerBtn('Cancel'))
-
-    expect(members()).toEqual(before)
-    expect(toast()).toBeUndefined()
-  })
-})
-
 describe('the phrase editor', () => {
-  it('files a phrase under a category invented on the spot', () => {
+  it('files a phrase under a category made a moment ago', () => {
     renderApp()
     enterEditMode()
-    click(cells()[0])
-    writePhrase('A brand new phrase')
-
-    // The grid's last tile is not a category: it asks for one, in the same
-    // dialog the category tabs use to add theirs.
-    chooseCategory('New category…')
-    expect(nameField()).not.toBeNull()
+    click($('.add-category-tab'))
     type(nameField(), 'Invented')
     saveModal()
+    click(tabNamed('Invented'))
+
+    writePhrase('A brand new phrase')
     savePhrase()
 
-    expect(tabLabels()).toContain('Invented')
-
-    // The tab appearing proves only that the category exists. What matters is
-    // that the phrase actually moved into it.
     click(editToggle()) // leave edit mode
     click(tabNamed('Invented'))
     expect(cells().map(c => c.textContent)).toEqual(['A brand new phrase'])
   })
 
-  it('moves an existing phrase between existing categories', () => {
+  // Opened off Library and saved on a category's tab, it is filed there too.
+  it('adds an existing phrase to the category showing', () => {
     renderApp()
     enterEditMode()
     const destination = catTabs()[2].textContent!
     const moved = cells()[0].textContent!
 
     click(cells()[0])
-    chooseCategory(destination)
+    click(tabNamed(destination))
     savePhrase()
 
     click(editToggle()) // leave edit mode
@@ -738,9 +559,7 @@ describe('the phrase editor', () => {
   it('will not save a new category with no name', () => {
     renderApp()
     enterEditMode()
-    click(cells()[0])
-    writePhrase('Some phrase')
-    chooseCategory('New category…')
+    click($('.add-category-tab'))
 
     expect(action('Save')?.className).toMatch(/is-disabled/)
   })
@@ -751,15 +570,21 @@ describe('the phrase editor', () => {
     renderApp()
     enterEditMode()
     const destination = catTabs()[2].textContent!
+    click(tabNamed(destination))
 
     writePhrase('Somewhere particular')
-    // Done on the categories saves a new phrase whole — there is nothing left
-    // for Save to do, and the box it rode is empty, so it is not drawn.
-    chooseCategory(destination)
+    savePhrase()
 
+    expect(box().value).toBe('')
     click(editToggle()) // leave edit mode
     click(tabNamed(destination))
     expect(cells().map(c => c.textContent)).toContain('Somewhere particular')
+  })
+
+  it('offers no category to choose in the message card', () => {
+    renderApp()
+    enterEditMode()
+    expect($('.category-trigger')).toBeNull()
   })
 })
 
@@ -808,17 +633,17 @@ describe('ordering categories', () => {
     expect(sortBtn()).not.toBeNull()
   })
 
-  // These used to sit in with the tabs, where reaching them meant scrolling to
-  // the end of a bar that can be dozens of categories long.
-  it('parks every category control outside the scroller, where none can scroll away', () => {
+  // These used to sit in with the tabs, where they moved every time a category
+  // was added or renamed — and, while the bar scrolled, could scroll away.
+  it('parks every category control after the tabs, in a place of its own', () => {
     renderApp()
     enterEditMode()
-    expect($('.filter-scroll .filter-bar-btn')).toBeNull()
+    expect($('.filter-tabs .filter-bar-btn')).toBeNull()
     expect($('.filter-bar-tools .add-category-tab')).not.toBeNull()
     expect($('.filter-bar-tools .reorder-tab')).not.toBeNull()
 
     click(reorderBtn())
-    expect($('.filter-scroll .filter-bar-btn')).toBeNull()
+    expect($('.filter-tabs .filter-bar-btn')).toBeNull()
     expect($('.filter-bar-tools .sort-order-tab')).not.toBeNull()
   })
 
@@ -1202,88 +1027,115 @@ describe('a category that runs out of phrases', () => {
   })
 })
 
-// The bar holds more categories than fit, and a dwell user has no wheel to bring
-// the rest into view. It had a nudge and a jump to either end; the page is the
-// step in between, and the one that maps to "show me the next lot".
-describe('paging the category bar', () => {
-  const arrow = (label: string) => $$('.filter-arrow').find(a => a.getAttribute('aria-label') === label)
-
-  /** jsdom lays nothing out, so the width a page is measured from is supplied. */
-  const withWidth = (w: number) => {
-    const scroller = $<HTMLElement>('.filter-scroll')!
-    Object.defineProperty(scroller, 'clientWidth', { value: w, configurable: true })
-    const scrollBy = vi.fn()
-    scroller.scrollBy = scrollBy
-    return scrollBy
-  }
-
-  // One nudge's worth stays on screen. Tabs are pills of every different width,
-  // so a jump of exactly one screen can cut one in half at the edge — and half a
-  // category is a target that can be hit meaning the one beside it.
-  it('moves a screenful of tabs less one nudge, in both directions', () => {
+// **Every category on screen at once.** The bar scrolled, with six arrows to
+// move it — a nudge, a page and an end each way — and a category off the end
+// of it was one nobody could see was there. It wraps onto another row now.
+describe('the category bar', () => {
+  it('has no arrows, and nothing to scroll', () => {
     renderApp()
-    const scrollBy = withWidth(700)
+    expect($$('.filter-arrow')).toEqual([])
+    expect(catLabels()).toEqual(['Drinks', 'Evening', 'Food', 'Greetings'])
+    expect(stylesheet()).toMatch(/\.filter-tabs \{[^}]*flex-wrap: wrap;/)
+    expect(stylesheet()).not.toMatch(/\.filter-tabs \{[^}]*overflow/)
+  })
+})
 
-    click(arrow('Next page of categories'))
-    expect(scrollBy).toHaveBeenCalledWith({ left: 500, behavior: 'smooth' })
+// **A tab's name cut to seven characters unless it is the tab showing**, and
+// only as drawn: the whole of it is still the tab's text and its name.
+describe('a tab’s name', () => {
+  const short = (name: string) => tabNamed(name)?.querySelector('.tab-label')?.getAttribute('data-short')
 
-    click(arrow('Previous page of categories'))
-    expect(scrollBy).toHaveBeenLastCalledWith({ left: -500, behavior: 'smooth' })
+  it('is cut to seven characters on a tab that is not showing', () => {
+    renderApp()
+    expect(short('Translations')).toBe('Transla…')
+    expect(short('Greetings')).toBe('Greetin…')
+    expect(short('Evening'), 'seven is not cut').toBeNull()
+    expect(tabNamed('Translations')?.getAttribute('aria-label')).toBe('Translations')
   })
 
-  it('still moves when the bar is narrower than the overlap', () => {
+  it('is whole on the tab showing', () => {
     renderApp()
-    const scrollBy = withWidth(150)
-
-    click(arrow('Next page of categories'))
-    expect(scrollBy).toHaveBeenCalledWith({ left: 200, behavior: 'smooth' })
+    click(tabNamed('Greetings'))
+    expect(short('Greetings')).toBeNull()
+    expect(short('Translations')).toBe('Transla…')
   })
 
-  // Outermost is the biggest jump, so the three are told apart by where they sit
-  // as well as by their glyphs — one chevron nudges, two move a page, a chevron
-  // against a bar goes to the end.
-  it('orders the controls by how far they travel', () => {
-    renderApp()
-    const labels = $$('.filter-arrow').map(a => a.getAttribute('aria-label'))
-    expect(labels).toEqual([
-      'Go to first category',
-      'Previous page of categories',
-      'Scroll categories left',
-      'Scroll categories right',
-      'Next page of categories',
-      'Go to last category',
-    ])
-  })
-
-  // A phone held upright has no room for six arrows and the tools besides, so the
-  // two that go all the way are hidden there — paging reaches either end too,
-  // only a screen at a time, and nothing else nudges.
-  //
-  // This can only check that the rule is written and that the arrows it names are
-  // the right two. jsdom applies no cascade and lays nothing out, so whether the
-  // rule *takes effect* is a question for the deploy preview.
-  it('hides the home and end arrows on a phone held upright', () => {
-    renderApp()
-    const named = $$('.filter-arrow-end').map(a => a.getAttribute('aria-label'))
-    expect(named).toEqual(['Go to first category', 'Go to last category'])
-
+  it('is drawn cut and read whole', () => {
     const css = stylesheet()
-    // Width alone would take the arrows off a tablet in portrait as well.
-    expect(css).toMatch(
-      /@media \(max-width: 700px\) and \(orientation: portrait\) \{\s*\.filter-arrow-end \{\s*display: none;/,
+    expect(css).toMatch(/\.tab-label\[data-short\] \{ font-size: 0; \}/)
+    expect(css).toMatch(/\.tab-label\[data-short\]::after \{[^}]*content: attr\(data-short\);/)
+  })
+})
+
+// **One row, and then More.** jsdom lays nothing out, so the widths the bar
+// measures are supplied: every tab 100 wide in a bar with room for three, and
+// twelve tabs — Translations, Library and ten categories — is four rows of them.
+describe('More', () => {
+  const TEN = Array.from({ length: 10 }, (_, i) => `Cat ${String(i + 1).padStart(2, '0')}`)
+  const more = () => $('.filter-more[role="tab"]')
+  const tile = (name: string) => inDoc('.picker-tile').find(t => t.textContent?.startsWith(name))
+  let restore: () => void
+  beforeEach(() => {
+    localStorage.setItem(
+      STORE_KEY,
+      JSON.stringify({
+        custom: TEN.map((category, i) => ({ id: `custom-ten-${i}`, text: `In ${category}`, category })),
+      }),
     )
+    const width = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth')!
+    const room = Object.getOwnPropertyDescriptor(Element.prototype, 'clientWidth')!
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+      configurable: true,
+      get() {
+        return (this as Element).closest('.filter-tabs-measure') ? 100 : 0
+      },
+    })
+    Object.defineProperty(Element.prototype, 'clientWidth', {
+      configurable: true,
+      get() {
+        return (this as Element).classList.contains('filter-tabs') ? 320 : 0
+      },
+    })
+    restore = () => {
+      Object.defineProperty(HTMLElement.prototype, 'offsetWidth', width)
+      Object.defineProperty(Element.prototype, 'clientWidth', room)
+    }
+  })
+  afterEach(() => restore())
+
+  // Two tabs and More make the three a row holds.
+  it('holds the tabs to one row, and the rest behind it', () => {
+    renderApp()
+    expect(tabLabels()).toEqual(['Translations', 'Library', 'More'])
+    expect(more()?.textContent).toBe('More')
   })
 
-  it('keeps paging while the pointer stays', () => {
+  it('goes to a category it hides, on Done, and carries its name', () => {
     renderApp()
-    const scrollBy = withWidth(700)
+    click(more())
+    click(tile('Cat 09'))
+    expect(more()?.textContent, 'went on the tile, before Done').toBe('More')
+    expect(more()?.getAttribute('aria-selected')).toBe('false')
+    click(pickerBtn('Done'))
+    expect(cells().map(c => c.textContent)).toEqual(['In Cat 09'])
+    expect(more()?.textContent).toBe('Cat 09')
+    expect(more()?.getAttribute('aria-selected')).toBe('true')
+  })
 
-    fireEvent.pointerEnter(arrow('Next page of categories')!)
-    act(() => void vi.advanceTimersByTime(800))
-    expect(scrollBy).toHaveBeenCalledTimes(1)
+  it('goes nowhere on Cancel', () => {
+    renderApp()
+    click(more())
+    click(tile('Cat 09'))
+    click(pickerBtn('Cancel'))
+    expect($('.filter-tab[aria-selected="true"]')?.textContent).toBe('Library')
+  })
 
-    // Three more, at whatever the default pace is.
-    act(() => void vi.advanceTimersByTime(DEFAULT_SETTINGS.repeatDelayMs * 3))
-    expect(scrollBy.mock.calls.length, 'the page control did not repeat').toBe(4)
+  // A tab behind More is one nobody could pick up, or drop another on.
+  it('shows every tab while they are being arranged', () => {
+    renderApp()
+    enterEditMode()
+    click($('.reorder-tab'))
+    expect(tabLabels()).toEqual(['Translations', 'Library', ...TEN])
+    expect(more()).toBeNull()
   })
 })

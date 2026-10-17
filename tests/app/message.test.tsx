@@ -617,7 +617,7 @@ describe('the card', () => {
    * card goes. What is being edited is at the right end of the line the words
    * are written on, beside them.
    */
-  it('keeps its places in edit mode, with what is being edited at the right end of the line', () => {
+  it('keeps its places in edit mode, with nothing beside the words', () => {
     renderApp()
     click(editToggle())
     expect(labels('.message-line > .topbar-clear')).toEqual(['Start a new phrase'])
@@ -639,11 +639,13 @@ describe('the card', () => {
     click(iconBtn('Start a new phrase'))
     click(plainCell())
     expect(bin().classList.contains('is-absent'), 'the bin is hidden for a phrase off the board').toBe(false)
-    // **At the right end of the line**, after the words.
-    expect(
-      [...$('.message-line')!.children].map(el => el.className.split(' ')[0]),
-      'what is being edited is not at the right end of the line',
-    ).toEqual(['topbar-clear', 'message-field', 'edit-bar'])
+    // **Nothing beside the words** — words already on the board are said in a
+    // toast — so the line is the slot that empties it and the box.
+    const line = () => [...$('.message-line')!.children].map(el => el.className.split(' ')[0])
+    expect(line()).toEqual(['topbar-clear', 'message-field'])
+    click(iconBtn('Start a new phrase'))
+    writePhrase(plainCell().textContent!)
+    expect(line()).toEqual(['topbar-clear', 'message-field'])
   })
 
   /**

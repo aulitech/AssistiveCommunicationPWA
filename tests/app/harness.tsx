@@ -115,7 +115,6 @@ export const savePhrase = () => click(iconBtn('Save phrase'))
 export const deletePhrase = () => click(iconBtn('Delete phrase'))
 
 /** What the strip under the box says is being edited. */
-export const editTitle = () => $('.edit-bar-title')?.textContent
 
 export const clearMessage = () => {
   const clear = $$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Clear')

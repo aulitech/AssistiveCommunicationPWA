@@ -169,9 +169,58 @@
   overflow: hidden;
   transition: background 0.1s ease;
   /* The unfiltered grid is ~2,200 cells. Let the browser skip layout and paint
-     for the ones scrolled out of view. */
+     for the ones scrolled out of view. On the cell and not its place: skipping
+     clips to the box it is on, and a magnified cell is drawn outside its
+     place but never outside itself. */
   content-visibility: auto;
   contain-intrinsic-size: auto 72px;
+}
+
+/* **The place a cell holds in the grid**, which the cell fills — and which it
+   stays in while the cell under the pointer is magnified out of it, so nothing
+   else on the board moves. */
+.phrase-place {
+  position: relative;
+  min-width: 0;
+}
+
+.phrase-place > .phrase-cell {
+  height: 100%;
+}
+
+/* Magnified, as the Dock does: larger words, given twice the width, over the
+   cells around it. `--lens-dx` and `--lens-dy` keep it inside the grid's own
+   edges — see `useMagnifier` in `talk/grid.tsx`. */
+.phrase-place.is-magnified {
+  z-index: 5;
+}
+
+.phrase-place.is-magnified > .phrase-cell {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: calc(-50% + var(--lens-dx, 0px)) calc(-50% + var(--lens-dy, 0px));
+  width: max-content;
+  min-width: calc(100% + 1.5rem);
+  min-height: calc(100% + 1.5rem);
+  max-width: calc(100vw - 6rem);
+  height: auto;
+  padding: 20px 20px 16px;
+  background: var(--cell-hover);
+  border-color: var(--accent);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+  animation: magnify 0.12s ease-out;
+}
+
+.phrase-place.is-magnified .phrase-cell-text {
+  font-size: 1.5rem;
+  max-width: 30rem;
+  white-space: normal;
+  overflow: visible;
+}
+
+@keyframes magnify {
+  from { scale: 0.85; opacity: 0.6; }
 }
 
 .phrase-cell:hover, .phrase-cell.dwelling {
@@ -191,6 +240,15 @@
 }
 
 .phrase-cell-text {
+  /* **One line, and no wider than 15rem**, cut off with an ellipsis past it —
+     or past the cell, on a screen where the cell is the narrower. The whole of
+     it is the magnified cell's: under the pointer it wraps, to twice the
+     width. `min-width: 0`, or a flex item is never narrower than its words. */
+  max-width: 15rem;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 1.15rem;
   font-weight: 500;
   color: var(--text);
