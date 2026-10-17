@@ -1,22 +1,18 @@
 // Editing what is on the board.
 //
 // The phrase editor is not here any more: in edit mode the message box *is* the
-// editor, and a row of the card below its controls — `PhraseEditBar` — says what
-// is being edited and where it is filed. **Its voice is not here either**: that is
+// editor, and nothing beside it says what is being edited — the box does. **Its voice is not here either**: that is
 // in the card's row with the language, which in edit mode is the phrase's pair
 // rather than the board's — one pair of controls meaning whichever of the two
 // the mode says, rather than two pairs that look alike and are not. What is left
-// in this file is that row, the grid a category is chosen from, and the one
-// dialog that survives, which is about a category rather than a phrase.
+// in this file is the one dialog that survives, which is about a category
+// rather than a phrase.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { holdDwellsUntilMoved, useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
-import { DwellInput, PickerModal, PickerTile } from '../ui/controls'
+import { DwellInput } from '../ui/controls'
 import { cx, dwellVar } from '../ui/style'
-import { usePendingChoice } from '../ui/pending-choice'
-import { type Draft } from './use-editor'
-import { ChooseIcon } from '../ui/icons'
 
 function EditAction({
   kind,
@@ -41,167 +37,6 @@ function EditAction({
     >
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
       {label}
-    </div>
-  )
-}
-
-/** The separator a set of categories is held under while the grid is open — see `CategoryPicker`. */
-const JOIN = '\u0000'
-
-/**
- * Which categories refer to a phrase, chosen from a full-screen grid. **Every
- * phrase is in Library whatever is ticked** — a category only refers to it —
- * so ticking none is a phrase in Library alone.
- *
- * It was a `<select>`, which is the one control on this screen a dwell cannot
- * work: the list a native select opens is drawn by the operating system, outside
- * the page, where nothing can be hovered for a second and a half. So it takes
- * the same shape the voice picker does — the grid is the app's answer to
- * "which of these", and there is no reason for a user to learn two.
- */
-function CategoryPicker({
-  value,
-  categories,
-  countFor,
-  onChange,
-  onCreate,
-}: {
-  value: string[]
-  categories: string[]
-  /** How many phrases each one holds, which is the second line of its tile. */
-  countFor: (name: string) => number
-  onChange: (names: string[]) => void
-  /** Asks for a category that does not exist yet; the dialog does the naming. */
-  onCreate: () => void
-}) {
-  const { settings } = useSettings()
-  /**
-   * **Held until Done, not applied and put back.** Every tile rested on used to
-   * be written into the draft at once, and Cancel wrote the category it opened
-   * on back — so just looking at the grid and leaving it marked the draft as
-   * started: *Start a new phrase* woke up with nothing to start again from, an
-   * offer to undo a delete went away, and a blank draft stopped following the
-   * tab. A rest is how somebody looks at a tile as well as how they pick one —
-   * see `ui/pending-choice.ts`, which the other grids here already use.
-   *
-   * **Held as one string**, the names joined, because a list is a new array
-   * every render and the hook tells a change by comparing: Done with nothing
-   * moved has to write nothing.
-   */
-  const joined = value.join(JOIN)
-  const commit = useCallback((next: string) => onChange(next ? next.split(JOIN) : []), [onChange])
-  const { open, pending, mark, begin, done, cancel } = usePendingChoice(joined, commit)
-  const ticked = pending ? pending.split(JOIN) : []
-  const toggle = (name: string) =>
-    mark((ticked.includes(name) ? ticked.filter(n => n !== name) : [...ticked, name]).join(JOIN))
-
-  const { active, props } = useDwellControl(settings.actionDwellMs, begin)
-  const shown = value.length === 0 ? 'Library only' : value.join(', ')
-
-  return (
-    <>
-      <div
-        className={cx('picker-trigger category-trigger', active && 'dwelling')}
-        style={dwellVar(settings.actionDwellMs)}
-        role="button"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={`Categories: ${shown}. Choose`}
-        {...props}
-      >
-        <span className="picker-trigger-label">{shown}</span>
-        <ChooseIcon />
-        <div className="dwell-bar" key={active ? 'a' : 'i'} />
-      </div>
-
-      {open && (
-        <PickerModal
-          title="Choose categories"
-          hint="It is in Library whatever you tick. Tick every category it should be in as well."
-          onDone={done}
-          onCancel={cancel}
-        >
-          {categories.map(name => (
-            <PickerTile
-              key={name}
-              name={name}
-              detail={`${countFor(name)} ${countFor(name) === 1 ? 'phrase' : 'phrases'}`}
-              selected={ticked.includes(name)}
-              onSelect={() => toggle(name)}
-            />
-          ))}
-          {/* Last, and it leaves the grid: naming it is a keyboard job, and the
-              dialog that does the naming is the same one the category tabs use. */}
-          <PickerTile
-            name="New category…"
-            className="is-new"
-            selected={false}
-            onSelect={() => {
-              cancel()
-              onCreate()
-            }}
-          />
-        </PickerModal>
-      )}
-    </>
-  )
-}
-
-/**
- * The row at the bottom of the message card, in edit mode only: what is being
- * edited, and the category it is filed under.
- *
- * Only these two, because everything else a phrase has is its words, and its
- * words are in the box above. Both are triggers rather than lists — each opens
- * a full-screen grid, which is the only shape of "one out of many" a gaze user
- * can work through.
- */
-export function PhraseEditBar({
-  draft,
-  categories,
-  countFor,
-  onCategory,
-  onCreateCategory,
-}: {
-  draft: Draft
-  categories: string[]
-  countFor: (name: string) => number
-  onCategory: (names: string[]) => void
-  onCreateCategory: () => void
-}) {
-  return (
-    <div className="edit-bar" role="group" aria-label="Phrase being edited">
-      {/* What is being edited — or, where the words are already on the board,
-          why Save has gone quiet. A disabled control explains nothing by
-          itself, and this is the line the user is already reading for state. */}
-      <span className={cx('edit-bar-title', draft.duplicate && 'is-warning')}>
-        {draft.duplicate
-          ? 'Already on the board'
-          : draft.kept
-            ? `Keep this ${draft.kept}`
-            : draft.isNew
-              ? draft.isEmergency
-                ? 'New emergency phrase'
-                : 'New phrase'
-              : draft.isEmergency
-                ? 'Editing emergency phrase'
-                : 'Editing phrase'}
-      </span>
-
-      {/* The emergency bar is the category, so there is nothing to choose. Said
-          rather than hidden, because a row that loses a control between one
-          phrase and the next moves the one beside it. */}
-      {draft.isEmergency ? (
-        <span className="edit-bar-fixed">Emergency</span>
-      ) : (
-        <CategoryPicker
-          value={draft.categories}
-          categories={categories}
-          countFor={countFor}
-          onChange={onCategory}
-          onCreate={onCreateCategory}
-        />
-      )}
     </div>
   )
 }

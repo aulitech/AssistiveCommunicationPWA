@@ -7,47 +7,48 @@ import {
   activeTab,
   categories,
   cell,
-  draftCategory,
   editMode,
-  fileUnder,
+  goTo,
+  instantSpeech,
   many,
   marked,
   messageBox,
-  offCentre,
   openBoard,
   tab,
   within,
 } from './board'
 
-test('files a new phrase under the tab edit mode was entered on', async ({ page }) => {
+const save = (page: import('@playwright/test').Page) => page.locator('.icon-btn[aria-label="Save phrase"]').click()
+
+// Save files it under the tab showing — there is no category to choose — and
+// the board, already there, marks it.
+test('files a new phrase under the tab showing, and marks it', async ({ page }) => {
   const { errors } = await openBoard(page, { phrases: categories(['Food', 'Drinks']) })
   await tab(page, 'Food').click()
   await editMode(page)
+  await messageBox(page).fill('One for right here')
+  await save(page)
 
-  await expect(draftCategory(page)).toHaveText('Food')
+  await expect(page.locator('.toast')).toHaveText('Added to Library, Food')
+  await expect(activeTab(page)).toHaveText('Food')
+  await expect(marked(page)).toHaveText('One for right here')
   expect(errors).toEqual([])
 })
 
 /**
- * Filed elsewhere, the board goes there, marks the cell, scrolls it into view
- * and brings the tab to the middle of the bar — Category 20 sits far enough
- * along thirty tabs that the bar has to scroll to centre it.
+ * On a tab behind More, the twentieth of thirty: filed there, marked and
+ * scrolled into view, and More still naming the tab.
  */
-test('takes the board to a new phrase filed elsewhere, and shows it', async ({ page }) => {
+test('files a new phrase under a tab behind More, and shows it', async ({ page }) => {
   const { errors } = await openBoard(page, { phrases: many() })
-  await tab(page, 'Category 01').click()
+  await goTo(page, 'Category 20')
   await editMode(page)
   await messageBox(page).fill('One for over there')
-  // Done on where it goes saves it.
-  await fileUnder(page, 'Category 20')
+  await save(page)
 
   await expect(activeTab(page)).toHaveText('Category 20')
   await expect(marked(page)).toHaveText('One for over there')
-  // Both scrolls are smooth, so asked until they settle.
   await expect.poll(() => within(page, '.phrase-cell[aria-current="true"]', '.grid-wrapper')).toBe(true)
-  await expect
-    .poll(() => offCentre(page, '.filter-tab[aria-selected="true"]', '.filter-scroll', 'x'))
-    .toBeLessThan(60)
   expect(errors).toEqual([])
 })
 
@@ -66,10 +67,14 @@ test('reaches a new phrase past the end of what is rendered', async ({ page }) =
 })
 
 // **Turning edit mode on opens the phrase and moves nothing**: the tab, the
-// cells and where they are scrolled to are as they were.
+// cells and where they are scrolled to are as they were. The board as it was
+// is the board once the phrase has been said, which it takes its new order
+// after.
 test('opens the phrase in the message box, and leaves the board as it was', async ({ page }) => {
+  await instantSpeech(page)
   const { errors } = await openBoard(page)
   await cell(page, 'Once in a blue moon').first().click()
+  await expect(page.locator('.app')).not.toHaveClass(/is-speaking/)
   const before = await page.evaluate(() => ({
     cells: [...document.querySelectorAll('.phrase-cell')].slice(0, 12).map(c => c.textContent),
     top: document.querySelector('.grid-wrapper')!.scrollTop,
@@ -77,7 +82,8 @@ test('opens the phrase in the message box, and leaves the board as it was', asyn
   await editMode(page)
 
   await expect(activeTab(page)).toHaveText('Library')
-  await expect(page.locator('.edit-bar-title')).toHaveText('Editing phrase')
+  // Open, which the bin says — nothing else in the card does.
+  await expect(page.locator('.icon-btn[aria-label="Delete phrase"]')).not.toHaveClass(/is-absent/)
   await expect(messageBox(page)).toHaveValue('Once in a blue moon')
   await expect(marked(page)).toHaveCount(0)
   const after = await page.evaluate(() => ({
@@ -111,7 +117,6 @@ test('moves between categories in edit mode, and renames with the pencil', async
   await tab(page, 'Food').click()
 
   await expect(activeTab(page)).toHaveText('Food')
-  await expect(draftCategory(page)).toHaveText('Food')
   await expect(page.locator('.edit-modal')).toHaveCount(0)
   await page.locator('.rename-category-tab').click()
   await expect(page.locator('.edit-modal')).toHaveAttribute('aria-label', 'Rename category')
@@ -132,7 +137,7 @@ for (const [what, viewport] of [
       // Straight to the toggle: on a phone the microphone's hit area covers the
       // edit toggle's centre, and a click there lands on the microphone.
       await page.locator('.edit-toggle').dispatchEvent('click')
-      await tab(page, 'Food').click()
+      await goTo(page, 'Food')
       await page.locator('.rename-category-tab').click()
       const del = page.locator('.edit-action-btn', { hasText: 'Delete' })
       const at = (await del.boundingBox())!
@@ -151,24 +156,22 @@ for (const [what, viewport] of [
   })
 }
 
-// A category refers to Library's phrases: one phrase ticked into two shows in
-// both, and the bin on one takes it out of that one alone.
+// A category refers to Library's phrases: the same words saved on a second
+// tab put the one phrase in both rather than making a copy, and the bin on one
+// takes it out of that one alone.
 test('puts a phrase in two categories, and takes it out of one', async ({ page }) => {
   const { errors } = await openBoard(page, { phrases: categories(['Food', 'Drinks']) })
   await tab(page, 'Food').click()
   await editMode(page)
   await messageBox(page).fill('Tea and toast')
-  await page.locator('.category-trigger').click()
-  await page
-    .locator('.picker-tile')
-    .filter({ has: page.locator('.picker-tile-name', { hasText: /^Drinks$/ }) })
-    .click()
-  // Done on where it goes saves it.
-  await page.locator('.picker-modal-actions .panel-btn[aria-label="Done"]').click()
-  await expect(page.locator('.toast')).toHaveText('Added to Library, Food, Drinks')
+  await save(page)
+  await expect(page.locator('.toast')).toHaveText('Added to Library, Food')
 
-  await expect(cell(page, 'Tea and toast')).toHaveCount(1)
   await tab(page, 'Drinks').click()
+  await messageBox(page).fill('Tea and toast')
+  await expect(page.locator('.toast')).toHaveText('Already on the board — Save adds it to Drinks')
+  await save(page)
+  await expect(page.locator('.toast')).toHaveText('Already on the board — added to Drinks')
   await expect(cell(page, 'Tea and toast')).toHaveCount(1)
 
   await cell(page, 'Tea and toast').click()

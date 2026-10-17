@@ -342,6 +342,9 @@
   .filter-tab.is-held,
   .emergency-btn.is-held { animation: none !important; }
 
+  /* A magnified cell is simply there at its size, without growing into it. */
+  .phrase-place.is-magnified > .phrase-cell { animation: none !important; }
+
   /* The resting lozenge stops pulsing; it stays lit, and the app is still
      dimmed behind it. */
   .rest-btn.is-resting { animation: none !important; }

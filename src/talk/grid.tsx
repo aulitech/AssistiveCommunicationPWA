@@ -666,18 +666,23 @@ export function PhraseGrid({
   // by measuring and windowing again on the very next pass.
   const showEverything = useCallback(() => setShown(phrases.length), [phrases.length])
 
+  useMagnifier(innerRef, gridRef, phrases, !!reordering)
+
   return (
     <div className="grid-area">
       <main ref={gridRef} className="grid-wrapper">
         <div ref={innerRef} className="phrase-grid" role="group" aria-label="Phrases">
+          {/* Each cell in a place of its own in the grid, which it holds while
+              the cell grows out of it — see `useMagnifier`. */}
           {visible.map(phrase => (
-            <PhraseCell
-              key={phrase.id}
-              phrase={phrase}
-              spoken={phrase.id === spokenId}
-              reorder={reordering ? propsFor(phrase.id) : undefined}
-              onSelect={selectPhrase}
-            />
+            <div key={phrase.id} className="phrase-place">
+              <PhraseCell
+                phrase={phrase}
+                spoken={phrase.id === spokenId}
+                reorder={reordering ? propsFor(phrase.id) : undefined}
+                onSelect={selectPhrase}
+              />
+            </div>
           ))}
         </div>
         {phrases.length === 0 && emptyMessage && (
@@ -722,6 +727,93 @@ export function PhraseGrid({
  * measured at all it renders everything, exactly as it did before this existed.
  */
 const FIRST_WINDOW = 120
+
+/**
+ * **The cell under the pointer, magnified** — as the Dock magnifies what is
+ * under it. Grown out of its place over its neighbours rather than in it, so
+ * nothing else on the board moves, and its words given twice the width, so a
+ * long phrase is read in two lines rather than five.
+ *
+ * **A frame after the pointer arrives**, never in the same event: every control
+ * asks, as the pointer enters it, whether it came to the pointer rather than
+ * the pointer to it (`cameToPointer` in `ui/dwell.ts`). A cell grown before it
+ * was asked would cover where the pointer had just been, and be refused as
+ * one that moved. Kept inside the grid's own edges, where it would run off
+ * them. Not for touch, where nothing hovers, nor while the cells are being
+ * arranged, where a cell is a thing to pick up.
+ */
+function useMagnifier(
+  gridRef: React.RefObject<HTMLElement | null>,
+  wrapperRef: React.RefObject<HTMLElement | null>,
+  phrases: Phrase[],
+  reordering: boolean,
+) {
+  useEffect(() => {
+    const grid = gridRef.current
+    const wrapper = wrapperRef.current
+    if (!grid || !wrapper || reordering) return
+    let current: HTMLElement | null = null
+    let frame = 0
+    const shrink = () => {
+      cancelAnimationFrame(frame)
+      if (!current) return
+      current.classList.remove('is-magnified')
+      current.style.removeProperty('height')
+      current.style.removeProperty('--lens-dx')
+      current.style.removeProperty('--lens-dy')
+      current = null
+    }
+    const grow = (place: HTMLElement) => {
+      shrink()
+      current = place
+      // Held at the height it has, or a row whose tallest cell this was would
+      // close up under it — to the fraction of a pixel, since `offsetHeight`
+      // rounds and a row a pixel taller moves every row under it.
+      place.style.height = `${place.getBoundingClientRect().height}px`
+      place.classList.add('is-magnified')
+      const lens = place.firstElementChild
+      if (!(lens instanceof HTMLElement)) return
+      // From the place's centre and the lens's own size rather than from where
+      // the lens is drawn, which its arrival is still animating.
+      const at = place.getBoundingClientRect()
+      const edges = wrapper.getBoundingClientRect()
+      const inside = (centre: number, size: number, from: number, to: number) => {
+        const start = centre - size / 2
+        if (start < from + 4) return from + 4 - start
+        if (start + size > to - 4) return to - 4 - (start + size)
+        return 0
+      }
+      const dx = inside((at.left + at.right) / 2, lens.offsetWidth, edges.left, edges.right)
+      const dy = inside((at.top + at.bottom) / 2, lens.offsetHeight, edges.top, edges.bottom)
+      place.style.setProperty('--lens-dx', `${dx}px`)
+      place.style.setProperty('--lens-dy', `${dy}px`)
+    }
+    const over = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return
+      const place = (e.target as Element).closest<HTMLElement>('.phrase-place')
+      if (!place || place === current) return
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => grow(place))
+    }
+    grid.addEventListener('pointerover', over)
+    grid.addEventListener('pointerleave', shrink)
+    // **Anything that moves the board puts it back**: a scroll, or the board
+    // pushed down by a message box growing round what was just said. The cell
+    // goes with its place, and would stand grown over somewhere the pointer no
+    // longer is; the pointer's next movement decides again.
+    wrapper.addEventListener('scroll', shrink, { passive: true })
+    const resized = new ResizeObserver(shrink)
+    resized.observe(wrapper)
+    return () => {
+      grid.removeEventListener('pointerover', over)
+      grid.removeEventListener('pointerleave', shrink)
+      wrapper.removeEventListener('scroll', shrink)
+      resized.disconnect()
+      shrink()
+    }
+    // A new list puts every cell somewhere else as well.
+  }, [gridRef, wrapperRef, phrases, reordering])
+}
 
 function measure(wrapper: HTMLElement | null, grid: HTMLElement | null): number | null {
   if (!wrapper || !grid) return null

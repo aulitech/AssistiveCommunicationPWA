@@ -28,7 +28,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text('The screen has three parts:'),
       list(
         'The message box across the top, with its controls inside it.',
-        'The category tabs, and below them the grid of phrases, with arrows down the right for moving through it.',
+        'The category tabs, and below them the grid of phrases, with arrows down the right for moving through it. A long phrase is cut short in its cell, ending in …; the one under the pointer grows, as the Dock does, and shows the whole of it in larger words.',
         'The blue bar at the bottom, for the things that cannot wait.',
       ),
       text(
@@ -136,7 +136,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'In each of those groups, the phrase you used most recently comes first.',
         'Use the tabs above the grid to show one category at a time. Every phrase is in Library, each one once. The categories you make hold phrases from Library, in an order of their own, and a phrase can be in as many as you like.',
         'The tabs always start with Translations, then Answers when there are some, then Library. Your own categories follow, in the order you arranged them.',
-        'The arrows either side of the tabs move along them: :left: and :right: a little way, :page-left: and :page-right: a page, and :first: and :last: to either end. On a phone held upright :first: and :last: are left out.',
+        'The tabs keep to one row, each name cut to its first seven letters except the tab showing. Any that do not fit are behind More, the last tab: rest on it for a grid of every category, rest on the one you want, then Done. While you are in one of those, More shows its name.',
         'The buttons on the right scroll the grid the same way: :up: and :down: a little at a time, :page-up: and :page-down: a page, and :top: and :bottom: to the very top or bottom. The first two sizes keep going while you rest on them. On a short screen :page-up: and :page-down: are left out.',
       ),
       text('Rest on the words in the box to put the caret there, and type or paste from that point.'),
@@ -187,7 +187,10 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Every tab starts on Most used. Nothing is lost by that: a phrase you have never said keeps the place the board gave it, so a board you have only just opened looks exactly as it always did and sorts itself out as you talk.',
       ),
       text(
-        'The two that go by use count every phrase you choose, but the board you are looking at holds still: it takes the new order when you go to another tab and come back, or when you choose an order. A board that rearranged itself as you used it moved the next thing you wanted while you were looking for it.',
+        'The two that go by use count every phrase you choose. The board takes the new order once what you chose has been said, when you go to another tab and come back, or when you choose an order — and while you look for a phrase without saying anything, it holds still.',
+      ),
+      text(
+        'When saying something moves the board, nothing can be chosen until you move the pointer a little — about the width of a fingertip — so the phrase that lands under it is not said by a gaze that has not moved.',
       ),
       text('Phrases you have never used sit after the ones you have, in the order the board already had them.'),
       text(
@@ -304,16 +307,16 @@ export const HELP_SECTIONS: ProseSection[] = [
         ':delete:, at the far right of the row once you have chosen a phrase, on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
         ':clear: at the left end of the line starts a new phrase — the same button that empties the message the rest of the time. :paste: stays where it is; :copy: is not there in edit mode.',
-        'At the right end of the line you write on, it says what is being edited, and which categories it is in — under the words on a narrow screen. Rest on :choose: beside them to open the categories. Tick as many as you like — each ticked one shows :ticked: — or none to keep it in Library alone.',
-        'Done on the categories saves straight away. A new phrase, or a translation or answer you are keeping, is saved whole. For one already on the board only the categories are, and new words or a new voice still wait for :save:.',
+        ':save: puts the phrase in the category whose tab is showing, or in Library alone when Library is showing. A phrase already in other categories stays in them too.',
+        'If the words are already on the board, :save: puts that phrase in the category showing rather than making a second copy, and the line says so.',
         "The language and the voice in the row become this phrase's own: the voice it is said in, and the language that voice is for.",
       ),
       text('And on the board itself:'),
       list(
         'Choose any phrase into an empty box to bring it in and change its wording. With words in the box, a phrase you choose goes in where the caret is; :clear: first to change a different phrase.',
-        'A new phrase starts in the category and voice you last used, so adding several in a row takes one choice rather than one each.',
+        'A new phrase starts in the voice you last used, so adding several in a row takes one choice rather than one each.',
         'After a delete, or taking a phrase out of a category, :undo: where :clear: was puts it back where it was, until you start on something else.',
-        ':add: among the tools at the end of the category tabs makes a new category. So does New category… at the end of the grid of categories under the box.',
+        ':add: among the tools at the end of the category tabs makes a new category.',
         ':edit: among those tools renames the category that is showing. Delete in the same box removes the category. It asks first, and its phrases stay in Library.',
         ':arrange: at the end of those tools rearranges the tabs: choose a tab to pick it up, then choose where it should go. While it is on, the first tool switches the tabs between A to Z and your own order.',
         'A category goes by itself once its last phrase is taken out, and an import leaves no empty ones behind. A new category you have not put anything in yet stays until you do.',

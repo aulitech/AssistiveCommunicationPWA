@@ -2,17 +2,44 @@
 // these was written in AGENTS.md as "a question for the deploy preview".
 
 import { expect, test } from '@playwright/test'
-import { messageBox, openBoard } from './board'
+import { categories, many, messageBox, openBoard } from './board'
 
 test.describe('on a phone held upright', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  // Six arrows and the tools leave a portrait phone almost no room for the
-  // tabs; paging reaches either end too.
-  test('drops the arrows that go all the way to either end of the tabs', async ({ page }) => {
-    await openBoard(page)
-    await expect(page.locator('.filter-arrow-end').first()).toBeHidden()
-    await expect(page.locator('.filter-arrow:not(.filter-arrow-end)').first()).toBeVisible()
+  // The bar does not scroll: one row of tabs, and More for what will not fit.
+  // A category of its own and the two pinned tabs fit on one row: no More,
+  // and every tab on screen.
+  test('puts every tab on one row where they fit, with no More', async ({ page }) => {
+    await openBoard(page, { phrases: categories(['Nurse']) })
+    const tabs = page.locator('.filter-tab[role="tab"]')
+    await expect(tabs).toHaveCount(3)
+    for (const t of await tabs.all()) await expect(t).toBeInViewport({ ratio: 1 })
+    await expect(page.locator('.filter-more[role="tab"]')).toHaveCount(0)
+  })
+
+  // Thirty categories were a screen of tabs and no board. One row, and the
+  // rest behind More, which goes to one of them and then carries its name.
+  test('holds the tabs to one row, and the rest behind More', async ({ page }) => {
+    await openBoard(page, { phrases: many() })
+    const tops = await page
+      .locator('.filter-tabs > .filter-tab')
+      // To the nearest 10px: the tab showing stands a pixel lower, over the bar's edge.
+      .evaluateAll(els => [...new Set(els.map(e => Math.round(e.getBoundingClientRect().top / 10)))])
+    expect(tops.length).toBe(1)
+    const more = page.locator('.filter-more[role="tab"]')
+    await expect(more).toHaveText('More')
+    await expect(page.locator('.phrase-cell').first()).toBeInViewport()
+
+    await more.click()
+    await page
+      .locator('.picker-tile')
+      .filter({ hasText: /^Category 25$/ })
+      .click()
+    await page.locator('.picker-modal-actions .panel-btn[aria-label="Done"]').click()
+    await expect(more).toHaveText('Category 25')
+    await expect(more).toHaveAttribute('aria-selected', 'true')
+    await expect(page.locator('.phrase-cell').first()).toHaveText('First in Category 25')
   })
 
   test('never scrolls sideways', async ({ page }) => {
@@ -387,37 +414,8 @@ for (const width of [360, 1280]) {
 }
 
 /**
- * **What is being edited stands at the right end of the line the words are
- * written on** — on the line itself where the card has the width, and on a
- * line of its own under the words, still at the right, where it does not.
- */
-for (const [width, beside] of [
-  [1280, true],
-  [390, false],
-] as const) {
-  test(`puts what is being edited at the right end of the line, at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 800 })
-    await openBoard(page)
-    await page.locator('.edit-toggle').click()
-    await page.locator('.text-display').fill('A phrase')
-    const { bar, box, line } = await page.evaluate(() => ({
-      bar: document.querySelector('.edit-bar')!.getBoundingClientRect().toJSON(),
-      box: document.querySelector('.text-display')!.getBoundingClientRect().toJSON(),
-      line: document.querySelector('.message-line')!.getBoundingClientRect().toJSON(),
-    }))
-    expect(line.right - bar.right, 'not at the right end').toBeLessThan(16)
-    if (beside) {
-      expect(bar.left, 'not after the words').toBeGreaterThanOrEqual(box.right)
-      expect(bar.top, 'not on the line').toBeLessThan(box.bottom)
-    } else {
-      expect(bar.top, 'not under the words').toBeGreaterThanOrEqual(box.bottom - 1)
-    }
-  })
-}
-
-/**
- * Regression guard. **Edit mode narrows the box under words that do not
- * change** — what is being edited takes the line's right end — and they rewrap
+ * Regression guard. **Edit mode narrowed the box under words that do not
+ * change** — what was being edited took the line's right end — and they rewrapped
  * into more lines. The box kept the height it had, and Save, kept inside it,
  * was drawn on the wrong line. Asked of where Save stands against where it
  * stands once the box is made to measure itself again, going in and coming out.
@@ -520,3 +518,85 @@ for (const width of [1280, 390]) {
     }
   })
 }
+
+// **The cell under the pointer, magnified**, as the Dock does — over the cells
+// around it, and moving none of them.
+test.describe('the magnified cell', () => {
+  const rects = (page: import('@playwright/test').Page) =>
+    page.locator('.phrase-cell').evaluateAll(els =>
+      els.slice(0, 15).map(e => {
+        const r = e.getBoundingClientRect()
+        return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]
+      }),
+    )
+
+  test('grows over its neighbours and moves none of them', async ({ page }) => {
+    await openBoard(page)
+    const before = await rects(page)
+    const cell = page.locator('.phrase-cell').nth(6)
+    await cell.hover()
+    await expect(page.locator('.phrase-place.is-magnified')).toHaveCount(1)
+    const after = await rects(page)
+    const grown = after[6]!
+    expect(grown[2], 'not wider').toBeGreaterThan(before[6]![2])
+    expect(grown[3], 'not taller').toBeGreaterThan(before[6]![3])
+    after.splice(6, 1)
+    before.splice(6, 1)
+    expect(after, 'a neighbour moved').toEqual(before)
+  })
+
+  test('stays inside the grid at its edge', async ({ page }) => {
+    await openBoard(page)
+    await page.locator('.phrase-cell').first().hover()
+    await expect(page.locator('.phrase-place.is-magnified')).toHaveCount(1)
+    await page.waitForTimeout(200)
+    const { cell, grid } = await page.evaluate(() => {
+      const c = document.querySelector('.is-magnified > .phrase-cell')!.getBoundingClientRect()
+      const g = document.querySelector('.grid-wrapper')!.getBoundingClientRect()
+      return { cell: [c.left, c.top, c.right, c.bottom], grid: [g.left, g.top, g.right, g.bottom] }
+    })
+    expect(cell[0]).toBeGreaterThanOrEqual(grid[0])
+    expect(cell[1]).toBeGreaterThanOrEqual(grid[1])
+    expect(cell[2]).toBeLessThanOrEqual(grid[2])
+  })
+
+  // One line of 15rem in a cell, cut off past it; magnified, the whole of it
+  // in lines of up to 30rem.
+  test('cuts a long phrase off in its cell, and shows it whole magnified', async ({ page }) => {
+    await openBoard(page, {
+      phrases: [
+        {
+          id: 'custom-long',
+          text: 'Could you please let the nurse know that I would like to sit up in the chair for a while this afternoon',
+          category: 'Long',
+        },
+      ],
+    })
+    await page.locator('.filter-tab[role="tab"]', { hasText: 'Long' }).click()
+    const words = page.locator('.phrase-cell-text').first()
+    const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize))
+    const cut = (await words.boundingBox())!
+    expect(cut.width).toBeLessThanOrEqual(15 * rem + 1)
+    expect(await words.evaluate(e => e.scrollWidth > e.clientWidth), 'not cut off').toBe(true)
+    expect(cut.height, 'more than one line').toBeLessThan(2 * rem)
+    await page.locator('.phrase-cell').first().hover()
+    await expect(page.locator('.phrase-place.is-magnified')).toHaveCount(1)
+    await page.waitForTimeout(200)
+    const wide = (await words.boundingBox())!.width
+    expect(wide).toBeGreaterThan(15 * rem)
+    expect(wide).toBeLessThanOrEqual(30 * rem + 1)
+    expect(await words.evaluate(e => e.scrollWidth > e.clientWidth), 'still cut off').toBe(false)
+  })
+
+  // Grown under the pointer, it is still the cell the pointer travelled to —
+  // not one that came to it — and a rest says it.
+  test('still answers a rest', async ({ page }) => {
+    await openBoard(page)
+    const cell = page.locator('.phrase-cell').nth(6)
+    const text = await cell.textContent()
+    const box = (await cell.boundingBox())!
+    await page.mouse.move(box.x - 40, box.y + box.height / 2)
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 8 })
+    await expect(messageBox(page)).toHaveValue(text!, { timeout: 5000 })
+  })
+})

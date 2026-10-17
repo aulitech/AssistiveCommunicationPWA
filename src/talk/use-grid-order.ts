@@ -5,7 +5,8 @@
 // What goes in is the tab, the two records and the counts; what comes out is
 // the list the grid draws and the two ways of changing its order.
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react'
+import { cancelAllDwells, holdDwellsUntilMoved } from '../ui/dwell'
 import { LIBRARY, type Phrase } from '../core/phrases'
 import { search } from '../core/search'
 import { sortPhrases } from '../core/sort'
@@ -18,6 +19,16 @@ import {
   type PhraseUsage,
 } from '../core/store'
 import { type Board } from './use-board'
+
+/**
+ * **How far the pointer goes before anything can be chosen**, once the board
+ * has taken its new order after something said. The cell that arrived under a
+ * pointer still resting where the last phrase was chosen is not what it was
+ * aimed at.
+ */
+const AFTER_SPEAKING_PX = 20
+
+const sameOrder = (a: Phrase[], b: Phrase[]) => a.length === b.length && a.every((p, i) => p.id === b[i]!.id)
 
 /** One shared empty arrangement, so a category with none keeps a stable memo. */
 const EMPTY_ARRANGEMENT: string[] = []
@@ -33,6 +44,7 @@ export function useGridOrder({
   suggestions,
   counts,
   filterWord,
+  saidTimes,
 }: {
   board: Board
   /** The tab that is showing — Library, a category, or one of the two records. */
@@ -47,6 +59,8 @@ export function useGridOrder({
   counts: PhraseUsage
   /** What has been typed since the last phrase chosen, which the grid searches Library for — or empty. */
   filterWord: string
+  /** How many times something said has come to an end. The board takes its new order each time. */
+  saidTimes: number
 }) {
   // Which of the four orders each tab is in. One per tab rather than one for
   // the board: the categories are not alike, and a single setting makes the
@@ -74,8 +88,12 @@ export function useGridOrder({
    * cannot be applied to the board somebody is in the middle of reading.
    *
    * So the ranking is held while a tab is on screen and taken again when they
-   * look somewhere else. Nothing is lost: every phrase chosen is still counted,
-   * and the next tab shows the order those counts make.
+   * look somewhere else — **or when something said comes to an end**. The
+   * board is still while the words are said, Stop over the top row and nothing
+   * else answering, and somebody who has just said a phrase is not in the
+   * middle of reading the board: they are at the end of a sentence. So the
+   * phrase just said takes its place there, and nothing can be chosen until the
+   * pointer has moved — see `AFTER_SPEAKING_PX`.
    *
    * Adjusted during render rather than in an effect, which is the rule for
    * state that follows a prop — an effect would draw the old order once first.
@@ -92,6 +110,31 @@ export function useGridOrder({
     () => sortPhrases(tabPhrases, phraseSort, ranking, handArrangement),
     [tabPhrases, phraseSort, ranking, handArrangement],
   )
+
+  // Counted each time the board takes a new order because something said
+  // ended, and a cell on screen moved for it. Only then: an order that came out
+  // the same — a phrase said again under A to Z, an emergency phrase, which is
+  // counted nowhere — moved nothing, and holding the dwells would only make
+  // somebody saying the next thing wait.
+  const [heardSaid, setHeardSaid] = useState(saidTimes)
+  const [movedBySpeech, setMovedBySpeech] = useState(0)
+  if (heardSaid !== saidTimes) {
+    setHeardSaid(saidTimes)
+    if (ranking !== counts) {
+      const onScreen = !filterWord && !showingTranslated && !showingSuggestions
+      if (onScreen && !sameOrder(sortPhrases(tabPhrases, phraseSort, counts, handArrangement), arrangedPhrases)) {
+        setMovedBySpeech(n => n + 1)
+      }
+      setRanking(counts)
+    }
+  }
+  // Before the browser paints the new order: a dwell begun on the old one is
+  // stopped, and nothing starts until the pointer is aimed somewhere.
+  useLayoutEffect(() => {
+    if (movedBySpeech === 0) return
+    cancelAllDwells()
+    holdDwellsUntilMoved(AFTER_SPEAKING_PX)
+  }, [movedBySpeech])
 
   /**
    * **What is typed searches Library, whichever tab is showing** — see `search`.

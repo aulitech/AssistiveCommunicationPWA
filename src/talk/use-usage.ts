@@ -1,15 +1,12 @@
 // How much each phrase is used: how many times, and when last.
 //
-// **The board is arranged by it live.** Using a phrase counts it and the grid
-// rearranges on the same dwell, which is what "most recently used" says on the
-// tin — and what makes the order worth having, since the phrase somebody is
-// about to want next is usually the one they just used.
-//
-// What that costs is the thing this app has to be careful about: the pointer is
-// somebody's gaze and it rests where it last fired, so the cell arriving under
-// it after the rearrangement would start dwelling on nobody's instruction. That
-// is `holdDwellsUntilMoved`, called where the board is rearranged — nothing can
-// be chosen until the gaze leaves whatever it is resting on.
+// **The board is arranged by it once what was chosen has been said** — and at
+// the next tab, or an order chosen — rather than on the dwell that counted it:
+// see `use-grid-order.ts`. The pointer is somebody's gaze and it rests where it
+// last fired, so the cell arriving under it after the rearrangement would start
+// dwelling on nobody's instruction. That is `holdDwellsUntilMoved`, called
+// where the board is rearranged — nothing can be chosen until the gaze has
+// moved.
 
 import { useCallback, useState } from 'react'
 import { forgetUse, loadUsage, recordUse, saveUsage, type PhraseUse, type PhraseUsage } from '../core/store'

@@ -1,6 +1,6 @@
 // Writing a phrase and rewording one, which in edit mode happens in the message box rather than in a dialog.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { cleanup, fireEvent, act } from '@testing-library/react'
+import { fireEvent, act } from '@testing-library/react'
 import { scrolledIntoView, unmeasuredGrid } from '../setup'
 import {
   $$,
@@ -20,7 +20,6 @@ import {
   writePhrase,
   savePhrase,
   deletePhrase,
-  editTitle,
   clearMessage,
 } from './harness'
 
@@ -206,7 +205,7 @@ describe('placing the caret in a phrase by dwell', () => {
     aimAt(200, 100)
 
     expect(document.activeElement).toBe(field())
-    expect(editTitle()).toBe('Editing phrase')
+    expect(iconBtn('Delete phrase')?.classList.contains('is-absent'), 'no phrase open').toBe(false)
   })
 
   // The hook's own key handling cancels Space so it cannot scroll the grid.
@@ -244,7 +243,6 @@ describe('edit mode', () => {
 
     const before = $$('.emergency-btn').length
     click($('.emergency-add'))
-    expect(editTitle()).toMatch(/emergency/i)
 
     writePhrase('I need my inhaler')
     savePhrase()
@@ -375,45 +373,78 @@ describe('edit mode', () => {
   // the wording.
   describe('a phrase that is already there', () => {
     const KITCHEN = { id: 'custom-kettle', text: 'Put the kettle on', category: 'Kitchen' }
+    const PANTRY = { id: 'custom-flour', text: 'Fetch the flour', category: 'Pantry' }
     const seed = () => {
-      localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringify({ custom: [KITCHEN] }))
+      localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringify({ custom: [KITCHEN, PANTRY] }))
       renderApp()
       click(editToggle())
     }
-    const chooseCategory = (name: string) => {
-      click($('.category-trigger'))
-      click(
-        [...document.body.querySelectorAll('.picker-tile')].find(
-          t => t.querySelector('.picker-tile-name')?.textContent === name,
-        ),
-      )
-      click(
-        [...document.body.querySelectorAll('.picker-modal-actions .panel-btn')].find(
-          b => b.getAttribute('aria-label') === 'Done',
-        ),
-      )
-    }
+    const kettles = () =>
+      JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!).custom.filter(
+        (p: { text: string }) => p.text === KITCHEN.text,
+      ).length
 
+    // On Library there is nowhere for Save to put it that it is not already.
     it('cannot be saved a second time', () => {
       seed()
-      chooseCategory('Kitchen')
       writePhrase(KITCHEN.text)
 
-      expect(editTitle()).toMatch(/already on the board/i)
+      expect(toast()).toMatch(/already on the board/i)
       expect(iconBtn('Save phrase')?.disabled).toBe(true)
 
       writePhrase(`${KITCHEN.text} please`)
-      expect(editTitle()).toBe('New phrase')
       expect(iconBtn('Save phrase')?.disabled).toBe(false)
     })
 
     // Case and spacing are not the difference between two phrases.
     it('is recognised through case and spacing', () => {
       seed()
-      chooseCategory('Kitchen')
       writePhrase(`  ${KITCHEN.text.toUpperCase()}  `)
 
       expect(iconBtn('Save phrase')?.disabled).toBe(true)
+    })
+
+    // **Never a second copy**: Save puts the phrase that has the words in the
+    // category showing, which is what somebody writing it there wanted.
+    it('is added to the category showing rather than copied', () => {
+      seed()
+      click(tab('Pantry'))
+      writePhrase(KITCHEN.text)
+      expect(toast()).toBe('Already on the board — Save adds it to Pantry')
+
+      savePhrase()
+
+      expect($('.toast')?.textContent).toBe('Already on the board — added to Pantry')
+      expect(kettles(), 'a second copy was made').toBe(1)
+      expect(cells().map(c => c.textContent)).toContain(KITCHEN.text)
+      click(tab('Kitchen'))
+      expect(
+        cells().map(c => c.textContent),
+        'it left the category it was in',
+      ).toContain(KITCHEN.text)
+    })
+
+    it('says so where the category showing has it already', () => {
+      seed()
+      click(tab('Kitchen'))
+      writePhrase(KITCHEN.text)
+
+      expect(toast()).toBe('Already in Kitchen')
+      expect(iconBtn('Save phrase')?.disabled).toBe(true)
+    })
+
+    // Reworded into words another phrase has: that one is filed, and the one
+    // opened is left as it was rather than becoming a copy.
+    it('leaves a phrase reworded into its words as it was', () => {
+      seed()
+      click(tab('Pantry'))
+      click(cells().find(c => c.textContent === PANTRY.text)!)
+      writePhrase(KITCHEN.text)
+
+      savePhrase()
+
+      expect(kettles()).toBe(1)
+      expect(cells().map(c => c.textContent)).toEqual(expect.arrayContaining([KITCHEN.text, PANTRY.text]))
     })
 
     // Opening a phrase and saving it unchanged is not adding a duplicate of it.
@@ -424,23 +455,8 @@ describe('edit mode', () => {
       seed()
       click(cells().find(c => c.textContent === KITCHEN.text)!)
 
-      expect(editTitle()).toBe('Editing phrase')
+      expect(toast() ?? '', 'warned of itself').not.toMatch(/already/i)
       expect(iconBtn('Save phrase')?.disabled).toBe(false)
-    })
-
-    // The table lists "Good morning" under three categories on purpose, and
-    // somebody looks in whichever of them they think in.
-    // Library holds each wording once, and a category only refers to it, so
-    // which categories are ticked makes no difference.
-    it('is refused whatever categories it is put in', () => {
-      seed()
-      chooseCategory('Kitchen')
-      writePhrase(KITCHEN.text)
-      expect(iconBtn('Save phrase')?.disabled).toBe(true)
-
-      // Out of Kitchen again, which is Library alone: still the same wording.
-      chooseCategory('Kitchen')
-      expect(iconBtn('Save phrase')?.disabled).toBe(true)
     })
 
     // The bar is a category like any other for this purpose.
@@ -452,27 +468,30 @@ describe('edit mode', () => {
       click($('.emergency-add'))
       writePhrase(first)
 
-      expect(editTitle()).toMatch(/already on the board/i)
+      expect(toast()).toMatch(/already on the board/i)
       expect(iconBtn('Save phrase')?.disabled).toBe(true)
     })
   })
 
   /**
-   * What is being edited and where it is filed is a row of the message card's
-   * own, below its controls.
+   * **Nothing is said in the card about what is being edited** — the box with
+   * the words in it says that — and words already on the board are said in a
+   * toast. **Where it is filed is not chosen there**: the tab showing says so.
    *
    * **The voice is not in it.** A phrase's voice is the pair in the card's row in
    * edit mode, the same pair that is the board's outside it: one pair of controls
    * meaning whichever of the two the mode says, rather than two pairs that look
    * alike and are not.
    */
-  it('puts the category in the message card, and the voice in its row', () => {
+  it('says words already on the board in a toast, nothing beside the words, and puts the voice in its row', () => {
     renderApp()
     click(editToggle())
 
-    expect($('.message-line > .edit-bar')).not.toBeNull()
-    expect($('.edit-bar .category-trigger')).not.toBeNull()
-    expect($('.edit-bar .voice-trigger'), 'the strip still carries a voice of its own').toBeNull()
+    expect($('.message-line')!.children, 'something beside the words').toHaveLength(2)
+    writePhrase('Tea please')
+    expect(toast()).toBe('Already on the board')
+    expect($('.message-line')!.children, 'something beside the words').toHaveLength(2)
+    expect($('.category-trigger'), 'a category chooser in the card').toBeNull()
 
     const voice = $$('.message-tools .topbar-choices .choice-btn').map(b => b.getAttribute('aria-label') ?? '')
     expect(voice.some(l => /voice for this phrase/i.test(l))).toBe(true)
@@ -489,7 +508,6 @@ describe('edit mode', () => {
 
     expect($('.toast')?.textContent).toMatch(/added to/i)
     expect(box().value).toBe('')
-    expect(editTitle()).toBe('New phrase')
   })
 })
 
@@ -507,7 +525,6 @@ describe('keeping a composed message as a phrase', () => {
     enterEditMode()
 
     expect(box().value).toBe('Please pass me the water')
-    expect(editTitle()).toBe('New phrase')
   })
 
   it('saves the carried message as a real phrase', () => {
@@ -594,63 +611,102 @@ describe('keeping a composed message as a phrase', () => {
 
 // Where a phrase is filed, and where the board is afterwards. Shared, because
 // both questions are asked through the same full-screen grid and the same tabs.
+const toast = () => $('.toast')?.textContent
 const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
 const enterEditMode = () => click(editToggle())
 const leaveEditMode = () => click(editToggle())
 const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
 /** Which tab the board is on, as the bar itself says. */
 const activeTab = () => $('.filter-tab[aria-selected="true"]')?.textContent
-// The category is chosen from a full-screen grid now, portalled to the body,
-// so it is reached through the document rather than through the container.
-const categoryTrigger = () => $('.category-trigger')!
-const shownCategory = () => categoryTrigger().querySelector('.picker-trigger-label')!.textContent
-const tileNames = () => inDoc('.picker-tile .picker-tile-name').map(t => t.textContent!)
-const pickerBtn = (label: string) =>
-  inDoc('.picker-modal-actions .panel-btn').find(b => b.getAttribute('aria-label') === label)
-/** What the grid offers, leaving the choice as it found it. */
-const categoryChoices = () => {
-  click(categoryTrigger())
-  const names = tileNames().filter(n => n !== 'New category…')
-  click(pickerBtn('Cancel'))
-  return names
-}
-/**
- * Makes this the one category the phrase is in — Library, which every phrase is
- * in, being none at all — the way a person using the grid for one would.
- */
-const chooseCategory = (name: string) => {
-  click(categoryTrigger())
-  const tile = (n: string) =>
-    inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === n)
-  for (const ticked of inDoc('.picker-tile[aria-selected="true"]')) {
-    if (ticked.querySelector('.picker-tile-name')?.textContent !== name) click(ticked)
-  }
-  if (name !== 'Library' && tile(name)?.getAttribute('aria-selected') !== 'true') click(tile(name))
-  click(pickerBtn('Done'))
-}
-/** A category that is not the one the editor starts on. */
-const someOtherCategory = () => {
-  const opening = shownCategory()
-  return categoryChoices().find(name => name !== opening)!
-}
-/** Writes a phrase and saves it — by Done on where it goes, where it goes somewhere, which saves it. */
-const addPhrase = (text: string, category?: string) => {
+/** The categories of the board's own, in the order the bar shows them. */
+const categoryTabs = () =>
+  $$('.filter-tab[role="tab"]')
+    .map(t => t.textContent!)
+    .filter(n => !['Translations', 'Answers', 'Library'].includes(n))
+/** Writes a phrase and saves it, into whichever category is showing. */
+const addPhrase = (text: string) => {
   writePhrase(text)
-  if (category) chooseCategory(category)
-  else savePhrase()
+  savePhrase()
 }
-/** In edit mode, on a category tab, with somewhere else to file things. */
+/** In edit mode, on a category tab, with another to go to. */
 const standingOn = () => {
   renderApp()
-  enterEditMode()
-  const [here, elsewhere] = categoryChoices()
-  leaveEditMode()
+  const [here, elsewhere] = categoryTabs()
   click(tab(here))
   enterEditMode()
   return { here, elsewhere }
 }
+/** What a tab holds, as the grid shows it. */
+const holds = (name: string) => {
+  click(tab(name))
+  return cells().map(c => c.textContent)
+}
 
-describe('starting from the last choice made', () => {
+/**
+ * **Save puts the phrase in the category whose tab is showing** — there is no
+ * category to choose in the message card. Library alone where the tab is
+ * Library or a record. See `into` in `talk/use-editor.ts`.
+ */
+describe('saving into the category showing', () => {
+  it('files a new phrase under the category whose tab is showing', () => {
+    const { here } = standingOn()
+
+    addPhrase('One for right here')
+
+    expect($('.toast')?.textContent).toBe(`Added to Library, ${here}`)
+    expect(activeTab()).toBe(here)
+    expect(holds(here)).toContain('One for right here')
+  })
+
+  it('files it in Library alone on Library', () => {
+    renderApp()
+    enterEditMode()
+
+    addPhrase('One for Library')
+
+    expect($('.toast')?.textContent).toBe('Added to Library')
+    for (const name of categoryTabs()) expect(holds(name)).not.toContain('One for Library')
+  })
+
+  // The tab as it is when Save is pressed, not as it was when the words began.
+  it('files it where the board is when Save is pressed', () => {
+    const { here, elsewhere } = standingOn()
+    writePhrase('Begun here, saved there')
+
+    click(tab(elsewhere))
+    savePhrase()
+
+    expect(holds(elsewhere)).toContain('Begun here, saved there')
+    expect(holds(here)).not.toContain('Begun here, saved there')
+  })
+
+  // A category only refers to Library's phrases: one already in another stays
+  // there too.
+  it('adds a phrase being reworded to the category showing, and keeps it where it was', () => {
+    const { here, elsewhere } = standingOn()
+    click(cells()[0])
+    click(tab(elsewhere))
+
+    writePhrase('Reworded on the other tab')
+    savePhrase()
+
+    expect($('.toast')?.textContent).toBe(`Saved, and added to ${elsewhere}`)
+    expect(holds(elsewhere)).toContain('Reworded on the other tab')
+    expect(holds(here)).toContain('Reworded on the other tab')
+  })
+
+  it('says only Saved for a phrase in the category showing already', () => {
+    standingOn()
+    click(cells()[0])
+
+    writePhrase('Reworded where it is')
+    savePhrase()
+
+    expect($('.toast')?.textContent).toBe('Saved')
+  })
+})
+
+describe('starting from the last voice used', () => {
   const voiceTrigger = phraseVoice
   const flush = async () => {
     await act(async () => {
@@ -658,244 +714,6 @@ describe('starting from the last choice made', () => {
     })
     settle()
   }
-
-  // Filing phrases is done in runs. Starting each one from the alphabetically
-  // first category means making the same choice over and over.
-  it('files the next new phrase where the last one went', () => {
-    renderApp()
-    enterEditMode()
-
-    const elsewhere = someOtherCategory()
-    addPhrase('One for over there', elsewhere)
-
-    expect(shownCategory()).toBe(elsewhere)
-  })
-
-  describe('and from the tab in front of them', () => {
-    /** Somewhere to file things that is not where the editor already is. */
-    const goElsewhere = () => {
-      const elsewhere = someOtherCategory()
-      leaveEditMode()
-      click(tab(elsewhere))
-      return elsewhere
-    }
-
-    // Somebody who opens edit mode with a category on screen is adding to that
-    // category, nearly every time — and the alternative is a picker landing on
-    // wherever the last phrase went, which after one trip to another tab is the
-    // wrong answer for every phrase after it.
-    it('files the next new phrase under the category being looked at', () => {
-      renderApp()
-      enterEditMode()
-      const elsewhere = goElsewhere()
-
-      enterEditMode()
-
-      expect(shownCategory()).toBe(elsewhere)
-    })
-
-    // It is where somebody had got to, and a board on a mounted device is
-    // reloaded by whoever charges it rather than by the person using it.
-    it('remembers the tab across a reload', () => {
-      renderApp()
-      enterEditMode()
-      const elsewhere = goElsewhere()
-      enterEditMode()
-
-      cleanup()
-      renderApp()
-      enterEditMode()
-
-      expect(shownCategory()).toBe(elsewhere)
-    })
-
-    // Filing under the tab is about where a phrase goes and nothing else. The
-    // voice is the other half of that record and belongs to whoever set it.
-    it('keeps the remembered voice while it files', () => {
-      localStorage.setItem('peri_recent', JSON.stringify({ voice: 'elevenlabs:v1' }))
-      localStorage.setItem(
-        'peri_elevenlabs',
-        JSON.stringify({ apiKey: 'sk-test', voices: [{ id: 'v1', name: 'Rachel' }] }),
-      )
-      renderApp()
-      enterEditMode()
-      goElsewhere()
-      enterEditMode()
-
-      expect(JSON.parse(localStorage.getItem('peri_recent')!).voice).toBe('elevenlabs:v1')
-    })
-
-    // Leaving edit mode says nothing about where anything belongs. Filing on
-    // the way out as well would undo the category somebody had just chosen,
-    // the moment they left the mode they chose it in.
-    it('files nothing on the way out', () => {
-      renderApp()
-      enterEditMode()
-      const elsewhere = goElsewhere()
-      enterEditMode()
-
-      const chosen = categoryChoices().find(name => name !== elsewhere)!
-      addPhrase('One for over there', chosen)
-      leaveEditMode()
-
-      click(tab('Library'))
-      enterEditMode()
-
-      expect(shownCategory()).toBe(chosen)
-    })
-
-    /**
-     * Regression guard. Resting on a tile is how somebody looks at it, and the
-     * grid wrote each one into the draft as it was rested on, then wrote the
-     * old one back on Cancel — so looking and leaving marked the draft as
-     * started, and a blank draft stopped following the tab.
-     */
-    it('changes nothing about the draft when the category grid is looked at and left', () => {
-      renderApp()
-      enterEditMode()
-      const here = shownCategory()!
-      click(categoryTrigger())
-      click(inDoc('.picker-tile').find(t => t.querySelector('.picker-tile-name')?.textContent !== here))
-
-      click(pickerBtn('Cancel'))
-
-      expect(shownCategory()).toBe(here)
-      expect(iconBtn('Start a new phrase')?.disabled, 'the draft counts as started').toBe(true)
-    })
-
-    it('files the draft under a tile only on Done', () => {
-      renderApp()
-      enterEditMode()
-      const here = shownCategory()!
-      click(categoryTrigger())
-      const other = inDoc('.picker-tile').find(t => {
-        const name = t.querySelector('.picker-tile-name')?.textContent
-        return name && name !== here && name !== 'New category…'
-      })!
-      const name = other.querySelector('.picker-tile-name')!.textContent!
-      click(other)
-      expect(shownCategory(), 'a rest on a tile filed the draft').toBe(here)
-
-      click(pickerBtn('Done'))
-
-      expect(shownCategory()).toBe(name)
-    })
-
-    // All is not a category, so arriving at it says nothing about where the
-    // next phrase goes.
-    it('leaves the draft where it is when the tab changes to All', () => {
-      renderApp()
-      enterEditMode()
-      const elsewhere = goElsewhere()
-      enterEditMode()
-
-      click(tab('Library'))
-
-      expect(shownCategory()).toBe(elsewhere)
-    })
-
-    /**
-     * **A blank draft follows the tab it arrives at**, now that tabs go to their
-     * category in edit mode: somebody moving between them before writing
-     * anything is looking for where the next phrase goes.
-     */
-    it('files a blank draft under a category tab arrived at in edit mode', () => {
-      renderApp()
-      enterEditMode()
-      const here = shownCategory()!
-      const elsewhere = categoryChoices().find(name => name !== here)!
-
-      click(tab(elsewhere))
-
-      expect(activeTab(), 'the tab never changed').toBe(elsewhere)
-      expect(shownCategory()).toBe(elsewhere)
-    })
-
-    // A draft somebody has started stays where it is: refiling it would move
-    // a phrase they are part way through writing.
-    it('leaves a draft with words in it where it is', () => {
-      renderApp()
-      enterEditMode()
-      const here = shownCategory()!
-      const elsewhere = categoryChoices().find(name => name !== here)!
-      writePhrase('Part way through')
-
-      click(tab(elsewhere))
-
-      expect(shownCategory()).toBe(here)
-    })
-
-    it('leaves a draft whose category was picked where it is', () => {
-      renderApp()
-      enterEditMode()
-      const choices = categoryChoices()
-      const picked = choices[1]
-      chooseCategory(picked)
-
-      click(tab(choices[2]))
-
-      expect(shownCategory()).toBe(picked)
-    })
-
-    // Neither is somewhere a phrase can be filed: Library holds every phrase,
-    // and Translations is a record of what was said. So they leave the last
-    // choice standing rather than throwing it away and making somebody pick
-    // again.
-    for (const notACategory of ['Library', 'Translations']) {
-      it(`leaves it standing under ${notACategory}`, () => {
-        renderApp()
-        enterEditMode()
-        const elsewhere = goElsewhere()
-        // Landed on, so the tab is the only thing that could change it back.
-        enterEditMode()
-        leaveEditMode()
-
-        click(tab(notACategory))
-        enterEditMode()
-
-        expect(shownCategory()).toBe(elsewhere)
-      })
-    }
-  })
-
-  it('remembers it across a reload', () => {
-    renderApp()
-    enterEditMode()
-    const elsewhere = someOtherCategory()
-    addPhrase('One for over there', elsewhere)
-
-    cleanup()
-    renderApp()
-    enterEditMode()
-
-    expect(shownCategory()).toBe(elsewhere)
-  })
-
-  // Opening a phrase to fix a typo must not quietly refile it or change how it
-  // sounds, so a phrase that already has either shows its own.
-  it('leaves an existing phrase showing its own category', () => {
-    renderApp()
-    enterEditMode()
-    const elsewhere = someOtherCategory()
-    addPhrase('One for over there', elsewhere)
-
-    click(cells().find(c => c.textContent !== 'One for over there')!)
-    expect(shownCategory()).not.toBe(elsewhere)
-  })
-
-  // A category can be renamed or emptied away between one phrase and the next,
-  // and a phrase filed under one the grid does not offer is a phrase nobody can
-  // find their way back to.
-  it('ignores a remembered category that no longer exists', () => {
-    localStorage.setItem('peri_recent', JSON.stringify({ category: 'Somewhere Deleted' }))
-    renderApp()
-    enterEditMode()
-
-    const choices = categoryChoices()
-    expect(choices).not.toContain('Somewhere Deleted')
-    // Every phrase is in Library, so that is where one with nowhere else starts.
-    expect(shownCategory()).toBe('Library only')
-  })
 
   it('starts a new phrase from the last voice, and an existing one from its own', async () => {
     localStorage.setItem(
@@ -943,19 +761,10 @@ describe('starting from the last choice made', () => {
   })
 })
 
-// **What somebody just made is on screen.** A phrase filed anywhere but the
-// tab in front of them lands among a couple of thousand cells, and all they
-// have to show for writing one is a line of text that fades.
+// **What somebody just made is on screen.** It is filed under the tab in
+// front of them, or Library, which holds every phrase — so the board stays
+// where it is.
 describe('following a new phrase to where it was filed', () => {
-  it('takes the board to the category it was filed under', () => {
-    const { here, elsewhere } = standingOn()
-
-    addPhrase('One for over there', elsewhere)
-
-    expect(activeTab()).toBe(elsewhere)
-    expect(activeTab()).not.toBe(here)
-  })
-
   it('stays where it is when the phrase was filed there', () => {
     const { here } = standingOn()
 
@@ -964,34 +773,9 @@ describe('following a new phrase to where it was filed', () => {
     expect(activeTab()).toBe(here)
   })
 
-  // All shows every category at once, so the phrase is already on screen and
-  // there is nowhere to go — leaving somebody on the tab they chose.
-  it('leaves the board on All, where the phrase already is', () => {
-    renderApp()
-    enterEditMode()
-    const elsewhere = someOtherCategory()
-
-    addPhrase('One for over there', elsewhere)
-
-    expect(activeTab()).toBe('Library')
-  })
-
-  // A phrase being reworded is one somebody is moving *out* of where they are.
-  // Refiling several out of one category is a run they would be thrown out of
-  // after the first.
-  it('does not follow a phrase being reworded out of the category', () => {
-    const { here, elsewhere } = standingOn()
-
-    click(cells()[0])
-    chooseCategory(elsewhere)
-    savePhrase()
-
-    expect(activeTab()).toBe(here)
-  })
-
   // The bar is on screen under every tab, so a phrase added to it is already
-  // where somebody can see it. Added from Translations, where the draft carries
-  // a category the board is not showing — which is the only way it could move.
+  // where somebody can see it — added from Translations, where a phrase being
+  // made would otherwise go to Library to be seen.
   it('does not move for a phrase added to the emergency bar', () => {
     standingOn()
     click(tab('Translations'))
@@ -1009,19 +793,6 @@ describe('following a new phrase to where it was filed', () => {
     act(() => void vi.advanceTimersByTime(1500))
     settle()
   }
-
-  // Every cell on the board has just been replaced under a pointer that has
-  // not moved, and in edit mode the one that lands underneath opens for
-  // rewording — which is somebody's own phrase, loaded into the box they were
-  // about to write the next one in.
-  it('refuses the cell that lands under a motionless pointer', () => {
-    const { elsewhere } = standingOn()
-    addPhrase('One for over there', elsewhere)
-
-    arrivesUnderThePointer()
-
-    expect(box().value, 'a phrase opened itself for rewording').toBe('')
-  })
 
   // And it is not deaf where the board did not move. A save that leaves
   // somebody on the tab they were on has replaced nothing, so refusing their
@@ -1045,19 +816,19 @@ describe('showing where the new phrase went', () => {
     scrolledIntoView.filter(el => el.classList.contains('filter-tab')).map(el => el.textContent)
 
   it('marks the phrase it has just made', () => {
-    const { elsewhere } = standingOn()
+    standingOn()
 
-    addPhrase('One for over there', elsewhere)
+    addPhrase('One for right here')
 
-    expect(marked()).toBe('One for over there')
+    expect(marked()).toBe('One for right here')
   })
 
   it('brings it into view', () => {
-    const { elsewhere } = standingOn()
+    standingOn()
 
-    addPhrase('One for over there', elsewhere)
+    addPhrase('One for right here')
 
-    expect(scrolledIntoView).toContain(cellFor('One for over there'))
+    expect(scrolledIntoView).toContain(cellFor('One for right here'))
   })
 
   // The window starts again at a screenful on arriving at a tab, and a category
@@ -1076,20 +847,6 @@ describe('showing where the new phrase went', () => {
     expect(scrolledIntoView).toContain(cell)
   })
 
-  // A board with many categories is several screens of tabs, so a board that
-  // changed tabs by itself would otherwise be showing one whose tab is off the
-  // end.
-  it('brings the tab it moved to into the middle of the bar', () => {
-    const { elsewhere } = standingOn()
-
-    addPhrase('One for over there', elsewhere)
-
-    expect(tabsBroughtIntoView()).toContain(elsewhere)
-  })
-
-  // A tab somebody dwelled on is one they were already looking at, and sliding
-  // it out from under a gaze that has not moved is how the next dwell lands on
-  // its neighbour. So only where the board moved by itself.
   it('leaves the bar where it is when the board did not move', () => {
     standingOn()
 
@@ -1112,10 +869,10 @@ describe('showing where the new phrase went', () => {
   // What the mark claims — this is the last thing you did — stops being true
   // the moment anything else happens.
   it('lets the mark go on the next dwell', () => {
-    const { elsewhere } = standingOn()
-    addPhrase('One for over there', elsewhere)
+    standingOn()
+    addPhrase('One for right here')
 
-    click(cells().find(c => c.textContent !== 'One for over there')!)
+    click(cells().find(c => c.textContent !== 'One for right here')!)
 
     expect(marked()).toBeUndefined()
   })
@@ -1182,7 +939,7 @@ describe('opening the phrase the message is', () => {
 
     enterEditMode()
 
-    expect(editTitle()).toBe('Editing phrase')
+    expect(iconBtn('Delete phrase')?.classList.contains('is-absent'), 'no phrase open').toBe(false)
     expect(box().value).toBe(text)
     expect(iconBtn('Save phrase')?.disabled, 'a phrase cannot duplicate itself').toBe(false)
     expect(iconBtn('Delete phrase')).toBeDefined()
@@ -1210,18 +967,16 @@ describe('opening the phrase the message is', () => {
 
     enterEditMode()
 
-    expect(editTitle()).toBe('New phrase')
     expect(box().value).toBe('Nothing anywhere on this board says this')
   })
 
   // The strip says which categories it is in; the toast says where it is.
-  it('says where it is, and the strip which categories it is in', () => {
+  it('says where it is', () => {
     composeAPhrase()
 
     enterEditMode()
 
     expect($('.toast')?.textContent).toBe('Editing this phrase, in Library')
-    expect(shownCategory()).toBe('Drinks')
   })
 
   // Somebody can file their own copy of a wording Library already has — the
@@ -1307,7 +1062,7 @@ describe('putting back a phrase just deleted', () => {
 
     expect(onBoard().slice(0, before.length)).toEqual(before)
     expect(box().value).toBe(text)
-    expect(editTitle()).toBe('Editing phrase')
+    expect(iconBtn('Delete phrase')?.classList.contains('is-absent'), 'no phrase open').toBe(false)
     expect($('.phrase-cell[aria-current="true"]')?.textContent, 'it was not marked').toBe(text)
   })
 

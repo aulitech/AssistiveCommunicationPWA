@@ -46,7 +46,6 @@ import { cx, dwellVar } from '../ui/style'
 import { useScrollEdges } from '../ui/scroll-edges'
 import { useMediaQuery } from '../ui/media'
 import { BoxScroll } from '../ui/controls'
-import { PhraseEditBar } from './editors'
 import type { Composer } from './use-composer'
 import type { Editor } from './use-editor'
 import type { Listener } from './use-listen'
@@ -259,10 +258,6 @@ export function Topbar({
   onDeletePhrase,
   undoDelete,
   removingFrom,
-  categories,
-  countFor,
-  onChooseCategories,
-  onCreateCategory,
   onSpeak,
   onCopy,
   onPasted,
@@ -297,12 +292,6 @@ export function Topbar({
   undoDelete: { words: string; undo: () => void } | null
   /** The category the bin takes the phrase out of, where it only does that — see `talk.tsx`. */
   removingFrom: string | null
-  /** For the row in the card that says what is being edited: what a phrase can be filed under. */
-  categories: string[]
-  countFor: (name: string) => number
-  /** Done on the category grid — which, for a phrase on the board, files it there and then. */
-  onChooseCategories: (names: string[]) => void
-  onCreateCategory: () => void
   /** Both of these are how a message leaves, which the screen keeps a record of. */
   onSpeak: () => void
   onCopy: () => void
@@ -516,7 +505,7 @@ export function Topbar({
     // window — a phone turned on its side rewraps every line in both boxes.
     window.addEventListener('resize', fit)
     // **And with what stands beside a box**, which no window event says: edit
-    // mode puts what is being edited at the line's right end, narrowing the box
+    // mode once put what was being edited at the line's right end, narrowing the box
     // under words that do not change, so they rewrap into more lines than the
     // box was sized for — and Save, kept inside it, was drawn on the wrong one.
     // Widths only: the heights are this function's own doing, and answering
@@ -600,8 +589,7 @@ export function Topbar({
             the message card, which is why the microphone holds the dwells. */}
         {listener.open && <HeardBox listener={listener} fieldRef={heardRef} edges={heardEdges} />}
 
-        {/* The message card: the words, the row of controls, and in edit mode
-            what is being edited. */}
+        {/* The message card: the words and the row of controls. */}
         <div className="message-wrap">
           {/* **The card's row of controls, above the line**: the clipboard at
               the far left, the modes in the middle — the microphone, edit, Rest,
@@ -867,20 +855,6 @@ export function Topbar({
                   ))}
               </AfterText>
             </div>
-
-            {/* **What is being edited and where it is filed, at the right end of
-                the line** — beside the words it is about. A narrow card has no
-                room for both, so there it takes a line of its own under the
-                words, still at the right. */}
-            {editMode && (
-              <PhraseEditBar
-                draft={draft}
-                categories={categories}
-                countFor={countFor}
-                onCategory={onChooseCategories}
-                onCreateCategory={onCreateCategory}
-              />
-            )}
           </div>
 
           {/* **Each link in the box as its text and its address**, under the
