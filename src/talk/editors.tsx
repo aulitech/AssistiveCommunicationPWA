@@ -9,7 +9,7 @@
 // rather than a phrase.
 
 import { useEffect, useState } from 'react'
-import { holdDwellsUntilMoved, useDwellControl } from '../ui/dwell'
+import { useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
 import { DwellInput } from '../ui/controls'
 import { cx, dwellVar } from '../ui/style'
@@ -41,6 +41,11 @@ function EditAction({
   )
 }
 
+/**
+ * **A category's two dialogs**: naming a new one, from the bar's add tool, and
+ * asking before one goes, from the bin on the tab showing. Renaming is done on
+ * the tab itself — see `FilterBar`.
+ */
 export function CategoryModal({
   name,
   phraseCount,
@@ -49,23 +54,19 @@ export function CategoryModal({
   onDelete,
   onClose,
 }: {
-  name: string | null // null = creating a new one
+  /** Null to make a new one; a name to ask before deleting it. */
+  name: string | null
   phraseCount: number
   existing: string[]
   onSave: (name: string) => void
   onDelete: () => void
   onClose: () => void
 }) {
-  const [value, setValue] = useState(name ?? '')
-  // Deleting asks first. It takes the category's order, which somebody may
-  // have spent a while on, and the bin is one dwell from Save — so the dwell on
-  // Delete only asks.
-  const [confirming, setConfirming] = useState(false)
-  const isNew = name === null
+  const [value, setValue] = useState('')
   const trimmed = value.trim()
 
-  const clash = existing.some(c => c !== name && c.toLowerCase() === trimmed.toLowerCase())
-  const canSave = trimmed !== '' && trimmed !== name && !clash
+  const clash = existing.some(c => c.toLowerCase() === trimmed.toLowerCase())
+  const canSave = trimmed !== '' && !clash
   const phrases = `${phraseCount} phrase${phraseCount === 1 ? '' : 's'}`
 
   useEffect(() => {
@@ -76,17 +77,12 @@ export function CategoryModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  // The dialog changes under a pointer resting where Delete was, so **the
-  // delete that confirms sits at the other end of the row**, where Save was,
-  // with the way back at Delete's end — and nothing arms until the pointer has
-  // moved, so a gaze still on the first Delete cannot answer the question it
-  // raised.
-  const ask = (asking: boolean) => {
-    holdDwellsUntilMoved()
-    setConfirming(asking)
-  }
-
-  if (confirming && name !== null) {
+  // **Deleting asks first.** It takes the category's order, which somebody may
+  // have spent a while on. The question arrives under a pointer resting where
+  // the bin was, so **the delete that confirms sits at the far end of the
+  // row**, with the way back nearer, and nothing arms until the pointer has
+  // moved — a gaze still on the bin cannot answer the question it raised.
+  if (name !== null) {
     return (
       <div
         className="edit-modal-scrim"
@@ -102,7 +98,7 @@ export function CategoryModal({
               : 'It has no phrases in it.'}
           </p>
           <div className="edit-modal-actions is-confirming">
-            <EditAction kind="cancel" label="Keep it" onActivate={() => ask(false)} />
+            <EditAction kind="cancel" label="Keep it" onActivate={onClose} />
             <EditAction kind="danger" label="Delete" onActivate={onDelete} />
           </div>
         </div>
@@ -117,18 +113,10 @@ export function CategoryModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div
-        className="edit-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={isNew ? 'Add category' : 'Rename category'}
-      >
-        <div className="edit-modal-title">{isNew ? 'Add category' : 'Rename category'}</div>
+      <div className="edit-modal" role="dialog" aria-modal="true" aria-label="Add category">
+        <div className="edit-modal-title">Add category</div>
 
-        {/* Focused on arrival, so typing works straight away; the dwell is for
-            putting the caret somewhere other than where that left it — renaming
-            "Medical" to "Medical history" is the end, and fixing a letter in the
-            middle is not. */}
+        {/* Focused on arrival, so typing works straight away. */}
         <DwellInput
           className="edit-modal-input"
           value={value}
@@ -145,10 +133,8 @@ export function CategoryModal({
         />
 
         {clash && <p className="edit-modal-note">A category is already called that.</p>}
-        {!isNew && phraseCount > 0 && <p className="edit-modal-note">{phrases} will move with it.</p>}
 
         <div className="edit-modal-actions">
-          {!isNew && <EditAction kind="danger" label="Delete" onActivate={() => ask(true)} />}
           <EditAction kind="cancel" label="Cancel" onActivate={onClose} />
           <EditAction kind="save" label="Save" onActivate={() => onSave(trimmed)} disabled={!canSave} />
         </div>

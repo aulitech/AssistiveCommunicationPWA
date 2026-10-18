@@ -122,6 +122,160 @@
   pointer-events: none;
 }
 
+/* **The tab showing's own tools**, in edit mode: rename, and reorder — or
+   delete while it is being renamed. Bare glyphs after the name, each with an
+   invisible area a little past its edge for a tracker to hit, and a fill
+   rising behind it as it is rested on. */
+.filter-tab.has-tools {
+  display: inline-flex;
+  align-items: center;
+  /* The tools' invisible areas reach past the tab's padding. */
+  overflow: visible;
+}
+
+/* **Flush with the tab's right edge**, top to bottom: the tab gives up its
+   right padding, and the tool takes back the padding above and below. */
+.filter-tabs .filter-tab.has-tools { padding-right: 0; }
+
+.tab-tools {
+  display: inline-flex;
+  align-self: stretch;
+  margin: -6px 0 -8px 0.5rem;
+}
+
+.tab-tool {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  /* The tab's own top-right corner, which it fills. */
+  border-radius: 0 7px 0 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.tab-tool::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+.tab-tool svg {
+  position: relative;
+  z-index: 1;
+  width: 1rem;
+  height: 1rem;
+  stroke-width: 2.6;
+  pointer-events: none;
+}
+
+.tab-tool-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent-dim);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  pointer-events: none;
+}
+
+.tab-tool.dwelling { color: var(--text); }
+.tab-tool.dwelling .tab-tool-fill { animation: dwellFillV var(--dwell-duration, 800ms) linear forwards; }
+
+/* Renaming, or the tab in the air: on, as every toggle in the app says it. */
+.tab-tool.is-on { color: var(--accent); background: var(--accent-dim); }
+.filter-tab.is-held .tab-tool { color: #000; }
+.filter-tab.is-held .tab-tool.is-on { background: color-mix(in srgb, #000 18%, transparent); }
+
+.tab-tool.delete-tool { color: var(--danger); }
+
+/* **The name of the tab showing, in edit mode, is where renaming starts** —
+   its fill runs along its foot as it is rested on, and the caret says it is
+   words to change. */
+.tab-name {
+  position: relative;
+  cursor: text;
+}
+
+.tab-name-fill {
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  height: 2px;
+  width: 0;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.tab-name.dwelling .tab-name-fill { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
+
+/* The name as a field, while it is being renamed — the width the measuring
+   copy keeps for it, so the row does not change under the pointer as it is
+   typed into. */
+.tab-rename {
+  display: inline-block;
+  width: 9rem;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 0.4rem;
+  /* No taller than the name it stands in for, or the row grows as it opens. */
+  padding: 0 6px;
+  line-height: 1.3;
+}
+
+/* **Adding a category, right after the last tab**, as a browser puts its new
+   tab button: a bare plus, level with the tabs' words, and a round wash rising
+   behind it as it is rested on. An invisible area round it a tracker can hit. */
+.add-tab {
+  position: relative;
+  align-self: center;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-left: 2px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.add-tab::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.add-tab svg {
+  position: relative;
+  z-index: 1;
+  width: 1.15rem;
+  height: 1.15rem;
+  stroke-width: 2.6;
+  pointer-events: none;
+}
+
+.add-tab-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--cell-hover);
+  transform: scale(0);
+  pointer-events: none;
+}
+
+.add-tab.dwelling { color: var(--text); }
+.add-tab.dwelling .add-tab-fill { animation: addTabFill var(--dwell-duration, 800ms) linear forwards; }
+
+@keyframes addTabFill {
+  to { transform: scale(1); }
+}
+
 /* Every tab laid out again to be measured, out of sight and out of reach.
    Absolutely placed in a box of no size, so it takes no room in the bar and
    cannot make the page wider; the tabs in it do not shrink, so each is the

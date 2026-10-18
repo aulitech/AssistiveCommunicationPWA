@@ -72,11 +72,28 @@ const catLabels = () => catTabs().map(t => t.textContent)
 const pinnedTabs = () => tabs().slice(0, LEADING_TABS)
 const pinnedLabels = () => pinnedTabs().map(t => t.textContent)
 const tabNamed = (name: string) => tabs().find(t => t.textContent === name)
-const renameBtn = () => $('.rename-category-tab')
-/** Goes to a category and opens it for renaming: the pencil acts on the tab that is showing. */
+/** The tab showing's own tools, in edit mode. */
+/** The name of the tab showing, which a rest makes a field. */
+const tabName = () => $('.tab-name')
+const reorderTool = () => $('.reorder-tool')
+const deleteTool = () => $('.delete-tool')
+/** Goes to a category, if it is not the one showing, and opens its name for renaming. */
 const renameTab = (name: string) => {
-  click(tabNamed(name))
-  click(renameBtn())
+  const showing = tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent
+  if (showing !== name) click(tabNamed(name))
+  click(tabName())
+}
+/** Renames a category where it stands: its name, the new one typed, and Enter. */
+const renameTo = (from: string, to: string) => {
+  renameTab(from)
+  type(nameField(), to)
+  fireEvent.keyDown(nameField(), { key: 'Enter' })
+  settle()
+}
+/** The bin on the tab showing, which only asks. */
+const askToDelete = (name: string) => {
+  renameTab(name)
+  click(deleteTool())
 }
 const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
 const saveModal = () => click(action('Save'))
@@ -84,7 +101,7 @@ const type = (el: Element, value: string) => {
   fireEvent.change(el, { target: { value } })
   settle()
 }
-const nameField = () => $('input[aria-label="Category name"]')!
+const nameField = () => $<HTMLInputElement>('input[aria-label="Category name"]')!
 
 // A phrase is edited in the message box now, and filed from a grid rather than
 // from a `<select>` — a native select opens a list the operating system draws,
@@ -104,7 +121,7 @@ afterEach(() => vi.useRealTimers())
 describe('outside edit mode', () => {
   it('offers no category editing at all', () => {
     renderApp()
-    expect($('.add-category-tab')).toBeNull()
+    expect($('.filter-tabs > .add-tab')).toBeNull()
     expect(catTabs()[0].getAttribute('aria-label')).not.toMatch(/rename/i)
   })
 })
@@ -145,34 +162,57 @@ describe('in edit mode', () => {
     expect($('.edit-modal'), 'the tab opened for renaming').toBeNull()
   })
 
-  it('renames the tab that is showing with the pencil among the tools', () => {
+  // **The tab showing carries its own tools**, in edit mode: its name, which
+  // renames it, and reorder. There is no pencil.
+  it('makes the name of the tab showing rename it, and puts a reorder tool beside it', () => {
     renderApp()
     enterEditMode()
     const name = catTabs()[1].textContent!
 
     click(tabNamed(name))
 
-    expect(renameBtn()?.getAttribute('aria-label')).toBe(`Rename category: ${name}`)
-    click(renameBtn())
-    expect($('.edit-modal')?.getAttribute('aria-label')).toBe('Rename category')
+    const showing = tabNamed(name)!
+    expect(showing.querySelector('.tab-name')?.getAttribute('aria-label')).toBe(`Rename ${name}`)
+    expect(showing.querySelector('.reorder-tool')?.getAttribute('aria-label')).toBe(`Move ${name}`)
+    expect([...showing.querySelectorAll('.tab-tool')], 'more than the reorder tool').toHaveLength(1)
+    expect($$('.filter-tab[role="tab"] .tab-tools'), 'tools on a tab that is not showing').toHaveLength(1)
+    // Selected, and not disabled: that would say so of the tools too.
+    expect(showing.getAttribute('aria-disabled')).toBeNull()
   })
 
-  // All and the three records are not categories. The pencil goes quiet on
-  // them rather than away: the tools are aimed at by position.
-  it('goes quiet on a tab that is not a category', () => {
+  // Library holds every phrase, and the records are records: none is a
+  // category to rename or move.
+  it('puts no tools on a tab that is not a category', () => {
     renderApp()
     enterEditMode()
 
     expect(tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent).toBe('Library')
-    expect(renameBtn()?.getAttribute('aria-disabled')).toBe('true')
-    expect(renameBtn()?.getAttribute('aria-label')).toMatch(/holds every phrase, so it cannot be renamed/i)
-    click(renameBtn())
-    expect($('.edit-modal')).toBeNull()
+    expect($('.tab-tools')).toBeNull()
   })
 
-  it('offers no pencil outside edit mode', () => {
+  it('offers no tools outside edit mode', () => {
     renderApp()
-    expect(renameBtn()).toBeNull()
+    click(tabNamed(catTabs()[0].textContent!))
+    expect($('.tab-tools')).toBeNull()
+  })
+
+  // **Adding one is right after the last tab**, as a browser's new tab button
+  // is; the controls that stood at the end of the bar are gone.
+  it('puts adding a category right after the last tab', () => {
+    renderApp()
+    enterEditMode()
+    const row = [...$('.filter-tabs')!.children].filter(el => !el.classList.contains('filter-tabs-measure'))
+    expect(row.at(-1)?.getAttribute('aria-label')).toBe('Add category')
+    expect(row.at(-2)?.getAttribute('role')).toBe('tab')
+    expect($('.filter-bar-tools, .rename-category-tab, .reorder-tab, .sort-order-tab')).toBeNull()
+  })
+
+  // The reorder tool is a drag pad: six dots, the mark of something to pick up.
+  it('draws the reorder tool as a drag pad', () => {
+    renderApp()
+    enterEditMode()
+    click(tabNamed(catTabs()[0].textContent!))
+    expect(reorderTool()!.querySelectorAll('svg circle')).toHaveLength(6)
   })
 })
 
@@ -180,7 +220,7 @@ describe('adding a category', () => {
   it('creates one that persists before it holds any phrases', () => {
     renderApp()
     enterEditMode()
-    click($('.add-category-tab'))
+    click($('.add-tab'))
     type(nameField(), 'Physio')
     saveModal()
 
@@ -192,7 +232,7 @@ describe('adding a category', () => {
     renderApp()
     enterEditMode()
     const existing = catTabs()[1].textContent!
-    click($('.add-category-tab'))
+    click($('.add-tab'))
     type(nameField(), existing.toUpperCase())
 
     expect($('.edit-modal-note')?.textContent).toMatch(/already called/i)
@@ -202,24 +242,44 @@ describe('adding a category', () => {
   it('refuses an empty name', () => {
     renderApp()
     enterEditMode()
-    click($('.add-category-tab'))
+    click($('.add-tab'))
     type(nameField(), '   ')
     expect(action('Save')?.className).toMatch(/is-disabled/)
   })
 })
 
+/**
+ * **Renamed where it stands.** The pencil makes the name a field and the
+ * reorder tool a bin, the only control on it then. Enter saves it, and so does
+ * going to another tab, leaving edit mode or the field losing the caret;
+ * Escape puts it back as it was.
+ */
 describe('renaming a category', () => {
+  it('makes the name a field, and the bin its only control', () => {
+    renderApp()
+    enterEditMode()
+    const name = catTabs()[0].textContent!
+
+    renameTab(name)
+
+    expect(nameField().value).toBe(name)
+    expect(nameField().closest('.filter-tab')?.getAttribute('aria-selected')).toBe('true')
+    expect(reorderTool()).toBeNull()
+    expect(deleteTool()?.getAttribute('aria-label')).toBe(`Delete ${name}`)
+    const tab = nameField().closest('.filter-tab')!
+    expect([...tab.querySelectorAll('[role="button"]')], 'another control on the tab').toEqual([deleteTool()])
+  })
+
   it('renames a built-in category and takes its phrases with it', () => {
     renderApp()
     enterEditMode()
     const original = catTabs()[0].textContent!
 
-    renameTab(original)
-    type(nameField(), 'Renamed')
-    saveModal()
+    renameTo(original, 'Renamed')
 
     expect(tabLabels()).toContain('Renamed')
     expect(tabLabels()).not.toContain(original)
+    expect($('.toast')?.textContent).toBe(`Renamed ${original} to Renamed`)
 
     // The phrases followed rather than being orphaned under a vanished tab.
     click(editToggle()) // leave edit mode
@@ -229,14 +289,49 @@ describe('renaming a category', () => {
 
   it('follows the rename with the current filter', () => {
     renderApp()
-    const original = catTabs()[0].textContent!
-    click(tabNamed(original)) // select it first
     enterEditMode()
-    click(renameBtn())
-    type(nameField(), 'Followed')
-    saveModal()
+    renameTo(catTabs()[0].textContent!, 'Followed')
 
     expect(tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent).toBe('Followed')
+  })
+
+  it('saves with Enter as well', () => {
+    renderApp()
+    enterEditMode()
+    renameTab(catTabs()[0].textContent!)
+    type(nameField(), 'Entered')
+    fireEvent.keyDown(nameField(), { key: 'Enter' })
+    settle()
+
+    expect(tabLabels()).toContain('Entered')
+  })
+
+  it('puts the name back on Escape', () => {
+    renderApp()
+    enterEditMode()
+    const name = catTabs()[0].textContent!
+    renameTab(name)
+    type(nameField(), 'Never mind')
+    fireEvent.keyDown(nameField(), { key: 'Escape' })
+    settle()
+
+    expect(tabLabels()).toContain(name)
+    expect(tabLabels()).not.toContain('Never mind')
+    expect($('input[aria-label="Category name"]')).toBeNull()
+  })
+
+  // Another category's name is a clash, whatever the casing, and nothing is
+  // no name: either keeps the name it had.
+  it("keeps the name it had for another category's, or for nothing", () => {
+    renderApp()
+    enterEditMode()
+    const [name, other] = catLabels()
+
+    renameTo(name!, other!.toUpperCase())
+    expect(catLabels()).toContain(name)
+
+    renameTo(name!, '   ')
+    expect(catLabels()).toContain(name)
   })
 
   it('survives being renamed twice', () => {
@@ -244,12 +339,8 @@ describe('renaming a category', () => {
     enterEditMode()
     const original = catTabs()[0].textContent!
 
-    renameTab(original)
-    type(nameField(), 'Once')
-    saveModal()
-    click(renameBtn())
-    type(nameField(), 'Twice')
-    saveModal()
+    renameTo(original, 'Once')
+    renameTo('Once', 'Twice')
 
     expect(tabLabels()).toContain('Twice')
     expect(tabLabels()).not.toContain('Once')
@@ -263,15 +354,72 @@ describe('renaming a category', () => {
     const original = catTabs()[0].textContent!
     click(tabNamed(original))
     const held = cells().map(c => c.getAttribute('data-phrase'))
-    click(renameBtn())
-    type(nameField(), 'Mapped')
-    saveModal()
+
+    renameTo(original, 'Mapped')
 
     expect(storedStore().members.Mapped).toEqual(held)
     expect(storedStore().members).not.toHaveProperty(original)
   })
+
+  // There is no control to save it with: the field is the name itself.
+  it('saves the name on going to another tab', () => {
+    renderApp()
+    enterEditMode()
+    const [name, other] = catLabels()
+    renameTab(name!)
+    type(nameField(), 'Moved on')
+
+    click(tabNamed(other!))
+
+    expect(catLabels()).toContain('Moved on')
+    expect(catLabels()).not.toContain(name)
+    expect($('input[aria-label="Category name"]')).toBeNull()
+  })
+
+  it('saves the name on leaving edit mode', () => {
+    renderApp()
+    enterEditMode()
+    const [name] = catLabels()
+    renameTab(name!)
+    type(nameField(), 'Left with')
+
+    click(editToggle())
+
+    expect(catLabels()).toContain('Left with')
+  })
+
+  it('saves the name when the field loses the caret', () => {
+    renderApp()
+    enterEditMode()
+    const [name] = catLabels()
+    renameTab(name!)
+    type(nameField(), 'Blurred')
+
+    fireEvent.blur(nameField())
+    settle()
+
+    expect(catLabels()).toContain('Blurred')
+  })
+
+  // The bin, then the question: the name being typed is not saved first.
+  it('does not save a half-typed name on the way to the bin', () => {
+    renderApp()
+    enterEditMode()
+    const [name] = catLabels()
+    renameTab(name!)
+    type(nameField(), 'Half done')
+
+    click(deleteTool())
+
+    expect(catLabels()).toContain(name)
+    expect($('.edit-modal[role="alertdialog"]')?.textContent).toContain(`Delete ${name}?`)
+  })
 })
 
+/**
+ * **The bin on the tab showing**, while its name is a field, **asks first**:
+ * it takes the category's order, which somebody may have spent a while on.
+ */
 describe('deleting a category', () => {
   /** A pointer aimed somewhere new, which is what the question waits for. */
   const moveAway = (x = 700) => {
@@ -279,7 +427,6 @@ describe('deleting a category', () => {
     settle()
   }
   const confirmDelete = () => {
-    click(action('Delete'))
     moveAway()
     click(action('Delete'))
   }
@@ -288,26 +435,25 @@ describe('deleting a category', () => {
   it('deletes one that is empty, once asked', () => {
     renderApp()
     enterEditMode()
-    click($('.add-category-tab'))
+    click($('.add-tab'))
     type(nameField(), 'Temporary')
     saveModal()
 
-    renameTab('Temporary')
+    askToDelete('Temporary')
     confirmDelete()
 
     expect(tabLabels()).not.toContain('Temporary')
     expect(storedStore().members).not.toHaveProperty('Temporary')
   })
 
-  it('offers to delete one that holds phrases, and asks first, saying how many go with it', () => {
+  it('asks first, saying how many phrases it holds', () => {
     renderApp()
     enterEditMode()
     const name = catTabs()[0].textContent!
-    renameTab(name)
+    click(tabNamed(name))
     const count = cells().length
-    expect(action('Delete')).toBeDefined()
 
-    click(action('Delete'))
+    askToDelete(name)
 
     expect(question()?.getAttribute('aria-label')).toBe(`Delete ${name}`)
     expect(question()?.textContent).toContain(`Delete ${name}?`)
@@ -317,14 +463,14 @@ describe('deleting a category', () => {
     expect(storedStore().hidden ?? []).toEqual([])
   })
 
-  // The dialog changes under a pointer resting where Delete was, so the delete
-  // that confirms is at the far end and nothing arms until the pointer moves.
+  // The question arrives under a pointer resting where the bin was, so the
+  // delete that confirms is at the far end and nothing arms until the pointer
+  // moves.
   it('puts the delete that confirms at the far end, and waits for the pointer to move', () => {
     renderApp()
     enterEditMode()
     const name = catTabs()[0].textContent!
-    renameTab(name)
-    click(action('Delete'))
+    askToDelete(name)
 
     const buttons = $$('.edit-action-btn').map(b => b.textContent)
     expect(buttons).toEqual(['Keep it', 'Delete'])
@@ -338,17 +484,15 @@ describe('deleting a category', () => {
     expect(tabLabels()).not.toContain(name)
   })
 
-  it('keeps it, back in the rename dialog, on Keep it', () => {
+  it('keeps it on Keep it', () => {
     renderApp()
     enterEditMode()
     const name = catTabs()[0].textContent!
-    renameTab(name)
-    click(action('Delete'))
+    askToDelete(name)
     moveAway()
     click(action('Keep it'))
 
     expect(question()).toBeNull()
-    expect(nameField()).toBeTruthy()
     expect(tabLabels()).toContain(name)
     expect(storedStore().hidden ?? []).toEqual([])
   })
@@ -358,7 +502,7 @@ describe('deleting a category', () => {
   it('leaves every phrase in it in Library, and says so', () => {
     renderApp()
     enterEditMode()
-    renameTab('Food')
+    askToDelete('Food')
     confirmDelete()
 
     expect(tabLabels()).not.toContain('Food')
@@ -369,14 +513,6 @@ describe('deleting a category', () => {
     expect($('.toast')?.textContent).toBe('Deleted Food — its 2 phrases are still in Library')
   })
 
-  // Library is where every phrase lives, so it is neither renamed nor deleted.
-  it('offers nothing to delete Library with', () => {
-    renderApp()
-    enterEditMode()
-    click(tabNamed('Library'))
-    expect(renameBtn()?.getAttribute('aria-disabled')).toBe('true')
-  })
-
   it('keeps a phrase open in the box, in the categories it has left', () => {
     renderApp()
     enterEditMode()
@@ -385,7 +521,7 @@ describe('deleting a category', () => {
     const opened = box().value
     expect(opened).not.toBe('')
 
-    click(renameBtn())
+    askToDelete('Food')
     confirmDelete()
 
     expect(box().value).toBe(opened)
@@ -399,7 +535,7 @@ describe('deleting a category', () => {
     click(tabNamed('Food'))
     writePhrase('Not yet saved')
 
-    click(renameBtn())
+    askToDelete('Food')
     confirmDelete()
     expect(box().value).toBe('Not yet saved')
     savePhrase()
@@ -507,7 +643,7 @@ describe('a category left with nothing in it', () => {
   // Made first and filled afterwards, which is why an empty one is ever kept.
   it('leaves one made a moment ago, and not yet filled, when a phrase goes elsewhere', () => {
     openSolo()
-    click($('.add-category-tab'))
+    click($('.add-tab'))
     type(nameField(), 'Not yet')
     saveModal()
     click(tabNamed('Drinks'))
@@ -527,7 +663,7 @@ describe('the phrase editor', () => {
   it('files a phrase under a category made a moment ago', () => {
     renderApp()
     enterEditMode()
-    click($('.add-category-tab'))
+    click($('.add-tab'))
     type(nameField(), 'Invented')
     saveModal()
     click(tabNamed('Invented'))
@@ -559,7 +695,7 @@ describe('the phrase editor', () => {
   it('will not save a new category with no name', () => {
     renderApp()
     enterEditMode()
-    click($('.add-category-tab'))
+    click($('.add-tab'))
 
     expect(action('Save')?.className).toMatch(/is-disabled/)
   })
@@ -590,16 +726,22 @@ describe('the phrase editor', () => {
 
 // ── Ordering ──────────────────────────────────────────────────────────────────
 
+/**
+ * **A tab is moved by its own reorder tool**: on the tab showing, in edit mode,
+ * it lifts the tab — blue, and every other category somewhere to drop it — and
+ * a dwell on another drops it there. The tool again puts it back. A mouse can
+ * drag one onto another too.
+ */
 describe('ordering categories', () => {
-  const reorderBtn = () => $('.reorder-tab')
-  const sortBtn = () => $('.sort-order-tab')
-  const startReordering = () => {
-    enterEditMode()
-    click(reorderBtn())
+  /** Goes to a category and lifts it by its own tool. */
+  const lift = (name: string) => {
+    const showing = tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent
+    if (showing !== name) click(tabNamed(name))
+    click(reorderTool())
   }
-  /** Pick a tab up by dwell, then drop it on another. */
+  /** Lift a tab, then drop it on another. */
   const dwellDrag = (from: string, to: string) => {
-    click(tabNamed(from))
+    lift(from)
     click(tabNamed(to))
   }
   /** The same move by mouse, which is a native HTML5 drag. */
@@ -618,88 +760,42 @@ describe('ordering categories', () => {
     expect(storedStore().categoryOrder ?? []).toEqual([])
   })
 
-  it('offers no reorder control outside edit mode', () => {
-    renderApp()
-    expect(reorderBtn()).toBeNull()
-  })
-
-  it('offers one in edit mode', () => {
+  it('moves a category by its reorder tool and then its destination', () => {
     renderApp()
     enterEditMode()
-    expect(reorderBtn()).not.toBeNull()
-    // Sorting is only on offer once reordering, where it makes sense.
-    expect(sortBtn()).toBeNull()
-    click(reorderBtn())
-    expect(sortBtn()).not.toBeNull()
-  })
-
-  // These used to sit in with the tabs, where they moved every time a category
-  // was added or renamed — and, while the bar scrolled, could scroll away.
-  it('parks every category control after the tabs, in a place of its own', () => {
-    renderApp()
-    enterEditMode()
-    expect($('.filter-tabs .filter-bar-btn')).toBeNull()
-    expect($('.filter-bar-tools .add-category-tab')).not.toBeNull()
-    expect($('.filter-bar-tools .reorder-tab')).not.toBeNull()
-
-    click(reorderBtn())
-    expect($('.filter-tabs .filter-bar-btn')).toBeNull()
-    expect($('.filter-bar-tools .sort-order-tab')).not.toBeNull()
-  })
-
-  // Add and sort share a slot, so the toolbar does not change width — and with
-  // it the reorder button's position — as the mode is toggled.
-  // Three — add or sort, the pencil, reorder — and three either way: the tools
-  // are aimed at by position, and one that came and went would move the rest.
-  it('keeps the toolbar to three controls in either mode', () => {
-    renderApp()
-    enterEditMode()
-    expect($$('.filter-bar-tools .filter-bar-btn')).toHaveLength(3)
-    click(reorderBtn())
-    expect($$('.filter-bar-tools .filter-bar-btn')).toHaveLength(3)
-  })
-
-  it('leaves no empty toolbar outside edit mode', () => {
-    renderApp()
-    expect($('.filter-bar-tools')).toBeNull()
-  })
-
-  it('moves a category by dwelling it and then its destination', () => {
-    renderApp()
-    startReordering()
     const [first, , third] = names()
 
-    dwellDrag(first, third)
+    dwellDrag(first!, third!)
 
-    expect(names().indexOf(first)).toBe(names().indexOf(third) + 1)
+    expect(names().indexOf(first!)).toBe(names().indexOf(third!) + 1)
   })
 
   it('moves a category by mouse drag', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const [first, , third] = names()
 
-    mouseDrag(first, third)
+    mouseDrag(first!, third!)
 
-    expect(names().indexOf(first)).toBe(names().indexOf(third) + 1)
+    expect(names().indexOf(first!)).toBe(names().indexOf(third!) + 1)
   })
 
   it('moves leftwards as well as rightwards', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const before = names()
-    const last = before[before.length - 1]
+    const last = before[before.length - 1]!
 
-    dwellDrag(last, before[0])
+    dwellDrag(last, before[0]!)
 
     expect(names()[0]).toBe(last)
   })
 
   it('persists the order and restores it on reload', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const [first, , third] = names()
-    dwellDrag(first, third)
+    dwellDrag(first!, third!)
     const arranged = names()
 
     expect(storedStore().categoryOrder).toEqual(arranged)
@@ -709,136 +805,66 @@ describe('ordering categories', () => {
     expect(names()).toEqual(arranged)
   })
 
-  it('puts a lifted category back when dwelled a second time', () => {
+  it('puts a lifted category back when its reorder tool is rested on again', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const before = names()
 
-    click(tabNamed(before[1])) // lift
-    expect(tabNamed(before[1])?.className).toMatch(/is-held/)
-    click(tabNamed(before[1])) // and put down
+    lift(before[1]!)
+    expect(tabNamed(before[1]!)?.className).toMatch(/is-held/)
+    expect(reorderTool()?.getAttribute('aria-label')).toBe(`Put ${before[1]} back where it was`)
+    click(reorderTool())
 
     expect(names()).toEqual(before)
+    expect($('.is-held')).toBeNull()
     expect(storedStore().categoryOrder ?? []).toEqual([])
   })
 
-  // Switching to A–Z must not be a way to lose an arrangement someone built by
-  // hand, a tab at a time.
-  describe('the A–Z toggle', () => {
-    it('goes to alphabetical and back to their own order', () => {
-      renderApp()
-      startReordering()
-      const alphabetical = names()
-      dwellDrag(alphabetical[0], alphabetical[2])
-      const arranged = names()
-      expect(arranged).not.toEqual(alphabetical)
+  // There is no A to Z control any more. A board left in A to Z shows it, and
+  // moving a tab builds an order of its own from what is on screen.
+  it('shows a board left in A to Z alphabetically, and moving a tab makes its own order', () => {
+    localStorage.setItem(
+      STORE_KEY,
+      JSON.stringify({
+        ...SEEDED,
+        categoryOrder: ['Greetings', 'Food', 'Drinks', 'Evening'],
+        categorySort: 'alpha',
+      }),
+    )
+    renderApp()
+    const alphabetical = names()
+    expect(alphabetical).toEqual([...alphabetical].sort())
 
-      click(sortBtn())
-      expect(names()).toEqual(alphabetical)
+    enterEditMode()
+    dwellDrag(alphabetical[0]!, alphabetical[2]!)
 
-      click(sortBtn())
-      expect(names()).toEqual(arranged)
-    })
+    expect(storedStore().categorySort).toBe('custom')
+    expect(storedStore().categoryOrder).toEqual(names())
+  })
 
-    it('keeps their order in the store while A–Z is showing', () => {
-      renderApp()
-      startReordering()
-      const alphabetical = names()
-      dwellDrag(alphabetical[0], alphabetical[2])
-      const arranged = names()
-
-      click(sortBtn())
-
-      expect(storedStore().categorySort).toBe('alpha')
-      expect(storedStore().categoryOrder).toEqual(arranged)
-    })
-
-    it('survives a reload in whichever arrangement is showing', () => {
-      renderApp()
-      startReordering()
-      const alphabetical = names()
-      dwellDrag(alphabetical[0], alphabetical[2])
-      const arranged = names()
-      click(sortBtn())
-
-      container = render(<App />).container
-      settle()
-      expect(names()).toEqual(alphabetical)
-
-      enterEditMode()
-      click(reorderBtn())
-      click(sortBtn())
-      expect(names()).toEqual(arranged)
-    })
-
-    // Three cues for the same fact, because neither arrangement is "off" and
-    // the green fill alone cannot say which one is on.
-    it('says which arrangement is on, and which way it will go', () => {
-      renderApp()
-      startReordering()
-      const arranged = names()
-      dwellDrag(arranged[0], arranged[2])
-
-      expect(sortBtn()?.getAttribute('aria-label')).toBe('Your own order. Switch to A to Z')
-      expect(sortBtn()?.getAttribute('aria-pressed')).toBe('false')
-      const custom = sortBtn()?.querySelector('svg')?.innerHTML
-
-      click(sortBtn())
-
-      expect(sortBtn()?.getAttribute('aria-label')).toBe('Sorted A to Z. Switch to your own order')
-      expect(sortBtn()?.getAttribute('aria-pressed')).toBe('true')
-      expect(sortBtn()?.querySelector('svg')?.innerHTML).not.toBe(custom)
-    })
-
-    it('does nothing until there is an order of their own to come back to', () => {
-      renderApp()
-      startReordering()
-      expect(sortBtn()?.getAttribute('aria-disabled')).toBe('true')
-
-      const arranged = names()
-      dwellDrag(arranged[0], arranged[2])
-      expect(sortBtn()?.getAttribute('aria-disabled')).toBeNull()
-    })
-
-    // Rearranging while A–Z is showing is building a new order, not editing the
-    // old one — so it replaces it, and switches back to showing it.
-    it('replaces their order when they rearrange from alphabetical', () => {
-      renderApp()
-      startReordering()
-      const alphabetical = names()
-      dwellDrag(alphabetical[0], alphabetical[2])
-      const first = names()
-      click(sortBtn())
-
-      dwellDrag(alphabetical[1], alphabetical[3])
-
-      expect(names()).not.toEqual(first)
-      expect(names()).not.toEqual(alphabetical)
-      expect(storedStore().categorySort).toBe('custom')
-      expect(storedStore().categoryOrder).toEqual(names())
-    })
-
-    // Anyone who reordered before the toggle existed has an order and no flag.
-    it('shows the order of a store written before the flag existed', () => {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ ...SEEDED, categoryOrder: ['Greetings', 'Food'] }))
-      renderApp()
-      expect(names().slice(0, 2)).toEqual(['Greetings', 'Food'])
-    })
+  // Anyone who reordered before the flag existed has an order and no flag.
+  it('shows the order of a store written before the flag existed', () => {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ ...SEEDED, categoryOrder: ['Greetings', 'Food'] }))
+    renderApp()
+    expect(names().slice(0, 2)).toEqual(['Greetings', 'Food'])
   })
 
   /**
    * **Both pinned at the front, Translations then Library**, and the custom
-   * order reaching neither: dragging the last category onto the first puts it
-   * first among the categories, still after the two.
+   * order reaching neither: dropping the last category on the first puts it
+   * first among the categories, still after the two — which are never
+   * somewhere to drop one, nor dragged.
    */
   it('leaves the two tabs that are not categories pinned at the front and unmovable', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     expect(pinnedLabels()).toEqual(['Translations', 'Library'])
     for (const tab of pinnedTabs()) expect(tab.getAttribute('draggable')).toBeNull()
 
     const arranged = names()
-    dwellDrag(arranged[arranged.length - 1], arranged[0])
+    lift(arranged[arranged.length - 1]!)
+    for (const tab of pinnedTabs()) expect(tab.className).not.toMatch(/is-drop-zone/)
+    click(tabNamed(arranged[0]!))
     expect(pinnedLabels()).toEqual(['Translations', 'Library'])
     expect(catLabels()[0]).toBe(arranged[arranged.length - 1])
   })
@@ -847,17 +873,13 @@ describe('ordering categories', () => {
   // the shown name — has to be carried along or the category jumps to the end.
   it('keeps a renamed category in its place', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const arranged = names()
-    dwellDrag(arranged[0], arranged[2])
-    const moved = names()
-    const target = moved[1]
+    dwellDrag(arranged[0]!, arranged[2]!)
+    const target = names()[1]!
     const at = names().indexOf(target)
 
-    click(reorderBtn()) // back to renaming
-    renameTab(target)
-    type(nameField(), 'Renamed')
-    saveModal()
+    renameTo(target, 'Renamed')
 
     expect(names().indexOf('Renamed')).toBe(at)
   })
@@ -865,18 +887,15 @@ describe('ordering categories', () => {
   it('drops a deleted category out of the stored order', () => {
     renderApp()
     enterEditMode()
-    click($('.add-category-tab'))
+    click($('.add-tab'))
     type(nameField(), 'Temporary')
     saveModal()
 
-    click(reorderBtn())
     const arranged = names()
-    dwellDrag(arranged[0], arranged[2])
+    dwellDrag(arranged[0]!, arranged[2]!)
     expect(storedStore().categoryOrder).toContain('Temporary')
 
-    click(reorderBtn())
-    renameTab('Temporary')
-    click(action('Delete'))
+    askToDelete('Temporary')
     fireEvent.pointerMove(document.body, { clientX: 700, clientY: 500 })
     click(action('Delete'))
 
@@ -885,45 +904,16 @@ describe('ordering categories', () => {
 
   it('files a category added later at the end, without disturbing the order', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const arranged = names()
-    dwellDrag(arranged[0], arranged[2])
+    dwellDrag(arranged[0]!, arranged[2]!)
     const before = names()
 
-    click(reorderBtn()) // leave reorder mode to reach the add button
-    click($('.add-category-tab'))
+    click($('.add-tab'))
     type(nameField(), 'Aardvark') // alphabetically first, to prove it is not sorted in
     saveModal()
 
     expect(names()).toEqual([...before, 'Aardvark'])
-  })
-
-  it('renames rather than reorders once reordering is switched off', () => {
-    renderApp()
-    startReordering()
-    click(reorderBtn())
-    renameTab(catTabs()[0].textContent!)
-    expect($('.edit-modal')?.getAttribute('aria-label')).toBe('Rename category')
-  })
-
-  // Renaming mid-arrangement would drop whatever is in the air. On a real
-  // category, so the tab showing is not what keeps it quiet.
-  it('keeps the pencil quiet while reordering', () => {
-    renderApp()
-    enterEditMode()
-    click(tabNamed(catTabs()[0].textContent!))
-    expect(renameBtn()?.getAttribute('aria-disabled'), 'the pencil was quiet before reordering').toBeNull()
-
-    click(reorderBtn())
-
-    expect(renameBtn()?.getAttribute('aria-disabled')).toBe('true')
-  })
-
-  it('reorders rather than renames while reordering is on', () => {
-    renderApp()
-    startReordering()
-    click(catTabs()[0])
-    expect($('.edit-modal')).toBeNull()
   })
 
   // Holding a category must be unmistakable, and must not rest on colour
@@ -931,22 +921,23 @@ describe('ordering categories', () => {
   describe('the cue that something is held', () => {
     it('marks the held tab and every other as somewhere to drop it', () => {
       renderApp()
-      startReordering()
+      enterEditMode()
       const [first, second] = names()
 
-      click(tabNamed(first))
+      lift(first!)
 
-      expect(tabNamed(first)?.className).toMatch(/is-held/)
-      expect(tabNamed(first)?.className).not.toMatch(/is-drop-zone/)
-      expect(tabNamed(second)?.className).toMatch(/is-drop-zone/)
+      expect(tabNamed(first!)?.className).toMatch(/is-held/)
+      expect(tabNamed(first!)?.className).not.toMatch(/is-drop-zone/)
+      expect(tabNamed(second!)?.className).toMatch(/is-drop-zone/)
+      expect(reorderTool()?.getAttribute('aria-pressed')).toBe('true')
     })
 
     it('announces the lift, since styling says nothing aloud', () => {
       renderApp()
-      startReordering()
+      enterEditMode()
       const [first] = names()
 
-      click(tabNamed(first))
+      lift(first!)
 
       expect($('.toast')?.textContent).toContain(first)
       expect($('[role="status"]')).not.toBeNull()
@@ -954,10 +945,10 @@ describe('ordering categories', () => {
 
     it('clears every trace of it once dropped', () => {
       renderApp()
-      startReordering()
+      enterEditMode()
       const [first, , third] = names()
 
-      dwellDrag(first, third)
+      dwellDrag(first!, third!)
 
       expect($('.is-held')).toBeNull()
       expect($('.is-drop-zone')).toBeNull()
@@ -965,41 +956,41 @@ describe('ordering categories', () => {
 
     it('says what dwelling each tab would now do', () => {
       renderApp()
-      startReordering()
+      enterEditMode()
       const [first, second] = names()
-      expect(tabNamed(first)?.getAttribute('aria-label')).toBe(`Move ${first}`)
+      expect(tabNamed(second!)?.getAttribute('aria-label')).toBe(second)
 
-      click(tabNamed(first))
+      lift(first!)
 
-      expect(tabNamed(first)?.getAttribute('aria-label')).toMatch(/^Holding /)
-      expect(tabNamed(second)?.getAttribute('aria-label')).toBe(`Drop ${first} here`)
+      expect(tabNamed(second!)?.getAttribute('aria-label')).toBe(`Drop ${first} here`)
     })
   })
 
-  // Leaving reorder mode with a tab in the air used to leave it there. Coming
-  // back, the next dwell would drop the forgotten tab instead of lifting the
-  // one under the pointer.
-  it('empties its hands when reordering is switched off', () => {
+  // Its tools gone, whatever was in the air is put back where it was — or the
+  // next dwell would drop a forgotten tab instead of doing what it was aimed at.
+  it('puts it back when edit mode is left', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const before = names()
+    lift(before[1]!)
 
-    click(tabNamed(before[1])) // lift
-    click(reorderBtn()) // leave reorder mode holding it
-    click(reorderBtn()) // and come back
+    click(editToggle())
 
-    click(tabNamed(before[2]))
+    expect($('.is-held')).toBeNull()
+    click(tabNamed(before[2]!))
     expect(names()).toEqual(before)
-    expect(tabNamed(before[2])?.className).toMatch(/is-held/)
   })
 
-  it('does not stay armed after edit mode is left and re-entered', () => {
+  it('puts it back when a tab that is not a category is chosen', () => {
     renderApp()
-    startReordering()
-    click(editToggle()) // leave edit mode
     enterEditMode()
-    expect(sortBtn()).toBeNull()
-    expect($('.add-category-tab')).not.toBeNull()
+    const before = names()
+    lift(before[1]!)
+
+    click(tabNamed('Library'))
+
+    expect($('.is-held')).toBeNull()
+    expect(names()).toEqual(before)
   })
 })
 
@@ -1110,6 +1101,17 @@ describe('More', () => {
     expect(more()?.textContent).toBe('More')
   })
 
+  // In edit mode the add button follows the last tab on the same row, so the
+  // row holds one tab fewer: Translations, and More — carrying the name of
+  // Library, the tab showing, which it now hides — and the plus after them.
+  it('leaves room on the row for adding a category after the last tab', () => {
+    renderApp()
+    enterEditMode()
+    expect(tabLabels()).toEqual(['Translations', 'Library'])
+    expect(more()?.textContent).toBe('Library')
+    expect(more()?.nextElementSibling?.getAttribute('aria-label')).toBe('Add category')
+  })
+
   it('goes to a category it hides, on Done, and carries its name', () => {
     renderApp()
     click(more())
@@ -1130,11 +1132,32 @@ describe('More', () => {
     expect($('.filter-tab[aria-selected="true"]')?.textContent).toBe('Library')
   })
 
-  // A tab behind More is one nobody could pick up, or drop another on.
-  it('shows every tab while they are being arranged', () => {
+  // In edit mode the tab showing has tools, and More cannot carry them: one it
+  // would hide is drawn as itself before it, and More says only "More".
+  it('draws a category it would hide as itself, with its tools, in edit mode', () => {
     renderApp()
     enterEditMode()
-    click($('.reorder-tab'))
+    click(more())
+    click(tile('Cat 09'))
+    click(pickerBtn('Done'))
+    act(() => void vi.advanceTimersByTime(1100))
+
+    expect(tabNamed('Cat 09')?.getAttribute('aria-selected')).toBe('true')
+    expect(tabNamed('Cat 09')?.querySelector('.tab-name')).not.toBeNull()
+    expect(more()?.textContent).toBe('More')
+    expect(tabLabels().slice(-2)).toEqual(['Cat 09', 'More'])
+  })
+
+  // A tab behind More is one nobody could drop another on.
+  it('shows every tab while one is in the air', () => {
+    renderApp()
+    enterEditMode()
+    click(tabNamed('Translations'))
+    click(more())
+    click(tile('Cat 01'))
+    click(pickerBtn('Done'))
+    act(() => void vi.advanceTimersByTime(1100))
+    click($('.reorder-tool'))
     expect(tabLabels()).toEqual(['Translations', 'Library', ...TEN])
     expect(more()).toBeNull()
   })

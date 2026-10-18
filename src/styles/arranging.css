@@ -28,107 +28,7 @@
   color: var(--text-muted);
 }
 
-/* Ordering controls, parked at the end of the bar so they hold still however
-   many tabs there are. Bigger than the tabs, since these are the ones a user
-   has to find. */
-.filter-bar-tools {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 8px;
-  flex-shrink: 0;
-  border-left: 1px solid var(--border);
-}
-
-/* The add / sort / reorder controls at the end of the bar.
- *
- * Bare glyphs: no border, no padding, no pill. They sit at the end of a row of
- * pills, and a tool drawn as one more pill reads as one more category — while
- * these are the controls a user has to pick out of the row without reading it.
- * So what makes them findable is the icon itself, drawn heavier and larger than
- * anything else in the bar, rather than a box drawn around it.
- *
- * The box stays as a hit area, sized rather than padded, which is also what the
- * fill has to paint when the mode is on. The size is what the padding used to
- * come to, so the bar is exactly as tall as it was. The border stays too and is
- * merely transparent: `is-on` gives it a colour, and a border appearing from
- * nothing would shift the icon by a pixel every time the mode was switched. */
-.filter-bar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  width: 46px;
-  height: 36px;
-  border-color: transparent;
-  background: transparent;
-  color: var(--text-muted);
-}
-
-/* One size across both bars — see `.emergency-tool svg`, which matches it — and
-   in rem so it tracks the text size rather than sitting at a fixed pixel count
-   beside it. Heavier than the icons carry themselves, and set here rather than in
-   the markup: `PlusIcon` is also the add control in the profile panel, where it
-   sits in an ordinary button and wants an ordinary weight. */
-.filter-bar-btn svg { width: 1.2rem; height: 1.2rem; stroke-width: 3; }
-
-@media (max-width: 700px) {
-  .filter-bar-btn svg { width: 1rem; height: 1rem; }
-}
-
-/* The pill is gone, so a dwell says so with the glyph and the wash rising behind
-   it rather than by lighting up an outline. */
-.filter-bar-btn.dwelling {
-  color: var(--accent);
-  border-color: transparent;
-  background: transparent;
-}
-
-/* Filling bottom up, the way the topbar icon buttons do. A 3px line along the
-   bottom reads as an underline on something with an edge to underline; with the
-   pill gone there is nothing for it to sit under, and a rising wash reads as the
-   button filling instead. Translucent, so the glyph stays legible through it,
-   and clipped by the pill radius `.filter-tab` already sets with its
-   `overflow: hidden`.
-
-   The width and height have to be undone by hand: the base rule sizes this as a
-   3px sliver, and `width: 0` would beat `inset` at deciding how wide it is. */
-.filter-bar-btn .dwell-bar {
-  inset: 0;
-  width: auto;
-  height: auto;
-  background: var(--accent-dim);
-  transform: scaleY(0);
-  transform-origin: bottom;
-}
-
-.filter-bar-btn.dwelling .dwell-bar {
-  animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
-}
-
-/* The one state that does draw a box. Reordering is a mode, and a mode has to be
-   loud — this is the only thing on either bar saying the tabs have stopped being
-   things to open and become things to pick up. It paints the hit area the bare
-   glyph was already occupying, so nothing moves as it comes and goes. */
-.filter-bar-btn.is-on {
-  color: #000;
-  background: var(--accent);
-  border-color: transparent;
-}
-
-.filter-bar-btn[aria-disabled] {
-  opacity: 0.4;
-}
-
 /* ── Reordering categories ── */
-
-/* Solid rather than the dashed rename outline: in this mode a tab is a thing
-   to pick up, not a thing to open. */
-.filter-tab.reorderable {
-  cursor: grab;
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-}
 
 /* The tab in the air. It should be the loudest thing in the bar — it is what
    the user is holding — so it gets colour, weight, a socket ring and a slow
@@ -210,9 +110,8 @@
    stays. */
 .emergency-tool + .emergency-tool { margin-left: calc(6px - 1.5rem); }
 
-/* The same size as the category tools — see `.filter-bar-btn svg`. The two sets
-   sit at opposite ends of the screen and are the same four glyphs, so they are
-   held to one size rather than each tuned to its own bar. */
+/* Heavier and larger than anything else on the bar, being the controls a user
+   has to pick out of it, and in rem so they track the text size. */
 .emergency-tool svg { width: 1.2rem; height: 1.2rem; stroke-width: 3; }
 
 /* Not the red wash the phrases use — these are the tools beside the bar, not
@@ -224,8 +123,9 @@
 }
 
 /* Bottom up and in the accent rather than left to right in red, for both of the
-   reasons above: it is an icon button now, and it is not a phrase. See
-   `.filter-bar-btn .dwell-bar`, including why the size has to be undone. */
+   reasons above: it is an icon button now, and it is not a phrase. The base
+   rule sizes the bar as a 3px sliver, and `width: 0` would beat `inset` at
+   deciding how wide it is, so the size has to be undone by hand. */
 .emergency-tool .emergency-dwell-bar {
   inset: 0;
   width: auto;

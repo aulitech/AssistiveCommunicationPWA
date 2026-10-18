@@ -5,7 +5,7 @@
 /** The most rows of tabs the bar takes before the rest go behind More. */
 const MAX_ROWS = 1
 /** `.filter-tabs`'s gap, which the packing below has to agree with. */
-const TAB_GAP = 6
+export const TAB_GAP = 6
 
 /**
  * How many tabs fit in `MAX_ROWS` rows with More after them, or all of them.

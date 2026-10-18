@@ -99,7 +99,7 @@ describe('fields that take the caret by dwell', () => {
   it("lets a rest put the caret in a category's name", () => {
     renderApp()
     click($('.edit-toggle'))
-    click($('.add-category-tab'))
+    click($('.add-tab'))
     expect(arms($('.edit-modal-input'))).toBe(true)
   })
 

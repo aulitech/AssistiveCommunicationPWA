@@ -137,13 +137,15 @@ export function TalkScreen({
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState(LIBRARY)
   const [editMode, setEditMode] = useState(false)
-  // Three reorder modes, one for each surface that can be arranged. Sharing a
-  // flag would mean arming the bar somebody speaks with every time they set
-  // about tidying their category tabs.
-  const [reordering, setReordering] = useState(false)
+  // Two reorder modes, one for each surface arranged as a mode: the emergency
+  // bar and the phrases. Sharing a flag would mean arming the bar somebody
+  // speaks with every time they set about tidying the phrases. A category tab
+  // is picked up by its own tool — see `FilterBar`.
   const [reorderingEmergency, setReorderingEmergency] = useState(false)
   const [reorderingPhrases, setReorderingPhrases] = useState(false)
   const [resting, setResting] = useState(false)
+  // A name to ask before deleting it — the bin on the tab showing — or null to
+  // add one. See `CategoryModal`.
   const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
   /**
    * A phrase whose choices are being asked for, and what happens once they are
@@ -779,23 +781,17 @@ export function TalkScreen({
 
   // ── Editing the categories ─────────────────────────────────────────────────
 
-  const openCategory = useCallback((name: string | null) => {
+  const addCategory = useCallback(() => {
     cancelAllDwells()
-    setEditingCategory({ name })
+    setEditingCategory({ name: null })
   }, [])
 
   const handleCategorySave = useCallback(
     (name: string) => {
-      const current = editingCategory?.name ?? null
-      if (current === null) {
-        board.addCategory(name)
-      } else {
-        board.renameCategoryTo(current, name)
-        setActiveFilter(f => (f === current ? name : f))
-      }
+      board.addCategory(name)
       setEditingCategory(null)
     },
-    [editingCategory, board],
+    [board],
   )
 
   const handleCategoryDelete = useCallback(() => {
@@ -814,12 +810,22 @@ export function TalkScreen({
     )
   }, [editingCategory, board, flashToast])
 
-  // The tabs land where the pointer is either way, and the control that sorted
-  // them looks the same in both states, so both have to be said out loud.
-  const handleToggleSort = useCallback(() => {
-    const now = board.toggleSort()
-    flashToast(now === 'alpha' ? 'Categories sorted A–Z' : 'Your own category order restored')
-  }, [board, flashToast])
+  /** Renamed where it stands, on its own tab — see `FilterBar`. */
+  const renameCategory = useCallback(
+    (from: string, to: string) => {
+      board.renameCategoryTo(from, to)
+      setActiveFilter(f => (f === from ? to : f))
+      flashToast(`Renamed ${from} to ${to}`)
+    },
+    [board, flashToast],
+  )
+
+  /** The bin on the tab showing, which asks before anything goes. */
+  const askToDeleteCategory = useCallback((name: string) => {
+    cancelAllDwells()
+    holdDwellsUntilMoved()
+    setEditingCategory({ name })
+  }, [])
 
   // ── Modes ──────────────────────────────────────────────────────────────────
 
@@ -900,7 +906,6 @@ export function TalkScreen({
       else startNew(carried, typed && carried.endsWith(typed) ? carried.slice(0, -typed.length) : carried)
       // Reordering is a mode within edit mode; leaving it should not leave
       // either of them armed for next time.
-      setReordering(false)
       setReorderingEmergency(false)
       setReorderingPhrases(false)
       // The lit toggle is the only other cue, and it is a 1.5rem icon in a
@@ -1256,14 +1261,11 @@ export function TalkScreen({
                     categories={tabs}
                     activeFilter={effectiveFilter}
                     onSelect={chooseTab}
-                    onEditCategory={editMode ? openCategory : undefined}
-                    onAddCategory={editMode ? () => openCategory(null) : undefined}
-                    reordering={editMode && reordering}
-                    isAlphabetical={store.categorySort === 'alpha'}
-                    canRestoreOrder={store.categoryOrder.length > 0}
-                    onToggleReorder={editMode ? () => setReordering(r => !r) : undefined}
-                    onToggleSort={editMode ? handleToggleSort : undefined}
-                    onReorder={editMode ? board.reorderCategories : undefined}
+                    editing={editMode}
+                    onAddCategory={editMode ? addCategory : undefined}
+                    onRename={renameCategory}
+                    onDelete={askToDeleteCategory}
+                    onReorder={board.reorderCategories}
                     onLift={name => flashToast(`Holding ${name} — dwell where it should go`)}
                   />
                 )}
@@ -1373,6 +1375,15 @@ export function TalkScreen({
               }}
               onCancel={() => setFilling(null)}
             />
+          )}
+
+          {/* **Paused**, large and in the middle of the screen, while dwelling
+              is switched off — the row dimmed round the open space says where
+              to rest to resume; this says what has happened. */}
+          {resting && (
+            <div className="paused-note" role="status">
+              Paused
+            </div>
           )}
 
           {editingCategory !== null && (

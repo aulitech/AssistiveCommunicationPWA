@@ -224,7 +224,9 @@ for (const [width, height] of [
             '.message-line [role="button"], .message-line button, .message-tools [role="button"], .message-tools button',
           ),
         ]
-          .filter(el => el.offsetParent)
+          // Not Rest, which is the open space behind the row's controls, and
+          // so lies round every one of them.
+          .filter(el => el.offsetParent && !el.classList.contains('rest-surface'))
           .map(el => ({ name: el.getAttribute('aria-label') ?? '', r: el.getBoundingClientRect() }))
         const outside = controls
           .filter(
@@ -325,9 +327,9 @@ test('does not speak when Speak arrives under a resting pointer', async ({ page 
     w.said = 0
     speechSynthesis.speak = () => void w.said++
     // **A two-second action dwell**, still under the three seconds each wait
-    // below gives Speak. Before the screen narrows, the pointer rests on what
-    // is the top row's open space on the wide one, and on a slow machine that
-    // passed the usual 0.8s and rested the app.
+    // below gives Speak. Before the screen narrows, the pointer rests on
+    // whatever the wide screen has there — open space that rests the app, once
+    // — and on a slow machine that passed the usual 0.8s.
     if (!localStorage.getItem('dwellspeak_settings')) {
       localStorage.setItem('dwellspeak_settings', JSON.stringify({ selectionPauseMs: 0, actionDwellMs: 2000 }))
     }
@@ -351,9 +353,8 @@ test('does not speak when Speak arrives under a resting pointer', async ({ page 
   await page.waitForTimeout(300)
   const wide = await speakAt()
   expect(Math.abs(wide.x - narrow.x) + Math.abs(wide.y - narrow.y), 'Speak did not move').toBeGreaterThan(40)
-  // Not long enough to rest the app: on the wide screen this is the top row's
-  // open space, which a rest there switches dwelling off with — see the dwell
-  // set above.
+  // Not long enough for whatever the wide screen has here to answer — see the
+  // dwell set above.
   await page.mouse.move(narrow.x, narrow.y)
   await page.waitForTimeout(300)
 
@@ -612,34 +613,46 @@ test.describe('the magnified cell', () => {
   })
 })
 
-// **Rest is the top row's open space.** Wherever nothing in the row answers —
-// the padding round the card, its edge, the gaps in its row of controls — the
-// pointer reaches the surface behind, and a click there rests the app; the
-// controls and the box answer as themselves.
-test("rests on a click in the top row's open space, and on nothing that answers", async ({ page }) => {
+// **Rest is the open space in the message card's row of controls.** Wherever
+// nothing in that row answers — the gaps between its groups — the pointer
+// reaches the surface behind, and a click there rests the app; the controls
+// answer as themselves, and the rest of the top row does nothing.
+test('rests on a click in the open space of the card’s row of controls, and nowhere else', async ({ page }) => {
   await openBoard(page)
   const app = page.locator('.app')
   const hits = await page.evaluate(() => {
     const at = (x: number, y: number) => document.elementFromPoint(x, y)?.classList.contains('rest-surface')
     const card = document.querySelector('.message-wrap')!.getBoundingClientRect()
+    const tools = document.querySelector('.message-tools')!.getBoundingClientRect()
+    const clipboard = document.querySelector('.tools-clipboard')!.getBoundingClientRect()
+    const modes = document.querySelector('.tools-modes')!.getBoundingClientRect()
     const centre = (sel: string) => {
       const r = document.querySelector(sel)!.getBoundingClientRect()
       return [r.left + r.width / 2, r.top + r.height / 2] as const
     }
     return {
+      gap: at((clipboard.right + modes.left) / 2, tools.top + tools.height / 2),
       above: at(card.left + 60, card.top - 4),
-      edge: at(card.left + 3, card.top + 3),
       edit: at(...centre('.edit-toggle')),
       box: at(...centre('.text-display')),
       menu: at(...centre('.menu-btn')),
     }
   })
-  expect(hits).toEqual({ above: true, edge: true, edit: false, box: false, menu: false })
+  expect(hits).toEqual({ gap: true, above: false, edit: false, box: false, menu: false })
 
-  const card = (await page.locator('.message-wrap').boundingBox())!
-  await page.mouse.click(card.x + 60, card.y - 4)
+  const gap = await page.evaluate(() => {
+    const tools = document.querySelector('.message-tools')!.getBoundingClientRect()
+    const clipboard = document.querySelector('.tools-clipboard')!.getBoundingClientRect()
+    const modes = document.querySelector('.tools-modes')!.getBoundingClientRect()
+    return { x: (clipboard.right + modes.left) / 2, y: tools.top + tools.height / 2 }
+  })
+  await page.mouse.click(gap.x, gap.y)
   await expect(app).toHaveClass(/resting/)
-  await page.mouse.move(card.x + 300, card.y + 200)
-  await page.mouse.click(card.x + 60, card.y - 4)
+  await expect(page.locator('.paused-note')).toHaveText('Paused')
+  // Resume came up under the pointer; it answers once the pointer has left the row.
+  await page.locator('.resume-bar').dispatchEvent('click')
+  await expect(app, 'resumed without the pointer leaving the row').toHaveClass(/resting/)
+  await page.mouse.move(gap.x, gap.y + 300)
+  await page.mouse.click(gap.x, gap.y)
   await expect(app).not.toHaveClass(/resting/)
 })

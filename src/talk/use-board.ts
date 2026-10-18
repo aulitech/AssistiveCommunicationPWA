@@ -529,17 +529,6 @@ export function useBoard() {
   )
 
   /**
-   * Swaps the two arrangements and reports which one is now showing. The custom
-   * one is left in the store either way, so going to A–Z and back is not a way
-   * to lose it.
-   */
-  const toggleSort = useCallback(() => {
-    const next = store.categorySort === 'custom' ? 'alpha' : 'custom'
-    updateStore({ categorySort: next })
-    return next
-  }, [store.categorySort, updateStore])
-
-  /**
    * An import lands in one go rather than a field at a time, so there is no
    * moment where the grid is showing half of somebody's backup.
    */
@@ -587,7 +576,6 @@ export function useBoard() {
     reorderCategories,
     reorderPhrases,
     reorderEmergency,
-    toggleSort,
     restore,
   }
 }
