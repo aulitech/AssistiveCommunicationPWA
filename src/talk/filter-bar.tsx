@@ -1,20 +1,22 @@
 // The category tabs above the grid, and the controls that arrange them.
 //
-// The tabs can be reordered by dragging with a mouse or, for a dwell user, by
-// holding one tab and then dwelling where it should go. Both write the same
-// whole arrangement, and both come from `ui/reorder` — the emergency bar
-// arranges by identical rules, so the rules are written once there.
+// **In edit mode the tab showing carries its own tools** — its name, which a
+// rest makes a field to rename it where it stands, and a reorder tool picking
+// it up to put it somewhere else along the bar. A tab is
+// lifted by its own reorder tool, which turns it blue, and dropped by a dwell
+// on another tab; a mouse can drag it there too. Both come from `ui/reorder` —
+// the emergency bar arranges by identical rules, so the rules are written once
+// there.
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { holdDwells, useDwellControl } from '../ui/dwell'
-import { PickerModal, PickerTile } from '../ui/controls'
+import { DwellInput, PickerModal, PickerTile } from '../ui/controls'
 import { usePendingChoice } from '../ui/pending-choice'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
-import { ChooseIcon, CustomOrderIcon, EditIcon, PlusIcon, ReorderIcon, SortAlphaIcon } from '../ui/icons'
+import { ChooseIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
-import { LIBRARY } from '../core/phrases'
-import { tabsThatFit } from '../core/tab-rows'
+import { TAB_GAP, tabsThatFit } from '../core/tab-rows'
 
 /** How much of a category's name a tab shows, unless it is the tab showing. */
 const CLIP = 7
@@ -34,32 +36,70 @@ function TabLabel({ label, whole }: { label: string; whole: boolean }) {
   )
 }
 
+/** One of the tools on the tab showing: rename, reorder, delete. */
+function TabTool({
+  className,
+  label,
+  pressed,
+  onActivate,
+  children,
+}: {
+  className: string
+  label: string
+  pressed?: boolean
+  onActivate: () => void
+  children: React.ReactNode
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate)
+  return (
+    <span
+      className={cx('tab-tool', className, active && 'dwelling', pressed && 'is-on')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      {...props}
+    >
+      {children}
+      <span className="tab-tool-fill" key={active ? 'a' : 'i'} />
+    </span>
+  )
+}
+
 function FilterTab({
   label,
   active,
   onSelect,
   reorder,
+  drag,
+  held,
+  name,
+  tools,
 }: {
   label: string
   active: boolean
   onSelect: () => void
-  /** Present only in reorder mode, and never on a pinned tab. */
+  /** Present on every other category while one is in the air, and never on a pinned tab. */
   reorder?: ReorderProps
+  /** A mouse dragging it onto another, in edit mode — the one gesture a dwell has no need of lifting for. */
+  drag?: ReorderProps
+  /** This is the tab in the air — lifted by its own reorder tool. */
+  held?: boolean
+  /** What stands where the name does while it is being renamed. */
+  name?: React.ReactNode
+  /** The tab showing's own tools, in edit mode. */
+  tools?: React.ReactNode
 }) {
   const { settings } = useSettings()
   const [flash, setFlash] = useState(false)
   const handleActivate = useCallback(() => {
-    // Reordering takes precedence: while it is on, a tab is a thing to move
-    // rather than a thing to rename or select.
+    // While one is in the air, a tab is somewhere to put it.
     if (reorder) {
       reorder.onLiftOrDrop()
       return
     }
-    // **A tab goes to its category in every mode.** In edit mode it used to
-    // open the category for renaming instead, which left edit mode unable to
-    // move between categories at all: editing a phrase under another tab meant
-    // leaving the mode, going there and coming back. Renaming is the pencil
-    // among the bar's own tools now, acting on the tab that is showing.
+    // **A tab goes to its category in every mode.**
     onSelect()
     setFlash(true)
     setTimeout(() => setFlash(false), 300)
@@ -77,8 +117,8 @@ function FilterTab({
         active && 'active',
         dwelling && 'dwelling',
         flash && 'flashed',
-        reorder && 'reorderable',
-        reorder?.held && 'is-held',
+        tools ? 'has-tools' : null,
+        held && 'is-held',
         // Somewhere the held tab could go — every other category, while one is
         // in the air.
         reorder?.heldLabel && 'is-drop-zone',
@@ -88,30 +128,94 @@ function FilterTab({
       role="tab"
       aria-selected={active}
       aria-label={reorder ? reorderLabel(reorder, label, 'category') : label}
-      draggable={reorder ? true : undefined}
-      onDragStart={reorder?.onDragStart}
+      draggable={drag ? true : undefined}
+      onDragStart={drag?.onDragStart}
       onDragOver={
-        reorder &&
+        drag &&
         (e => {
           // Without this the browser refuses the drop outright.
           e.preventDefault()
-          reorder.onDragOver()
+          drag.onDragOver()
         })
       }
-      onDragEnd={reorder?.onDragEnd}
+      onDragEnd={drag?.onDragEnd}
       onDrop={
-        reorder &&
+        drag &&
         (e => {
           e.preventDefault()
-          reorder.onDrop()
+          drag.onDrop()
         })
       }
       {...props}
+      // Selected says it is the tab showing; disabled would say so of the
+      // tools inside it too, which are live.
+      aria-disabled={tools ? undefined : props['aria-disabled']}
       tabIndex={0}
     >
-      <TabLabel label={label} whole={active} />
+      {name ?? <TabLabel label={label} whole={active} />}
+      {tools && <span className="tab-tools">{tools}</span>}
       <div className="dwell-bar" key={dwelling ? 'a' : 'i'} />
     </div>
+  )
+}
+
+/**
+ * **The name of the tab showing, in edit mode, is where renaming starts** — a
+ * rest on it, or a click, makes it a field. Its whole name, as the tab showing
+ * draws it, and a fill along its foot as it is rested on.
+ */
+function TabName({ label, onRename }: { label: string; onRename: () => void }) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onRename)
+  return (
+    <span
+      className={cx('tab-name', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      role="button"
+      aria-label={`Rename ${label}`}
+      {...props}
+    >
+      <TabLabel label={label} whole />
+      <span className="tab-name-fill" key={active ? 'a' : 'i'} />
+    </span>
+  )
+}
+
+/**
+ * **The name of the tab showing, as a field**, while it is being renamed —
+ * typed into by the keyboard or Peri's own, and saved by Enter, by going to
+ * another tab or out of edit mode, or by the field losing the caret. Escape
+ * puts it back as it was.
+ */
+function RenameField({
+  value,
+  onChange,
+  onSave,
+  onCancel,
+}: {
+  value: string
+  onChange: (value: string) => void
+  onSave: () => void
+  onCancel: () => void
+}) {
+  return (
+    <DwellInput
+      className="tab-rename"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      onKeyDown={e => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onSave()
+        } else if (e.key === 'Escape') onCancel()
+      }}
+      onBlur={onSave}
+      aria-label="Category name"
+      autoFocus
+      // The caret after the name, where a rename usually goes on — "Medical"
+      // to "Medical history" — rather than before it.
+      onFocus={e => e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length)}
+    />
   )
 }
 
@@ -166,35 +270,23 @@ function MoreTab({
   )
 }
 
-/** The controls at the end of the bar: add, sort, reorder. */
-function FilterBarButton({
-  className,
-  label,
-  pressed,
-  disabled,
-  onActivate,
-  children,
-}: {
-  className: string
-  label: string
-  pressed?: boolean
-  disabled?: boolean
-  onActivate: () => void
-  children: React.ReactNode
-}) {
+/**
+ * **Adding a category, right after the last tab**, as a browser puts its new
+ * tab button: a bare plus, with a round wash behind it as it is rested on.
+ */
+function AddTab({ onActivate }: { onActivate: () => void }) {
   const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, { disabled })
+  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate)
   return (
     <div
-      className={cx('filter-tab filter-bar-btn', className, active && 'dwelling', pressed && 'is-on')}
+      className={cx('add-tab', active && 'dwelling')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
-      aria-label={label}
-      aria-pressed={pressed}
+      aria-label="Add category"
       {...props}
     >
-      {children}
-      <div className="dwell-bar" key={active ? 'a' : 'i'} />
+      <PlusIcon />
+      <span className="add-tab-fill" key={active ? 'a' : 'i'} />
     </div>
   )
 }
@@ -203,13 +295,10 @@ export function FilterBar({
   categories,
   activeFilter,
   onSelect,
-  onEditCategory,
+  editing,
   onAddCategory,
-  reordering,
-  isAlphabetical,
-  canRestoreOrder,
-  onToggleReorder,
-  onToggleSort,
+  onRename,
+  onDelete,
   onReorder,
   onLift,
 }: {
@@ -217,32 +306,68 @@ export function FilterBar({
   categories: { id: string; label: string; fixed?: boolean }[]
   activeFilter: string
   onSelect: (id: string) => void
-  onEditCategory?: (name: string) => void
+  /** Edit mode, where the tab showing carries its tools. */
+  editing?: boolean
   onAddCategory?: () => void
-  /** All of the below are edit-mode only. */
-  reordering?: boolean
-  /** Which arrangement is on show. */
-  isAlphabetical?: boolean
-  /** Whether an arrangement of the user's own exists to switch back to. */
-  canRestoreOrder?: boolean
-  onToggleReorder?: () => void
-  onToggleSort?: () => void
+  onRename?: (from: string, to: string) => void
+  /** Asks first — see `CategoryModal`. */
+  onDelete?: (name: string) => void
   onReorder?: (from: string, to: string) => void
   /** Announced when a tab is picked up — the styling alone says nothing aloud. */
   onLift?: (name: string) => void
 }) {
-  /** The tab that is showing, and whether it is a category somebody can rename. */
+  /** The tab that is showing, and whether it is a category somebody made — which has tools in edit mode. */
   const showing = categories.find(c => c.id === activeFilter)
-  const renameable = showing !== undefined && !showing.fixed
+  const ownTools = Boolean(editing) && showing !== undefined && !showing.fixed
   // A category is named by itself, so a key here is already something to say.
-  const { propsFor, release } = useReorder({ onReorder, onLift })
+  const { propsFor, release, held } = useReorder({ onReorder, onLift })
+
+  // Out of edit mode, or on to another tab, whatever was in the air is put
+  // back where it was — the tools that lifted it have gone.
+  useEffect(() => {
+    release()
+  }, [activeFilter, editing, release])
+
+  /**
+   * **Renaming the tab showing where it stands.** The name becomes a field and
+   * the reorder tool a bin; the pencil again saves it. Let go on another tab,
+   * or out of edit mode, as state that follows other state is let go here.
+   */
+  const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null)
+  // Whether this rename has been saved or put back already — the field goes as
+  // either happens, and a field going can tell it it has lost the caret.
+  const settled = useRef(true)
+  const startRenaming = (id: string) => {
+    settled.current = false
+    setRenaming({ id, value: id })
+  }
+  const finishRenaming = useCallback(() => {
+    if (settled.current || !renaming) return
+    settled.current = true
+    const to = renaming.value.trim()
+    setRenaming(null)
+    // Nothing, or the name it had, is no change; another category's name is a
+    // clash, and the old name stays.
+    const others = categories.filter(c => !c.fixed && c.id !== renaming.id).map(c => c.label.toLowerCase())
+    if (to && to !== renaming.id && !others.includes(to.toLowerCase())) onRename?.(renaming.id, to)
+  }, [renaming, categories, onRename])
+  const putBack = () => {
+    settled.current = true
+    setRenaming(null)
+  }
+  // **Going to another tab, or out of edit mode, saves it** — there is no
+  // control to save it with, the field being the name itself.
+  useEffect(() => {
+    if (renaming && (!ownTools || renaming.id !== activeFilter)) finishRenaming()
+  }, [renaming, ownTools, activeFilter, finishRenaming])
 
   /**
    * **One row of tabs**, the rest behind More — a phone held upright with
    * thirty categories was a screen of tabs and no board. Every
    * tab is laid out once more, unseen, to be measured (`.filter-tabs-measure`),
-   * and so are the two things More can say. All of them while the tabs are
-   * being arranged: a tab behind More is one nobody could pick up or drop on.
+   * and so are the two things More can say, and the tab showing with its tools.
+   * All of them while one is in the air: a tab behind More is one nobody could
+   * drop it on.
    */
   const tabsRef = useRef<HTMLDivElement>(null)
   const measureRef = useRef<HTMLDivElement>(null)
@@ -255,13 +380,20 @@ export function FilterBar({
     const measures = measureRef.current
     if (!bar || !measures) return
     const style = getComputedStyle(bar)
-    const room = bar.clientWidth - parseFloat(style.paddingLeft || '0') - parseFloat(style.paddingRight || '0')
+    const rowRoom = bar.clientWidth - parseFloat(style.paddingLeft || '0') - parseFloat(style.paddingRight || '0')
     const items = [...measures.children] as HTMLElement[]
-    const widths = items.slice(0, -2).map(e => e.offsetWidth)
-    const [more, moreNamed] = items.slice(-2).map(e => e.offsetWidth)
-    const fit = reordering ? widths.length : tabsThatFit(widths, room, k => (activeAt >= k ? moreNamed! : more!))
+    const widths = items.slice(0, -3).map(e => e.offsetWidth)
+    const [add, more, moreNamed] = items.slice(-3).map(e => e.offsetWidth)
+    // The add button follows the last tab on the same row, so the row is that
+    // much shorter for tabs.
+    const room = rowRoom - (onAddCategory ? add! + TAB_GAP : 0)
+    // A tab showing that More would hide is, in edit mode, drawn as itself
+    // before More, so its tools are there: room for it, and for More saying
+    // only "More". Otherwise More carries its name.
+    const hiddenShowing = ownTools ? widths[activeAt]! + TAB_GAP + more! : moreNamed!
+    const fit = held ? widths.length : tabsThatFit(widths, room, k => (activeAt >= k ? hiddenShowing : more!))
     setShown(fit)
-  }, [labels, activeAt, reordering, size])
+  }, [labels, activeAt, held, ownTools, renaming, size, onAddCategory])
   // Laid out again for a bar of another width, or text of another size.
   useLayoutEffect(() => {
     const bar = tabsRef.current
@@ -273,15 +405,36 @@ export function FilterBar({
     return () => observer.disconnect()
   }, [])
   const hidden = shown < categories.length
-  const hiding = hidden && activeAt >= shown ? categories[activeAt]!.label : null
+  const showingHidden = hidden && activeAt >= shown
+  // The tab showing, among those More hides: drawn as itself before More in
+  // edit mode, where it has tools; named on More otherwise.
+  const drawnBeforeMore = showingHidden && ownTools ? categories[activeAt]! : null
+  const hiding = showingHidden && !ownTools ? categories[activeAt]!.label : null
 
-  // Switching the mode off puts down whatever was in the air. Without this the
-  // tab stays held across the round trip, and the next dwell drops the
-  // forgotten one instead of lifting the tab under the pointer.
-  const toggleReorder = useCallback(() => {
-    release()
-    onToggleReorder?.()
-  }, [release, onToggleReorder])
+  /** The tab showing's tools: rename and reorder, or rename and delete while renaming. */
+  /** The tab showing's one tool: reorder, or the bin while it is being renamed. */
+  const toolsFor = (id: string) =>
+    renaming?.id === id ? (
+      <TabTool
+        className="delete-tool"
+        label={`Delete ${id}`}
+        onActivate={() => {
+          putBack()
+          onDelete?.(id)
+        }}
+      >
+        <TrashIcon />
+      </TabTool>
+    ) : (
+      <TabTool
+        className="reorder-tool"
+        label={held === id ? `Put ${id} back where it was` : `Move ${id}`}
+        pressed={held === id}
+        onActivate={() => propsFor(id).onLiftOrDrop()}
+      >
+        <GripIcon />
+      </TabTool>
+    )
 
   return (
     <div className="filter-bar-wrap" role="tablist" aria-label="Filter phrases by category">
@@ -289,26 +442,65 @@ export function FilterBar({
           scrolled: that needed six arrows for a dwell to move along it, and a
           tab off the end of it was a category nobody could see was there. */}
       <div ref={tabsRef} className="filter-tabs">
-        {(hidden ? categories.slice(0, shown) : categories).map(c => (
-          <FilterTab
-            key={c.id}
-            label={c.label}
-            active={activeFilter === c.id}
-            onSelect={() => onSelect(c.id)}
-            reorder={reordering && !c.fixed ? propsFor(c.id) : undefined}
-          />
-        ))}
+        {[
+          ...(hidden ? categories.slice(0, shown) : categories),
+          ...(drawnBeforeMore ? [drawnBeforeMore] : []),
+        ].map(c => {
+          const mine = ownTools && c.id === activeFilter
+          return (
+            <FilterTab
+              key={c.id}
+              label={c.label}
+              active={activeFilter === c.id}
+              onSelect={() => onSelect(c.id)}
+              reorder={held && held !== c.id && !c.fixed ? propsFor(c.id) : undefined}
+              drag={editing && !c.fixed ? propsFor(c.id) : undefined}
+              held={held === c.id}
+              name={
+                mine && renaming?.id === c.id ? (
+                  <RenameField
+                    value={renaming.value}
+                    onChange={value => setRenaming({ id: c.id, value })}
+                    onSave={finishRenaming}
+                    onCancel={putBack}
+                  />
+                ) : mine ? (
+                  <TabName label={c.label} onRename={() => startRenaming(c.id)} />
+                ) : undefined
+              }
+              tools={mine ? toolsFor(c.id) : undefined}
+            />
+          )
+        })}
         {hidden && (
           <MoreTab categories={categories} activeFilter={activeFilter} hiding={hiding} onSelect={onSelect} />
         )}
+        {onAddCategory && <AddTab onActivate={onAddCategory} />}
         {/* Every tab again, unseen and unreachable, to be measured — drawn as
             the tab showing is, its words the heaviest a tab's get. */}
         <div ref={measureRef} className="filter-tabs-measure" aria-hidden="true">
-          {categories.map(c => (
-            <span key={c.id} className="filter-tab active">
-              <TabLabel label={c.label} whole={c.id === activeFilter} />
-            </span>
-          ))}
+          {categories.map(c => {
+            const mine = ownTools && c.id === activeFilter
+            return (
+              <span key={c.id} className={cx('filter-tab active', mine && 'has-tools')}>
+                {mine && renaming?.id === c.id ? (
+                  <span className="tab-rename" />
+                ) : (
+                  <TabLabel label={c.label} whole={c.id === activeFilter} />
+                )}
+                {mine && (
+                  <span className="tab-tools">
+                    <span className="tab-tool">
+                      <GripIcon />
+                    </span>
+                  </span>
+                )}
+              </span>
+            )
+          })}
+          <span className="add-tab">
+            <PlusIcon />
+          </span>
           <span className="filter-tab filter-more active">
             More
             <ChooseIcon />
@@ -319,78 +511,6 @@ export function FilterBar({
           </span>
         </div>
       </div>
-
-      {/* The category tools sit at the end of the bar rather than in with the
-          tabs, where they would move every time a category was added or
-          renamed — the controls a user has to find are the ones that must not
-          move.
-
-          Adding and sorting share the first slot: adding a category mid-reorder
-          would drop whatever is in the air, so the two are never offered at
-          once, and the pair keeps a constant width either way. */}
-      {(onAddCategory || onEditCategory || onToggleReorder) && (
-        <div className="filter-bar-tools">
-          {reordering
-            ? onToggleSort && (
-                <FilterBarButton
-                  className="sort-order-tab"
-                  // The green fill says which arrangement is on, so the icon and
-                  // the name say it too rather than leaving colour to carry it.
-                  // Both then name the switch, since neither state is "off".
-                  label={
-                    isAlphabetical ? 'Sorted A to Z. Switch to your own order' : 'Your own order. Switch to A to Z'
-                  }
-                  pressed={isAlphabetical}
-                  // Nothing to switch to until there is an arrangement of their
-                  // own to come back to.
-                  disabled={isAlphabetical && !canRestoreOrder}
-                  onActivate={onToggleSort}
-                >
-                  {isAlphabetical ? <SortAlphaIcon /> : <CustomOrderIcon />}
-                </FilterBarButton>
-              )
-            : onAddCategory && (
-                <FilterBarButton className="add-category-tab" label="Add category" onActivate={onAddCategory}>
-                  <PlusIcon />
-                </FilterBarButton>
-              )}
-
-          {/* Renaming the tab that is showing. **Quiet rather than away** where
-              that tab is not one somebody made — Library, which holds every
-              phrase, and the two records — or while
-              the tabs are being arranged: the tools are aimed at by position,
-              and one that came and went would move the one beside it. */}
-          {onEditCategory && (
-            <FilterBarButton
-              className="rename-category-tab"
-              label={
-                reordering
-                  ? 'Finish reordering to rename a category'
-                  : renameable
-                    ? `Rename category: ${showing?.label}`
-                    : showing?.id === LIBRARY
-                      ? 'Library holds every phrase, so it cannot be renamed'
-                      : `${showing?.label ?? 'This tab'} is not a category, so it cannot be renamed`
-              }
-              disabled={reordering || !renameable}
-              onActivate={() => showing && onEditCategory(showing.id)}
-            >
-              <EditIcon />
-            </FilterBarButton>
-          )}
-
-          {onToggleReorder && (
-            <FilterBarButton
-              className="reorder-tab"
-              label={reordering ? 'Done reordering categories' : 'Reorder categories'}
-              pressed={reordering}
-              onActivate={toggleReorder}
-            >
-              <ReorderIcon />
-            </FilterBarButton>
-          )}
-        </div>
-      )}
     </div>
   )
 }

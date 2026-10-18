@@ -60,8 +60,8 @@ export async function openBoard(
   await page.goto('/')
   await expect(page.locator('.app, .still-talking').first()).toBeVisible()
   // **Off the page, where nothing answers.** The pointer starts at the corner,
-  // which is the top row's open space — and a rest there rests the app, so a
-  // test that left it there for a second found everything switched off.
+  // and a test that leaves it somewhere for a second finds whatever is there
+  // answering — open space that rests the app was there once.
   await page.mouse.move(-5, -5)
   return { errors }
 }

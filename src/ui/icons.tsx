@@ -249,6 +249,21 @@ export function ReorderIcon() {
   )
 }
 
+// **A drag pad**: six dots in two columns, the mark of something to pick up and
+// put down — the category tab's own handle, at its right edge.
+export function GripIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+      <circle cx="9" cy="6" r="1.7" />
+      <circle cx="15" cy="6" r="1.7" />
+      <circle cx="9" cy="12" r="1.7" />
+      <circle cx="15" cy="12" r="1.7" />
+      <circle cx="9" cy="18" r="1.7" />
+      <circle cx="15" cy="18" r="1.7" />
+    </svg>
+  )
+}
+
 /**
  * A screenful in one direction. Here rather than beside either bar because both
  * the phrase grid's rail and the category bar draw it, the same reason

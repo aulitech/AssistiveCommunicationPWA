@@ -37,6 +37,8 @@ export interface Reorder {
   propsFor: (key: string) => ReorderProps
   /** Puts down whatever is in the air — for switching the mode off. */
   release: () => void
+  /** What is in the air, if anything. */
+  held: string | null
 }
 
 export function useReorder({
@@ -94,7 +96,7 @@ export function useReorder({
     },
   })
 
-  return { propsFor, release }
+  return { propsFor, release, held }
 }
 
 /**

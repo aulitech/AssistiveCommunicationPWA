@@ -511,24 +511,31 @@
   background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-/* **Rest, the top row's open space** — see `RestSurface` in `topbar.tsx`.
-   Behind everything in the row: the row is its own stacking context, so the
-   surface sits over the row's ground and under all of what is on it. */
-.topbar { isolation: isolate; }
+/* **Rest, the open space in the message card's row of controls** — see
+   `RestSurface` in `topbar.tsx`. Behind everything in the row: the row is its
+   own stacking context, so the surface sits over the card's ground and under
+   all of what is on it. */
+.message-tools {
+  position: relative;
+  isolation: isolate;
+}
 .rest-surface {
   position: absolute;
   inset: 0;
   z-index: -1;
   cursor: pointer;
+  /* The card's own upper corners, inside its edge, so a wash fills the row and
+     nothing past it. */
+  border-radius: calc(1.25rem - 1px) calc(1.25rem - 1px) 0 0;
+  overflow: hidden;
 }
 
-/* **The row lets the pointer through to it wherever nothing answers**: the
-   cards, the rows in them and the padding round them pass it on, and what can
-   be worked — a control, a box, a field, a link — keeps it. A control's
-   invisible area past its edge is its own, and stays. */
-.topbar > :not(.rest-surface),
-.topbar > :not(.rest-surface) * { pointer-events: none; }
-.topbar :is([role='button'], [role='tab'], [role='option'], button, textarea, input, a) { pointer-events: auto; }
+/* **The row lets the pointer through to it wherever nothing answers**: its
+   groups pass it on, and the controls keep it. A control's invisible area past
+   its edge is its own, and stays. */
+.message-tools > :not(.rest-surface),
+.message-tools > :not(.rest-surface) * { pointer-events: none; }
+.message-tools :is([role='button'], button, input, a) { pointer-events: auto; }
 
 /* A rest filling, along the foot of the row, in the rest colour, over a wash of
    it in the open space. */
@@ -544,13 +551,73 @@
   animation: restPulse 1.6s ease-in-out infinite;
 }
 
+/* **Resume, over the row of controls while resting** — see `ResumeBar` in
+   `topbar.tsx`. Opaque, the brand's gold a little muted, the word near-black;
+   the card's upper corners, and a fill rising as it is rested on. */
+.resume-bar {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: none;
+  border-radius: calc(1.25rem - 1px) calc(1.25rem - 1px) 0 0;
+  background: color-mix(in srgb, var(--brand) 85%, #000);
+  /* Near-black, the app's own darkest, which the gold carries at about 10:1 —
+     white on it was under 2:1. */
+  color: var(--bg);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.resume-bar span { position: relative; }
+
+.resume-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0.2;
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+
+.resume-bar.dwelling::before { animation: dwellFillV var(--dwell-duration, 800ms) linear forwards; }
+
+/* **Paused**, large and in the middle of the screen while resting — over
+   everything, and letting the pointer through to what is under it, so it is
+   never in the way of the open space that resumes. */
+.paused-note {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-size: 4rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--rest);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.85);
+}
+
 @keyframes restPulse {
   50% { opacity: 0.5; }
 }
 
 /* Everything else, while resting. Dimmed because none of it will answer — but
    still legible, since reading the screen is most of why someone rests. */
-.app.resting .topbar > :not(.rest-surface),
+/* The row of controls itself is not dimmed, or the open space that resumes
+   would be dimmed with it: everything round it is, and everything in it. */
+.app.resting .topbar > :not(.text-display-wrap),
+.app.resting .text-display-wrap > :not(.message-wrap),
+.app.resting .message-wrap > :not(.message-tools),
+.app.resting .message-tools > :not(.rest-surface, .resume-bar),
 .app.resting .filter-bar-wrap,
 .app.resting .grid-wrapper,
 .app.resting .grid-scrollbar,

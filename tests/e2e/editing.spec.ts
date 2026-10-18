@@ -109,23 +109,71 @@ test('puts a deleted phrase back where it was', async ({ page }) => {
   await expect(messageBox(page)).toHaveValue(text)
 })
 
-test('moves between categories in edit mode, and renames with the pencil', async ({ page }) => {
+// **The tab showing carries its tools in edit mode**: none on Library; on a
+// category, a rest on its name makes it a field where it stands — the tab no
+// taller for it — and Enter saves it.
+test('moves between categories in edit mode, and renames one on its own tab', async ({ page }) => {
   await openBoard(page, { phrases: categories(['Food', 'Drinks']) })
   await editMode(page)
-  await expect(page.locator('.rename-category-tab')).toHaveAttribute('aria-disabled', 'true')
+  await expect(page.locator('.filter-tab[role="tab"] .tab-tools')).toHaveCount(0)
 
   await tab(page, 'Food').click()
 
   await expect(activeTab(page)).toHaveText('Food')
+  const before = (await activeTab(page).boundingBox())!
+  // The name arrived under the pointer that chose the tab, and answers once it
+  // has been aimed at: away, on the page, and back.
+  await page.mouse.move(before.x, before.y + 300, { steps: 4 })
+  await page.locator('.tab-name').click()
+  const field = activeTab(page).locator('input[aria-label="Category name"]')
+  await expect(field).toHaveValue('Food')
+  await expect(page.locator('.delete-tool')).toBeVisible()
+  expect(
+    (await activeTab(page).boundingBox())!.height,
+    'the tab grew as its name became a field',
+  ).toBeLessThanOrEqual(before.height + 1)
+  await field.fill('Meals')
+  await field.press('Enter')
+  await expect(activeTab(page)).toHaveText('Meals')
   await expect(page.locator('.edit-modal')).toHaveCount(0)
-  await page.locator('.rename-category-tab').click()
-  await expect(page.locator('.edit-modal')).toHaveAttribute('aria-label', 'Rename category')
 })
 
-// The question arrives under a pointer resting where Delete was, so the delete
-// that confirms has to be somewhere else — the far end of the row. The dialog
-// is shorter without its name field and re-centres, so nothing promises what
-// *is* under the pointer; only that it cannot delete.
+// **Reorder lifts the tab showing**, blue, and the next tab rested on is where
+// it goes.
+test('moves a category by its own reorder tool', async ({ page }) => {
+  await openBoard(page, { phrases: categories(['Drinks', 'Food', 'Greetings']) })
+  await editMode(page)
+  await tab(page, 'Greetings').click()
+  await page.locator('.reorder-tool').click()
+
+  const held = page.locator('.filter-tab.is-held')
+  await expect(held).toHaveText('Greetings')
+  const blue = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--held').trim(),
+  )
+  const probe = await page.evaluate(c => {
+    const el = document.createElement('div')
+    el.style.color = c
+    document.body.append(el)
+    const rgb = getComputedStyle(el).color
+    el.remove()
+    return rgb
+  }, blue)
+  // Asked until the tab's background has finished fading to it.
+  await expect
+    .poll(() => held.evaluate(el => getComputedStyle(el).backgroundColor), { message: 'the held tab is not blue' })
+    .toBe(probe)
+
+  await tab(page, 'Drinks').click()
+  await expect(page.locator('.filter-tab.is-held')).toHaveCount(0)
+  const order = await page
+    .locator('.filter-tabs > .filter-tab[role="tab"]')
+    .evaluateAll(els => els.map(e => e.getAttribute('aria-label')))
+  expect(order.slice(2)).toEqual(['Greetings', 'Drinks', 'Food'])
+})
+
+// The question arrives under a pointer resting where the bin was, on the tab,
+// so the delete that confirms has to be somewhere else.
 for (const [what, viewport] of [
   ['on a wide screen', { width: 1280, height: 900 }],
   ['on a phone held upright', { width: 390, height: 844 }],
@@ -138,19 +186,20 @@ for (const [what, viewport] of [
       // edit toggle's centre, and a click there lands on the microphone.
       await page.locator('.edit-toggle').dispatchEvent('click')
       await goTo(page, 'Food')
-      await page.locator('.rename-category-tab').click()
-      const del = page.locator('.edit-action-btn', { hasText: 'Delete' })
-      const at = (await del.boundingBox())!
-      await del.click()
+      // Aimed at, rather than arrived under the pointer: away, and back.
+      await page.mouse.move(viewport.width / 2, viewport.height / 2, { steps: 4 })
+      await page.locator('.tab-name').click()
+      const bin = page.locator('.delete-tool')
+      const at = (await bin.boundingBox())!
+      await bin.click()
 
       await expect(page.locator('.edit-modal[role="alertdialog"]')).toContainText('Delete Food?')
-      const confirm = (await del.boundingBox())!
+      const confirm = (await page.locator('.edit-action-btn', { hasText: 'Delete' }).boundingBox())!
       const x = at.x + at.width / 2
       const y = at.y + at.height / 2
       const covers =
         x >= confirm.x && x <= confirm.x + confirm.width && y >= confirm.y && y <= confirm.y + confirm.height
       expect(covers).toBe(false)
-      expect(confirm.x).toBeGreaterThan(at.x + at.width)
       expect(errors).toEqual([])
     })
   })

@@ -349,9 +349,16 @@ describe('leaving the mode', () => {
 // two modes are told apart by nothing but their own state.
 describe('the two reorder modes', () => {
   it('are separate', () => {
+    localStorage.setItem(
+      STORE_KEY,
+      JSON.stringify({ custom: [{ id: 'custom-kettle', text: 'Put the kettle on', category: 'Kitchen' }] }),
+    )
     renderApp()
     enterEditMode()
-    click($('.reorder-tab')) // the categories
+    // A category lifted by its own tool.
+    click($$('.filter-tab[role="tab"]').find(t => t.textContent === 'Kitchen'))
+    click($('.reorder-tool'))
+    expect($('.filter-tab.is-held')).not.toBeNull()
 
     expect(reorderBtn()?.getAttribute('aria-pressed')).toBe('false')
     expect($('.emergency-btn.reorderable')).toBeNull()

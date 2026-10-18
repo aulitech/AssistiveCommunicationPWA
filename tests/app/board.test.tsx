@@ -34,19 +34,91 @@ describe('resting', () => {
     settle()
   }
   const startResting = () => click(rest())
+  /** The pointer out of the row of controls, which Rest and Resume wait for. */
+  const leaveRow = () => {
+    fireEvent.pointerLeave($('.message-tools')!)
+    settle()
+  }
+  /** Out of the row and back onto Resume. */
+  const resume = () => {
+    leaveRow()
+    click($('.resume-bar'))
+  }
 
-  // **The top row's open space**: a surface behind everything in it, which the
-  // row lets the pointer through to wherever nothing answers. Where it is drawn
-  // and what reaches it is `e2e/layout.spec.ts`'s question; this is that it is
-  // there, and the bar it replaced is not.
-  it('is the open space of the top row, behind everything in it', () => {
+  // **The open space in the message card's row of controls**: a surface
+  // behind everything in that row, which the row lets the pointer through to
+  // wherever nothing answers. Where it is drawn and what reaches it is
+  // `e2e/layout.spec.ts`'s question; this is that it is there, and only there.
+  it('is the open space of the message card’s row of controls, and nowhere else', () => {
     renderApp()
-    expect($('.topbar > .rest-surface')).not.toBeNull()
-    expect($('.topbar > :first-child')?.classList.contains('rest-surface')).toBe(true)
+    expect($$('.rest-surface')).toHaveLength(1)
+    expect($('.message-wrap > .message-tools > .rest-surface')).not.toBeNull()
     expect($('.rest-btn'), 'the bar it replaced').toBeNull()
     const css = stylesheet()
-    expect(css).toMatch(/\.topbar > :not\(\.rest-surface\) \* \{ pointer-events: none; \}/)
-    expect(css).toMatch(/\.topbar :is\([^)]*\[role='button'\][^)]*textarea[^)]*\) \{ pointer-events: auto; \}/)
+    expect(css).toMatch(/\.message-tools > :not\(\.rest-surface\) \* \{ pointer-events: none; \}/)
+    expect(css).toMatch(/\.message-tools :is\([^)]*\[role='button'\][^)]*\) \{ pointer-events: auto; \}/)
+    expect(css, 'the rest of the top row passes the pointer on').not.toMatch(/\.topbar > :not\(\.rest-surface\)/)
+  })
+
+  // No ground of its own until it is rested on or resting: the row looks as
+  // it always did.
+  it('draws nothing of its own at rest', () => {
+    const rule = stylesheet().match(/\n\.rest-surface \{([^}]*)\}/)![1]
+    expect(rule).not.toMatch(/background/)
+  })
+
+  // **Resume, over the row of controls while resting** — opaque, in the
+  // brand's gold a little muted, the word near-black — and the way back.
+  it('covers the row of controls with Resume while resting, which resumes', () => {
+    renderApp()
+    expect($('.resume-bar')).toBeNull()
+
+    startResting()
+    const bar = $('.message-tools > .resume-bar')!
+    expect(bar.textContent).toBe('Resume')
+    expect(bar.getAttribute('aria-label')).toMatch(/^Resume\./)
+    const rule = stylesheet().match(/\n\.resume-bar \{([^}]*)\}/)![1]
+    expect(rule).toMatch(/background: color-mix\(in srgb, var\(--brand\) \d+%, #000\);/)
+    expect(rule).toMatch(/color: var\(--bg\);/)
+
+    resume()
+    expect($('.app')?.classList.contains('resting')).toBe(false)
+    expect($('.resume-bar')).toBeNull()
+  })
+
+  // Resume comes up where the rest was, under a pointer that has not moved,
+  // and Rest comes back where Resume was: **neither answers until the pointer
+  // has left the row** — or a gaze that stayed put would switch straight back.
+  it('waits for the pointer to leave the row before answering again', () => {
+    renderApp()
+    startResting()
+
+    click($('.resume-bar'))
+    expect($('.app')?.classList.contains('resting'), 'resumed without leaving the row').toBe(true)
+
+    resume()
+    expect($('.app')?.classList.contains('resting')).toBe(false)
+
+    click(rest())
+    expect($('.app')?.classList.contains('resting'), 'rested again without leaving the row').toBe(false)
+    leaveRow()
+    click(rest())
+    expect($('.app')?.classList.contains('resting')).toBe(true)
+  })
+
+  // **Paused, large and in the middle of the screen**, while resting — and
+  // never in the way of resuming.
+  it('says Paused in the middle of the screen while resting, and only then', () => {
+    renderApp()
+    expect($('.paused-note')).toBeNull()
+
+    startResting()
+    expect($('.paused-note')?.textContent).toBe('Paused')
+    expect($('.paused-note')?.getAttribute('role')).toBe('status')
+    expect(stylesheet()).toMatch(/\.paused-note \{[^}]*pointer-events: none;/)
+
+    resume()
+    expect($('.paused-note')).toBeNull()
   })
 
   // Dwell is this app's only input, so without a way to switch it off there is
@@ -85,7 +157,7 @@ describe('resting', () => {
   it('lets go again, and everything answers as before', () => {
     renderApp()
     startResting()
-    click(rest()) // resume
+    resume()
 
     expect($('.app')?.classList.contains('resting')).toBe(false)
     click(plainCell())

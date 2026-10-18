@@ -597,7 +597,8 @@ describe('the card', () => {
   it('puts the clipboard at the far left of the row, the modes in its middle, and the values at its right', () => {
     renderApp()
     const row = () => [...$('.message-tools')!.children].map(el => el.className.split(' ')[0])
-    expect(row()).toEqual(['tools-clipboard', 'tools-modes', 'tools-values'])
+    // And Rest, the open space behind them — see `RestSurface`.
+    expect(row()).toEqual(['tools-clipboard', 'tools-modes', 'tools-values', 'rest-surface'])
     expect(labels('.tools-clipboard')).toEqual(['Copy to clipboard', 'Paste from clipboard'])
     // Please after auto-speak: it is about how what is said comes out. Present
     // last, being about where it goes.

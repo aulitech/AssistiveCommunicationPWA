@@ -55,10 +55,13 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Resting',
     blocks: [
       text(
-        'Rest on any open space in the top row — anywhere that is not a button or the box you write in, such as the edges round the message box — and dwelling switches off everywhere else. Clicking there does the same. Use it to look at the screen, or away from it, without choosing anything.',
+        'Rest on any open space in the row of buttons at the top of the message box — anywhere in that row that is not a button, such as between :paste: and the modes — and dwelling switches off everywhere else. Clicking there does the same. Use it to look at the screen, or away from it, without choosing anything.',
       ),
       text(
-        'While it is on, the top row turns amber and nothing answers to a rest — the blue bar included, which dims to show it — so nothing can be said by accident. Rest on the open space again to switch dwelling back on.',
+        'While it is on, Paused shows in the middle of the screen, a gold Resume button covers that row, and nothing else answers to a rest — the blue bar included, which dims to show it — so nothing can be said by accident. Rest on Resume to switch dwelling back on.',
+      ),
+      text(
+        'After resting or resuming, move the pointer out of that row and back before it answers again, so a gaze that stays put does not switch straight back.',
       ),
     ],
   },
@@ -208,7 +211,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Putting the phrases in your own order',
     blocks: [
       text(
-        'You can also arrange a category by hand, the same way you arrange the category tabs. Turn on :edit: mode, open the category you want, and rest on :arrange: just under the order button at the top of the scrolling buttons.',
+        'You can also arrange a category by hand. Turn on :edit: mode, open the category you want, and rest on :arrange: just under the order button at the top of the scrolling buttons.',
       ),
       list(
         'Rest on a phrase to pick it up. It lifts, and the screen says what you are holding.',
@@ -316,9 +319,10 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Choose any phrase into an empty box to bring it in and change its wording. With words in the box, a phrase you choose goes in where the caret is; :clear: first to change a different phrase.',
         'A new phrase starts in the voice you last used, so adding several in a row takes one choice rather than one each.',
         'After a delete, or taking a phrase out of a category, :undo: where :clear: was puts it back where it was, until you start on something else.',
-        ':add: among the tools at the end of the category tabs makes a new category.',
-        ':edit: among those tools renames the category that is showing. Delete in the same box removes the category. It asks first, and its phrases stay in Library.',
-        ':arrange: at the end of those tools rearranges the tabs: choose a tab to pick it up, then choose where it should go. While it is on, the first tool switches the tabs between A to Z and your own order.',
+        ':add:, right after the last category tab, makes a new category.',
+        'On a category you made, the tab that is showing has :grip: at its right edge.',
+        'Rest on the name to change it: it turns into a box where it stands. Type the new name and press Enter, or just move on to another tab, to keep it. While the name is a box, :grip: becomes :delete:, the only button on the tab, which removes the category. It asks first, and its phrases stay in Library.',
+        ':grip: picks the tab up, and it turns blue. Rest on another tab to put it there, or on :grip: again to put it back.',
         'A category goes by itself once its last phrase is taken out, and an import leaves no empty ones behind. A new category you have not put anything in yet stays until you do.',
         'Use :add: at the end of the blue bar to add an emergency phrase.',
         ':arrange: beside it rearranges the blue bar: choose a phrase to pick it up, then choose where it should go. Choosing it again puts it back.',

@@ -80,6 +80,31 @@ function StopBar() {
   )
 }
 
+/**
+ * **Resume, over the row of controls while resting** — the open space that
+ * rested the app, covered by the one thing that brings it back, as Stop
+ * covers the top row while anything is said. The only control live while
+ * resting, so its dwell never depends on the resting state.
+ */
+function ResumeBar({ onResume, waiting }: { onResume: () => void; waiting: boolean }) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onResume, {
+    ignoresRest: true,
+    disabled: waiting,
+  })
+  return (
+    <button
+      type="button"
+      className={cx('resume-bar', active && 'dwelling')}
+      style={dwellVar(settings.actionDwellMs)}
+      aria-label="Resume. Switch dwell back on"
+      {...props}
+    >
+      <span>Resume</span>
+    </button>
+  )
+}
+
 function ActionButton({
   onSelect,
   className = '',
@@ -216,22 +241,35 @@ function ModeToggle({
 }
 
 /**
- * **Rest is the top row's open space** — a dwell or a click anywhere in it that
- * is not a control or a text box switches dwelling off, and the same again
- * switches it back on. It was a bar among the modes, the size of a lozenge; the
- * open space is the biggest target on the screen, and found without looking.
+ * **Rest is the open space in the message card's row of controls** — a dwell
+ * or a click anywhere in that row that is not a control switches dwelling off,
+ * and the same again switches it back on. It was a bar among the modes, the
+ * size of a lozenge; the gaps between the clipboard, the modes and the values
+ * are far bigger, and found without looking.
  *
  * A surface behind everything in the row (`.rest-surface`), which the row lets
- * the pointer through to wherever it has nothing that answers — the cards, the
- * rows in them and the padding round them pass it on; the controls and the
- * boxes keep it. The only control that stays live while the app is resting,
+ * the pointer through to wherever it has nothing that answers — its groups
+ * pass it on; the controls keep it. Only this row: the rest of the card is the
+ * words, and the padding round it is nothing. The only control that stays live while the app is resting,
  * since it is the way back: its own dwell never depends on the resting state.
  * No icon and no word: the name lives in `aria-label`, and the state is told by
  * the row dimming over a wash of the rest colour.
  */
-function RestSurface({ resting, onToggle }: { resting: boolean; onToggle: () => void }) {
+function RestSurface({
+  resting,
+  onToggle,
+  waiting,
+}: {
+  resting: boolean
+  onToggle: () => void
+  /** Until the pointer has left the row — see `mustLeave` in `Topbar`. */
+  waiting: boolean
+}) {
   const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onToggle, { ignoresRest: true })
+  const { active, props } = useDwellControl(settings.actionDwellMs, onToggle, {
+    ignoresRest: true,
+    disabled: waiting,
+  })
   return (
     <div
       className={cx('rest-surface', resting && 'is-resting', active && 'dwelling')}
@@ -562,9 +600,21 @@ export function Topbar({
     void linkInput.pasteFromClipboard().then(onPasted)
   }, [linkInput, onPasted])
 
+  /**
+   * **Rest and Resume answer once, then wait for the pointer to leave their
+   * row.** Each comes up where the other was, under a pointer that has not
+   * moved, and a gaze that stays put would otherwise switch dwelling straight
+   * back — so after either, neither answers until the pointer has been out of
+   * the row of controls and come back.
+   */
+  const [mustLeave, setMustLeave] = useState(false)
+  const toggleRest = useCallback(() => {
+    setMustLeave(true)
+    onToggleRest()
+  }, [onToggleRest])
+
   return (
     <header className="topbar">
-      <RestSurface resting={resting} onToggle={onToggleRest} />
       {/* At the left, as the menu is at the right, because it is the same kind
           of thing: a surface the whole app shares, rather than anything about
           the message in the box. It stays put in both modes — on a device that cannot type without it,
@@ -603,7 +653,7 @@ export function Topbar({
               the far left, the modes in the middle — the microphone, edit,
               auto-speak — and the language and the voice at the right, with
               delete after them in edit mode, as far from Save as the card goes. */}
-          <div className="message-tools">
+          <div className="message-tools" onPointerLeave={() => setMustLeave(false)}>
             <div className="tools-clipboard">
               {/* Paste in both modes, meaning the same thing either way; copy only
                   outside edit mode, where the message is what there is to copy.
@@ -750,6 +800,10 @@ export function Topbar({
                 </ActionButton>
               )}
             </div>
+            {/* **Rest is this row's open space** — see `RestSurface`. Last, and
+                behind everything in the row. */}
+            <RestSurface resting={resting} onToggle={toggleRest} waiting={mustLeave} />
+            {resting && <ResumeBar onResume={toggleRest} waiting={mustLeave} />}
           </div>
 
           {/* **The line the words are written on**: the slot that empties the box
