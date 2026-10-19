@@ -10,7 +10,8 @@
 // which covered the very phrases being edited and had to be got out of before
 // anything else could be reached. So the one box does both jobs and the rail
 // in it changes with the mode: clear, copy, paste and speak become start a new
-// phrase, paste, delete and save. The controls stay in the same places,
+// phrase, paste and save — deleting being the bin on the phrase open in the
+// box, as it is on the tab showing. The controls stay in the same places,
 // which is what makes the mode a change of meaning rather than a change of
 // layout.
 
@@ -25,7 +26,7 @@ import { useCaretDwell } from '../ui/caret'
 import { AfterText, PLACE_AGAIN } from '../ui/after-text'
 import { useDwellControl } from '../ui/dwell'
 import { pasteInto, useLinkInput, type PasteResult } from '../ui/link-input'
-import { useFocusedField } from '../ui/typing'
+import { insertText, useFocusedField } from '../ui/typing'
 import {
   AutoSpeakIcon,
   CheckIcon,
@@ -40,7 +41,6 @@ import {
   QuestionIcon,
   SpeakIcon,
   StopIcon,
-  TrashIcon,
   UndoIcon,
 } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
@@ -301,9 +301,7 @@ export function Topbar({
   resting,
   onToggleRest,
   onSavePhrase,
-  onDeletePhrase,
   undoDelete,
-  removingFrom,
   onSpeak,
   onCopy,
   onPasted,
@@ -326,9 +324,8 @@ export function Topbar({
   onToggleKeyboard: () => void
   resting: boolean
   onToggleRest: () => void
-  /** Both of these change the board, so the screen does them, not the editor. */
+  /** It changes the board, so the screen does it, not the editor. */
   onSavePhrase: () => void
-  onDeletePhrase: () => void
   /**
    * The phrase just deleted, while it can still be put back — see
    * `lastDeleted` in `talk.tsx`. It takes the slot that starts a new phrase,
@@ -336,8 +333,6 @@ export function Topbar({
    * blank.
    */
   undoDelete: { words: string; undo: () => void } | null
-  /** The category the bin takes the phrase out of, where it only does that — see `talk.tsx`. */
-  removingFrom: string | null
   /** Both of these are how a message leaves, which the screen keeps a record of. */
   onSpeak: () => void
   onCopy: () => void
@@ -372,7 +367,7 @@ export function Topbar({
     [settings, update],
   )
   const togglePlease = useCallback(() => update({ please: !settings.please }), [settings.please, update])
-  const { text, setText, showUndo, canClear, clearOrUndo, textareaRef, trackCursor, setCursor } = composer
+  const { text, setText, showUndo, canClear, clear, clearOrUndo, textareaRef, trackCursor, setCursor } = composer
   const {
     draft,
     isUntouched,
@@ -649,8 +644,8 @@ export function Topbar({
         <div className="message-wrap">
           {/* **The card's row of controls, above the line**: the clipboard at
               the far left, the modes in the middle — the microphone, edit,
-              auto-speak — and the language and the voice at the right, with
-              delete after them in edit mode, as far from Save as the card goes. */}
+              auto-speak — and the language, the voice and the menu at the
+              right. */}
           <div className="message-tools" onPointerLeave={() => setMustLeave(false)}>
             <div className="tools-clipboard">
               {/* Paste in both modes, meaning the same thing either way; copy only
@@ -776,27 +771,6 @@ export function Topbar({
                   )}
                 </div>
               )}
-              {editMode && (
-                <ActionButton
-                  // **Not shown until there is something to delete** — a phrase
-                  // on the board, rather than a new one being written. Hidden
-                  // rather than taken away, so its place is kept and the
-                  // language and the voice beside it never slide under a
-                  // resting pointer as it comes and goes.
-                  className={cx('in-card danger', draft.isNew && 'is-absent')}
-                  onSelect={onDeletePhrase}
-                  label={
-                    draft.kept
-                      ? `Forget this ${draft.kept}`
-                      : removingFrom
-                        ? `Take out of ${removingFrom}`
-                        : 'Delete phrase'
-                  }
-                  disabled={draft.isNew}
-                >
-                  <TrashIcon />
-                </ActionButton>
-              )}
               {/* **The menu, at the upper right of the card**, where an app's
                   menu is looked for — and well clear of the voice, being about
                   the app rather than the message. Back sits in the same corner
@@ -887,6 +861,31 @@ export function Topbar({
                   onPaste={linkInput.onPaste}
                   onDrop={linkInput.onDrop}
                   onDragOver={linkInput.onDragOver}
+                  // **Enter does what the primary does** — Save in edit mode,
+                  // Speak otherwise — and **Escape what the slot at the line's
+                  // left end does**, emptying the box: Clear, or start a new
+                  // phrase. Enter with any modifier is a new line, which a
+                  // textarea gives Shift alone.
+                  onKeyDown={e => {
+                    if (e.nativeEvent.isComposing) return
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      if (editMode) {
+                        if (!isUntouched) startNew()
+                      } else clear()
+                      return
+                    }
+                    if (e.key !== 'Enter') return
+                    e.preventDefault()
+                    if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) {
+                      insertText(e.currentTarget, '\n')
+                      return
+                    }
+                    if (e.repeat) return
+                    if (editMode) {
+                      if (draft.canSave) onSavePhrase()
+                    } else if (text) onSpeak()
+                  }}
                   {...caret.props}
                   onClick={track}
                   onKeyUp={track}

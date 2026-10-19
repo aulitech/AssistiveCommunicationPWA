@@ -39,34 +39,39 @@ function renderApp() {
 const STORE_KEY = 'dwellspeak_phrase_store_v2'
 const storedStore = () => JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}')
 
-// The add and reorder controls carry `.emergency-btn` for their styling, so the
-// phrases are everything that is not one of them.
+// The add control carries `.emergency-btn` for its styling, so the phrases
+// are everything that is not one.
 const buttons = () => $$('.emergency-btn:not(.emergency-tool)')
 const labels = () => buttons().map(b => b.textContent)
 const named = (text: string) => buttons().find(b => b.textContent === text)
 const editToggle = () => $('.edit-toggle')
 const enterEditMode = () => click(editToggle())
-const reorderBtn = () => $('.emergency-reorder')
+/** The drag pad on the emergency phrase open in the box — there is no reorder mode. */
+const pad = () => $('.emergency-btn .reorder-tool')
+const bin = () => $('.emergency-btn .delete-tool')
 const addBtn = () => $('.emergency-add')
-const startReordering = () => {
-  enterEditMode()
-  click(reorderBtn())
+/** Empty the box, so the next phrase chosen opens rather than going in beside it. */
+const startNew = () => click(iconBtn('Start a new phrase'))
+/** Open a phrase in the box, which is what puts the pad on it, and lift it. */
+const lift = (text: string) => {
+  click(named(text))
+  click(pad())
 }
-/** Pick a phrase up by dwell, then drop it on another. */
+/** Pick a phrase up by its pad, then drop it on another. */
 const dwellDrag = (from: string, to: string) => {
-  click(named(from))
+  lift(from)
   click(named(to))
 }
-/** The same move by mouse, which is a native HTML5 drag. */
+/** The same move by mouse: the pad dragged onto another. */
 const mouseDrag = (from: string, to: string) => {
-  fireEvent.dragStart(named(from)!)
+  click(named(from))
+  fireEvent.dragStart(pad()!)
   settle()
   fireEvent.dragOver(named(to)!)
   fireEvent.drop(named(to)!)
   settle()
 }
-// In edit mode the message box holds the phrase being edited, and the rail
-// beside it carries what were the dialog's buttons.
+// In edit mode the message box holds the phrase being edited.
 const box = () => $<HTMLTextAreaElement>('.text-display')!
 const iconBtn = (label: string) => $$('.icon-btn').find(b => b.getAttribute('aria-label') === label)
 const writePhrase = (value: string) => {
@@ -94,23 +99,43 @@ describe('the emergency bar as it ships', () => {
     expect(spoken.at(-1)).toBe('Help me, please!')
   })
 
-  it('offers no reorder control outside edit mode', () => {
+  it('offers nothing to arrange outside edit mode', () => {
     renderApp()
-    expect(reorderBtn()).toBeNull()
+    expect($('.emergency-btn .tab-tool')).toBeNull()
     expect(addBtn()).toBeNull()
   })
 
-  it('offers one in edit mode', () => {
+  // As the tab showing carries its own: the phrase open in the box, and only it.
+  it('puts a drag pad on the phrase open in the box, and on no other', () => {
     renderApp()
     enterEditMode()
-    expect(reorderBtn()).not.toBeNull()
+    expect(pad()).toBeNull()
+    expect(addBtn()).not.toBeNull()
+
+    const [first, second] = labels() as string[]
+    click(named(first))
+    expect(named(first)?.querySelector('.reorder-tool')).not.toBeNull()
+    expect(named(second)?.querySelector('.tab-tool')).toBeNull()
+
+    startNew()
+    click(named(second))
+    expect(named(first)?.querySelector('.tab-tool')).toBeNull()
+    expect(named(second)?.querySelector('.reorder-tool')).not.toBeNull()
+  })
+
+  // The bar's own reorder mode is gone, and so is its toggle.
+  it('has no reorder toggle of its own', () => {
+    renderApp()
+    enterEditMode()
+    expect($('.emergency-reorder')).toBeNull()
+    expect($$('.emergency-tool')).toHaveLength(1)
   })
 })
 
 describe('moving an emergency phrase', () => {
-  it('moves one by dwelling it and then its destination', () => {
+  it('moves one by its drag pad and then its destination', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const [first, , third] = labels() as string[]
 
     dwellDrag(first, third)
@@ -118,9 +143,9 @@ describe('moving an emergency phrase', () => {
     expect(labels().indexOf(first)).toBe(labels().indexOf(third) + 1)
   })
 
-  it('moves one by mouse drag', () => {
+  it('moves one by mouse, dragging the pad', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const [first, , third] = labels() as string[]
 
     mouseDrag(first, third)
@@ -130,7 +155,7 @@ describe('moving an emergency phrase', () => {
 
   it('moves leftwards as well as rightwards', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const before = labels()
     const last = before[before.length - 1]!
 
@@ -141,7 +166,7 @@ describe('moving an emergency phrase', () => {
 
   it('persists the order and restores it on reload', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const [first, , third] = labels() as string[]
     dwellDrag(first, third)
     const arranged = labels()
@@ -153,16 +178,18 @@ describe('moving an emergency phrase', () => {
     expect(labels()).toEqual(arranged)
   })
 
-  it('puts a lifted phrase back when dwelled a second time', () => {
+  it('puts a lifted phrase back when its pad is dwelled a second time', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const before = labels()
 
-    click(named(before[1]!)) // lift
+    lift(before[1]!)
     expect(named(before[1]!)?.className).toMatch(/is-held/)
-    click(named(before[1]!)) // and put down
+    expect(pad()?.getAttribute('aria-pressed')).toBe('true')
+    click(pad()) // and put down
 
     expect(labels()).toEqual(before)
+    expect($('.emergency-btn.is-held')).toBeNull()
     expect(storedStore().emergencyOrder ?? []).toEqual([])
   })
 
@@ -170,14 +197,13 @@ describe('moving an emergency phrase', () => {
   // bar somebody arranged to be reached without looking.
   it('keeps a reworded phrase where it was put', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const before = labels()
     dwellDrag(before[0]!, before[2]!)
-    const moved = labels()
-    const at = moved.indexOf(before[0]!)
+    const at = labels().indexOf(before[0]!)
 
-    click(reorderBtn()) // back to editing
-    click(named(before[0]!))
+    // Still the one open in the box.
+    expect(box().value).toBe(before[0])
     writePhrase('Reworded')
     click(iconBtn('Save phrase'))
 
@@ -186,12 +212,11 @@ describe('moving an emergency phrase', () => {
 
   it('files a phrase added later at the end, without disturbing the order', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const arranged = labels()
     dwellDrag(arranged[0]!, arranged[2]!)
     const before = labels()
 
-    click(reorderBtn()) // leave reorder mode to reach the add button
     click(addBtn())
     writePhrase('I need my inhaler')
     click(iconBtn('Save phrase'))
@@ -201,56 +226,105 @@ describe('moving an emergency phrase', () => {
 
   it('drops a deleted phrase out of the stored order', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const arranged = labels()
     dwellDrag(arranged[0]!, arranged[2]!)
     const doomed = labels()[1]!
     const ids = storedStore().emergencyOrder
     expect(ids).toHaveLength(arranged.length)
 
-    click(reorderBtn())
+    startNew()
     click(named(doomed))
-    click(iconBtn('Delete phrase'))
+    click(bin())
+    click(
+      [...document.body.querySelectorAll<HTMLElement>('.edit-action-btn')].find(b => b.textContent === 'Delete'),
+    )
 
     expect(storedStore().emergencyOrder).toHaveLength(ids.length - 1)
     expect(labels()).not.toContain(doomed)
   })
 })
 
-describe('what a dwell does while reordering', () => {
-  it('moves rather than loads the phrase into the editor', () => {
+// The phrase open in the box carries its bin from the moment it is opened.
+describe('deleting an emergency phrase', () => {
+  it('puts the bin against its left edge and the pad against its right', () => {
     renderApp()
-    startReordering()
-    click(buttons()[0])
-    expect(box().value).toBe('')
+    enterEditMode()
+    const first = labels()[0]!
+    click(named(first))
+
+    const tools = [...named(first)!.querySelectorAll('.cell-tools > .tab-tool')]
+    expect(tools.map(t => t.getAttribute('aria-label'))).toEqual([
+      'Delete this emergency phrase',
+      'Move this emergency phrase',
+    ])
   })
 
-  it('loads it again once reordering is switched off', () => {
+  it('asks first, and keeping it keeps it', () => {
     renderApp()
-    startReordering()
-    click(reorderBtn())
-    const first = labels()[0]
-    click(buttons()[0])
+    enterEditMode()
+    const first = labels()[0]!
+    click(named(first))
+    click(bin())
+    const dialog = document.body.querySelector<HTMLElement>('[role="alertdialog"]')
+    expect(dialog?.textContent).toContain('Delete this emergency phrase?')
+    click(
+      [...document.body.querySelectorAll<HTMLElement>('.edit-action-btn')].find(b => b.textContent === 'Keep it'),
+    )
+
+    expect(document.body.querySelector<HTMLElement>('[role="alertdialog"]')).toBeNull()
+    expect(labels()).toContain(first)
+  })
+
+  it('takes it off the bar when it is confirmed, and Undo puts it back', () => {
+    renderApp()
+    enterEditMode()
+    const first = labels()[0]!
+    click(named(first))
+    click(bin())
+    click(
+      [...document.body.querySelectorAll<HTMLElement>('.edit-action-btn')].find(b => b.textContent === 'Delete'),
+    )
+    expect(labels()).not.toContain(first)
+
+    click($$('.icon-btn').find(b => /^Undo/.test(b.getAttribute('aria-label') ?? '')))
+    expect(labels()).toContain(first)
+  })
+})
+
+describe('what a dwell does while one is lifted', () => {
+  it('drops it rather than opening the phrase dwelled', () => {
+    renderApp()
+    enterEditMode()
+    const [first, second] = labels() as string[]
+    lift(first)
+    click(named(second))
     expect(box().value).toBe(first)
   })
 
-  // Adding a phrase mid-reorder would drop whatever is in the air, so the add
-  // control goes quiet rather than away — moving it is worse than disabling it.
-  it('keeps the add control in place but inert', () => {
+  it('opens a phrase again once it is put down', () => {
     renderApp()
     enterEditMode()
-    const before = $$('.emergency-tool').length
-    expect(addBtn()?.getAttribute('aria-disabled')).toBeNull()
+    const [first, second, third] = labels() as string[]
+    dwellDrag(first, second)
+    startNew()
+    click(named(third))
+    expect(box().value).toBe(third)
+  })
 
-    click(reorderBtn())
+  // A new phrase is another phrase in the box, so whatever was in the air is
+  // put back where it was.
+  it('puts it back when a new emergency phrase is started', () => {
+    renderApp()
+    enterEditMode()
+    const before = labels()
+    lift(before[0]!)
 
-    expect($$('.emergency-tool')).toHaveLength(before)
-    expect(addBtn()?.getAttribute('aria-disabled')).toBe('true')
     click(addBtn())
-    // Still an ordinary new phrase: the add did not fire, and it is saved to Library.
-    writePhrase('Still an ordinary phrase')
-    click(iconBtn('Save phrase'))
-    expect($('.toast')?.textContent).toBe('Added to Library')
+
+    expect($('.emergency-btn.is-held')).toBeNull()
+    expect($('.emergency-btn.is-drop-zone')).toBeNull()
+    expect(labels()).toEqual(before)
   })
 })
 
@@ -259,10 +333,10 @@ describe('what a dwell does while reordering', () => {
 describe('the cue that something is held', () => {
   it('marks the held button and every other as somewhere to drop it', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const [first, second] = labels() as string[]
 
-    click(named(first))
+    lift(first)
 
     expect(named(first)?.className).toMatch(/is-held/)
     expect(named(first)?.className).not.toMatch(/is-drop-zone/)
@@ -271,10 +345,10 @@ describe('the cue that something is held', () => {
 
   it('announces the lift, since styling says nothing aloud', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const [first] = labels() as string[]
 
-    click(named(first))
+    lift(first)
 
     expect($('.toast')?.textContent).toContain(first)
     expect($('[role="status"]')).not.toBeNull()
@@ -282,7 +356,7 @@ describe('the cue that something is held', () => {
 
   it('clears every trace of it once dropped', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const [first, , third] = labels() as string[]
 
     dwellDrag(first, third)
@@ -291,63 +365,56 @@ describe('the cue that something is held', () => {
     expect($('.emergency-btn.is-drop-zone')).toBeNull()
   })
 
-  it('says what dwelling each button would now do', () => {
+  it('says what dwelling the pad and each button would now do', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const [first, second] = labels() as string[]
-    expect(named(first)?.getAttribute('aria-label')).toBe(`Move ${first}`)
-
     click(named(first))
+    expect(pad()?.getAttribute('aria-label')).toBe('Move this emergency phrase')
 
-    expect(named(first)?.getAttribute('aria-label')).toMatch(/^Holding /)
+    click(pad())
+
+    expect(pad()?.getAttribute('aria-label')).toBe('Put it back where it was')
     expect(named(second)?.getAttribute('aria-label')).toBe(`Drop ${first} here`)
   })
 })
 
-describe('leaving the mode', () => {
+describe('leaving edit mode', () => {
   // Leaving with a phrase in the air used to leave it there. Coming back, the
-  // next dwell would drop the forgotten one rather than lift the one under the
+  // next dwell would drop the forgotten one rather than open the one under the
   // pointer.
-  it('empties its hands when reordering is switched off', () => {
-    renderApp()
-    startReordering()
-    const before = labels()
-
-    click(named(before[1]!)) // lift
-    click(reorderBtn()) // leave reorder mode holding it
-    click(reorderBtn()) // and come back
-
-    click(named(before[2]!))
-    expect(labels()).toEqual(before)
-    expect(named(before[2]!)?.className).toMatch(/is-held/)
-  })
-
   it('does not stay armed after edit mode is left and re-entered', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
+    const before = labels()
+    lift(before[1]!)
     click(editToggle()) // leave edit mode
     enterEditMode()
 
-    expect(reorderBtn()?.getAttribute('aria-pressed')).toBe('false')
-    expect(addBtn()?.getAttribute('aria-disabled')).toBeNull()
+    expect($('.emergency-btn.is-held')).toBeNull()
+    expect($('.emergency-btn.is-drop-zone')).toBeNull()
+    startNew()
+    click(named(before[2]!))
+    expect(labels()).toEqual(before)
+    expect(box().value).toBe(before[2])
   })
 
-  // The bar's whole job is speaking. Reordering is a mode inside edit mode, and
-  // edit mode is the one place the bar does not speak.
+  // The bar's whole job is speaking, and edit mode is the one place it does not.
   it('speaks again as soon as edit mode is left', () => {
     renderApp()
-    startReordering()
+    enterEditMode()
     const first = labels()[0]!
+    lift(first)
     click(editToggle()) // leave edit mode
 
     expect(named(first)?.getAttribute('aria-label')).toBe(first)
-    expect($('.emergency-btn.reorderable')).toBeNull()
+    expect($('.emergency-btn .tab-tool')).toBeNull()
+    expect($('.emergency-btn.is-drop-zone')).toBeNull()
   })
 })
 
-// Tidying the category tabs must not arm the bar somebody speaks with, and the
-// two modes are told apart by nothing but their own state.
-describe('the two reorder modes', () => {
+// Tidying the category tabs must not arm the bar somebody speaks with.
+describe('a tab and an emergency phrase in the air', () => {
   it('are separate', () => {
     localStorage.setItem(
       STORE_KEY,
@@ -365,11 +432,10 @@ describe('the two reorder modes', () => {
     enterEditMode()
     // A category lifted by its own tool.
     click($$('.filter-tab[role="tab"]').find(t => t.textContent === 'Kitchen'))
-    click($('.reorder-tool'))
+    click($('.filter-tab .reorder-tool'))
     expect($('.filter-tab.is-held')).not.toBeNull()
 
-    expect(reorderBtn()?.getAttribute('aria-pressed')).toBe('false')
-    expect($('.emergency-btn.reorderable')).toBeNull()
+    expect($('.emergency-btn.is-drop-zone')).toBeNull()
 
     const first = labels()[0]
     click(buttons()[0])

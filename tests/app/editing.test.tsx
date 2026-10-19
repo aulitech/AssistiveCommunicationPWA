@@ -1,7 +1,8 @@
 // Writing a phrase and rewording one, which in edit mode happens in the message box rather than in a dialog.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { fireEvent, act } from '@testing-library/react'
-import { scrolledIntoView, unmeasuredGrid } from '../setup'
+import { scrolledIntoView, spoken, unmeasuredGrid } from '../setup'
+import { stylesheet } from '../stylesheet'
 import {
   $$,
   $,
@@ -20,6 +21,8 @@ import {
   writePhrase,
   savePhrase,
   deletePhrase,
+  toolsOnOpen,
+  binOnOpen,
   clearMessage,
 } from './harness'
 
@@ -205,7 +208,7 @@ describe('placing the caret in a phrase by dwell', () => {
     aimAt(200, 100)
 
     expect(document.activeElement).toBe(field())
-    expect(iconBtn('Delete phrase')?.classList.contains('is-absent'), 'no phrase open').toBe(false)
+    expect(toolsOnOpen(), 'no phrase open').not.toBeNull()
   })
 
   // The hook's own key handling cancels Space so it cannot scroll the grid.
@@ -315,9 +318,6 @@ describe('edit mode', () => {
       searched.every(t => /want/i.test(t)),
       'writing the phrase did not search the board',
     ).toBe(true)
-    // Arranging now would arrange only what matched, so it waits, and says why.
-    const arrange = () => $('.reorder-btn')!
-    expect(arrange().getAttribute('aria-label')).toMatch(/start a new phrase first/i)
 
     // A phrase opened off the narrowed board is finished: the whole tab is back.
     const chosen = cells()[0].textContent
@@ -325,7 +325,6 @@ describe('edit mode', () => {
     expect(box().value).toBe(chosen)
     const opened = cells().map(c => c.textContent)
     expect(opened).toEqual(board.slice(0, opened.length))
-    expect(arrange().getAttribute('aria-label')).toBe('Arrange the phrases by hand')
 
     writePhrase('wat')
     click(iconBtn('Start a new phrase'))
@@ -939,10 +938,16 @@ describe('opening the phrase the message is', () => {
 
     enterEditMode()
 
-    expect(iconBtn('Delete phrase')?.classList.contains('is-absent'), 'no phrase open').toBe(false)
     expect(box().value).toBe(text)
     expect(iconBtn('Save phrase')?.disabled, 'a phrase cannot duplicate itself').toBe(false)
-    expect(iconBtn('Delete phrase')).toBeDefined()
+    // Food does not hold it, so it has no cell here to carry a tool — until
+    // its words change, when it comes to the top of the board with its bin and
+    // no drag pad, there being no place for it in this tab's order.
+    expect(toolsOnOpen()).toBeNull()
+    writePhrase(`${text} now`)
+    expect(cells()[0].textContent).toBe(text)
+    expect(cells()[0].querySelector('.delete-tool')).not.toBeNull()
+    expect(cells()[0].querySelector('.reorder-tool')).toBeNull()
   })
 
   // Saving it unchanged leaves one phrase, not two — the whole of what the
@@ -1014,6 +1019,8 @@ describe('opening the phrase the message is', () => {
     click(tab('Greetings'))
     click(cellFor('Good morning')!)
     enterEditMode()
+    // Changed, so the board can be chosen from — see `choosing` in talk.tsx.
+    writePhrase('Good morning ')
 
     const other = cells().find(c => c.textContent !== 'Good morning')!
     fireEvent.pointerEnter(other)
@@ -1021,6 +1028,227 @@ describe('opening the phrase the message is', () => {
     settle()
 
     expect(box().value, 'the board was deaf to the next dwell').not.toBe('Good morning')
+  })
+})
+
+/**
+ * **Nothing is chosen off the board while the box holds a phrase as it was
+ * opened.** Choosing into words puts a phrase in at the caret, so a rest meant
+ * only for reading would put a second phrase into the first. Changed, it is
+ * being built on, and choosing goes in as before; an empty box opens it.
+ */
+describe('choosing while a phrase is open in the box', () => {
+  const sos = () => $$('.emergency-btn:not(.emergency-tool)')[0]
+
+  it('takes nothing off the board, and magnifies nothing, until its words are changed', () => {
+    renderApp()
+    click(editToggle())
+    const first = plainCell()
+    const text = first.textContent!
+    click(first)
+    expect(box().value).toBe(text)
+
+    const other = plainCell([text])
+    expect(other.className).toMatch(/is-inert/)
+    expect(other.getAttribute('aria-disabled')).toBe('true')
+    click(other)
+    expect(box().value, 'a phrase went into the one open').toBe(text)
+    // Not magnified either, while nothing on it is to be chosen.
+    const magnified = () => other.closest('.phrase-place')!.classList.contains('is-magnified')
+    fireEvent.pointerOver(other)
+    act(() => void vi.advanceTimersByTime(20))
+    expect(magnified(), 'it was magnified').toBe(false)
+    fireEvent.pointerLeave($('.phrase-grid')!)
+
+    writePhrase(`${text} `)
+    fireEvent.pointerOver(other)
+    act(() => void vi.advanceTimersByTime(20))
+    expect(magnified(), 'changed, and still not magnified').toBe(true)
+    fireEvent.pointerLeave($('.phrase-grid')!)
+    const next = plainCell([text])
+    expect(next.className).not.toMatch(/is-inert/)
+    const nextText = next.textContent!
+    click(next)
+    expect(box().value).toBe(`${text} ${nextText}`)
+  })
+
+  it('opens whatever is chosen into an empty box', () => {
+    renderApp()
+    click(editToggle())
+    const first = plainCell()
+    click(first)
+    click(iconBtn('Start a new phrase'))
+
+    const other = plainCell([first.textContent!])
+    expect(other.className).not.toMatch(/is-inert/)
+    click(other)
+    expect(box().value).toBe(other.textContent)
+  })
+
+  // The one thing on the screen that has to answer whatever else is going on —
+  // and what it answers with is its words said, not put into the phrase.
+  it('leaves the emergency bar to be reached, and it speaks', () => {
+    renderApp()
+    click(editToggle())
+    const first = plainCell()
+    const text = first.textContent!
+    click(first)
+
+    expect(sos().className).not.toMatch(/is-inert/)
+    expect(sos().getAttribute('aria-disabled')).toBeNull()
+    expect(sos().getAttribute('aria-label')).toBe(sos().textContent)
+    const words = sos().textContent!
+    click(sos())
+    expect(spoken.at(-1)).toBe(words)
+    expect(box().value, 'it went into the phrase').toBe(text)
+  })
+
+  // Changed, or a new phrase being written: still said rather than put in.
+  it('speaks while words are being written, and opens into an empty box', () => {
+    renderApp()
+    click(editToggle())
+    writePhrase('Something of my own')
+    const words = sos().textContent!
+    click(sos())
+    expect(spoken.at(-1)).toBe(words)
+    expect(box().value).toBe('Something of my own')
+
+    click(iconBtn('Start a new phrase'))
+    spoken.length = 0
+    click(sos())
+    expect(box().value, 'an empty box did not open it').toBe(words)
+    expect(spoken).toEqual([])
+  })
+
+  // Outside edit mode a phrase is said, and nothing is ever held back.
+  it('holds nothing back in auto-speak', () => {
+    renderApp()
+    click(plainCell())
+    expect($('.phrase-cell.is-inert')).toBeNull()
+    expect(sos().className).not.toMatch(/is-inert/)
+  })
+})
+
+/**
+ * **The question the bin asks holds everything until it is answered.** A gaze
+ * resting where the bin was, or drifting off it, must not answer it — so
+ * neither answer takes a click or a rest until the pointer has gone a long way
+ * — and nothing else on the screen takes any notice of anything meanwhile.
+ * Enter confirms and Escape keeps it, from the start.
+ */
+describe('the question the bin asks', () => {
+  const asked = () => document.body.querySelector<HTMLElement>('[role="alertdialog"]')
+  const answer = (label: string) =>
+    [...document.body.querySelectorAll<HTMLElement>('.edit-action-btn')].find(b => b.textContent === label)!
+  const pointAt = (x: number) => {
+    fireEvent.pointerMove(document.body, { clientX: x, clientY: 300 })
+    settle()
+  }
+  /** A phrase opened, and its bin chosen with the pointer at 300. */
+  const askAboutOne = () => {
+    renderApp()
+    click(editToggle())
+    const cell = plainCell()
+    const text = cell.textContent!
+    click(cell)
+    pointAt(300)
+    fireEvent.click(binOnOpen()!)
+    settle()
+    expect(asked()).not.toBeNull()
+    return text
+  }
+  const onBoard = (text: string) => cells().some(c => c.textContent === text)
+
+  it('answers neither a click nor a rest until the pointer has gone a long way', () => {
+    const text = askAboutOne()
+
+    // Aimed somewhere new by the ordinary measure, and not far enough for this.
+    pointAt(360)
+    fireEvent.click(answer('Delete'))
+    settle()
+    fireEvent.pointerEnter(answer('Delete'))
+    act(() => void vi.advanceTimersByTime(3000))
+    expect(asked(), 'it answered a pointer that had hardly moved').not.toBeNull()
+    expect(onBoard(text)).toBe(true)
+
+    pointAt(440)
+    fireEvent.click(answer('Delete'))
+    settle()
+    expect(asked()).toBeNull()
+    expect(onBoard(text)).toBe(false)
+  })
+
+  /**
+   * Regression guard. A control arms only as the pointer arrives on it, and
+   * Keep — the nearer answer — was usually reached before the pointer had gone
+   * far enough: refused then, it stayed refused however long it was rested on.
+   */
+  it('starts on the answer rested on once the pointer has gone far enough, and shows it filling', () => {
+    askAboutOne()
+    const keep = answer('Keep it')
+
+    pointAt(360)
+    fireEvent.pointerEnter(keep, { clientX: 360, clientY: 300 })
+    act(() => void vi.advanceTimersByTime(3000))
+    expect(asked(), 'it answered before the pointer had gone far enough').not.toBeNull()
+    expect(keep.classList.contains('dwelling')).toBe(false)
+
+    // Still on Keep, now far enough from the bin.
+    fireEvent.pointerMove(keep, { clientX: 440, clientY: 300 })
+    act(() => void vi.advanceTimersByTime(100))
+    expect(keep.classList.contains('dwelling'), 'Keep never started filling').toBe(true)
+    act(() => void vi.advanceTimersByTime(2000))
+    settle()
+    expect(asked()).toBeNull()
+  })
+
+  // The fill these buttons never had: nothing said a rest was being counted.
+  it('fills the answers as they are rested on', () => {
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(css).toMatch(/\.edit-action-btn\.dwelling \.dwell-bar\s*\{[^}]*animation:\s*dwellFillH/)
+  })
+
+  it('keeps it on Escape and deletes it on Enter, without the pointer moving', () => {
+    const text = askAboutOne()
+    fireEvent.keyDown(box(), { key: 'Escape' })
+    settle()
+    expect(asked()).toBeNull()
+    expect(onBoard(text)).toBe(true)
+
+    // Still held until the pointer goes a long way, the question gone or not.
+    fireEvent.click(binOnOpen()!)
+    settle()
+    expect(asked(), 'the bin answered a pointer that had not moved').toBeNull()
+    pointAt(600)
+    fireEvent.click(binOnOpen()!)
+    settle()
+    expect(asked()).not.toBeNull()
+    fireEvent.keyDown(box(), { key: 'Enter' })
+    settle()
+    expect(asked()).toBeNull()
+    expect(onBoard(text)).toBe(false)
+  })
+
+  it('takes no notice of anything else until it is answered', () => {
+    askAboutOne()
+    const scrim = asked()!.parentElement!
+
+    // Nothing typed, pasted or dropped reaches anything behind it.
+    expect(fireEvent.keyDown(box(), { key: 'a' }), 'a key reached the box').toBe(false)
+    expect(fireEvent.keyDown(box(), { key: 'Tab' }), 'Tab moved focus').toBe(false)
+    expect(fireEvent.paste(box()), 'a paste reached the box').toBe(false)
+    // Touching the screen round it is not an answer.
+    fireEvent.pointerDown(scrim)
+    fireEvent.click(scrim)
+    settle()
+    expect(asked()).not.toBeNull()
+    // Over everything, Peri's own keyboard included.
+    expect(scrim.classList.contains('is-asking')).toBe(true)
+
+    pointAt(500)
+    click(answer('Keep it'))
+    expect(asked()).toBeNull()
+    expect(fireEvent.keyDown(box(), { key: 'a' }), 'keys were still being swallowed').toBe(true)
   })
 })
 
@@ -1062,7 +1290,7 @@ describe('putting back a phrase just deleted', () => {
 
     expect(onBoard().slice(0, before.length)).toEqual(before)
     expect(box().value).toBe(text)
-    expect(iconBtn('Delete phrase')?.classList.contains('is-absent'), 'no phrase open').toBe(false)
+    expect(toolsOnOpen(), 'no phrase open').not.toBeNull()
     expect($('.phrase-cell[aria-current="true"]')?.textContent, 'it was not marked').toBe(text)
   })
 

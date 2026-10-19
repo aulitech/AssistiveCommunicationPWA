@@ -618,9 +618,8 @@ describe('the card', () => {
   /**
    * **The same places in edit mode**, meaning what the mode says: start a new
    * phrase where clear was, Save where Speak was — drawn once there are words —
-   * paste where it was, and delete at the far right, as far from Save as the
-   * card goes. What is being edited is at the right end of the line the words
-   * are written on, beside them.
+   * paste where it was. **No delete among them**: the bin is on the phrase
+   * open in the box, as it is on the tab showing.
    */
   it('keeps its places in edit mode, with nothing beside the words', () => {
     renderApp()
@@ -635,16 +634,9 @@ describe('the card', () => {
     expect(labels('.tools-values')).toEqual([
       expect.stringMatching(/^Language this phrase's voice is for/),
       expect.stringMatching(/^Voice for this phrase/),
-      'Delete phrase',
       'Open menu',
     ])
-    // **Not shown with nothing to delete** — a new phrase — but its place kept,
-    // so the language and the voice never move as it comes and goes.
-    const bin = () => iconBtn('Delete phrase')!
-    expect(bin().classList.contains('is-absent'), 'the bin shows for a new phrase').toBe(true)
-    click(iconBtn('Start a new phrase'))
-    click(plainCell())
-    expect(bin().classList.contains('is-absent'), 'the bin is hidden for a phrase off the board').toBe(false)
+    expect(iconBtn('Delete phrase')).toBeUndefined()
     // **Nothing beside the words** — words already on the board are said in a
     // toast — so the line is the slot that empties it and the box.
     const line = () => [...$('.message-line')!.children].map(el => el.className.split(' ')[0])
@@ -1004,6 +996,15 @@ describe('the keyboard Peri draws', () => {
 describe('choosing one phrase after another', () => {
   const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
   const cellFor = (text: string) => cells().find(c => c.textContent === text)
+  /**
+   * What a search found, without the phrase open in the box — which in edit
+   * mode stays on the board, first, once it is being changed: its cell carries
+   * its bin.
+   */
+  const found = () =>
+    cells()
+      .filter(c => !c.querySelector('.cell-tools'))
+      .map(c => c.textContent)
 
   const seeded = (editing = true) => {
     localStorage.setItem(
@@ -1045,6 +1046,8 @@ describe('choosing one phrase after another', () => {
   it('reaches a second category for the next phrase', () => {
     seeded()
     click(cellFor('Once in a blue moon'))
+    // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
+    typeInto(`${message()} `)
 
     click(tab('Manners'))
     click(cellFor('Thank you'))
@@ -1061,6 +1064,8 @@ describe('choosing one phrase after another', () => {
   it('never writes over the last word of the phrase before', () => {
     seeded()
     click(cellFor('Once in a blue moon'))
+    // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
+    typeInto(`${message()} `)
 
     click(cellFor('Moonlight becomes you'))
 
@@ -1087,14 +1092,17 @@ describe('choosing one phrase after another', () => {
     seeded()
     click(tab('Messages'))
     click(cells().find(c => c.textContent?.includes('I said hello')))
-    const end = message().length
+    // Changed, so the board can be chosen from again — a space after it, and
+    // the caret then taken to the phrase's own end rather than after the space.
+    typeInto(`${message()} `)
+    const end = message().length - 1
     fireEvent.select(box(), { target: { selectionStart: end, selectionEnd: end } })
     settle()
 
     click(tab('Sayings'))
     click(cellFor('Moonlight becomes you'))
 
-    expect(message().endsWith('I said hello Moonlight becomes you')).toBe(true)
+    expect(message()).toBe('Tell {} I said hello Moonlight becomes you ')
   })
 
   // Taking the last letter off a phrase and typing it back is typing a word,
@@ -1125,6 +1133,8 @@ describe('choosing one phrase after another', () => {
   it('adds the next phrase at the end when the box has lost its caret', () => {
     seeded()
     click(cellFor('Once in a blue moon'))
+    // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
+    typeInto(`${message()} `)
     click(tab('Manners'))
     // Back at the start, silently; what the app sets afterwards still sticks.
     const node = box()
@@ -1163,7 +1173,10 @@ describe('choosing one phrase after another', () => {
 
     typeInto('Once in a blue moon moonl')
 
-    expect(cells().map(c => c.textContent)).toEqual(['Moonlight becomes you'])
+    expect(found()).toEqual(['Moonlight becomes you'])
+    // The phrase open in the box first, with its bin, and not to be chosen.
+    expect(cells()[0].textContent).toBe('Once in a blue moon')
+    expect(cells()[0].querySelector('.delete-tool')).not.toBeNull()
     expect(tab('Manners'), 'the tabs stayed over a narrowed board').toBeUndefined()
   })
 
@@ -1173,7 +1186,7 @@ describe('choosing one phrase after another', () => {
     seeded()
     click(cellFor('Once in a blue moon'))
     typeInto('Once in a blue moon moonlight bec')
-    expect(cells().map(c => c.textContent)).toEqual(['Moonlight becomes you'])
+    expect(found()).toEqual(['Moonlight becomes you'])
 
     click(cellFor('Moonlight becomes you'))
 
@@ -1200,7 +1213,7 @@ describe('choosing one phrase after another', () => {
     fireEvent.click(cellFor('Once in a blue moon')!)
     typeInto('Once in a blue moon moonl')
 
-    expect(cells().map(c => c.textContent)).toEqual(['Moonlight becomes you'])
+    expect(found()).toEqual(['Moonlight becomes you'])
   })
 
   // Cleared, the phrase is gone with the words: what is typed next is all new.
@@ -1222,5 +1235,84 @@ describe('choosing one phrase after another', () => {
     click(cellFor('Moonlight becomes you'))
 
     expect(message()).toBe('Once in a blue moon Moonlight becomes you')
+  })
+})
+
+/**
+ * **The keys a keyboard says most**, in the message box: Enter does what the
+ * primary does — Speak, or Save in edit mode — and Escape what the slot at the
+ * line's left end does, emptying the box. Enter with any modifier is a new
+ * line, which a textarea gives Shift alone.
+ */
+describe('Enter and Escape in the message box', () => {
+  const press = (
+    key: string,
+    mods: Partial<Record<'shiftKey' | 'altKey' | 'ctrlKey' | 'metaKey', boolean>> = {},
+  ) => {
+    fireEvent.keyDown(box(), { key, ...mods })
+    settle()
+  }
+  const writeAtEnd = (value: string) => {
+    writeIn(box(), value)
+    act(() => box().setSelectionRange(value.length, value.length))
+  }
+
+  it('speaks on Enter, and does nothing with an empty box', () => {
+    renderApp()
+    press('Enter')
+    expect(spoken).toEqual([])
+
+    writeAtEnd('Hello there')
+    press('Enter')
+    expect(spoken.at(-1)).toBe('Hello there')
+  })
+
+  it('clears on Escape, which Undo puts back', () => {
+    renderApp()
+    writeAtEnd('Hello there')
+    press('Escape')
+    expect(message()).toBe('')
+    expect(spoken, 'Escape said something').toEqual([])
+
+    click(iconBtn('Undo'))
+    expect(message()).toBe('Hello there')
+  })
+
+  it.each([['shiftKey'], ['altKey'], ['ctrlKey'], ['metaKey']] as const)(
+    'puts in a new line on Enter with %s held, and says nothing',
+    mod => {
+      renderApp()
+      writeAtEnd('Line one')
+      press('Enter', { [mod]: true })
+      expect(message()).toBe('Line one\n')
+      expect(spoken).toEqual([])
+    },
+  )
+
+  it('saves on Enter in edit mode, and starts a new phrase on Escape', () => {
+    renderApp()
+    click(editToggle())
+    writeAtEnd('A phrase of my very own')
+    press('Enter')
+    expect($('.toast')?.textContent).toMatch(/^Added to Library/)
+    expect(cells().some(c => c.textContent === 'A phrase of my very own')).toBe(true)
+    expect(spoken, 'Enter in edit mode spoke').toEqual([])
+
+    writeAtEnd('Another one')
+    press('Escape')
+    expect(message()).toBe('')
+    expect(
+      cells().some(c => c.textContent === 'Another one'),
+      'Escape saved it',
+    ).toBe(false)
+  })
+
+  it('puts in a new line on a modified Enter in edit mode, and saves nothing', () => {
+    renderApp()
+    click(editToggle())
+    writeAtEnd('First line')
+    press('Enter', { ctrlKey: true })
+    expect(message()).toBe('First line\n')
+    expect(cells().some(c => c.textContent?.startsWith('First line'))).toBe(false)
   })
 })

@@ -273,6 +273,9 @@ describe('building in edit mode', () => {
     click(editToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
+    // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
+    fireEvent.change(box(), { target: { value: 'I want a hug. ' } })
+    settle()
     const next = plainCell(['I want a hug.'])
     const id = next.getAttribute('data-phrase')!
     click(next)
@@ -289,6 +292,9 @@ describe('building in edit mode', () => {
     click(editToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
+    // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
+    fireEvent.change(box(), { target: { value: 'I want a hug. ' } })
+    settle()
     // The caret taken back to the start of the phrase.
     act(() => {
       box().setSelectionRange(0, 0)
@@ -297,7 +303,7 @@ describe('building in edit mode', () => {
     const next = plainCell(['I want a hug.'])
     click(next)
     settle()
-    expect(box().value).toBe(`${next.textContent} I want a hug.`)
+    expect(box().value).toBe(`${next.textContent} I want a hug. `)
   })
 
   it('says the phrase being written, and saves it', () => {
@@ -401,6 +407,9 @@ describe('fill-in-the-blank phrases', () => {
     renderApp()
     click(editToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
+    settle()
+    // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
+    fireEvent.change(box(), { target: { value: 'I want a hug. ' } })
     settle()
     click(visitCell())
     settle()
@@ -548,6 +557,9 @@ describe('auto-speak', () => {
     const first = plainCell()
     click(first)
     click(speakToggle())
+    // Opened in edit mode; changed, so the board can be chosen from again.
+    fireEvent.change(box(), { target: { value: `${first.textContent} ` } })
+    settle()
     const second = plainCell([first.textContent ?? ''])
     click(second)
     expect(message()).toBe(`${first.textContent} ${second.textContent}`)
@@ -753,6 +765,9 @@ describe('a phrase with a blank', () => {
     click(editToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
+    // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
+    fireEvent.change(box(), { target: { value: 'I want a hug. ' } })
+    settle()
     click(cells().find(c => c.getAttribute('data-phrase') === midBlank.id)!)
     settle()
 
@@ -766,6 +781,9 @@ describe('a phrase with a blank', () => {
     renderApp()
     click(editToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
+    settle()
+    // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
+    fireEvent.change(box(), { target: { value: 'I want a hug. ' } })
     settle()
     click(plainCell(['I want a hug.']))
     settle()

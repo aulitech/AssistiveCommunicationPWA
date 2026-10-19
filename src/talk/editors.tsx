@@ -8,8 +8,9 @@
 // in this file is the one dialog that survives, which is about a category
 // rather than a phrase.
 
-import { useEffect, useState } from 'react'
-import { useDwellControl } from '../ui/dwell'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { cancelAllDwells, holdDwellsUntilMoved, useDwellControl } from '../ui/dwell'
 import { useSettings } from '../ui/settings'
 import { DwellInput } from '../ui/controls'
 import { cx, dwellVar } from '../ui/style'
@@ -19,14 +20,17 @@ function EditAction({
   label,
   onActivate,
   disabled,
+  armsOnceMoved,
 }: {
   kind: 'danger' | 'cancel' | 'save'
   label: string
   onActivate: () => void
   disabled?: boolean
+  /** The answers to a bin's question — see `armsOnceMoved` in `ui/dwell.ts`. */
+  armsOnceMoved?: boolean
 }) {
   const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, { disabled })
+  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, { disabled, armsOnceMoved })
   return (
     <div
       className={cx('edit-action-btn', kind, active && 'dwelling', disabled && 'is-disabled')}
@@ -38,6 +42,95 @@ function EditAction({
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
       {label}
     </div>
+  )
+}
+
+/**
+ * **Asking before something goes** — a category, a phrase, an emergency
+ * phrase. Every bin asks: it takes something somebody may have spent a while
+ * on, and a gaze resting a moment too long is not a decision.
+ *
+ * The question arrives under a pointer resting where the bin was, so **the
+ * control that confirms sits at the far end of the row**, with the way back
+ * nearer, and nothing arms until the pointer has moved — a gaze still on the
+ * bin cannot answer the question it raised (`holdDwellsUntilMoved`, called by
+ * whoever opens it).
+ */
+/**
+ * How far the pointer has to travel from where the bin was chosen before either
+ * answer takes a rest or a click — five times the distance that says a pointer
+ * was aimed somewhere new, because this one is a decision: a gaze still resting
+ * where the bin was, or drifting off it, must not answer the question it raised.
+ */
+const ASK_FIRST_MOVE_PX = 120
+
+/** What the question takes no notice of, whatever it lands on. */
+const SWALLOWED = ['keyup', 'keypress', 'beforeinput', 'input', 'paste', 'cut', 'copy', 'drop'] as const
+
+export function AskFirst({
+  title,
+  note,
+  confirm = 'Delete',
+  onConfirm,
+  onClose,
+}: {
+  title: string
+  note: string
+  /** What the far control says: Delete, Take out, Forget. */
+  confirm?: string
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  // **Neither answer arms until the pointer has gone a long way** from where it
+  // chose the bin — in the commit that shows the question, so not even the
+  // first frame of it answers a pointer that has not moved.
+  useLayoutEffect(() => {
+    cancelAllDwells()
+    holdDwellsUntilMoved(ASK_FIRST_MOVE_PX)
+  }, [])
+
+  // **And nothing else is listened to until it is answered.** Every key is
+  // taken before anything else sees it — Enter confirms and Escape keeps it,
+  // the two a keyboard can say — and nothing is typed, pasted or dropped
+  // anywhere. The pointer is held off by the scrim, which covers everything,
+  // Peri's own keyboard included, and closes nothing when it is touched.
+  const answers = useRef({ onConfirm, onClose })
+  useLayoutEffect(() => {
+    answers.current = { onConfirm, onClose }
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      if (e.repeat) return
+      if (e.key === 'Enter') answers.current.onConfirm()
+      else if (e.key === 'Escape') answers.current.onClose()
+    }
+    const swallow = (e: Event) => {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+    }
+    window.addEventListener('keydown', onKey, true)
+    for (const type of SWALLOWED) window.addEventListener(type, swallow, true)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      for (const type of SWALLOWED) window.removeEventListener(type, swallow, true)
+    }
+  }, [])
+
+  // Portalled, so it stands over everything whatever the screen is inside.
+  return createPortal(
+    <div className="edit-modal-scrim is-asking">
+      <div className="edit-modal" role="alertdialog" aria-modal="true" aria-label={title.replace(/\?$/, '')}>
+        <div className="edit-modal-title">{title}</div>
+        <p className="edit-modal-note">{note}</p>
+        <div className="edit-modal-actions is-confirming">
+          <EditAction kind="cancel" label="Keep it" onActivate={onClose} armsOnceMoved />
+          <EditAction kind="danger" label={confirm} onActivate={onConfirm} armsOnceMoved />
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -77,32 +170,19 @@ export function CategoryModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  // **Deleting asks first.** It takes the category's order, which somebody may
-  // have spent a while on. The question arrives under a pointer resting where
-  // the bin was, so **the delete that confirms sits at the far end of the
-  // row**, with the way back nearer, and nothing arms until the pointer has
-  // moved — a gaze still on the bin cannot answer the question it raised.
+  // **Deleting asks first** — see `AskFirst`.
   if (name !== null) {
     return (
-      <div
-        className="edit-modal-scrim"
-        onPointerDown={e => {
-          if (e.target === e.currentTarget) onClose()
-        }}
-      >
-        <div className="edit-modal" role="alertdialog" aria-modal="true" aria-label={`Delete ${name}`}>
-          <div className="edit-modal-title">Delete {name}?</div>
-          <p className="edit-modal-note">
-            {phraseCount > 0
-              ? `Its ${phrases} stay${phraseCount === 1 ? 's' : ''} in Library, and in any other category ${phraseCount === 1 ? 'it is' : 'they are'} in.`
-              : 'It has no phrases in it.'}
-          </p>
-          <div className="edit-modal-actions is-confirming">
-            <EditAction kind="cancel" label="Keep it" onActivate={onClose} />
-            <EditAction kind="danger" label="Delete" onActivate={onDelete} />
-          </div>
-        </div>
-      </div>
+      <AskFirst
+        title={`Delete ${name}?`}
+        note={
+          phraseCount > 0
+            ? `Its ${phrases} stay${phraseCount === 1 ? 's' : ''} in Library, and in any other category ${phraseCount === 1 ? 'it is' : 'they are'} in.`
+            : 'It has no phrases in it.'
+        }
+        onConfirm={onDelete}
+        onClose={onClose}
+      />
     )
   }
 

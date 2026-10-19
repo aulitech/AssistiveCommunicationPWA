@@ -102,12 +102,6 @@
   opacity: 0.4;
 }
 
-/* The mode is on — the same green every toggle in the app lights up with. */
-.reorder-btn.is-on {
-  color: var(--accent);
-  background: var(--accent-dim);
-}
-
 .phrase-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -174,6 +168,65 @@
      place but never outside itself. */
   content-visibility: auto;
   contain-intrinsic-size: auto 72px;
+}
+
+/* **The phrase open in the message box carries its tools**, top to bottom:
+   the bin against its left edge and the drag pad against its right, each
+   glyph by the edge and 1.5rem of the tool between it and the words — see
+   `ItemTool`. Both on the cell's own ground two shades lighter, a wash of
+   white so the emergency bar's blue lightens as the grid's grey does. The
+   words give up the room they take. */
+.phrase-cell.has-tools,
+.emergency-btn.has-tools {
+  padding-left: 3rem;
+  padding-right: 3rem;
+}
+
+.cell-tools {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.cell-tools .tab-tool {
+  width: auto;
+  height: 100%;
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cell-tools .delete-tool {
+  padding: 0 1.5rem 0 0.4rem;
+  border-radius: 9px 0 0 9px;
+}
+
+.cell-tools .reorder-tool {
+  padding: 0 0.4rem 0 1.5rem;
+  border-radius: 0 9px 9px 0;
+}
+
+/* The emergency button's corners are a little tighter than a cell's. */
+.emergency-btn .cell-tools .delete-tool { border-radius: 7px 0 0 7px; }
+.emergency-btn .cell-tools .reorder-tool { border-radius: 0 7px 7px 0; }
+
+/* **Not to be chosen** while the box holds a phrase opened and not yet changed:
+   dimmed, so a rest that does nothing does not look like a fault. */
+.phrase-cell.is-inert { opacity: 0.55; }
+
+/* Lifted, it is on the held blue, as a tab in the air is. */
+.phrase-cell.is-held .tab-tool,
+.emergency-btn.is-held .tab-tool { color: #000; }
+.phrase-cell.is-held .tab-tool.is-on,
+.emergency-btn.is-held .tab-tool.is-on { background: color-mix(in srgb, #000 18%, transparent); }
+
+/* Which phrase is open, said on its own edge — the panel's edit-mode green —
+   until it is lifted, when it is the held blue like anything in the air. */
+.app.edit-mode .phrase-cell.has-tools:not(.is-held),
+.app.edit-mode .emergency-btn.has-tools:not(.is-held) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--panel-edge));
 }
 
 /* **The place a cell holds in the grid**, which the cell fills — and which it

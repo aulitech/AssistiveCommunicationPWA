@@ -25,9 +25,14 @@ test('builds a sentence from two categories, both phrases whole and in order', a
   await editMode(page)
   // The board opens on Library, where every phrase is.
   await cell(page, 'Once in a blue moon').click()
+  // Changed — a space after it — so the board can be chosen from again.
+  await messageBox(page).press('End')
+  await page.keyboard.type(' ')
 
   await tab(page, 'Greetings').click()
-  const second = page.locator('.phrase-cell').first()
+  // Past the phrase open in the box, which, changed, is shown first on a tab
+  // that does not hold it.
+  const second = page.locator('.phrase-cell:not(.has-tools)').first()
   // The text as written: `innerText` reads empty until Chrome has laid the new
   // tab's cells out, which it may not have yet.
   const text = (await second.textContent())!.trim()
@@ -144,14 +149,16 @@ test('puts a phrase said in auto-speak in the box, selected, and typing writes o
   expect(errors).toEqual([])
 })
 
-// With the phrase said still selected, turning auto-speak off and choosing
-// another builds after it — the caret is the end of the selection, not its start.
+// Turning auto-speak off opens the phrase it said in edit mode; changed — a
+// space after it — choosing another builds after it.
 test('builds after a phrase auto-speak said once it is turned off', async ({ page }) => {
   const { errors } = await openBoard(page)
   const cells = page.locator('.phrase-cell')
   await cells.nth(0).click()
   const first = await messageBox(page).inputValue()
   await page.locator('.autospeak-toggle').click()
+  await messageBox(page).press('End')
+  await page.keyboard.type(' ')
   await cells.nth(1).click()
   const both = await messageBox(page).inputValue()
   expect(both.startsWith(first + ' '), `built in front of what was said: ${both}`).toBe(true)

@@ -141,29 +141,12 @@
 
 .emergency-tool[aria-disabled] { opacity: 0.4; }
 
-/* Filled while reordering is on, the same way the category tools are: the mode
-   is the loud part, and the two bars should not say it in different voices. */
-.emergency-tool.is-on {
-  color: #000;
-  background: var(--accent);
-  border-color: transparent;
-}
-
 /* Only the glyph shrinks on a narrow screen now. The tools used to give back
    half their width here, from 84px to 48px, because two of them beside six
    phrases was a lot of bar to spend on icons — but 46px at every width is
    narrower than the concession was, so there is nothing left to give back. */
 @media (max-width: 700px) {
   .emergency-tool svg { width: 1rem; height: 1rem; }
-}
-
-/* The same three cues the tabs use, in the bar's own colour. Solid rather than
-   the dashed edit outline: in this mode a button is a thing to pick up, not a
-   thing to open. */
-.emergency-btn.reorderable {
-  cursor: grab;
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 /* The phrase in the air — the loudest thing on the bar, because it is what the
@@ -197,16 +180,11 @@
 }
 
 /* ── Arranging the phrase grid ── */
-/* The same three states the category tabs and the emergency bar use, on the one
+/* The same states the category tabs and the emergency bar use, on the one
    surface where there are two thousand of them. Written against `.phrase-cell`
    rather than shared, because a cell is a block in a grid and those two are
    pills in a row: the lift has nowhere to bob to and the drop target is a whole
    edge rather than a left-hand rule. */
-
-.phrase-cell.reorderable {
-  cursor: grab;
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-}
 
 /* The phrase in the air. The loudest thing on the grid, because it is what the
    user is holding and the grid it is sitting in is otherwise uniform. */

@@ -39,6 +39,8 @@ export interface Reorder {
   release: () => void
   /** What is in the air, if anything. */
   held: string | null
+  /** What a mouse is dragging, if anything. */
+  dragging: string | null
 }
 
 export function useReorder({
@@ -96,7 +98,7 @@ export function useReorder({
     },
   })
 
-  return { propsFor, release, held }
+  return { propsFor, release, held, dragging }
 }
 
 /**

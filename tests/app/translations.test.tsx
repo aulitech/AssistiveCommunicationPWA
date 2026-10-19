@@ -103,12 +103,19 @@ describe('where the tab sits', () => {
     expect(sortBtn().getAttribute('aria-label')).toMatch(/Translations are always newest first/)
   })
 
+  // A record in the order it happened: the one open in the box carries its
+  // bin straight away, and never a drag pad.
   it('cannot be arranged by hand', () => {
-    renderApp()
+    renderApp({ language: 'es' })
+    saySpanish()
+    click(cellFor('Apple'))
     showTranslations()
     click(editToggle())
-    const arrange = $$('.grid-scrollbar .reorder-btn')[0]
-    expect(arrange.getAttribute('aria-disabled')).toBe('true')
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Start a new phrase'))
+    click(cells()[0])
+
+    expect($('.reorder-tool')).toBeNull()
+    expect(cells()[0].querySelector('.delete-tool')).not.toBeNull()
   })
 })
 
@@ -383,8 +390,13 @@ describe('in edit mode', () => {
 
     // The label names what it is, or "Forget this" is a guess. It said
     // "message" for both until there was a second record to come off.
-    expect(action('Forget this translation')).toBeDefined()
-    click(action('Forget this translation'))
+    const bin = $('.cell-tools .delete-tool')
+    expect(bin?.getAttribute('aria-label')).toBe('Forget this translation')
+    click(bin)
+    expect(document.body.querySelector<HTMLElement>('[role="alertdialog"]')?.textContent).toContain(
+      'Forget this translation?',
+    )
+    click([...document.body.querySelectorAll<HTMLElement>('.edit-action-btn.danger')][0])
 
     expect(stored()).toEqual([])
     expect(cells()).toHaveLength(0)

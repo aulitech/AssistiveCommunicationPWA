@@ -78,6 +78,14 @@ const iconBtn = (label: string) => $$('.icon-btn').find(b => b.getAttribute('ari
 const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
 const showSorted = () => click(tab('Sorted'))
 
+const box = () => $<HTMLTextAreaElement>('.text-display')!
+const bin = () => $('.phrase-cell .delete-tool')
+/** **The bin on the phrase open in the box**, and the question it asks. */
+const deleteOpen = () => {
+  click(bin())
+  click([...document.body.querySelectorAll<HTMLElement>('.edit-action-btn.danger')][0])
+}
+
 /**
  * Looks at another tab and back, which is when an order that goes by use is
  * taken again — see *Ordering the grid*. The board holds still while somebody
@@ -668,6 +676,11 @@ describe('the board moving under a resting gaze', () => {
     showSorted()
     click($('.edit-toggle'))
   }
+  /** Changed — a space after it — so the board can be chosen from again: see `choosing` in talk.tsx. */
+  const changeIt = () => {
+    fireEvent.change($('.text-display')!, { target: { value: `${message()} ` } })
+    settle()
+  }
 
   it('takes nothing from the cell that arrives under a pointer that has not moved', () => {
     composing()
@@ -676,15 +689,17 @@ describe('the board moving under a resting gaze', () => {
     // The board narrowed to the word at the caret, so what is under the gaze
     // now is a different phrase from the one it chose.
     expect(onBoard()).toEqual(['Apple juice', 'Orange juice', 'More juice'])
+    changeIt()
 
     arrivesUnderThePointer(1)
 
-    expect(message()).toBe('Apple juice')
+    expect(message()).toBe('Apple juice ')
   })
 
   it('takes it once the gaze is aimed somewhere else', () => {
     composing()
     dwellOn('Apple juice')
+    changeIt()
 
     fireEvent.pointerMove(document.body, { clientX: 400, clientY: 400 })
     arrivesUnderThePointer(1)
@@ -701,11 +716,12 @@ describe('the board moving under a resting gaze', () => {
     // measured from here, so the test has to say where "here" is.
     fireEvent.pointerMove(document.body, { clientX: 300, clientY: 200 })
     dwellOn('Apple juice')
+    changeIt()
 
     fireEvent.pointerMove(document.body, { clientX: 303, clientY: 204 })
     arrivesUnderThePointer(1)
 
-    expect(message()).toBe('Apple juice')
+    expect(message()).toBe('Apple juice ')
   })
 
   /**
@@ -720,18 +736,20 @@ describe('the board moving under a resting gaze', () => {
     fireEvent.pointerMove(document.body, { clientX: 300, clientY: 200 })
     dwellOn('Apple juice')
     expect(message()).toBe('Apple juice')
+    changeIt()
 
     // No movement in between — the click is the tracker's, not a hand's.
     fireEvent.click(cells()[1])
     settle()
 
-    expect(message()).toBe('Apple juice')
+    expect(message()).toBe('Apple juice ')
   })
 
   it('takes the click once the gaze has gone somewhere else', () => {
     composing()
     fireEvent.pointerMove(document.body, { clientX: 300, clientY: 200 })
     dwellOn('Apple juice')
+    changeIt()
 
     fireEvent.pointerMove(document.body, { clientX: 700, clientY: 500 })
     fireEvent.click(cells()[1])
@@ -924,42 +942,66 @@ describe('what is said', () => {
 
 /**
  * The user's own arrangement, built the way the category tabs and the emergency
- * bar are built: one dwell picks a phrase up, a second on another drops it
- * there. A pointer-drag needs a button held down while the pointer moves, which
- * is the one gesture a dwell user cannot make.
+ * bar are built: the phrase open in the box carries a drag pad, one dwell on it
+ * picks the phrase up, and a dwell on another drops it there. A pointer-drag
+ * needs a button held down while the pointer moves, which is the one gesture a
+ * dwell user cannot make.
  */
 describe('arranging the phrases by hand', () => {
   const editToggle = () => $('.edit-toggle')!
-  const reorderBtn = () => $('.reorder-btn')
+  const pad = () => $('.phrase-cell .reorder-tool')
   const toast = () => $('.toast')?.textContent
-
-  /** Auto-speak → edit is one dwell; arranging is a mode within edit mode. */
-  const arrangeOn = () => {
-    click(editToggle())
-    click(reorderBtn())
+  /** Empty the box, so the next phrase chosen opens rather than going in beside it. */
+  const startNew = () => click(iconBtn('Start a new phrase'))
+  /** Open a phrase in the box, which is what puts the pad on its cell, and lift it. */
+  const lift = (text: string) => {
+    click(cellFor(text))
+    click(pad())
   }
 
   // A category's order is its references, and arranging it is rearranging them.
   const stored = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!).members
 
-  it('is offered only in edit mode, where the phrases are what is being changed', () => {
+  it('is offered only in edit mode, on the phrase open in the box', () => {
     renderApp()
     showSorted()
-    expect(reorderBtn()).toBeNull()
+    expect($('.reorder-tool')).toBeNull()
 
     click(editToggle())
+    expect(pad()).toBeNull()
+    // The rail's own arrange toggle is gone.
+    expect($('.reorder-btn')).toBeNull()
 
-    expect(reorderBtn()).not.toBeNull()
-    expect(reorderBtn()!.getAttribute('aria-pressed')).toBe('false')
+    click(cellFor('Cherry'))
+    // The bin against its left edge, the pad against its right, and on no other.
+    const tools = [...cellFor('Cherry')!.querySelectorAll('.cell-tools > .tab-tool')]
+    expect(tools.map(t => t.classList.contains('delete-tool'))).toEqual([true, false])
+    expect(tools[1].classList.contains('reorder-tool')).toBe(true)
+    expect($$('.phrase-cell .tab-tool')).toHaveLength(2)
   })
 
   it('moves a phrase to where it is dropped', () => {
     renderApp()
     showSorted()
-    arrangeOn()
+    click(editToggle())
+
+    lift('Cherry')
+    click(cellFor('Banana'))
+
+    expect(onBoard()).toEqual(['Apple', 'Banana', 'Cherry'])
+  })
+
+  it('moves one by mouse, dragging the pad', () => {
+    renderApp()
+    showSorted()
+    click(editToggle())
 
     click(cellFor('Cherry'))
-    click(cellFor('Banana'))
+    fireEvent.dragStart(pad()!)
+    settle()
+    fireEvent.dragOver(cellFor('Banana')!)
+    fireEvent.drop(cellFor('Banana')!)
+    settle()
 
     expect(onBoard()).toEqual(['Apple', 'Banana', 'Cherry'])
   })
@@ -967,8 +1009,8 @@ describe('arranging the phrases by hand', () => {
   it('keeps it there, by id, across a reload', () => {
     renderApp()
     showSorted()
-    arrangeOn()
-    click(cellFor('Cherry'))
+    click(editToggle())
+    lift('Cherry')
     click(cellFor('Banana'))
     expect(stored()).toEqual({ Sorted: ['custom-a', 'custom-b', 'custom-c'] })
 
@@ -985,25 +1027,30 @@ describe('arranging the phrases by hand', () => {
   it('says what is in the air', () => {
     renderApp()
     showSorted()
-    arrangeOn()
-
+    click(editToggle())
     click(cellFor('Cherry'))
+    expect(pad()!.getAttribute('aria-label')).toBe('Move this phrase')
+
+    click(pad())
 
     expect(toast()).toBe('Holding Cherry — dwell where it should go')
-    expect(cellFor('Cherry')!.getAttribute('aria-label')).toMatch(/^Holding Cherry\./)
+    expect(pad()!.getAttribute('aria-label')).toBe('Put it back where it was')
+    expect(pad()!.getAttribute('aria-pressed')).toBe('true')
+    expect(cellFor('Cherry')!.className).toMatch(/is-held/)
     expect(cellFor('Apple')!.getAttribute('aria-label')).toBe('Drop Cherry here')
   })
 
   // The only way out of a lift for somebody with no other button to press.
-  it('puts a phrase back where it was when it is dwelled again', () => {
+  it('puts a phrase back where it was when its pad is dwelled again', () => {
     renderApp()
     showSorted()
-    arrangeOn()
+    click(editToggle())
 
-    click(cellFor('Cherry'))
-    click(cellFor('Cherry'))
+    lift('Cherry')
+    click(pad())
 
     expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
+    expect($('.phrase-cell.is-held')).toBeNull()
     expect(stored()).toBeUndefined()
   })
 
@@ -1016,87 +1063,107 @@ describe('arranging the phrases by hand', () => {
     renderApp()
     showSorted()
     chooseOrder('A to Z')
-    arrangeOn()
+    click(editToggle())
 
-    click(cellFor('Cherry'))
+    lift('Cherry')
     click(cellFor('Apple'))
 
     expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
     expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order: Custom order\./)
   })
 
-  it('is disarmed by leaving edit mode', () => {
+  it('is put down by leaving edit mode', () => {
     renderApp()
     showSorted()
-    arrangeOn()
-    expect(reorderBtn()!.getAttribute('aria-pressed')).toBe('true')
+    click(editToggle())
+    lift('Cherry')
+    expect($('.phrase-cell.is-held')).not.toBeNull()
 
-    click(editToggle()) // edit → composing
-    click(editToggle()) // composing → edit
+    click(editToggle()) // edit → talking
+    click(editToggle()) // talking → edit
 
-    expect(reorderBtn()!.getAttribute('aria-pressed')).toBe('false')
+    expect($('.phrase-cell.is-held')).toBeNull()
+    expect($('.phrase-cell.is-drop-zone')).toBeNull()
   })
 
   // Library has an order of its own, kept apart from every category's.
   it('arranges Library by an order of its own', () => {
     renderApp()
-    arrangeOn()
+    click(editToggle())
     const [first, second] = cells().map(c => c.getAttribute('data-phrase')!)
     click(cells()[1])
+    click(pad())
     click(cells()[0])
 
     const kept = JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!).libraryOrder
     expect(kept.slice(0, 2)).toEqual([second, first])
   })
 
-  it('goes quiet under Translations', () => {
+  /**
+   * **Typing narrows the board, and a narrowed board has no order to put a
+   * phrase in** — so the open phrase carries its bin instead, and keeps its
+   * cell however the words typed after it search Library: rewording is how
+   * the bin comes, and a search taking its cell away would take the bin too.
+   */
+  it('offers the bin and no pad while what is typed narrows the board, and keeps the cell', () => {
     renderApp()
+    showSorted()
     click(editToggle())
-    click(tab('Translations'))
+    click(cellFor('Cherry'))
 
-    expect(reorderBtn()!.getAttribute('aria-disabled')).toBe('true')
-  })
+    fireEvent.change(box(), { target: { value: 'Cherry Banana' } })
+    settle()
 
-  it('opens nothing while it is quiet', () => {
-    renderApp()
-    click(editToggle())
-    click(tab('Translations'))
-    click(reorderBtn())
-
-    expect($('.phrase-cell.reorderable')).toBeNull()
+    expect(pad()).toBeNull()
+    expect(cellFor('Cherry')!.querySelector('.delete-tool')).not.toBeNull()
+    expect(cellFor('Banana')).toBeDefined()
   })
 
   /**
-   * Switching the mode off puts down whatever was in the air. Without it the
-   * phrase stays held across the round trip, and the next dwell drops the
-   * forgotten one instead of lifting the cell under the pointer.
+   * Another phrase opened puts down whatever was in the air. Without it the
+   * phrase stays held, and the next dwell drops the forgotten one instead of
+   * opening the cell under the pointer.
    */
-  it('puts down what was in the air when the mode is switched off', () => {
+  it('puts down what was in the air when another phrase is opened', () => {
     renderApp()
     showSorted()
-    arrangeOn()
-    click(cellFor('Cherry'))
+    click(editToggle())
+    lift('Cherry')
 
-    click(reorderBtn()) // off, which drops what was held
-    click(reorderBtn()) // and on again
+    startNew()
     click(cellFor('Apple'))
 
     expect(onBoard()).toEqual(['Cherry', 'Apple', 'Banana'])
-    expect(toast()).toBe('Holding Apple — dwell where it should go')
+    expect(box().value).toBe('Apple')
+    expect($('.phrase-cell.is-held')).toBeNull()
+  })
+
+  // Reworded, its pad is a bin — so whatever the pad lifted is put down.
+  it('puts down what was in the air when the open phrase is reworded', () => {
+    renderApp()
+    showSorted()
+    click(editToggle())
+    lift('Cherry')
+
+    fireEvent.change(box(), { target: { value: 'Cherries' } })
+    settle()
+
+    expect($('.phrase-cell.is-held')).toBeNull()
+    expect($('.phrase-cell.is-drop-zone')).toBeNull()
   })
 
   // Taken out of the category, it is out of its order — and still in Library.
   it('forgets a phrase taken out of the category', () => {
     renderApp()
     showSorted()
-    arrangeOn()
-    click(cellFor('Cherry'))
+    click(editToggle())
+    lift('Cherry')
     click(cellFor('Banana'))
     expect(stored()).toEqual({ Sorted: ['custom-a', 'custom-b', 'custom-c'] })
 
-    click(reorderBtn()) // back to plain edit mode, where a cell opens
+    startNew()
     click(cellFor('Apple'))
-    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Take out of Sorted'))
+    deleteOpen()
 
     expect(stored()).toEqual({ Sorted: ['custom-b', 'custom-c'] })
   })
@@ -1105,14 +1172,15 @@ describe('arranging the phrases by hand', () => {
   it('keeps no empty arrangement behind', () => {
     renderApp([{ id: 'custom-only', text: 'Alone', category: 'Sorted' }, ...BOARD])
     showSorted()
-    arrangeOn()
-    click(cellFor('Alone'))
+    click(editToggle())
+    lift('Alone')
     click(cellFor('Cherry'))
-    click(reorderBtn())
 
     for (const text of ['Alone', 'Cherry', 'Apple', 'Banana']) {
+      // After a delete the box is empty already, and the slot is Undo.
+      if (box().value !== '') startNew()
       click(cellFor(text))
-      click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Take out of Sorted'))
+      deleteOpen()
     }
 
     expect(stored()).toEqual({})
@@ -1148,7 +1216,7 @@ describe('what is counted', () => {
     click($('.edit-toggle'))
     click(tab('Library'))
     click(cellFor('Apple'))
-    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Delete phrase'))
+    deleteOpen()
 
     expect(JSON.parse(localStorage.getItem('peri_usage')!)['custom-a']).toBeUndefined()
   })
@@ -1160,7 +1228,7 @@ describe('what is counted', () => {
     click(cellFor('Apple'))
     // Edit mode opens the phrase the box holds.
     click($('.edit-toggle'))
-    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Take out of Sorted'))
+    deleteOpen()
 
     expect(JSON.parse(localStorage.getItem('peri_usage')!)['custom-a']?.count).toBe(1)
   })

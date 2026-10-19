@@ -83,6 +83,10 @@
   padding: 24px;
 }
 
+/* The question a bin asks stands over everything, Peri's keyboard included:
+   nothing else answers until it is answered. */
+.edit-modal-scrim.is-asking { z-index: 700; }
+
 .edit-modal {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -132,6 +136,12 @@
 .edit-action-btn.dwelling { filter: brightness(1.2); }
 .edit-action-btn .dwell-bar { background: rgba(255,255,255,0.3); }
 .edit-action-btn.danger .dwell-bar { background: color-mix(in srgb, var(--danger) 30%, transparent); }
+/* The fill, which these never had: a bar along the foot, growing as it is
+   rested on, as every other control's does. */
+.edit-action-btn .dwell-bar { height: 4px; border-radius: 0; }
+.edit-action-btn.danger .dwell-bar { background: var(--danger); }
+.edit-action-btn.cancel .dwell-bar { background: var(--text-muted); }
+.edit-action-btn.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
 
 /* ── Fill-in-the-blank slots ── */
 /* Phrases from the table carry choice slots ("Please turn {control} the
