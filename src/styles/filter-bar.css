@@ -175,6 +175,11 @@
   pointer-events: none;
 }
 
+/* **Tabs the row has no room for** — Customize in the brand's gold, the colour
+   the tiles inside say *No room* in, so a bar that has left some off says so
+   before anybody goes looking. */
+.filter-tabs .filter-tab.filter-more.is-cramped { color: var(--brand); }
+
 /* **Customize, the last tab**, a glyph rather than a word: narrower padding,
    so it gives the row back what "More" took. */
 .filter-tabs .filter-tab.filter-more {
@@ -399,7 +404,10 @@
 @media (max-width: 700px) {
   .filter-bar-end { padding: 10px 6px 0 2px; }
   .sort-btn { width: 2rem; height: 2rem; }
-  .filter-tabs .filter-tab { padding-left: 14px; padding-right: 14px; }
+  /* A margin a wider font still fits: the runner's Linux font set the same
+     three tabs a few pixels wider than a Mac does, and More came up for them. */
+  .filter-tabs .filter-tab { padding-left: 11px; padding-right: 11px; }
+  .filter-tabs .tab-tool { width: 1.5rem; }
 }
 
 /* Every tab laid out again to be measured, out of sight and out of reach.

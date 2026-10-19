@@ -1236,7 +1236,7 @@ describe('More', () => {
   // nothing but its glyph; the plus follows.
   it('holds the tabs to one row, the rest behind Customize, and room for adding one', () => {
     renderApp()
-    expect(more()?.getAttribute('aria-label')).toBe('Customize tabs')
+    expect(more()?.getAttribute('aria-label')).toMatch(/^Customize tabs/)
     expect(more()?.textContent, 'a word where the glyph is').toBe('')
     expect(more()?.querySelector('svg')).not.toBeNull()
     expect(showing()).toBe('Library')
@@ -1339,6 +1339,18 @@ describe('More', () => {
     } finally {
       vi.stubGlobal('ResizeObserver', stub)
     }
+  })
+
+  // A bar that has left tabs off for room says so in the brand's gold — the
+  // colour the tiles say No room in — before
+  // anybody goes looking; one with room for all, though something is hidden,
+  // does not.
+  it("lights Customize in the brand's gold while tabs have no room on the row", () => {
+    renderApp()
+    expect(more()?.classList.contains('is-cramped')).toBe(true)
+    expect(more()?.getAttribute('aria-label')).toBe('Customize tabs. Some have no room on the bar')
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(css).toMatch(/\.filter-tab\.filter-more\.is-cramped \{[^}]*color: *var\(--brand\)/)
   })
 
   it('goes nowhere on Cancel', () => {
@@ -1467,5 +1479,47 @@ describe('hiding a tab', () => {
     click(pickerBtn('Done'))
 
     expect(catLabels().indexOf(second!)).toBe(catLabels().indexOf(third!) + 1)
+  })
+})
+
+/**
+ * **A narrow screen keeps the tab showing to its name**: no eye and no drag
+ * pad, which a phone's one row has no room to spend on — and Customize always
+ * on the row, where both are done instead.
+ */
+describe('on a narrow screen', () => {
+  const NARROW = '(max-width: 700px)'
+  beforeEach(() => {
+    window.matchMedia = ((query: string) => ({
+      matches: query === NARROW,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia
+  })
+  afterEach(() => {
+    delete (window as { matchMedia?: unknown }).matchMedia
+  })
+  const more = () => $('.filter-tabs > .filter-more')
+  const barTools = () => $$('.filter-tabs > .filter-tab .tab-tool')
+
+  it('puts no eye or drag pad on the tab showing, and keeps its name to rename it', () => {
+    renderApp()
+    const [first] = catLabels()
+    click(tabNamed(first!))
+    expect(barTools()).toHaveLength(0)
+    expect(tabNamed(first!)?.querySelector('.tab-name')).not.toBeNull()
+    expect(tabNamed(first!)?.classList.contains('has-tools')).toBe(false)
+
+    renameTab(first!)
+    expect(
+      barTools().map(t => t.getAttribute('aria-label')),
+      'the bin, while renaming',
+    ).toEqual([`Delete ${first}`])
+  })
+
+  it('keeps Customize on the row, with nothing hidden and room for all', () => {
+    renderApp()
+    expect(more()?.getAttribute('aria-label')).toBe('Customize tabs')
+    expect(more()?.classList.contains('is-cramped')).toBe(false)
   })
 })

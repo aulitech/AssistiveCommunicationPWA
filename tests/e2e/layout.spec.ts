@@ -8,14 +8,19 @@ test.describe('on a phone held upright', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
   // The bar does not scroll: one row of tabs, and Customize for what will not
-  // fit. A category of its own and the two pinned tabs fit on one row: no
-  // Customize, and every tab on screen.
-  test('puts every tab on one row where they fit, with no Customize', async ({ page }) => {
+  // fit. A category of its own and the two pinned tabs fit on one row, every
+  // tab on screen — with Customize beside them all the same, a phone's tab
+  // showing having no eye or drag pad of its own, and not lit, nothing being
+  // short of room.
+  test('puts every tab on one row where they fit, Customize beside them unlit', async ({ page }) => {
     await openBoard(page, { phrases: categories(['Nurse']) })
     const tabs = page.locator('.filter-tab[role="tab"]')
     await expect(tabs).toHaveCount(3)
     for (const t of await tabs.all()) await expect(t).toBeInViewport({ ratio: 1 })
-    await expect(page.locator('.filter-tabs > .filter-more')).toHaveCount(0)
+    const more = page.locator('.filter-tabs > .filter-more')
+    await expect(more).toBeInViewport({ ratio: 1 })
+    await expect(more).not.toHaveClass(/is-cramped/)
+    await expect(page.locator('.filter-tabs > .filter-tab .tab-tool')).toHaveCount(0)
   })
 
   // Thirty categories were a screen of tabs and no board. One row, and the
@@ -32,7 +37,8 @@ test.describe('on a phone held upright', () => {
     })
     expect(rows).toBe(1)
     const more = page.locator('.filter-tabs > .filter-more')
-    await expect(more).toHaveAttribute('aria-label', 'Customize tabs')
+    await expect(more).toHaveAttribute('aria-label', /^Customize tabs/)
+    await expect(more).toHaveClass(/is-cramped/)
     await expect(more.locator('svg')).toBeVisible()
     await expect(page.locator('.phrase-cell').first()).toBeInViewport()
 
@@ -254,6 +260,8 @@ for (const [what, viewport] of [
       expect(paged.split, 'the top row is split, or the row above it shows').toBe(false)
       await expect(up).toBeVisible()
 
+      // Half a second between pages, as a person's next dwell would wait.
+      await page.waitForTimeout(550)
       await up.click()
       await page.mouse.move(5, 5)
       await settled()
