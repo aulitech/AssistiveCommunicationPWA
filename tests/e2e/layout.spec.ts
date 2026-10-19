@@ -786,8 +786,8 @@ for (const [width, cut] of [
 }
 
 // **Release notes**, loaded from a chunk of their own when the panel opens: in
-// a real build, on a phone and a wide screen, the newest version open and a
-// change opening onto its words — and nothing running off the side, a change's
+// a real build, on a phone and a wide screen, the newest major and its newest
+// version open and a change opening onto its words — and nothing running off the side, a change's
 // subject wrapping rather than widening the column.
 for (const [what, viewport] of [
   ['on a phone held upright', { width: 390, height: 844 }],
@@ -795,16 +795,17 @@ for (const [what, viewport] of [
 ] as const) {
   test.describe(what, () => {
     test.use({ viewport })
-    test('opens the release notes, a version and a change, with nothing running off the side', async ({
+    test('opens the release notes, a major, a version and a change, with nothing running off the side', async ({
       page,
     }) => {
       const { errors } = await openBoard(page)
       await page.locator('.menu-btn').dispatchEvent('click')
       await page.locator('.nav-item[aria-label="Release notes"]').click()
 
-      const versions = page.locator('.release-version')
-      await expect(versions.first()).toHaveClass(/is-open/)
-      expect(await versions.count()).toBeGreaterThan(100)
+      const majors = page.locator('.release-major')
+      await expect(majors.first()).toHaveClass(/is-open/)
+      expect(await majors.count()).toBeGreaterThan(10)
+      await expect(page.locator('.release-major.is-open .release-version').first()).toHaveClass(/is-open/)
       const change = page.locator('.release-version.is-open .release-commit').first()
       await page.mouse.move(viewport.width / 2, 5, { steps: 4 })
       await change.locator('.help-section-title').click()

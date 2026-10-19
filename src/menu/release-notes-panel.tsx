@@ -1,5 +1,7 @@
-// Menu → Release notes: every version Peri has been, newest first, each
-// folding open onto what it changed, and each change onto what its commit says.
+// Menu → Release notes: every version Peri has been, newest first, gathered
+// under the major release it belongs to — each major folding open onto its
+// versions, each version onto what it changed, and each change onto what its
+// commit says.
 //
 // **The notes are the history, written by the release that cut each version**
 // — `pnpm release` puts them into the version commit, from every commit since
@@ -35,6 +37,26 @@ function cutOn(date: string): string {
     : day.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
 }
 
+/** The versions of one major release, newest first, as the notes list them. */
+interface Major {
+  major: string
+  versions: NoteVersion[]
+}
+
+/** The notes gathered by the first number of each version, keeping their order. */
+function byMajor(notes: NoteVersion[]): Major[] {
+  const majors: Major[] = []
+  for (const note of notes) {
+    const major = note.version.split('.')[0]
+    const last = majors[majors.length - 1]
+    if (last?.major === major) last.versions.push(note)
+    else majors.push({ major, versions: [note] })
+  }
+  return majors
+}
+
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
 /**
  * **A heading that folds what is under it**, the guide's own shape: a dwell
  * control the width of the column, a triangle pointing at the heading closed
@@ -53,7 +75,7 @@ function Fold({
   detail?: string
   open: boolean
   onToggle: () => void
-  level: 'version' | 'commit'
+  level: 'major' | 'version' | 'commit'
   children: React.ReactNode
 }) {
   const { settings } = useSettings()
@@ -62,7 +84,7 @@ function Fold({
   useEffect(() => {
     if (open) ref.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }, [open])
-  const Heading = level === 'version' ? 'h3' : 'h4'
+  const Heading = level === 'major' ? 'h3' : level === 'version' ? 'h4' : 'h5'
   return (
     <section ref={ref} className={cx('help-section', 'is-collapsible', `release-${level}`, open && 'is-open')}>
       <Heading
@@ -112,7 +134,7 @@ function Version({ note, open, onToggle }: { note: NoteVersion; open: boolean; o
   // One change open at a time, as one version is: every one open at once is
   // the whole history unfolded with extra steps.
   const [openCommit, setOpenCommit] = useState<number | null>(null)
-  const changes = `${note.commits.length} ${note.commits.length === 1 ? 'change' : 'changes'}`
+  const changes = count(note.commits.length, 'change', 'changes')
   return (
     <Fold
       title={note.version === APP_VERSION ? `${note.version} (this version)` : note.version}
@@ -135,20 +157,64 @@ function Version({ note, open, onToggle }: { note: NoteVersion; open: boolean; o
   )
 }
 
+/**
+ * **A major release, folding open onto its versions** — the newest open on
+ * arrival in the newest major, and one at a time, as at every level here.
+ */
+function MajorRelease({
+  major,
+  open,
+  onToggle,
+  newest,
+}: {
+  major: Major
+  open: boolean
+  onToggle: () => void
+  /** The newest major, whose newest version starts open. */
+  newest: boolean
+}) {
+  const [openVersion, setOpenVersion] = useState<string | null>(
+    newest ? (major.versions[0]?.version ?? null) : null,
+  )
+  const first = major.versions[major.versions.length - 1]
+  const last = major.versions[0]
+  const span = first.date === last.date ? cutOn(last.date) : `${cutOn(first.date)} to ${cutOn(last.date)}`
+  return (
+    <Fold
+      title={`Version ${major.major}`}
+      detail={`${span} · ${count(major.versions.length, 'release', 'releases')}`}
+      level="major"
+      open={open}
+      onToggle={onToggle}
+    >
+      <div className="release-versions">
+        {major.versions.map(note => (
+          <Version
+            key={note.version}
+            note={note}
+            open={openVersion === note.version}
+            onToggle={() => setOpenVersion(current => (current === note.version ? null : note.version))}
+          />
+        ))}
+      </div>
+    </Fold>
+  )
+}
+
 export function ReleaseNotesPanel() {
-  const [notes, setNotes] = useState<NoteVersion[] | null>(null)
+  const [majors, setMajors] = useState<Major[] | null>(null)
   const [failed, setFailed] = useState(false)
   // The newest open on arrival, as the guide opens on its first section.
-  const [openVersion, setOpenVersion] = useState<string | null>(null)
+  const [openMajor, setOpenMajor] = useState<string | null>(null)
 
   useEffect(() => {
     let live = true
     import('./release-notes.json')
       .then(module => {
         if (!live) return
-        const loaded = module.default as NoteVersion[]
-        setNotes(loaded)
-        setOpenVersion(loaded[0]?.version ?? null)
+        const loaded = byMajor(module.default as NoteVersion[])
+        setMajors(loaded)
+        setOpenMajor(loaded[0]?.major ?? null)
       })
       // Offline, with the notes never fetched while online: say so rather than
       // standing there blank.
@@ -167,17 +233,18 @@ export function ReleaseNotesPanel() {
             <p className="help-text">
               The release notes could not be loaded. They need the internet the first time.
             </p>
-          ) : notes === null ? (
+          ) : majors === null ? (
             <p className="help-text release-loading" role="status">
               Loading…
             </p>
           ) : (
-            notes.map(note => (
-              <Version
-                key={note.version}
-                note={note}
-                open={openVersion === note.version}
-                onToggle={() => setOpenVersion(current => (current === note.version ? null : note.version))}
+            majors.map((major, i) => (
+              <MajorRelease
+                key={major.major}
+                major={major}
+                newest={i === 0}
+                open={openMajor === major.major}
+                onToggle={() => setOpenMajor(current => (current === major.major ? null : major.major))}
               />
             ))
           )}

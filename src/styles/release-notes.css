@@ -1,7 +1,7 @@
 /* ── Release notes ── */
-/* Menu → Release notes, drawn in the guide's own folds: a version a heading,
-   and under it each change a heading of its own, smaller and set in, with what
-   its commit says under that. */
+/* Menu → Release notes, drawn in the guide's own folds: a major release a
+   heading, under it each version a heading of its own, set in, under that each
+   change, smaller and set in again, and what its commit says under that. */
 
 /* The day it was cut and how many changes, after the number and quieter. */
 .release-detail {
@@ -13,8 +13,14 @@
   white-space: nowrap;
 }
 
+.release-versions,
 .release-commits {
   margin: 0 0 8px 16px;
+}
+
+/* A version inside its major: a step down from the major's heading. */
+.release-version > .help-section-title {
+  font-size: 1rem;
 }
 
 /* A change's subject runs to two lines or three, so its heading wraps rather
