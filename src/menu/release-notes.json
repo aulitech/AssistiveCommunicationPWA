@@ -1,5 +1,47 @@
 [
   {
+    "version": "11.8.2",
+    "date": "2026-10-19",
+    "commits": [
+      {
+        "subject": "A phone's tab row keeps room enough for the runner's wider font",
+        "body": [
+          {
+            "text": "Customize is always on a phone's row now, which left three tabs, the plus and the order button fitting with five pixels to spare on a Mac and not at all in the CI runner's wider Linux font. The glyphs and the tabs give back a little padding, which leaves thirty."
+          }
+        ]
+      },
+      {
+        "subject": "Debounced arrows; Customize gold while tabs have no room; a phone's tab showing keeps to its name",
+        "body": [
+          {
+            "text": "The arrows over the grid page no more than once every half second, and not while the grid is still moving from the last page, so a rest and a gaze rig's click after it page once."
+          },
+          {
+            "text": "Customize is the brand's gold while tabs on the bar have no room on its row — the colour its tiles say No room in. On a narrow screen the tab showing keeps to its name, with no eye or drag pad, and Customize is always on the row, where hiding and moving are done instead. Phone tabs take a little less padding, which the runner's wider Linux font needed for three tabs and the plus to fit beside the order button."
+          }
+        ]
+      },
+      {
+        "subject": "Tabs in every mode, hideable behind Customize; the tab and table one surface; two arrows over the grid",
+        "body": [
+          {
+            "text": "The category tabs work the same in auto-speak as in edit mode: the tab showing renames where it stands, carries its drag pad and its bin, and the plus adds a category, whichever mode is on."
+          },
+          {
+            "text": "Every tab can be hidden, by an eye on the tab showing — Library and Translations too — which goes on to the next tab still on the bar. More is a customize glyph now, there whenever a tab is off the bar for room or hidden: a grid of every tab where one is chosen, shown or hidden by its eye, and a category moved by its drag pad, nothing changing until Done. Tiles the bar has no room for say \"No room\", worked out again as the grid and the screen change. The hidden list is this device's view, kept under the account and in no backup or snapshot, and named in the privacy policy with the order each tab is shown in."
+          },
+          {
+            "text": "The tab showing and the phrase table blend into one surface: the tab stands over the table's edge where they meet, and its foot flares into the table as a Chrome tab's does."
+          },
+          {
+            "text": "The grid's scroll rail is two translucent arrows floating over its rightmost column, each half a cell high and a third of one wide, paging five sixths of the view and landing so the top row is whole. The phrase order control is at the right end of the tab row."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.8.1",
     "date": "2026-10-19",
     "commits": [
