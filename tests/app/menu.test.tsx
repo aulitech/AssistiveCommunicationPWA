@@ -584,3 +584,79 @@ describe('accessibility', () => {
     expect(modes().every(t => t.hasAttribute('aria-pressed'))).toBe(true)
   })
 })
+
+/**
+ * **Release notes**, after Help: every version, newest first, each folding
+ * open onto the changes it brought and each change onto what its commit says.
+ * Loaded when the panel opens, so the test waits for it as the panel does.
+ */
+describe('release notes', () => {
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
+  const notes = JSON.parse(readFileSync(resolve('src/menu/release-notes.json'), 'utf8')) as {
+    version: string
+    commits: { subject: string; body: ({ text: string } | { items: string[] })[] }[]
+  }[]
+  const versions = () => $$('.release-version')
+  const headingOf = (el: Element) => el.querySelector(':scope > .help-section-title')!
+  const openNotes = async () => {
+    renderApp()
+    openMenu()
+    click(nav('Release notes'))
+    await act(async () => {
+      await vi.dynamicImportSettled()
+    })
+    settle()
+  }
+
+  it('is offered in the menu, right after Help', () => {
+    renderApp()
+    openMenu()
+    const labels = $$('.nav-item').map(n => n.getAttribute('aria-label'))
+    expect(labels.indexOf('Release notes')).toBe(labels.indexOf('Help') + 1)
+    expect(nav('Release notes')?.textContent).toMatch(/what changed/i)
+  })
+
+  it('lists every version, newest first, the newest open and marked as this one', async () => {
+    await openNotes()
+    expect($('.help-title')?.textContent).toBe('Release notes')
+    expect(versions()).toHaveLength(notes.length)
+    expect(versions().map(v => headingOf(v).querySelector('.release-title')!.textContent)).toEqual(
+      notes.map((n, i) => (i === 0 ? `${n.version} (this version)` : n.version)),
+    )
+    expect(headingOf(versions()[0]).getAttribute('aria-expanded')).toBe('true')
+    expect(
+      versions()
+        .slice(1)
+        .every(v => headingOf(v).getAttribute('aria-expanded') === 'false'),
+    ).toBe(true)
+    // Its changes, every one folded.
+    const changes = $$('.release-version.is-open .release-commit')
+    expect(changes.map(c => headingOf(c).textContent)).toEqual(notes[0].commits.map(c => c.subject))
+    expect(changes.every(c => !c.classList.contains('is-open'))).toBe(true)
+  })
+
+  it('opens a change onto what its commit says, one at a time', async () => {
+    await openNotes()
+    const withBody = notes[0].commits.findIndex(c => c.body.some(b => 'text' in b))
+    expect(withBody, 'the newest version has no change with words to it').toBeGreaterThanOrEqual(0)
+    const changes = () => $$('.release-version.is-open .release-commit')
+    click(headingOf(changes()[withBody]))
+    const first = notes[0].commits[withBody].body.find(b => 'text' in b) as { text: string }
+    expect(changes()[withBody].textContent).toContain(first.text)
+
+    const other = withBody === 0 ? 1 : 0
+    if (changes()[other]) {
+      click(headingOf(changes()[other]))
+      expect(changes()[withBody].classList.contains('is-open'), 'two changes open at once').toBe(false)
+    }
+  })
+
+  it('opens another version, closing the one that was', async () => {
+    await openNotes()
+    click(headingOf(versions()[1]))
+    expect(versions()[0].classList.contains('is-open')).toBe(false)
+    expect(versions()[1].classList.contains('is-open')).toBe(true)
+    expect($$('.release-version.is-open .release-commit')).toHaveLength(notes[1].commits.length)
+  })
+})

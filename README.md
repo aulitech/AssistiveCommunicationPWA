@@ -44,7 +44,7 @@ Netlify ran `pnpm check && pnpm build` as its build command until September 2026
 ### From a change to the people using it
 
 1. **Open a pull request** against `preview` — the default — labelled `major`, `minor` or `patch`. The `version label` check fails without exactly one. It is the one thing about a change that the diff cannot tell you.
-2. **`pnpm release`** on the branch, as the last commit before merging: it reads that label, bumps `package.json` and commits `Version 1.3.4`.
+2. **`pnpm release`** on the branch, as the last commit before merging: it reads that label, bumps `package.json`, writes the release notes Menu → Release notes shows from every commit since the last version, and commits `Version 1.3.4`.
 3. **`gh pr merge --auto --rebase`.** GitHub merges into `preview` when the checks pass; nobody watches them.
 4. **Publishing is a separate decision, and stays one: `pnpm promote`.** Auto-publishing is off. It refuses a `preview` that does not end in a release, or whose `check` or `browser` did not pass; fast-forwards `main` to it with your own admin rights, so the two are the same commits; and runs the Publish workflow, which waits for Netlify's build of that exact commit, publishes that one build, and then asks the live site what version it is serving. `gh workflow run publish` — or the Actions tab — publishes `main` again on its own.
 

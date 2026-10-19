@@ -16,7 +16,8 @@ import type { SyncControl } from '../sync/use-sync'
 import type { ElevenLabsAccount } from '../core/store'
 import { BackupPanel } from './backup-panel'
 import { HelpPanel } from './help-panel'
-import { AliasesIcon, BackIcon, BackupIcon, HelpIcon, SettingsIcon, SignOutIcon } from '../ui/icons'
+import { ReleaseNotesPanel } from './release-notes-panel'
+import { AliasesIcon, BackIcon, BackupIcon, HelpIcon, NotesIcon, SettingsIcon, SignOutIcon } from '../ui/icons'
 
 /**
  * The way out of a panel, in the top right corner of every one of them.
@@ -106,10 +107,10 @@ function ConfirmSignOut({
   )
 }
 
-type PanelView = 'menu' | 'settings' | 'aliases' | 'backup' | 'help'
+type PanelView = 'menu' | 'settings' | 'aliases' | 'backup' | 'help' | 'notes'
 
 /** The panels that fill the screen rather than hanging from the top of it. */
-const TALL_VIEWS: PanelView[] = ['settings', 'backup', 'help']
+const TALL_VIEWS: PanelView[] = ['settings', 'backup', 'help', 'notes']
 
 /**
  * How long the menu is deaf to a dwell after one of its items closes.
@@ -284,6 +285,7 @@ export function TopPanel({
               />
             )}
             {view === 'help' && <HelpPanel />}
+            {view === 'notes' && <ReleaseNotesPanel />}
           </>
         ) : (
           <nav className="panel-nav">
@@ -314,6 +316,13 @@ export function TopPanel({
               sublabel="How to use Peri"
               disabled={guarded}
               onSelect={() => setView('help')}
+            />
+            <NavItem
+              icon={<NotesIcon />}
+              label="Release notes"
+              sublabel="What changed in each version"
+              disabled={guarded}
+              onSelect={() => setView('notes')}
             />
             <NavItem
               icon={<SignOutIcon />}

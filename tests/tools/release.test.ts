@@ -5,7 +5,21 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { LEVELS, RELEASE_SUBJECT, bump, highest, levelOf, withVersion, type Level } from '../../tools/release'
+import {
+  BEFORE_NUMBERED,
+  LEVELS,
+  NOTES_FILE,
+  RELEASE_SUBJECT,
+  bodyBlocks,
+  bump,
+  highest,
+  levelOf,
+  parseLog,
+  releaseNotes,
+  withVersion,
+  type Level,
+  type NoteVersion,
+} from '../../tools/release'
 import { buildOf, saysVersion, scriptIn, type Deploy } from '../../tools/publish'
 
 describe('what a pull request asks for', () => {
@@ -139,5 +153,87 @@ describe('what the site says it is serving', () => {
     expect(saysVersion('var Kc=`1.3.10`', '1.3.1')).toBe(false)
     expect(saysVersion('var Kc=`1.3.1`', '1.3.2')).toBe(false)
     expect(saysVersion('var Kc=11311', '1.3.1'), 'the dots stood for any character').toBe(false)
+  })
+})
+
+/**
+ * **The release notes**, which Menu → Release notes shows: worked out from the
+ * history by `pnpm release`, into the version commit, so they always end at
+ * the version the build says it is.
+ */
+describe('the release notes', () => {
+  const commit = (subject: string, date = '2026-10-01', body = '') => ({ subject, date, body })
+
+  it('reads a log written in its format', () => {
+    const raw = '\x1e2026-10-01\x1fFirst thing\n\nWhat it did.\n\x1e2026-10-02\x1fVersion 1.2.0\n'
+    expect(parseLog(raw)).toEqual([
+      { date: '2026-10-01', subject: 'First thing', body: 'What it did.' },
+      { date: '2026-10-02', subject: 'Version 1.2.0', body: '' },
+    ])
+  })
+
+  it('gives each version what came since the version before, newest first both ways', () => {
+    const notes = releaseNotes([
+      commit('One'),
+      commit('Version 1.1.0', '2026-10-02'),
+      commit('Two'),
+      commit('Three'),
+      commit('Version 1.2.0', '2026-10-05'),
+    ])
+    expect(notes.map(n => [n.version, n.date, n.commits.map(c => c.subject)])).toEqual([
+      ['1.2.0', '2026-10-05', ['Three', 'Two']],
+      ['1.1.0', '2026-10-02', ['One']],
+    ])
+  })
+
+  // Nothing marks 1.0.0: everything up to the last commit before releases were
+  // numbered went out as it, and the first version commit, 1.1.0, ends a pull
+  // request of one commit after that.
+  it('puts everything before releases were numbered under 1.0.0', () => {
+    const notes = releaseNotes([
+      commit('Initial commit', '2026-08-05'),
+      commit(BEFORE_NUMBERED, '2026-09-21'),
+      commit('Pulse a microphone'),
+      commit('Version 1.1.0', '2026-09-21'),
+    ])
+    expect(notes.map(n => [n.version, n.date, n.commits.map(c => c.subject)])).toEqual([
+      ['1.1.0', '2026-09-21', ['Pulse a microphone']],
+      ['1.0.0', '2026-09-21', [BEFORE_NUMBERED, 'Initial commit']],
+    ])
+  })
+
+  it('names what is being released, dated today, and leaves out what is in no release yet', () => {
+    const log = [commit('One'), commit('Version 1.1.0'), commit('Two')]
+    expect(releaseNotes(log).map(n => n.version)).toEqual(['1.1.0'])
+    const cut = releaseNotes(log, { version: '1.2.0', today: '2026-10-19' })
+    expect(cut[0]).toEqual({ version: '1.2.0', date: '2026-10-19', commits: [{ subject: 'Two', body: [] }] })
+  })
+
+  it('unwraps paragraphs, keeps lists, and takes the trailers off', () => {
+    const body = [
+      'What it did, written over',
+      'two lines.',
+      '',
+      '- One thing, which also',
+      '  runs on.',
+      '- Another.',
+      '',
+      'Co-Authored-By: Somebody <somebody@example.com>',
+    ].join('\n')
+    expect(bodyBlocks(body)).toEqual([
+      { text: 'What it did, written over two lines.' },
+      { items: ['One thing, which also runs on.', 'Another.'] },
+    ])
+  })
+
+  // Written by the release, into the version commit — so a build that says it
+  // is one version carries the notes for it.
+  it('end at the version package.json says, in the file the app reads', () => {
+    const notes = JSON.parse(readFileSync(resolve(NOTES_FILE), 'utf8')) as NoteVersion[]
+    const { version } = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version: string }
+    expect(notes[0]?.version).toBe(version)
+    expect(notes.at(-1)?.version).toBe('1.0.0')
+    for (const note of notes) expect(note.version, 'not a version').toMatch(/^\d+\.\d+\.\d+$/)
+    expect(new Set(notes.map(n => n.version)).size, 'a version twice').toBe(notes.length)
   })
 })

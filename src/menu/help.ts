@@ -43,7 +43,10 @@ export const HELP_SECTIONS: ProseSection[] = [
         'On a narrow screen :copy: and :paste: stay at the left of the top row, with the modes beside them and :menu: at the right; the language and the voice go on a row under them.',
       ),
       text(
-        'In the upper right corner, :menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — and :sign-out: Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: at the left draws a keyboard, for a device that has none you can rest on.',
+        'In the upper right corner, :menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — :notes: Release notes, what changed in each version, and :sign-out: Sign out.',
+      ),
+      text(
+        'If you turn on Peri’s keyboard in Settings, :keyboard: at the left draws a keyboard, for a device that has none you can rest on.',
       ),
     ],
   },
