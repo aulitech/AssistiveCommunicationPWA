@@ -586,8 +586,9 @@ describe('accessibility', () => {
 })
 
 /**
- * **Release notes**, after Help: every version, newest first, each folding
- * open onto the changes it brought and each change onto what its commit says.
+ * **Release notes**, after Help: every version, newest first, gathered under
+ * its major release — each major folding open onto its versions, each version
+ * onto the changes it brought, and each change onto what its commit says.
  * Loaded when the panel opens, so the test waits for it as the panel does.
  */
 describe('release notes', () => {
@@ -597,8 +598,13 @@ describe('release notes', () => {
     version: string
     commits: { subject: string; body: ({ text: string } | { items: string[] })[] }[]
   }[]
-  const versions = () => $$('.release-version')
+  const majorOf = (version: string) => version.split('.')[0]
+  const majorsInNotes = [...new Set(notes.map(n => majorOf(n.version)))]
+  const inMajor = (major: string) => notes.filter(n => majorOf(n.version) === major)
+  const majors = () => $$('.release-major')
+  const versions = () => $$('.release-major.is-open .release-version')
   const headingOf = (el: Element) => el.querySelector(':scope > .help-section-title')!
+  const titleOf = (el: Element) => headingOf(el).querySelector('.release-title')!.textContent
   const openNotes = async () => {
     renderApp()
     openMenu()
@@ -617,18 +623,32 @@ describe('release notes', () => {
     expect(nav('Release notes')?.textContent).toMatch(/what changed/i)
   })
 
-  it('lists every version, newest first, the newest open and marked as this one', async () => {
+  it('gathers every version under its major release, newest first, the newest open', async () => {
     await openNotes()
     expect($('.help-title')?.textContent).toBe('Release notes')
-    expect(versions()).toHaveLength(notes.length)
-    expect(versions().map(v => headingOf(v).querySelector('.release-title')!.textContent)).toEqual(
-      notes.map((n, i) => (i === 0 ? `${n.version} (this version)` : n.version)),
+    expect(majors().map(titleOf)).toEqual(majorsInNotes.map(m => `Version ${m}`))
+    expect(headingOf(majors()[0]).getAttribute('aria-expanded')).toBe('true')
+    expect(
+      majors()
+        .slice(1)
+        .every(m => headingOf(m).getAttribute('aria-expanded') === 'false'),
+    ).toBe(true)
+    // How many releases each holds, said on its heading.
+    const releases = inMajor(majorsInNotes[0]).length
+    expect(headingOf(majors()[0]).textContent).toContain(`${releases} release`)
+  })
+
+  it('opens the newest major onto its versions, the newest open and marked as this one', async () => {
+    await openNotes()
+    const newest = inMajor(majorsInNotes[0])
+    expect(versions().map(titleOf)).toEqual(
+      newest.map((n, i) => (i === 0 ? `${n.version} (this version)` : n.version)),
     )
-    expect(headingOf(versions()[0]).getAttribute('aria-expanded')).toBe('true')
+    expect(versions()[0].classList.contains('is-open')).toBe(true)
     expect(
       versions()
         .slice(1)
-        .every(v => headingOf(v).getAttribute('aria-expanded') === 'false'),
+        .every(v => !v.classList.contains('is-open')),
     ).toBe(true)
     // Its changes, every one folded.
     const changes = $$('.release-version.is-open .release-commit')
@@ -657,6 +677,19 @@ describe('release notes', () => {
     click(headingOf(versions()[1]))
     expect(versions()[0].classList.contains('is-open')).toBe(false)
     expect(versions()[1].classList.contains('is-open')).toBe(true)
-    expect($$('.release-version.is-open .release-commit')).toHaveLength(notes[1].commits.length)
+    expect($$('.release-version.is-open .release-commit')).toHaveLength(
+      inMajor(majorsInNotes[0])[1].commits.length,
+    )
+  })
+
+  // Another major opens folded: nobody opening 1 wants its first version
+  // chosen for them.
+  it('opens another major, closing the one that was, its versions folded', async () => {
+    await openNotes()
+    const last = majorsInNotes[majorsInNotes.length - 1]
+    click(headingOf(majors()[majors().length - 1]))
+    expect(majors()[0].classList.contains('is-open')).toBe(false)
+    expect(versions().map(titleOf)).toEqual(inMajor(last).map(n => n.version))
+    expect(versions().every(v => !v.classList.contains('is-open'))).toBe(true)
   })
 })
