@@ -1,5 +1,22 @@
 [
   {
+    "version": "11.8.0",
+    "date": "2026-10-19",
+    "commits": [
+      {
+        "subject": "Release notes in the menu, after Help: every version, each change folding open onto its commit",
+        "body": [
+          {
+            "text": "Menu → Release notes lists every version Peri has been, newest first, each dated and counted, the one running marked. A version folds open onto the changes it brought, and each change onto what its commit says, in paragraphs and lists: the guide's folds, one open at a time at each level."
+          },
+          {
+            "text": "The notes are the history rather than anything written by hand. `pnpm release` writes them into the version commit, from every commit since the version before, trailers taken off; everything before releases were numbered went out as 1.0.0. A test holds the file to package.json's version. They load only when the panel opens — 100KB compressed that the board never waits for."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.7.0",
     "date": "2026-10-19",
     "commits": [
