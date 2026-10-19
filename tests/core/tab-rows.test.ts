@@ -28,4 +28,12 @@ describe('how many tabs fit on one row', () => {
   it('shows everything where nothing has been measured', () => {
     expect(tabsThatFit(tabs(30), 0, more)).toBe(30)
   })
+
+  // Something is off the bar, so More is there however few tabs are left on it
+  // — and its room is kept, even where those would all fit without it.
+  it("keeps More's room while anything is hidden, whatever fits", () => {
+    expect(tabsThatFit(tabs(2), 320, more, true)).toBe(2)
+    expect(tabsThatFit(tabs(3), 320, more, true)).toBe(2)
+    expect(tabsThatFit(tabs(3), 320, more)).toBe(3)
+  })
 })

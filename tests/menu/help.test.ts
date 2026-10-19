@@ -69,7 +69,7 @@ describe('the user guide', () => {
       'resting',
       /open space in the row of buttons at the top of the message box.*dwelling switches off everywhere else/,
     ],
-    ['paging the grid and the tabs', /:page-up: and :page-down: a page/],
+    ['paging the grid', /:up: and :down: move it most of a screen at a time/],
     ['putting a deleted phrase back', /After a delete/],
     ['arranging the category tabs', /picks the tab up.*Rest on another tab to put it there/],
     ['what uses the internet', /A few things use the internet/],

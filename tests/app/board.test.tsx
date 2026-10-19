@@ -19,6 +19,7 @@ import {
   editToggle,
   speakToggle,
   plainCell,
+  placeCells,
   fillEverySlot,
   slotCell,
   box,
@@ -652,98 +653,86 @@ describe('emergency bar', () => {
   })
 })
 
-describe('the scroll rail', () => {
-  const railBtn = (label: string) => $$('.scroll-btn').find(b => b.getAttribute('aria-label') === label)
+/**
+ * **The two arrows over the grid**, the whole of its scrolling: up at the top
+ * of the rightmost column and down at its foot, each half a cell high and a
+ * third of one wide, a page of five sixths per dwell, landing on a row's top.
+ * jsdom lays nothing out, so where the cells are is supplied (`placeCells`).
+ */
+describe('the arrows over the grid', () => {
+  const arrow = (which: 'up' | 'down') => $<HTMLElement>(`.grid-arrow.is-${which}`)!
+  const grid = () => $<HTMLElement>('.grid-wrapper')!
+  /** Where the grid has been asked to go, and the scroll it would have made. */
+  const follow = () => {
+    const scrollTo = vi.fn((to: ScrollToOptions) => {
+      grid().scrollTop = to.top ?? 0
+      fireEvent.scroll(grid())
+    })
+    grid().scrollTo = scrollTo as unknown as HTMLElement['scrollTo']
+    return scrollTo
+  }
 
-  // A dwell user has no wheel and no scrollbar, so this rail is the only way
-  // down a grid of two thousand phrases. Nothing else checks it is wired to the
-  // grid rather than to whatever it was last pointed at.
-  it('scrolls the grid it sits beside', () => {
+  it('replaces the rail: no column of controls beside the grid', () => {
     renderApp()
-    const grid = $('.grid-wrapper')!
-    const scrollBy = vi.fn()
-    const scrollTo = vi.fn()
-    grid.scrollBy = scrollBy
-    grid.scrollTo = scrollTo
-
-    click(railBtn('Scroll down'))
-    expect(scrollBy).toHaveBeenCalledWith({ top: 120, behavior: 'smooth' })
-
-    click(railBtn('Scroll up'))
-    expect(scrollBy).toHaveBeenLastCalledWith({ top: -120, behavior: 'smooth' })
-
-    click(railBtn('Scroll to top'))
-    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
+    expect($('.grid-scrollbar')).toBeNull()
+    expect($$('.grid-arrow').map(a => a.getAttribute('aria-label'))).toEqual(['Previous page', 'Next page'])
   })
 
-  // Three sizes of jump on one rail: a nudge, a page, and the end. The page is
-  // the one that was missing — nudging 120px at a time down two thousand phrases
-  // is a long way, and jumping to the bottom overshoots everything in between.
-  describe('a page at a time', () => {
-    /** jsdom lays nothing out, so the height a page is measured from is supplied. */
-    const withHeight = (h: number) => {
-      const grid = $<HTMLElement>('.grid-wrapper')!
-      Object.defineProperty(grid, 'clientHeight', { value: h, configurable: true })
-      const scrollBy = vi.fn()
-      grid.scrollBy = scrollBy
-      return scrollBy
-    }
+  it('is half a cell high and a third of one wide', () => {
+    placeCells({ width: 150, rowHeight: 80 })
+    renderApp()
+    expect(arrow('down').style.getPropertyValue('--arrow-w')).toBe('50px')
+    expect(arrow('down').style.getPropertyValue('--arrow-h')).toBe('40px')
+  })
 
-    // One nudge's worth stays on screen. Rows are not a uniform height here, so
-    // a jump of exactly one screen can leave a row split across the fold — and a
-    // phrase half off the top of the page is one somebody may not know is there.
-    it('moves a screenful less one nudge, in both directions', () => {
-      renderApp()
-      const scrollBy = withHeight(600)
+  // Five sixths of 400 is 333; the rows start every 80px, so the last whole
+  // row there starts at 320 — and the row at the top of the new view is whole.
+  it('pages five sixths of the view, landing on the top of a row', () => {
+    placeCells()
+    renderApp()
+    const scrollTo = follow()
 
-      click(railBtn('Next page'))
-      expect(scrollBy).toHaveBeenCalledWith({ top: 480, behavior: 'smooth' })
+    click(arrow('down'))
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 320, behavior: 'smooth' })
 
-      click(railBtn('Previous page'))
-      expect(scrollBy).toHaveBeenLastCalledWith({ top: -480, behavior: 'smooth' })
-    })
+    click(arrow('down'))
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 640, behavior: 'smooth' })
 
-    // A grid shorter than the overlap would otherwise page by nothing at all.
-    it('still moves when the grid is shorter than the overlap', () => {
-      renderApp()
-      const scrollBy = withHeight(80)
+    // Back up: 640 less 333 is 307, and the nearest row top there or below it is 320.
+    click(arrow('up'))
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 320, behavior: 'smooth' })
+  })
 
-      click(railBtn('Next page'))
-      expect(scrollBy).toHaveBeenCalledWith({ top: 120, behavior: 'smooth' })
-    })
+  it('shows each only while there is somewhere to go', () => {
+    placeCells()
+    renderApp()
+    follow()
+    expect(arrow('up').classList.contains('is-hidden'), 'up, at the top').toBe(true)
+    expect(arrow('down').classList.contains('is-hidden')).toBe(false)
 
-    // Six controls in a column need vertical room, and a short screen has none
-    // to spare. The pages are the pair that goes: a nudge repeats while held, so
-    // it crosses the same distance, and the ends still reach either end.
-    //
-    // This can only check that the rule is written and that it names the two
-    // arrows it is meant to. jsdom applies no cascade and lays nothing out, so
-    // whether it takes effect is a question for the deploy preview.
-    it('goes off a short screen, and takes nothing else with it', () => {
-      renderApp()
-      const named = $$('.scroll-btn-page').map(b => b.getAttribute('aria-label'))
-      expect(named).toEqual(['Previous page', 'Next page'])
+    click(arrow('down'))
+    expect(arrow('up').classList.contains('is-hidden')).toBe(false)
+  })
 
-      const css = stylesheet()
-      // Height alone, and no orientation clause — see the rule for why.
-      expect(css).toMatch(/@media \(max-height: 700px\) \{\s*\.scroll-btn-page \{\s*display: none;/)
-    })
+  // On while the pointer stays, at the Auto-repeat setting, so a long way down
+  // is one rest rather than one each.
+  it('keeps paging while the pointer stays', () => {
+    placeCells()
+    renderApp({ actionDwellMs: 800, repeatDelayMs: 500 })
+    const scrollTo = follow()
 
-    // Repeats while held, like the nudges, and paced by the same auto-repeat
-    // setting — so a screenful a second is a choice the user can make rather than
-    // one this file makes for them.
-    it('keeps paging while the pointer stays', () => {
-      renderApp({ actionDwellMs: 800, repeatDelayMs: 500 })
-      const scrollBy = withHeight(600)
+    fireEvent.pointerEnter(arrow('down'))
+    act(() => void vi.advanceTimersByTime(800))
+    expect(scrollTo).toHaveBeenCalledTimes(1)
 
-      fireEvent.pointerEnter(railBtn('Next page')!)
-      act(() => void vi.advanceTimersByTime(800))
-      expect(scrollBy).toHaveBeenCalledTimes(1)
+    act(() => void vi.advanceTimersByTime(1500))
+    expect(scrollTo.mock.calls.length, 'the arrow did not repeat').toBe(4)
+  })
 
-      act(() => void vi.advanceTimersByTime(1500))
-      expect(scrollBy.mock.calls.length, 'the page control did not repeat').toBe(4)
-      expect(scrollBy).toHaveBeenLastCalledWith({ top: 480, behavior: 'smooth' })
-    })
+  it('is hidden where there is no cell to size it by', () => {
+    renderApp()
+    expect(arrow('down').classList.contains('is-hidden')).toBe(true)
+    expect(arrow('down').getAttribute('aria-hidden')).toBe('true')
   })
 })
 
@@ -949,23 +938,21 @@ describe('rendering only part of a long grid', () => {
     expect(rendered()).toBeGreaterThan(first)
   })
 
-  // The rail's bottom jump would otherwise land on whatever happened to be
-  // rendered rather than on the end of the list.
-  it('renders the rest before jumping to the bottom', () => {
-    const total = openCategory()
-    expect(rendered()).toBeLessThan(total)
-
-    click($$('.scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll to bottom'))
-
-    expect(rendered()).toBe(total)
-  })
+  /** Scrolled to the end of what is rendered, which asks for more. */
+  const scrollToTheEnd = () => {
+    setGeometry($('.grid-wrapper')!, { scrollTop: 1400, clientHeight: 200, scrollHeight: 1600 })
+    act(() => void fireEvent.scroll($('.grid-wrapper')!))
+    settle()
+  }
 
   // Without this the window stays as wide as it grew, and coming back to a long
   // list after scrolling to the end of it renders the whole thing again.
   it('narrows again when a long list comes back', () => {
-    const total = openCategory()
-    click($$('.scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll to bottom'))
-    expect(rendered()).toBe(total)
+    openCategory()
+    scrollToTheEnd()
+    expect(rendered()).toBeGreaterThan(60)
+    // At the top again, as another tab leaves it — the end is not still in view.
+    setGeometry($('.grid-wrapper')!, { scrollTop: 0, clientHeight: 200, scrollHeight: 1600 })
 
     click(tabNamed('Short'))
     click(tabNamed(CATEGORY))
@@ -975,7 +962,7 @@ describe('rendering only part of a long grid', () => {
 
   it('starts again from the top when the list changes', () => {
     openCategory()
-    click($$('.scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll to bottom'))
+    scrollToTheEnd()
 
     // Nothing in Library says this, so the list the window was over is gone.
     fireEvent.change($('.text-display')!, { target: { value: 'zzqx' } })

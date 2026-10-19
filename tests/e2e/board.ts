@@ -72,16 +72,17 @@ export const tab = (page: Page, name: string) =>
   page.locator('.filter-tab[role="tab"]').filter({ hasText: new RegExp(`^${name}$`) })
 
 /**
- * Goes to a tab — on the bar where it is there, or through More, where the
- * bar's one row had no room for it.
+ * Goes to a tab — on the bar where it is there, or through Customize, where
+ * the bar's one row had no room for it.
  */
 export async function goTo(page: Page, name: string) {
   const onBar = tab(page, name)
   if (await onBar.count()) return onBar.click()
-  await page.locator('.filter-more[role="tab"]').click()
+  await page.locator('.filter-tabs > .filter-more').click()
+  // By its name: a tile the row has no room for says so under it.
   await page
-    .locator('.picker-tile')
-    .filter({ hasText: new RegExp(`^${name}$`) })
+    .locator('.more-tile-name')
+    .filter({ has: page.locator('.picker-tile-name', { hasText: new RegExp(`^${name}$`) }) })
     .click()
   await page.locator('.picker-modal-actions .panel-btn[aria-label="Done"]').click()
   // The grid closes onto a board under a resting pointer, which is deaf for a

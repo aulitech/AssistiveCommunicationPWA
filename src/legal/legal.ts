@@ -46,6 +46,7 @@ export const PRIVACY: ProseDocument = {
           'Your Synchronize passphrase, if you turned that on.',
           "A picture for the presentation window's background, if you chose one.",
           'How often you use each phrase and when you last used one, which is what lets the grid be ordered by what you use.',
+          'Which order each tab shows its phrases in, and which tabs you have hidden from the bar. Those stay on the device: they are in no backup file and nothing Synchronize sends.',
           'What you have said in another language, and which language, under the Translations tab.',
           'Questions you asked for a suggested reply to, and the replies, for a day.',
           'Which parts of Getting started you have been through, and when. That stays on the device: it is in no backup file and nothing Synchronize sends.',

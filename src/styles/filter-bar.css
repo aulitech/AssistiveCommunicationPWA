@@ -87,6 +87,59 @@
 .filter-tabs .filter-tab.active {
   margin-bottom: -1px;
   border-bottom: 1px solid var(--panel);
+  /* **Over the table's top edge**, which it covers where they meet: painted
+     after the tab, the table drew its edge straight across the tab's foot. */
+  z-index: 1;
+  /* The flares stand outside it. */
+  overflow: visible;
+  /* The edge it shares with the table, for the flares to draw. */
+  --tab-seam: var(--panel-edge);
+}
+
+/* **Its foot flares into the table, as a Chrome tab does**: at each bottom
+   corner a concave curve in the table's ground, its edge running from the
+   tab's side out into the table's top edge — so the two are one surface with
+   no line between. Each covers the last stretch of the tab's own side, which
+   would otherwise stand as a post beside the curve. The ring's 11–12px matches
+   a 1px edge on a 12px square, its bottom row the table's own edge. */
+.filter-tabs .filter-tab.active::before,
+.filter-tabs .filter-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+.filter-tabs .filter-tab.active::before {
+  left: -12px;
+  background: radial-gradient(
+    circle at 0 0,
+    transparent 10.5px,
+    var(--tab-seam) 11px,
+    var(--tab-seam) 11.6px,
+    var(--panel) 12.1px
+  );
+}
+
+.filter-tabs .filter-tab.active::after {
+  right: -12px;
+  background: radial-gradient(
+    circle at 100% 0,
+    transparent 10.5px,
+    var(--tab-seam) 11px,
+    var(--tab-seam) 11.6px,
+    var(--panel) 12.1px
+  );
+}
+
+/* **The first tab stands on the table's corner**, its side running straight
+   down into the table's: no flare that way, and that corner of the table
+   square rather than rounded under it. */
+.filter-tabs > .filter-tab.active:first-child::before { display: none; }
+.filter-bar-wrap:has(.filter-tabs > .filter-tab.active:first-child) + .grid-area {
+  border-top-left-radius: 0;
 }
 
 .filter-tab .dwell-bar {
@@ -107,8 +160,8 @@
   font-size: 1rem;
 }
 
-/* **More**: the tabs that did not fit, and the name of the one showing where
-   it is among them. The chevron says it opens a grid rather than a category. */
+/* **More**, drawn as the customize glyph: whatever is off the bar, and the
+   grid where tabs are chosen, hidden, shown and moved. */
 .filter-more {
   display: inline-flex;
   align-items: center;
@@ -116,10 +169,20 @@
 }
 
 .filter-more svg {
-  width: 0.9rem;
-  height: 0.9rem;
+  width: 1.15rem;
+  height: 1.15rem;
   flex-shrink: 0;
   pointer-events: none;
+}
+
+/* **Customize, the last tab**, a glyph rather than a word: narrower padding,
+   so it gives the row back what "More" took. */
+.filter-tabs .filter-tab.filter-more {
+  padding-left: 12px;
+  padding-right: 12px;
+  /* As tall as the tabs beside it, which a glyph alone is not, so it stands
+     on the same line rather than a few pixels under it. */
+  align-self: stretch;
 }
 
 /* **The tab showing's own tools**, in edit mode: rename, and reorder — or
@@ -276,6 +339,69 @@
   to { transform: scale(1); }
 }
 
+/* **Which order the phrases are in**, at the tab row's right end, outside the
+   tabs — see `SortControl`. A bare glyph in the row like the plus, standing on
+   the same line, with the fill rising behind it as it is rested on; quiet on
+   the two tabs whose order is not the user's to change. */
+.filter-bar-end {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px 0 4px;
+  flex-shrink: 0;
+}
+
+.sort-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* A little past its edges, for a tracker to hit — so nothing here clips. */
+.sort-btn::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.sort-btn svg {
+  position: relative;
+  z-index: 1;
+  width: 1.25rem;
+  height: 1.25rem;
+  pointer-events: none;
+}
+
+.sort-btn-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent-dim);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  pointer-events: none;
+}
+
+.sort-btn.dwelling { color: var(--text); }
+.sort-btn.dwelling .sort-btn-fill { animation: dwellFillV var(--dwell-duration, 800ms) linear forwards; }
+.sort-btn[aria-disabled] { opacity: 0.4; cursor: default; }
+
+/* The tabs run up to it rather than keeping their own gutter as well. */
+.filter-bar-wrap:has(> .filter-bar-end) > .filter-tabs { padding-right: 0; }
+
+/* On a phone the row is the tabs' to spend: the button a little smaller and
+   closer to the edge, so three tabs and the plus still fit beside it. */
+@media (max-width: 700px) {
+  .filter-bar-end { padding: 10px 6px 0 2px; }
+  .sort-btn { width: 2rem; height: 2rem; }
+  .filter-tabs .filter-tab { padding-left: 14px; padding-right: 14px; }
+}
+
 /* Every tab laid out again to be measured, out of sight and out of reach.
    Absolutely placed in a box of no size, so it takes no room in the bar and
    cannot make the page wider; the tabs in it do not shrink, so each is the
@@ -307,4 +433,76 @@
   border: 1px solid var(--panel-edge);
   border-radius: 12px;
   margin: 0 8px 8px;
+}
+
+/* **A tab in Customize's grid** — its name, which chooses it, and against its
+   right edge an eye and, on a category somebody made, a drag pad: three
+   controls side by side, so a rest on a tool is never a rest on the name as
+   well. A tab off the bar says so in a muted line under its name. Two classes,
+   since the picker tile's own column comes later in the stylesheet. */
+.picker-tile.more-tile {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  cursor: default;
+}
+
+.picker-tile.more-tile:hover { background: var(--cell); border-color: var(--border); }
+.picker-tile.more-tile.is-selected,
+.picker-tile.more-tile.is-selected:hover { padding-right: 0; border-color: var(--accent); background: var(--accent-dim); }
+
+.more-tile-name {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 12px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.more-tile-name.dwelling { background: var(--cell-hover); }
+.more-tile-name .dwell-bar { background: var(--accent); }
+.more-tile-name.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
+
+.more-tile.is-off-bar .picker-tile-name { color: var(--text-muted); }
+
+/* Wider than the picker's own tiles, which hold a name and nothing beside it:
+   these hold two tools as well, and a name cut short is a tab nobody can find.
+   A long one wraps rather than ending in an ellipsis. */
+.picker-grid:has(> .more-tile) { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+.more-tile .picker-tile-name,
+.more-tile .picker-tile-detail { white-space: normal; overflow-wrap: anywhere; }
+/* On the bar but past its room: the name as it is, and a line saying where it went. */
+.more-tile.is-no-room .picker-tile-detail { color: var(--brand); }
+
+.more-tile-tools {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.more-tile-tools .tab-tool {
+  width: 2.6rem;
+  border-radius: 0;
+  border-left: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Hidden is a state of the tab, not a tool switched on: the eye says it,
+   without the accent a pressed tool wears. */
+.more-tile-tools .hide-tool.is-on { color: var(--text-muted); background: rgba(255, 255, 255, 0.04); }
+
+/* Lifted, and everywhere it could go — the bar's own cues. */
+.picker-tile.more-tile.is-held {
+  border-color: var(--held);
+  background: color-mix(in srgb, var(--held) 22%, var(--cell));
+}
+
+.picker-tile.more-tile.is-drop-zone {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--held) 70%, transparent);
 }

@@ -3,6 +3,7 @@
 
 import { FORMER_IDS, LIBRARY } from '../phrases'
 import {
+  HIDDEN_TABS_KEY,
   INTRODUCTION_KEY,
   PHRASE_SORT_KEY,
   RECENT_KEY,
@@ -291,6 +292,27 @@ export function loadPhraseSorts(): PhraseSorts {
 
 export function savePhraseSorts(sorts: PhraseSorts) {
   writeKey(storageKey(PHRASE_SORT_KEY), JSON.stringify(sorts))
+}
+
+/**
+ * **The tabs somebody has hidden from the bar**, by id — a category's name,
+ * or Library, Translations or the answers. Behind More, which shows them and
+ * puts them back. A view of this device's board rather than anything on it,
+ * as the order each tab is shown in is: a phone may want fewer tabs than a
+ * desk, so it has a small key of its own and travels in no backup and nothing
+ * Synchronize sends. Anything not a list of names is nothing hidden.
+ */
+export function loadHiddenTabs(): string[] {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(storageKey(HIDDEN_TABS_KEY)) ?? '[]')
+    return Array.isArray(raw) ? [...new Set(raw.filter((id): id is string => typeof id === 'string'))] : []
+  } catch {
+    return []
+  }
+}
+
+export function saveHiddenTabs(hidden: readonly string[]) {
+  writeKey(storageKey(HIDDEN_TABS_KEY), JSON.stringify(hidden))
 }
 
 /**

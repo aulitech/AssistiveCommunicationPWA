@@ -4,30 +4,16 @@
 // the cell is memoised and takes callbacks that do not change between renders.
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { holdDwells, onDwellActivation, useDwellControl } from '../ui/dwell'
+import { onDwellActivation, useDwellControl } from '../ui/dwell'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
 import { useEdit } from '../ui/edit-mode'
-import { PickerModal, PickerTile } from '../ui/controls'
-import { usePendingChoice } from '../ui/pending-choice'
 import { stripMarkdown } from '../core/markdown'
 import { hasChoices, type Phrase } from '../core/phrases'
-import { sortName, sortsFor } from '../core/sort'
-import { type PhraseSort } from '../core/store'
 import { needsMore, windowSize } from '../core/virtual'
-import {
-  CustomOrderIcon,
-  FrequentIcon,
-  GripIcon,
-  PageIcon,
-  RecentIcon,
-  ScrollDownIcon,
-  ScrollUpIcon,
-  SortAlphaIcon,
-  ToBottomIcon,
-  ToTopIcon,
-  TrashIcon,
-} from '../ui/icons'
+import { pageTarget } from '../core/paging'
+import { GripIcon, ScrollDownIcon, ScrollUpIcon, TrashIcon } from '../ui/icons'
+import { useScrollEdges } from '../ui/scroll-edges'
 import { cx, dwellVar } from '../ui/style'
 import { ItemTool } from './item-tool'
 import { PhraseText } from './phrase-text'
@@ -179,239 +165,137 @@ const PhraseCell = memo(function PhraseCell({
 // {['music','tv']}"). Selecting one walks the user through its slots by dwell
 // rather than dropping raw placeholder text into the message.
 
-const SCROLL_STEP = 120
-
 /**
- * How far a page moves: the visible height, less one nudge's worth.
+ * **The two arrows over the grid**, the whole of its scrolling: up at the top
+ * of the rightmost column and down at its foot, floating translucent over the
+ * cells, each half a cell high and a third of one wide — measured off a cell,
+ * so they follow the columns a screen gives and the text size. A page per
+ * dwell, smoothly, and on while the pointer rests there, at the Auto-repeat
+ * setting. Each is there only while there is somewhere to go: one that has
+ * nowhere hides and lets the pointer through to the cell under it.
  *
- * Not the whole height. Rows here are not a uniform height — a phrase long
- * enough to wrap three times makes its whole row taller, and about one row in
- * five does — so a jump of exactly one screen can leave a row split across the
- * fold, half at the bottom of one page and half at the top of the next. Keeping
- * a nudge's worth on screen means every row is whole somewhere, and gives the
- * eye something it just read to land on.
- *
- * The floor matters where the grid is shorter than the overlap: a page of
- * nothing is a control that does nothing.
+ * They replace a rail of six — a nudge, a page and an end each way — and the
+ * column it took from the grid. The ends went with it: a long board is reached
+ * by paging, and the grid grows as it is paged, so there is nothing a page
+ * cannot reach.
  */
-const pageBy = (extent: number) => Math.max(extent - SCROLL_STEP, SCROLL_STEP)
-
-function ScrollBtn({
-  onAction,
-  repeat,
-  disabled,
-  pressed,
-  label,
-  className,
-  children,
+function GridArrows({
+  gridRef,
+  innerRef,
 }: {
-  onAction: () => void
-  repeat?: boolean
-  /** Goes quiet rather than away — see the rail's two tools for the ones that do. */
-  disabled?: boolean
-  /** For the one control here that is a mode rather than an action. */
-  pressed?: boolean
-  label: string
-  className?: string
-  children: React.ReactNode
+  gridRef: React.RefObject<HTMLElement | null>
+  innerRef: React.RefObject<HTMLElement | null>
 }) {
-  const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onAction, {
-    disabled,
-    repeatMs: repeat ? settings.repeatDelayMs : undefined,
-  })
-  return (
-    <div
-      className={cx('scroll-btn', className, active && 'dwelling', pressed && 'is-on')}
-      style={dwellVar(settings.actionDwellMs)}
-      role="button"
-      aria-label={label}
-      aria-pressed={pressed}
-      {...props}
-    >
-      <div className="scroll-btn-fill" key={active ? 'a' : 'i'} />
-      {children}
-    </div>
-  )
-}
+  const edges = useScrollEdges(gridRef)
+  const { update } = edges
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null)
 
-/** Which glyph says which arrangement is on. */
-const SORT_ICONS: Record<PhraseSort, React.ReactNode> = {
-  custom: <CustomOrderIcon />,
-  alpha: <SortAlphaIcon />,
-  recent: <RecentIcon />,
-  frequent: <FrequentIcon />,
-}
+  // A cell's width and height, a third and a half of which each arrow is — on
+  // every resize, since a phone turned on its side has another number of
+  // columns and somebody may have turned the text up.
+  useEffect(() => {
+    const wrapper = gridRef.current
+    if (!wrapper) return
+    const measureCell = () => {
+      const cell = innerRef.current?.querySelector<HTMLElement>('.phrase-place')
+      if (!cell) return setSize(null)
+      const rect = cell.getBoundingClientRect()
+      const least = parseFloat(getComputedStyle(cell.firstElementChild ?? cell).minHeight)
+      const height = Number.isFinite(least) && least > 0 ? least : rect.height
+      if (rect.width <= 0 || height <= 0) return setSize(null)
+      setSize(current =>
+        current && current.width === rect.width && current.height === height
+          ? current
+          : { width: rect.width, height },
+      )
+      update()
+    }
+    measureCell()
+    const ro = new ResizeObserver(measureCell)
+    ro.observe(wrapper)
+    if (innerRef.current) ro.observe(innerRef.current)
+    return () => ro.disconnect()
+  }, [gridRef, innerRef, update])
 
-/**
- * The one control in this rail that does not scroll: which order the phrases are
- * in. It sits **above the jump to the top**, outside the scroll group, because a
- * user learns this rail by position and the five below it are one thing.
- *
- * A full-screen grid rather than a list that drops down, for the reason every
- * choice in this app is one — and a cycling button would be worse still here,
- * since four states behind one glyph is three dwells and a guess to reach the
- * one you want. **A tile marks a choice and Done makes it** — see
- * `usePendingChoice`. It used to close on the first tile, on the grounds that
- * there is nothing to preview behind the scrim and a second dwell on Done would
- * be a target for nothing. But a rest is how somebody looks at a tile as well as
- * how they pick one, and a grid that commits to the first tile the eye passes
- * over is choosing for them — with a Cancel beside it that did what Done did.
- *
- * It **goes quiet rather than away** on the two tabs whose order is not the
- * user's to change. A control that comes and goes moves the ones below it, and
- * this rail is aimed at rather than read.
- */
-function SortControl({
-  sort,
-  orderFixed,
-  canArrange,
-  onChoose,
-}: {
-  sort: PhraseSort
   /**
-   * Why this tab's order cannot be changed, or absent when it can.
-   *
-   * A reason rather than a flag, because there are two tabs like this now and a
-   * control that has gone quiet explains nothing by itself — so the one thing it
-   * can still do is say which tab it is on and what that tab does instead.
+   * Where the last page was aimed, and when: a page smoothly scrolled is still
+   * on its way when the next comes round, and measuring from where it has got
+   * to would land the next one short. So a page asked for while one is still
+   * moving is measured from where that one is going.
    */
-  orderFixed?: string
-  /** False under the answers and Translations, which offer no Custom order — see `sortsFor`. */
-  canArrange: boolean
-  onChoose: (sort: PhraseSort) => void
-}) {
-  // Closing puts the board back under a pointer that has not moved, and under a
-  // new arrangement the cell arriving there is not the one that was there when
-  // the picker opened. Same second the menu takes on its way out, for the same
-  // reason: a phrase must not be spoken by the screen moving. However it closes,
-  // since Cancel lands the pointer on the board just as Done does.
-  const { open, pending, mark, begin, done, cancel } = usePendingChoice(sort, onChoose, holdDwells)
+  const aimed = useRef<{ top: number; at: number } | null>(null)
 
+  const page = useCallback(
+    (direction: 1 | -1) => {
+      const wrapper = gridRef.current
+      const grid = innerRef.current
+      if (!wrapper || !grid) return
+      const moving = aimed.current && Date.now() - aimed.current.at < 700 ? aimed.current.top : null
+      const from = moving ?? wrapper.scrollTop
+      const padding = parseFloat(getComputedStyle(wrapper).paddingTop) || 0
+      // Half the gap between rows above the one landed on, so nothing of the
+      // row before it shows over the top edge; the first row goes to the very top.
+      const gap = parseFloat(getComputedStyle(grid).rowGap) || 0
+      const base = wrapper.getBoundingClientRect().top - wrapper.scrollTop
+      // Where each row starts, as a scroll position that puts it at the top.
+      const tops = new Set<number>()
+      for (const place of grid.querySelectorAll<HTMLElement>('.phrase-place')) {
+        const at = place.getBoundingClientRect().top - base
+        tops.add(at <= padding + 1 ? 0 : Math.round(at - gap / 2))
+      }
+      const most = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight)
+      const top = Math.min(most, pageTarget(from, wrapper.clientHeight, [...tops], direction))
+      aimed.current = { top, at: Date.now() }
+      wrapper.scrollTo({ top, behavior: 'smooth' })
+    },
+    [gridRef, innerRef],
+  )
+
+  const style = size
+    ? ({ '--arrow-w': `${size.width / 3}px`, '--arrow-h': `${size.height / 2}px` } as React.CSSProperties)
+    : undefined
   return (
     <>
-      <ScrollBtn
-        className="rail-tool sort-btn"
-        disabled={Boolean(orderFixed)}
-        onAction={begin}
-        // The glyph says which order is on, so the name does too — a control
-        // that has gone quiet, or that is read aloud, explains nothing by itself.
-        label={
-          orderFixed
-            ? `Phrase order: ${sortName(sort)}. ${orderFixed}`
-            : `Phrase order: ${sortName(sort)}. Choose another`
-        }
-      >
-        {SORT_ICONS[sort]}
-      </ScrollBtn>
-
-      {open && (
-        <PickerModal
-          title="Order the phrases"
-          hint="How every category is arranged"
-          onDone={done}
-          onCancel={cancel}
-        >
-          {sortsFor(canArrange).map(option => (
-            <PickerTile
-              key={option.id}
-              name={option.name}
-              detail={option.detail}
-              selected={option.id === pending}
-              onSelect={() => mark(option.id)}
-            />
-          ))}
-        </PickerModal>
-      )}
+      <GridArrow direction="up" style={style} hidden={!size || !edges.canUp} onPage={() => page(-1)} />
+      <GridArrow direction="down" style={style} hidden={!size || !edges.canDown} onPage={() => page(1)} />
     </>
   )
 }
 
-/**
- * The rail: which order the phrases are in, and then five ways of moving through
- * them. The two mode toggles used to head it; they are in the topbar now, either
- * side of Rest, which is the third of the three and was already there.
- */
-function GridScrollBar({
-  gridRef,
-  sort,
-  orderFixed,
-  canArrange,
-  onChooseSort,
-  onBeforeJumpToBottom,
+function GridArrow({
+  direction,
+  style,
+  hidden,
+  onPage,
 }: {
-  gridRef: React.RefObject<HTMLElement | null>
-  sort: PhraseSort
-  /** Why this tab's order is not the user's to change, or absent when it is. */
-  orderFixed?: string
-  /** False under the answers and Translations: neither holds phrases in an order of its own. */
-  canArrange: boolean
-  onChooseSort: (sort: PhraseSort) => void
-  /** Renders the rest of the list, so the jump has somewhere to land. */
-  onBeforeJumpToBottom: () => void
+  direction: 'up' | 'down'
+  style?: React.CSSProperties
+  hidden: boolean
+  onPage: () => void
 }) {
-  const scrollTo = useCallback(
-    (pos: number) => gridRef.current?.scrollTo({ top: pos, behavior: 'smooth' }),
-    [gridRef],
-  )
-  const scrollBy = useCallback(
-    (dy: number) => gridRef.current?.scrollBy({ top: dy, behavior: 'smooth' }),
-    [gridRef],
-  )
-  // Measured at the moment it is asked for rather than held in state: the grid
-  // resizes with the keyboard, with rotation, and with the filter bar coming and
-  // going, and a page is only ever wanted now.
-  const scrollPage = useCallback(
-    (direction: 1 | -1) => scrollBy(direction * pageBy(gridRef.current?.clientHeight ?? 0)),
-    [scrollBy, gridRef],
-  )
-
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onPage, {
+    disabled: hidden,
+    repeatMs: settings.repeatDelayMs,
+  })
   return (
-    <div className="grid-scrollbar">
-      {/* The controls that are about the grid rather than about moving through
-          it, grouped and ruled off. The five below are one thing, learnt by
-          position, and nothing may be inserted among them. */}
-      <div className="rail-tools">
-        <SortControl sort={sort} orderFixed={orderFixed} canArrange={canArrange} onChoose={onChooseSort} />
-      </div>
-      <ScrollBtn onAction={() => scrollTo(0)} label="Scroll to top">
-        <ToTopIcon />
-      </ScrollBtn>
-      {/* A screenful at a time, repeating while held at whatever pace the
-          auto-repeat setting says — see `PageIcon` for why the double chevron,
-          and `pageBy` for why not a whole screen.
-
-          These two are the pair that goes on a short screen: six controls in a
-          column need vertical room the grid has more use for, and a nudge held
-          down crosses the same distance. See `.scroll-btn-page` in `styles/grid.css`. */}
-      <ScrollBtn onAction={() => scrollPage(-1)} repeat className="scroll-btn-page" label="Previous page">
-        <PageIcon direction="up" />
-      </ScrollBtn>
-      <ScrollBtn onAction={() => scrollBy(-SCROLL_STEP)} repeat label="Scroll up">
-        <ScrollUpIcon />
-      </ScrollBtn>
-      <ScrollBtn onAction={() => scrollBy(SCROLL_STEP)} repeat label="Scroll down">
-        <ScrollDownIcon />
-      </ScrollBtn>
-      <ScrollBtn onAction={() => scrollPage(1)} repeat className="scroll-btn-page" label="Next page">
-        <PageIcon direction="down" />
-      </ScrollBtn>
-      <ScrollBtn
-        onAction={() => {
-          onBeforeJumpToBottom()
-          scrollTo(999999)
-        }}
-        label="Scroll to bottom"
-      >
-        <ToBottomIcon />
-      </ScrollBtn>
+    <div
+      className={cx('grid-arrow', `is-${direction}`, active && 'dwelling', hidden && 'is-hidden')}
+      style={{ ...style, ...dwellVar(settings.actionDwellMs) }}
+      role="button"
+      aria-label={direction === 'up' ? 'Previous page' : 'Next page'}
+      aria-hidden={hidden || undefined}
+      {...props}
+    >
+      <span className="grid-arrow-fill" key={active ? 'a' : 'i'} />
+      {direction === 'up' ? <ScrollUpIcon /> : <ScrollDownIcon />}
     </div>
   )
 }
 
 /**
- * The grid and the rail beside it. They are one component because the rail
- * scrolls the grid, and the reference between them is nobody else's business.
+ * The grid and the two arrows over it. They are one component because the
+ * arrows scroll the grid, and the reference between them is nobody else's business.
  *
  * Only the first `shown` cells are rendered — see `core/virtual.ts` for why the
  * window grows from the top rather than sliding.
@@ -421,11 +305,8 @@ export function PhraseGrid({
   listKey,
   emptyMessage,
   busy,
-  sort,
-  orderFixed,
   canArrange,
   narrowed,
-  onChooseSort,
   open,
   onDeleteOpen,
   choosing = true,
@@ -451,18 +332,13 @@ export function PhraseGrid({
    * go looking for the news that they are coming.
    */
   busy?: boolean
-  /** Which of the four orders the list arrived in — the rail says which. */
-  sort: PhraseSort
-  /** Set on the two tabs that keep an order of their own: the answers, and Translations. */
-  orderFixed?: string
-  /** False under the answers and Translations: no Custom order, and nothing to arrange. */
+  /** False under the answers and Translations: nothing to arrange. */
   canArrange: boolean
   /**
    * The grid is narrowed to a word. Arranging then would arrange only what
    * matched, so the drag pad is not offered.
    */
   narrowed?: boolean
-  onChooseSort: (sort: PhraseSort) => void
   /**
    * **The phrase open in the message box**, in edit mode — the active phrase,
    * as the tab showing is the active tab. Its cell carries a bin against its
@@ -716,11 +592,6 @@ export function PhraseGrid({
       ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [pointing])
 
-  // The rail's bottom jump has to have somewhere to land. The count rather than
-  // null, because null means "not measured yet" and the effect would answer that
-  // by measuring and windowing again on the very next pass.
-  const showEverything = useCallback(() => setShown(phrases.length), [phrases.length])
-
   useMagnifier(innerRef, gridRef, phrases, held !== null || !choosing)
 
   return (
@@ -755,14 +626,7 @@ export function PhraseGrid({
           <span>{peek}</span>
         </div>
       )}
-      <GridScrollBar
-        gridRef={gridRef}
-        sort={sort}
-        orderFixed={orderFixed}
-        canArrange={canArrange}
-        onChooseSort={onChooseSort}
-        onBeforeJumpToBottom={showEverything}
-      />
+      <GridArrows gridRef={gridRef} innerRef={innerRef} />
     </div>
   )
 }

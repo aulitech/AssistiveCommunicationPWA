@@ -3,25 +3,26 @@ import { describe, it, expect, vi } from 'vitest'
 import { fireEvent, act } from '@testing-library/react'
 import { DEFAULT_SETTINGS } from '../../src/core/store'
 import { downloads } from '../setup'
-import { $$, $, settle, click, mount, renderApp, writeIn } from './harness'
+import { $$, $, settle, click, mount, placeCells, renderApp, writeIn } from './harness'
 import { stylesheet } from '../stylesheet'
 
-// How fast a held control fires again — the scroll nudges, the filter arrows, the
-// settings spinners. The wait before the *first* fire is the action dwell, the
+// How fast a held control fires again — the arrows over the grid, the panes'
+// arrows, the settings spinners. The wait before the *first* fire is the action dwell, the
 // same as any other control; this is only the gap between that one and the next.
 // It was two hardcoded numbers, 180 and 200, until it became a setting.
 describe('the auto-repeat delay', () => {
-  const railBtn = (label: string) =>
-    $$('.grid-scrollbar .scroll-btn').find(b => b.getAttribute('aria-label') === label)!
+  /** The arrow at the grid's foot, given a cell to be sized by — see `placeCells`. */
+  const nextPage = () => $<HTMLElement>('.grid-arrow.is-down')!
   const settingRow = (label: string) =>
     $$('.setting-row').find(r => r.querySelector('.setting-label')?.textContent === label)!
 
   it('paces the repeats of a held control', () => {
+    placeCells()
     renderApp({ actionDwellMs: 300, repeatDelayMs: 500 })
     const scrollBy = vi.fn()
-    $<HTMLElement>('.grid-wrapper')!.scrollBy = scrollBy
+    $<HTMLElement>('.grid-wrapper')!.scrollTo = scrollBy
 
-    fireEvent.pointerEnter(railBtn('Scroll down'))
+    fireEvent.pointerEnter(nextPage())
     act(() => void vi.advanceTimersByTime(300)) // the dwell itself, not a repeat
     expect(scrollBy).toHaveBeenCalledTimes(1)
 
@@ -36,11 +37,12 @@ describe('the auto-repeat delay', () => {
   // dwell is how long somebody needs to settle on a target, this is how fast they
   // travel once they have. A long dwell with quick repeats is a real combination.
   it('is set independently of the action dwell', () => {
+    placeCells()
     renderApp({ actionDwellMs: 2000, repeatDelayMs: 100 })
     const scrollBy = vi.fn()
-    $<HTMLElement>('.grid-wrapper')!.scrollBy = scrollBy
+    $<HTMLElement>('.grid-wrapper')!.scrollTo = scrollBy
 
-    fireEvent.pointerEnter(railBtn('Scroll down'))
+    fireEvent.pointerEnter(nextPage())
     act(() => void vi.advanceTimersByTime(1999))
     expect(scrollBy, 'fired before the long dwell was up').not.toHaveBeenCalled()
 

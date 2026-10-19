@@ -129,11 +129,27 @@ const pickerBtn = (label: string) =>
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
 
+/**
+ * **The tabs work the same in every mode.** Adding, renaming, arranging and
+ * taking a category away were edit mode's alone; the tabs are the board's own
+ * arrangement rather than a phrase being changed, so they are there while the
+ * board speaks too.
+ */
 describe('outside edit mode', () => {
-  it('offers no category editing at all', () => {
+  it('offers the same tools as edit mode', () => {
     renderApp()
-    expect($('.filter-tabs > .add-tab')).toBeNull()
-    expect(catTabs()[0].getAttribute('aria-label')).not.toMatch(/rename/i)
+    expect($('.filter-tabs > .add-tab')).not.toBeNull()
+    const name = catTabs()[0].textContent!
+    click(tabNamed(name))
+    expect($('.tab-name')?.getAttribute('aria-label')).toBe(`Rename ${name}`)
+  })
+
+  it('adds a category', () => {
+    renderApp()
+    click($('.add-tab'))
+    type(nameField(), 'While talking')
+    saveModal()
+    expect(catLabels()).toContain('While talking')
   })
 })
 
@@ -192,6 +208,31 @@ describe('the tab that is showing', () => {
     )
   })
 
+  // **Its foot flares into the table, as a Chrome tab does** — a concave curve
+  // at each bottom corner in the table's ground and edge — and the first tab
+  // runs straight down into the table's side, that corner squared. Whether it
+  // looks seamless is an eye's question and `e2e/layout.spec.ts`'s; this is
+  // that the rules are written.
+  it("flares its foot into the table, Chrome's way, the first tab on a square corner", () => {
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(css).toMatch(/\.filter-tabs \.filter-tab\.active \{[^}]*z-index: *1;/)
+    for (const side of ['before', 'after']) {
+      const flare = [
+        ...css.matchAll(new RegExp(`\\.filter-tabs \\.filter-tab\\.active::${side} \\{([^}]*)\\}`, 'g')),
+      ]
+        .map(m => m[1])
+        .join('\n')
+      expect(flare).toMatch(/radial-gradient\([^;]*var\(--tab-seam\)[^;]*var\(--panel\)/)
+    }
+    expect(css).toMatch(/\.filter-tabs > \.filter-tab\.active:first-child::before \{ *display: *none; *\}/)
+    expect(css).toMatch(
+      /:has\(\.filter-tabs > \.filter-tab\.active:first-child\) \+ \.grid-area \{[^}]*border-top-left-radius: *0/,
+    )
+    expect(css, 'the flares do not take the green edge in edit mode').toMatch(
+      /\.app\.edit-mode \.filter-tabs \.filter-tab\.active \{[^}]*--tab-seam: *color-mix/,
+    )
+  })
+
   it('is not filled in the accent, though the flash of choosing it is', () => {
     expect(rule('.filter-tab.active')).toMatch(/background: *var\(--panel\)/)
     expect(rule('.filter-tab.active')).not.toMatch(/var\(--accent\)/)
@@ -228,27 +269,31 @@ describe('in edit mode', () => {
 
     const showing = tabNamed(name)!
     expect(showing.querySelector('.tab-name')?.getAttribute('aria-label')).toBe(`Rename ${name}`)
+    expect(showing.querySelector('.hide-tool')?.getAttribute('aria-label')).toBe(`Hide ${name} from the bar`)
     expect(showing.querySelector('.reorder-tool')?.getAttribute('aria-label')).toBe(`Move ${name}`)
-    expect([...showing.querySelectorAll('.tab-tool')], 'more than the reorder tool').toHaveLength(1)
+    expect([...showing.querySelectorAll('.tab-tool')], 'more than the eye and the reorder tool').toHaveLength(2)
     expect($$('.filter-tab[role="tab"] .tab-tools'), 'tools on a tab that is not showing').toHaveLength(1)
     // Selected, and not disabled: that would say so of the tools too.
     expect(showing.getAttribute('aria-disabled')).toBeNull()
   })
 
   // Library holds every phrase, and the records are records: none is a
-  // category to rename or move.
-  it('puts no tools on a tab that is not a category', () => {
+  // category to rename or move — but every tab can be taken off the bar.
+  it('puts only the eye on a tab that is not a category', () => {
     renderApp()
     enterEditMode()
 
     expect(tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent).toBe('Library')
-    expect($('.tab-tools')).toBeNull()
+    expect($$('.filter-tabs > .filter-tab .tab-tool').map(t => t.getAttribute('aria-label'))).toEqual([
+      'Hide Library from the bar',
+    ])
+    expect($('.tab-name')).toBeNull()
   })
 
-  it('offers no tools outside edit mode', () => {
+  it('offers them outside edit mode too', () => {
     renderApp()
     click(tabNamed(catTabs()[0].textContent!))
-    expect($('.tab-tools')).toBeNull()
+    expect($('.tab-tools')).not.toBeNull()
   })
 
   // **Adding one is right after the last tab**, as a browser's new tab button
@@ -453,7 +498,8 @@ describe('renaming a category', () => {
     expect($('input[aria-label="Category name"]')).toBeNull()
   })
 
-  it('saves the name on leaving edit mode', () => {
+  // The tabs work the same in either mode, so changing it changes nothing here.
+  it('carries on renaming across a change of mode, and saves on losing the caret', () => {
     renderApp()
     enterEditMode()
     const [name] = catLabels()
@@ -461,7 +507,10 @@ describe('renaming a category', () => {
     type(nameField(), 'Left with')
 
     click(editToggle())
+    expect(nameField().value).toBe('Left with')
 
+    fireEvent.blur(nameField())
+    settle()
     expect(catLabels()).toContain('Left with')
   })
 
@@ -1049,9 +1098,9 @@ describe('ordering categories', () => {
     })
   })
 
-  // Its tools gone, whatever was in the air is put back where it was — or the
-  // next dwell would drop a forgotten tab instead of doing what it was aimed at.
-  it('puts it back when edit mode is left', () => {
+  // Its tools are there in either mode, so a change of mode leaves it in the
+  // air, and the next dwell on a tab puts it there.
+  it('stays in the air across a change of mode', () => {
     renderApp()
     enterEditMode()
     const before = names()
@@ -1059,9 +1108,9 @@ describe('ordering categories', () => {
 
     click(editToggle())
 
-    expect($('.is-held')).toBeNull()
+    expect($('.filter-tab.is-held')?.textContent).toBe(before[1])
     click(tabNamed(before[2]!))
-    expect(names()).toEqual(before)
+    expect(names().indexOf(before[1]!)).toBe(names().indexOf(before[2]!) + 1)
   })
 
   it('puts it back when a tab that is not a category is chosen', () => {
@@ -1141,13 +1190,19 @@ describe('a tab’s name', () => {
   })
 })
 
-// **One row, and then More.** jsdom lays nothing out, so the widths the bar
-// measures are supplied: every tab 100 wide in a bar with room for three, and
-// twelve tabs — Translations, Library and ten categories — is four rows of them.
+// **One row, and then Customize** — More, drawn as a glyph. jsdom lays
+// nothing out, so the widths the bar measures are supplied: every tab 100 wide
+// in a bar with room for three, and twelve tabs — Translations, Library and ten
+// categories — is four rows of them.
 describe('More', () => {
   const TEN = Array.from({ length: 10 }, (_, i) => `Cat ${String(i + 1).padStart(2, '0')}`)
-  const more = () => $('.filter-more[role="tab"]')
-  const tile = (name: string) => inDoc('.picker-tile').find(t => t.textContent?.startsWith(name))
+  const more = () => $('.filter-tabs > .filter-more')
+  /** A tile's name, which chooses it — the tile itself holds the eye and the pad too. */
+  const tile = (name: string) =>
+    inDoc('.more-tile')
+      .find(t => t.textContent?.startsWith(name))
+      ?.querySelector('.more-tile-name')
+  const showing = () => tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent
   let restore: () => void
   beforeEach(() => {
     localStorage.setItem(
@@ -1177,34 +1232,113 @@ describe('More', () => {
   })
   afterEach(() => restore())
 
-  // Two tabs and More make the three a row holds.
-  it('holds the tabs to one row, and the rest behind it', () => {
+  // The tab showing is drawn as itself, with its tools, and Customize says
+  // nothing but its glyph; the plus follows.
+  it('holds the tabs to one row, the rest behind Customize, and room for adding one', () => {
     renderApp()
-    expect(tabLabels()).toEqual(['Translations', 'Library', 'More'])
-    expect(more()?.textContent).toBe('More')
-  })
-
-  // In edit mode the add button follows the last tab on the same row, so the
-  // row holds one tab fewer: Translations, and More — carrying the name of
-  // Library, the tab showing, which it now hides — and the plus after them.
-  it('leaves room on the row for adding a category after the last tab', () => {
-    renderApp()
-    enterEditMode()
-    expect(tabLabels()).toEqual(['Translations', 'Library'])
-    expect(more()?.textContent).toBe('Library')
+    expect(more()?.getAttribute('aria-label')).toBe('Customize tabs')
+    expect(more()?.textContent, 'a word where the glyph is').toBe('')
+    expect(more()?.querySelector('svg')).not.toBeNull()
+    expect(showing()).toBe('Library')
     expect(more()?.nextElementSibling?.getAttribute('aria-label')).toBe('Add category')
   })
 
-  it('goes to a category it hides, on Done, and carries its name', () => {
+  it('goes to a category it hides, on Done, and draws it as itself with its tools', () => {
     renderApp()
     click(more())
     click(tile('Cat 09'))
-    expect(more()?.textContent, 'went on the tile, before Done').toBe('More')
-    expect(more()?.getAttribute('aria-selected')).toBe('false')
+    expect(showing(), 'went on the tile, before Done').toBe('Library')
     click(pickerBtn('Done'))
+    act(() => void vi.advanceTimersByTime(1100))
     expect(cells().map(c => c.textContent)).toEqual(['In Cat 09'])
-    expect(more()?.textContent).toBe('Cat 09')
-    expect(more()?.getAttribute('aria-selected')).toBe('true')
+    expect(showing()).toBe('Cat 09')
+    expect(tabNamed('Cat 09')?.querySelector('.tab-name')).not.toBeNull()
+  })
+
+  // Which tabs are behind it for room is said on their tiles, so nobody has
+  // to work out what the bar left off; the one to go to is marked by its
+  // colour alone, with no tick on top.
+  it('says on each tile the row has no room for that it has none, and ticks nothing', () => {
+    renderApp()
+    click(more())
+    const detail = (name: string) =>
+      inDoc('.more-tile')
+        .find(t => t.querySelector('.picker-tile-name')?.textContent === name)
+        ?.querySelector('.picker-tile-detail')?.textContent
+    expect(detail('Cat 09')).toBe('No room')
+    expect(detail('Library'), 'the tab showing is on the bar').toBeUndefined()
+    expect(inDoc('.more-tile .picker-tile-check')).toHaveLength(0)
+    expect(inDoc('.more-tile.is-selected .picker-tile-name').map(n => n.textContent)).toEqual(['Library'])
+  })
+
+  /** A tile's second line, if it has one. */
+  const detailOf = (name: string) =>
+    inDoc('.more-tile')
+      .find(t => t.querySelector('.picker-tile-name')?.textContent === name)
+      ?.querySelector('.picker-tile-detail')?.textContent
+  const roomFor = (width: number) =>
+    Object.defineProperty(Element.prototype, 'clientWidth', {
+      configurable: true,
+      get() {
+        return (this as Element).classList.contains('filter-tabs') ? width : 0
+      },
+    })
+
+  // With room for Translations, Library and two categories, Cat 03 is the
+  // first with none; hidden in the grid, Cat 01 gives up its place, and Cat 03
+  // has room — said before Done, as it would be after it.
+  it('says again who has room as tabs are hidden and shown in the grid', () => {
+    roomFor(640)
+    renderApp()
+    click(more())
+    expect(detailOf('Cat 02')).toBeUndefined()
+    expect(detailOf('Cat 03')).toBe('No room')
+
+    click(
+      inDoc('.more-tile')
+        .find(t => t.textContent?.startsWith('Cat 01'))!
+        .querySelector('.hide-tool'),
+    )
+    expect(detailOf('Cat 01')).toBe('Hidden')
+    expect(detailOf('Cat 03'), 'Cat 01 hidden, and Cat 03 still short of room').toBeUndefined()
+    expect(detailOf('Cat 04')).toBe('No room')
+
+    click(
+      inDoc('.more-tile')
+        .find(t => t.textContent?.startsWith('Cat 01'))!
+        .querySelector('.hide-tool'),
+    )
+    expect(detailOf('Cat 03')).toBe('No room')
+  })
+
+  // The screen turned or the window pulled narrower while the grid is open.
+  it('says again who has room when the screen changes size', () => {
+    const watching: ((entries: unknown[]) => void)[] = []
+    const stub = globalThis.ResizeObserver
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(changed: (entries: unknown[]) => void) {
+          watching.push(changed)
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+    try {
+      roomFor(640)
+      renderApp()
+      click(more())
+      expect(detailOf('Cat 02')).toBeUndefined()
+
+      roomFor(420)
+      act(() => watching.forEach(changed => changed([])))
+      settle()
+      expect(detailOf('Cat 02'), 'narrower, and Cat 02 still has room').toBe('No room')
+    } finally {
+      vi.stubGlobal('ResizeObserver', stub)
+    }
   })
 
   it('goes nowhere on Cancel', () => {
@@ -1212,23 +1346,7 @@ describe('More', () => {
     click(more())
     click(tile('Cat 09'))
     click(pickerBtn('Cancel'))
-    expect($('.filter-tab[aria-selected="true"]')?.textContent).toBe('Library')
-  })
-
-  // In edit mode the tab showing has tools, and More cannot carry them: one it
-  // would hide is drawn as itself before it, and More says only "More".
-  it('draws a category it would hide as itself, with its tools, in edit mode', () => {
-    renderApp()
-    enterEditMode()
-    click(more())
-    click(tile('Cat 09'))
-    click(pickerBtn('Done'))
-    act(() => void vi.advanceTimersByTime(1100))
-
-    expect(tabNamed('Cat 09')?.getAttribute('aria-selected')).toBe('true')
-    expect(tabNamed('Cat 09')?.querySelector('.tab-name')).not.toBeNull()
-    expect(more()?.textContent).toBe('More')
-    expect(tabLabels().slice(-2)).toEqual(['Cat 09', 'More'])
+    expect(showing()).toBe('Library')
   })
 
   // A tab behind More is one nobody could drop another on. A bar wide enough
@@ -1250,5 +1368,104 @@ describe('More', () => {
     click($('.reorder-tool'))
     expect(tabLabels()).toEqual(['Translations', 'Library', ...TEN])
     expect(more()).toBeNull()
+  })
+})
+
+/**
+ * **Every tab can be taken off the bar**, by the eye on the tab showing —
+ * Library and Translations too — and put back from Customize, which is there
+ * whenever anything is off it. In Customize, nothing changes until Done.
+ */
+describe('hiding a tab', () => {
+  const more = () => $('.filter-tabs > .filter-more')
+  const showing = () => tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent
+  const hideShowing = () => click($('.filter-tabs > .filter-tab .hide-tool'))
+  const moreTile = (name: string) =>
+    inDoc('.more-tile').find(t => t.querySelector('.picker-tile-name')?.textContent === name)!
+  /** What is kept, under whoever is signed in. */
+  const stored = (): string[] => {
+    const key = Object.keys(localStorage).find(k => k.startsWith('peri_hidden_tabs'))
+    return key ? JSON.parse(localStorage.getItem(key)!) : []
+  }
+
+  it('takes the tab showing off the bar, goes on to the next, and offers Customize', () => {
+    renderApp()
+    const [first, second] = catLabels()
+    click(tabNamed(first!))
+    expect(more(), 'Customize with nothing off the bar and room for all').toBeNull()
+
+    hideShowing()
+
+    expect(tabLabels()).not.toContain(first)
+    expect(showing()).toBe(second)
+    expect(more()?.getAttribute('aria-label')).toBe('Customize tabs')
+    expect(stored()).toEqual([first])
+  })
+
+  it('takes Library off too, and Customize puts it back on Done', () => {
+    renderApp()
+    expect(showing()).toBe('Library')
+    hideShowing()
+    expect(tabLabels()).not.toContain('Library')
+
+    click(more())
+    expect(moreTile('Library').classList.contains('is-off-bar')).toBe(true)
+    click(moreTile('Library').querySelector('.hide-tool'))
+    expect(tabLabels(), 'before Done').not.toContain('Library')
+    click(pickerBtn('Done'))
+
+    expect(tabLabels()).toContain('Library')
+    expect(stored()).toEqual([])
+    expect(more(), 'nothing off the bar now').toBeNull()
+  })
+
+  it('takes one off from Customize, and changes nothing on Cancel', () => {
+    renderApp()
+    const [first, second] = catLabels()
+    click(tabNamed(first!))
+    hideShowing()
+
+    click(more())
+    click(moreTile(second!).querySelector('.hide-tool'))
+    click(pickerBtn('Cancel'))
+    expect(tabLabels()).toContain(second)
+    // Deaf for a second as it closes, as every grid is.
+    act(() => void vi.advanceTimersByTime(1100))
+
+    click(more())
+    click(moreTile(second!).querySelector('.hide-tool'))
+    click(pickerBtn('Done'))
+    expect(tabLabels()).not.toContain(second)
+    expect(stored().sort()).toEqual([first, second].sort())
+  })
+
+  it('keeps it off the bar across a reload', () => {
+    renderApp()
+    const [first] = catLabels()
+    click(tabNamed(first!))
+    hideShowing()
+
+    renderApp()
+    expect(tabLabels()).not.toContain(first)
+    expect(more()).not.toBeNull()
+  })
+
+  // Lifted by its pad and dropped on another's name, in what Done will write.
+  it('moves a category in Customize, on Done', () => {
+    renderApp()
+    const [first, second, third] = catLabels()
+    click(tabNamed(first!))
+    hideShowing()
+
+    click(more())
+    click(moreTile(second!).querySelector('.reorder-tool'))
+    expect(moreTile(third!).classList.contains('is-drop-zone')).toBe(true)
+    expect(moreTile('Library').classList.contains('is-drop-zone'), 'Library moves').toBe(false)
+    const before = catLabels()
+    click(moreTile(third!).querySelector('.more-tile-name'))
+    expect(catLabels(), 'before Done').toEqual(before)
+    click(pickerBtn('Done'))
+
+    expect(catLabels().indexOf(second!)).toBe(catLabels().indexOf(third!) + 1)
   })
 })

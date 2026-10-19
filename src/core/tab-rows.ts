@@ -17,8 +17,13 @@ export const TAB_GAP = 6
 export function tabsThatFit(
   widths: number[],
   room: number,
-  /** More's width for the first `k` shown — wider where it carries the name of a tab it hides. */
+  /** More's width for the first `k` shown, with the tab showing beside it where it hides that one. */
   moreWidth: (k: number) => number,
+  /**
+   * **More is there whatever fits** — something has been taken off the bar —
+   * so its room is kept even where every tab still on it would fit.
+   */
+  moreAnyway = false,
 ): number {
   const rows = (items: number[]) => {
     let count = 1
@@ -31,8 +36,9 @@ export function tabsThatFit(
     }
     return count
   }
-  if (room <= 0 || rows(widths) <= MAX_ROWS) return widths.length
-  for (let k = widths.length - 1; k > 0; k--) {
+  if (room <= 0) return widths.length
+  if (!moreAnyway && rows(widths) <= MAX_ROWS) return widths.length
+  for (let k = moreAnyway ? widths.length : widths.length - 1; k > 0; k--) {
     if (rows([...widths.slice(0, k), moreWidth(k)]) <= MAX_ROWS) return k
   }
   return 0

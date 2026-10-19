@@ -35,7 +35,9 @@ import {
   forgetReplyContext,
   loadReplyKey,
   loadReplyKeyAt,
+  loadHiddenTabs,
   loadRecent,
+  saveHiddenTabs,
   saveReplyKey,
   saveRecent,
   type PhraseUse,
@@ -50,6 +52,7 @@ import { type PasteResult } from '../ui/link-input'
 import { Topbar } from './topbar'
 import { PhraseGrid } from './grid'
 import { FilterBar } from './filter-bar'
+import { SortControl } from './sort-control'
 import { EmergencyBar } from './emergency'
 import { SlotPicker } from './slots'
 import { AskFirst, CategoryModal } from './editors'
@@ -840,11 +843,39 @@ export function TalkScreen({
     [board],
   )
 
+  /**
+   * **The tabs taken off the bar** — this device's view of the board, behind
+   * More, which puts them back. See `loadHiddenTabs`.
+   */
+  const [hiddenTabs, setHiddenTabs] = useState(loadHiddenTabs)
+  const keepHidden = useCallback((next: string[]) => {
+    saveHiddenTabs(next)
+    setHiddenTabs(next)
+  }, [])
+  const hideTab = useCallback(
+    (id: string) => {
+      if (!hiddenTabs.includes(id)) keepHidden([...hiddenTabs, id])
+    },
+    [hiddenTabs, keepHidden],
+  )
+  // More's Done: what is off the bar, and — where it moved — the order of the
+  // categories somebody made.
+  const arrangeTabs = useCallback(
+    (hidden: string[], order: string[]) => {
+      keepHidden(hidden)
+      if (order.some((id, i) => id !== allCategories[i])) board.arrangeCategories(order)
+    },
+    [keepHidden, allCategories, board],
+  )
+
   const handleCategoryDelete = useCallback(() => {
     const name = editingCategory?.name
     if (!name) return
     const count = board.phraseCountByCategory.get(name) ?? 0
     board.removeCategory(name)
+    // Gone, it is hidden no longer — or a category made later under its name
+    // would arrive off the bar.
+    if (hiddenTabs.includes(name)) keepHidden(hiddenTabs.filter(id => id !== name))
     setActiveFilter(f => (f === name ? LIBRARY : f))
     // Nothing to do to the draft: a category that is gone drops out of the
     // ones it is ticked into by itself — see `useEditor`.
@@ -854,16 +885,18 @@ export function TalkScreen({
         ? `Deleted ${name} — its ${count} phrase${count === 1 ? ' is' : 's are'} still in Library`
         : `Deleted ${name}`,
     )
-  }, [editingCategory, board, flashToast])
+  }, [editingCategory, board, flashToast, hiddenTabs, keepHidden])
 
   /** Renamed where it stands, on its own tab — see `FilterBar`. */
   const renameCategory = useCallback(
     (from: string, to: string) => {
       board.renameCategoryTo(from, to)
+      // Hidden under its old name, it stays hidden under its new one.
+      if (hiddenTabs.includes(from)) keepHidden(hiddenTabs.map(id => (id === from ? to : id)))
       setActiveFilter(f => (f === from ? to : f))
       flashToast(`Renamed ${from} to ${to}`)
     },
-    [board, flashToast],
+    [board, flashToast, hiddenTabs, keepHidden],
   )
 
   /** The bin on the tab showing, which asks before anything goes. */
@@ -1297,12 +1330,31 @@ export function TalkScreen({
                     categories={tabs}
                     activeFilter={effectiveFilter}
                     onSelect={chooseTab}
-                    editing={editMode}
-                    onAddCategory={editMode ? addCategory : undefined}
+                    onAddCategory={addCategory}
                     onRename={renameCategory}
                     onDelete={askToDeleteCategory}
                     onReorder={board.reorderCategories}
                     onLift={name => flashToast(`Holding ${name} — dwell where it should go`)}
+                    hiddenTabs={hiddenTabs}
+                    onHide={hideTab}
+                    onArrange={arrangeTabs}
+                    after={
+                      <SortControl
+                        sort={phraseSort}
+                        // Neither of these is a category. Both are a record in the order it
+                        // happened, and that is the whole of what they are for — so the
+                        // order is not the user's to change under either.
+                        orderFixed={
+                          showingTranslated
+                            ? 'Translations are always newest first'
+                            : showingSuggestions
+                              ? 'Answers are in the order they were offered'
+                              : undefined
+                        }
+                        canArrange={canArrange}
+                        onChoose={chooseSort}
+                      />
+                    }
                   />
                 )}
 
@@ -1325,20 +1377,8 @@ export function TalkScreen({
                   // The wait stands where the answers will, which is the whole reason
                   // the tab appears before they do.
                   busy={showingSuggestions && listener.heard.asking}
-                  sort={phraseSort}
-                  // Neither of these is a category. Both are a record in the order it
-                  // happened, and that is the whole of what they are for — so the
-                  // order is not the user's to change under either.
-                  orderFixed={
-                    showingTranslated
-                      ? 'Translations are always newest first'
-                      : showingSuggestions
-                        ? 'Answers are in the order they were offered'
-                        : undefined
-                  }
                   canArrange={canArrange}
                   narrowed={Boolean(filterWord)}
-                  onChooseSort={chooseSort}
                   open={
                     draft.isEmergency || !openOnBoard
                       ? null

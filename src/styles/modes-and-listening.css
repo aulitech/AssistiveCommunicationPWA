@@ -593,7 +593,7 @@
 .app.resting .message-tools > :not(.rest-surface, .resume-bar),
 .app.resting .filter-bar-wrap,
 .app.resting .grid-wrapper,
-.app.resting .grid-scrollbar,
+.app.resting .grid-arrow,
 .app.resting .emergency-bar {
   opacity: 0.45;
   transition: opacity 0.2s;

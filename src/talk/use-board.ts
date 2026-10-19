@@ -489,6 +489,12 @@ export function useBoard() {
     [allCategories, updateStore],
   )
 
+  /** A whole order at once — More's, on Done — which becomes the one on show. */
+  const arrangeCategories = useCallback(
+    (order: string[]) => updateStore({ categoryOrder: order, categorySort: 'custom' }),
+    [updateStore],
+  )
+
   /**
    * Arrange the phrases inside one category by hand — Library's arrangement, or
    * a category's own order of references.
@@ -574,6 +580,7 @@ export function useBoard() {
     renameCategoryTo,
     removeCategory,
     reorderCategories,
+    arrangeCategories,
     reorderPhrases,
     reorderEmergency,
     restore,
