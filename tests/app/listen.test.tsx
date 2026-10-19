@@ -5,7 +5,7 @@ import { loadReplyContext, saveAnswers, saveReplyKey } from '../../src/core/stor
 import { SHIPPED_APOLOGIES, WAITING_MS } from '../../src/listen/apology'
 import { PROSE_ICONS } from '../../src/ui/prose-icons'
 import { KEY_NOTICE } from '../../src/talk/use-listen'
-import { spoken } from '../setup'
+import { setClipboardText, spoken } from '../setup'
 import { FakeRecognition, installRecognition, removeRecognition } from '../listen/fake-recognition'
 import { stylesheet } from '../stylesheet'
 
@@ -751,6 +751,24 @@ describe('the suggested reply', () => {
     saveReplyKey('sk-ant-test')
     renderApp(settings)
   }
+
+  // **Paste goes into the field with the caret** — the question, while it has
+  // it, rather than the message under it.
+  it('takes a paste while it has the caret, and leaves the message alone', async () => {
+    withKey()
+    hear('Do you want')
+    heardBox()!.focus()
+    heardBox()!.setSelectionRange(heardBox()!.value.length, heardBox()!.value.length)
+    setClipboardText(' tea?')
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Paste from clipboard'))
+    await act(async () => {
+      await Promise.resolve()
+      vi.advanceTimersByTime(50)
+    })
+
+    expect(heardBox()!.value).toBe('Do you want tea?')
+    expect($<HTMLTextAreaElement>('.text-display')!.value).toBe('')
+  })
 
   /**
    * **Without a key the box says so, and takes nothing.** It is for getting

@@ -40,7 +40,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'At the right of the top row, on a wide screen: the language and the voice.',
         'At the left end of the line: :clear:, which empties the box — and afterwards offers :undo:.',
         'Right after the last word you write: :speak:, filled in green, because it is the one the whole board exists to reach. It is there once there is something in the box, and moves along as the words do.',
-        'On a narrow screen the modes have the top row to themselves, and the rest go on a row under them.',
+        'On a narrow screen :copy: and :paste: stay at the left of the top row, with the modes beside them and :menu: at the right; the language and the voice go on a row under them.',
       ),
       text(
         'In the upper right corner, :menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — and :sign-out: Sign out. If you turn on Peri’s keyboard in Settings, :keyboard: at the left draws a keyboard, for a device that has none you can rest on.',
@@ -155,7 +155,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text('At the far left of the row along the top of the box are the two for the clipboard:'),
       list(
         ':copy: puts the message on the clipboard to send somewhere else.',
-        ':paste: brings in whatever was last copied, at the point the caret is sitting — into the message, or into a phrase being written.',
+        ":paste: brings in whatever was last copied, at the point the caret is sitting, in whichever box has it — the message or a phrase being written, the question, or a link's text or address.",
       ),
       text(
         ':please:, after :auto-speak: in the middle of the row, puts ", please" on the end of everything Peri says while it is lit — in the language Peri is speaking, so "por favor" in Spanish.',

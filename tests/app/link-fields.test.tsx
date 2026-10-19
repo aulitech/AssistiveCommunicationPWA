@@ -2,8 +2,9 @@
 // fields under the line for each link the box holds, written back into the box
 // as they are typed. See `talk/link-fields.tsx`.
 
-import { describe, it, expect } from 'vitest'
-import { fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { act, fireEvent } from '@testing-library/react'
+import { setClipboardText } from '../setup'
 import { $, $$, box, click, editToggle, renderApp, settle, writeIn } from './harness'
 
 const rows = () => $$('.link-row')
@@ -124,5 +125,24 @@ describe('the fields for a link in the message box', () => {
     writeIn(box(), 'Our [club](https://club.org)')
     typeIn(field(0, 'Link text'), 'running club')
     expect(box().value).toBe('Our [running club](https://club.org)')
+  })
+})
+
+// **Paste goes into the field with the caret**, and a link's text is one: the
+// clipboard lands there and is written back into the box as typing would be.
+describe('pasting into the fields', () => {
+  it('puts the clipboard into the field with the caret, not the box', async () => {
+    renderApp()
+    writeIn(box(), 'Look at https://example.com/x')
+    const text = field(0, 'Link text')
+    text.focus()
+    setClipboardText('Example')
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Paste from clipboard'))
+    await act(async () => {
+      await Promise.resolve()
+      vi.advanceTimersByTime(50)
+    })
+
+    expect(box().value).toBe('Look at [Example](https://example.com/x)')
   })
 })

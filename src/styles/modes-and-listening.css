@@ -114,17 +114,35 @@
 .tools-modes { gap: 0.75rem; }
 
 @container message (max-width: 38rem) {
+  /* **The clipboard keeps the top line's left end**, the modes after it and
+     the menu at its right end — kept clear for it, the menu being placed
+     there below — and the language and the voice on the line under them. The
+     modes centre in what the two leave them, and wrap there rather than push
+     either off the line where a phone has no room for all of them. */
   .message-tools {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr) 2rem;
     grid-template-areas:
-      'modes modes'
-      'clipboard values';
+      'clipboard modes .'
+      'values values values';
+    /* At the top of the line, so the clipboard stays level with the menu where
+       the modes wrap to two; and the groups three-quarters of a rem apart, the
+       gap the modes keep between themselves, so a phone of 360px keeps them on
+       one line. */
+    align-items: start;
+    column-gap: 0.75rem;
   }
 
-  /* The language and the voice wrap inside themselves when the clipboard leaves
-     them too little room — on a phone in edit mode, with please beside paste —
-     rather than pushing the row past the card's edge, which takes the modes off
-     its centre. 0.75rem between the lines, as between every other line here. */
+  .tools-modes { min-width: 0; }
+  .tools-modes,
+  .topbar-modes {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.75rem;
+  }
+
+  /* The language and the voice wrap inside themselves where the line is too
+     short for them, rather than pushing the row past the card's edge. 0.75rem
+     between the lines, as between every other line here. */
   .tools-values { min-width: 0; }
   .tools-values .topbar-choices {
     flex-wrap: wrap;
@@ -132,9 +150,9 @@
     gap: 0.75rem 1.25rem;
   }
 
-  /* **The menu stays at the upper right**: at the right end of the modes'
-     line, which has room either side of them, rather than going down to the
-     values' line with the voice. */
+  /* **The menu stays at the upper right**: at the right end of the top line,
+     in the column kept for it, rather than going down to the values' line with
+     the voice. */
   .message-tools .menu-btn {
     position: absolute;
     top: 0.6rem;

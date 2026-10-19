@@ -203,12 +203,14 @@ test('grows the message box with what is in it', async ({ page }) => {
 
 /**
  * **The message box is a card with its controls inside it** — on its line and
- * in the row under it, the modes on the card's centre — and on a phone, where
- * the row stacks, still none of them close enough to another to share a rest. Each carries an invisible area 6px past its edges, so two closer than
+ * in the row under it, the modes on the card's centre, or on a phone between
+ * the clipboard at the top line's left end and the menu at its right — and
+ * still none of them close enough to another to share a rest. Each carries an invisible area 6px past its edges, so two closer than
  * 12px overlap there, and a gaze resting between them answers to whichever the
  * browser picks. In both modes, since edit mode's row is the wider.
  */
 for (const [width, height] of [
+  [320, 640],
   [360, 740],
   [390, 844],
   [1280, 900],
@@ -220,10 +222,21 @@ for (const [width, height] of [
       if (mode === 'editing') await page.locator('.edit-toggle').dispatchEvent('click')
       // Words in the box, so Speak — or Save and Speak — is drawn at the end of the line.
       await page.locator('.text-display').fill('Could you open the window a little, please?')
-      const { outside, crowded, offCentre } = await page.evaluate(() => {
+      const { outside, crowded, offCentre, narrow, onTop } = await page.evaluate(() => {
         const card = document.querySelector('.message-wrap')!.getBoundingClientRect()
         const modes = document.querySelector('.tools-modes')!.getBoundingClientRect()
-        const offCentre = Math.abs((modes.left + modes.right) / 2 - (card.left + card.right) / 2)
+        // **On a wide card the modes are on its centre**; on a narrow one the
+        // clipboard keeps the top line's left end and the menu its right, and
+        // the modes are centred between the two.
+        const clipboard = document.querySelector('.tools-clipboard')!.getBoundingClientRect()
+        const menu = document.querySelector('.menu-btn')!.getBoundingClientRect()
+        // The card's own width decides, as `@container message` does.
+        const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+        const narrow = card.width <= 38 * rem
+        const onTop = Math.abs(clipboard.top - modes.top) < 2
+        const offCentre = narrow
+          ? Math.abs(modes.left - clipboard.right - (menu.left - modes.right))
+          : Math.abs((modes.left + modes.right) / 2 - (card.left + card.right) / 2)
         const controls = [
           ...document.querySelectorAll<HTMLElement>(
             '.message-line [role="button"], .message-line button, .message-tools [role="button"], .message-tools button',
@@ -245,11 +258,16 @@ for (const [width, height] of [
             const dy = Math.max(b.r.top - a.r.bottom, a.r.top - b.r.bottom)
             if (Math.max(dx, dy) < 11.5) crowded.push(`${a.name} / ${b.name}`)
           }
-        return { outside, crowded, offCentre }
+        return { outside, crowded, offCentre, narrow, onTop }
       })
       expect(outside, `${mode}: outside the card`).toEqual([])
       expect(crowded, `${mode}: close enough to share a rest`).toEqual([])
-      expect(offCentre, `${mode}: the modes are not on the card's centre`).toBeLessThan(2)
+      expect(
+        offCentre,
+        `${mode}: the modes are not on the card's centre, or between the clipboard and the menu`,
+      ).toBeLessThan(2)
+      expect(narrow, `${mode}: the card is not narrow on a phone`).toBe(width < 1100)
+      expect(onTop, `${mode}: the clipboard is not on the top line`).toBe(true)
     }
   })
 }

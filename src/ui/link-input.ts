@@ -12,9 +12,31 @@
 
 import { useCallback } from 'react'
 import { linkMarkdown, readLink, readLinkText } from '../core/links'
+import { insertText, type TextField } from './typing'
 
 /** What came of asking the clipboard for its contents. */
 export type PasteResult = 'pasted' | 'empty' | 'refused'
+
+/**
+ * **Paste into a field other than the message box** — the question, a link's
+ * text or address, a category's name — at its caret, as a typed paste would,
+ * and through the same writer Peri's own keyboard types with, so React hears
+ * it. The words as they are: turning an address into a link is the message's
+ * business. Says which of the three things happened, as `pasteFromClipboard`
+ * does.
+ */
+export async function pasteInto(field: TextField): Promise<PasteResult> {
+  let text: string
+  try {
+    text = await navigator.clipboard.readText()
+  } catch {
+    return 'refused'
+  }
+  if (!text) return 'empty'
+  if (!field.isConnected) return 'refused'
+  insertText(field, text)
+  return 'pasted'
+}
 
 export function useLinkInput(
   textarea: React.RefObject<HTMLTextAreaElement | null>,
