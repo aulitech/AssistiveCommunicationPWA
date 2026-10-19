@@ -1,5 +1,19 @@
 [
   {
+    "version": "11.8.1",
+    "date": "2026-10-19",
+    "commits": [
+      {
+        "subject": "Release notes gather the versions under their major release",
+        "body": [
+          {
+            "text": "A level above the versions: each major release — Version 11 down to Version 1 — folds open onto its versions, with the days they span and how many releases it holds. The newest major and its newest version open on arrival; another major opens folded; one open at a time at every level."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.8.0",
     "date": "2026-10-19",
     "commits": [
