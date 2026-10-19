@@ -52,7 +52,7 @@ import { PhraseGrid } from './grid'
 import { FilterBar } from './filter-bar'
 import { EmergencyBar } from './emergency'
 import { SlotPicker } from './slots'
-import { CategoryModal } from './editors'
+import { AskFirst, CategoryModal } from './editors'
 import { TopPanel } from '../menu/menu'
 import { useBoard, type Removed } from './use-board'
 import { useComposer } from './use-composer'
@@ -137,12 +137,9 @@ export function TalkScreen({
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState(LIBRARY)
   const [editMode, setEditMode] = useState(false)
-  // Two reorder modes, one for each surface arranged as a mode: the emergency
-  // bar and the phrases. Sharing a flag would mean arming the bar somebody
-  // speaks with every time they set about tidying the phrases. A category tab
-  // is picked up by its own tool — see `FilterBar`.
-  const [reorderingEmergency, setReorderingEmergency] = useState(false)
-  const [reorderingPhrases, setReorderingPhrases] = useState(false)
+  // **No reorder modes**: the tab showing, the phrase open in the box and the
+  // emergency phrase open there each carry a drag pad of their own — see
+  // `FilterBar`, `PhraseGrid` and `EmergencyBar`.
   const [resting, setResting] = useState(false)
   // A name to ask before deleting it — the bin on the tab showing — or null to
   // add one. See `CategoryModal`.
@@ -439,6 +436,30 @@ export function TalkScreen({
   })
 
   /**
+   * **The phrase open in the box stays on the board once it is being changed.**
+   * Its cell carries its tools, and rewording it is what brings the bin — so a
+   * word typed after it, searching Library, would otherwise take away its cell
+   * and the bin with it; and a phrase opened from the message under a tab that
+   * does not hold it would have no bin anywhere. First, where the tab or the
+   * search does not show it — and `pinned`, since it has no place in this
+   * tab's order to be moved about in.
+   *
+   * **Only once the words have changed or the board is narrowed**, both of
+   * which change the grid already: turning edit mode on is a change of what a
+   * dwell does, not of what is in front of somebody, and a cell arriving at
+   * the top would move every other under a resting pointer.
+   */
+  const openInGrid =
+    editMode && draft.phrase && !draft.isEmergency && (filterWord !== '' || draft.text !== draft.phrase.source)
+      ? draft.phrase
+      : null
+  const pinned = openInGrid !== null && !visiblePhrases.some(p => p.id === openInGrid.id)
+  const gridPhrases = useMemo(
+    () => (pinned && openInGrid ? [openInGrid, ...visiblePhrases] : visiblePhrases),
+    [pinned, openInGrid, visiblePhrases],
+  )
+
+  /**
    * **What is said is kept in Library** — every message spoken or copied, as a
    * phrase in no category, unless Library says it already — and counted as used
    * the moment it is, so it is first under Recently used and first among what
@@ -733,6 +754,29 @@ export function TalkScreen({
       ? effectiveFilter
       : null
 
+  /**
+   * **The phrase open in the box**, in edit mode — the active phrase, as the
+   * tab showing is the active tab. Its cell, or its button on the emergency
+   * bar, carries a drag pad, and a bin once its wording has been changed in
+   * the box: the bin that stood in the card's row of controls. Every bin asks
+   * first (`AskFirst`).
+   */
+  const openOnBoard =
+    editMode && draft.phrase ? { id: draft.phrase.id, changed: draft.text !== draft.phrase.source } : null
+  /**
+   * **Nothing is chosen off the board while the box holds a phrase as it was
+   * opened.** Choosing into words puts the phrase in at the caret, so a rest
+   * meant only for reading the board would put a second phrase into the first;
+   * once the words have been changed, somebody is building something, and a
+   * phrase goes in as before. An empty box opens what is chosen. The grid is
+   * not magnified meanwhile either. **The emergency bar is left alone**: it is
+   * the one thing on the screen that has to answer whatever else is going on.
+   */
+  const choosing = !(openOnBoard && !openOnBoard.changed)
+  const [askingDelete, setAskingDelete] = useState(false)
+  // The question holds the dwells itself — see `AskFirst`.
+  const askToDelete = useCallback(() => setAskingDelete(true), [])
+
   const handleDelete = useCallback(() => {
     const { phrase, keeping } = draft
     if (!phrase) return
@@ -823,11 +867,7 @@ export function TalkScreen({
   )
 
   /** The bin on the tab showing, which asks before anything goes. */
-  const askToDeleteCategory = useCallback((name: string) => {
-    cancelAllDwells()
-    holdDwellsUntilMoved()
-    setEditingCategory({ name })
-  }, [])
+  const askToDeleteCategory = useCallback((name: string) => setEditingCategory({ name }), [])
 
   // ── Modes ──────────────────────────────────────────────────────────────────
 
@@ -906,10 +946,6 @@ export function TalkScreen({
       // the word being typed still being typed, so the grid stays narrowed to it.
       if (already) openPhrase(already)
       else startNew(carried, typed && carried.endsWith(typed) ? carried.slice(0, -typed.length) : carried)
-      // Reordering is a mode within edit mode; leaving it should not leave
-      // either of them armed for next time.
-      setReorderingEmergency(false)
-      setReorderingPhrases(false)
       // The lit toggle is the only other cue, and it is a 1.5rem icon in a
       // strip — say plainly which of the two the board is now in.
       flashToast(
@@ -1242,11 +1278,9 @@ export function TalkScreen({
                   onToggleRest={toggleRest}
                   editor={editor}
                   onSavePhrase={handleSave}
-                  onDeletePhrase={handleDelete}
                   undoDelete={
                     lastDeleted && { words: stripMarkdown(lastDeleted.phrase.text), undo: handleUndoDelete }
                   }
-                  removingFrom={removingFrom}
                   onSpeak={handleSpeak}
                   onCopy={handleCopy}
                   onPasted={reportPaste}
@@ -1273,7 +1307,7 @@ export function TalkScreen({
                 )}
 
                 <PhraseGrid
-                  phrases={visiblePhrases}
+                  phrases={gridPhrases}
                   // A new tab or a new word is a different list; the same phrases in
                   // a new order is not.
                   listKey={`${effectiveFilter}\u0000${filterWord}`}
@@ -1305,8 +1339,21 @@ export function TalkScreen({
                   canArrange={canArrange}
                   narrowed={Boolean(filterWord)}
                   onChooseSort={chooseSort}
-                  reordering={editMode && reorderingPhrases}
-                  onToggleReorder={editMode ? () => setReorderingPhrases(r => !r) : undefined}
+                  open={
+                    draft.isEmergency || !openOnBoard
+                      ? null
+                      : {
+                          ...openOnBoard,
+                          pinned,
+                          bin: draft.keeping
+                            ? `Forget this ${draft.kept}`
+                            : removingFrom
+                              ? `Take it out of ${removingFrom}`
+                              : 'Delete this phrase',
+                        }
+                  }
+                  onDeleteOpen={askToDelete}
+                  choosing={choosing}
                   onReorder={editMode ? handleReorderPhrases : undefined}
                   onLift={text => flashToast(`Holding ${text} — dwell where it should go`)}
                   onSelect={handleSelectPhrase}
@@ -1318,8 +1365,9 @@ export function TalkScreen({
           <EmergencyBar
             phrases={board.emergencyPhrases}
             voiceFor={board.voiceFor}
-            reordering={editMode && reorderingEmergency}
-            onToggleReorder={editMode ? () => setReorderingEmergency(r => !r) : undefined}
+            open={draft.isEmergency ? openOnBoard : null}
+            onDeleteOpen={askToDelete}
+            saysInEditMode={editMode && (draft.phrase !== null || draft.text.trim() !== '')}
             onReorder={editMode ? board.reorderEmergency : undefined}
             onLift={text => flashToast(`Holding ${text} — dwell where it should go`)}
             onPeek={setPeek}
@@ -1388,6 +1436,38 @@ export function TalkScreen({
             <div className="paused-note" role="status">
               Paused
             </div>
+          )}
+
+          {/* **The bin on the phrase open in the box asks first** — what it
+              does depends on where it is: forgets a record, takes a phrase out
+              of the category showing, or deletes it. */}
+          {askingDelete && draft.phrase && (
+            <AskFirst
+              title={
+                draft.keeping
+                  ? `Forget this ${draft.kept}?`
+                  : removingFrom
+                    ? `Take it out of ${removingFrom}?`
+                    : draft.isEmergency
+                      ? 'Delete this emergency phrase?'
+                      : 'Delete this phrase?'
+              }
+              note={
+                draft.keeping
+                  ? 'It comes off the record, and cannot be put back.'
+                  : removingFrom
+                    ? 'It stays in Library, and in any other category it is in. Undo puts it back.'
+                    : draft.isEmergency
+                      ? 'It comes off the blue bar. Undo puts it back.'
+                      : 'It goes from Library and from every category it is in. Undo puts it back.'
+              }
+              confirm={draft.keeping ? 'Forget' : removingFrom ? 'Take out' : 'Delete'}
+              onConfirm={() => {
+                setAskingDelete(false)
+                handleDelete()
+              }}
+              onClose={() => setAskingDelete(false)}
+            />
           )}
 
           {editingCategory !== null && (

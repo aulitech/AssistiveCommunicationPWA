@@ -18,22 +18,27 @@ import { needsMore, windowSize } from '../core/virtual'
 import {
   CustomOrderIcon,
   FrequentIcon,
+  GripIcon,
   PageIcon,
   RecentIcon,
-  ReorderIcon,
   ScrollDownIcon,
   ScrollUpIcon,
   SortAlphaIcon,
   ToBottomIcon,
   ToTopIcon,
+  TrashIcon,
 } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
+import { ItemTool } from './item-tool'
 import { PhraseText } from './phrase-text'
 
 const PhraseCell = memo(function PhraseCell({
   phrase,
   spoken: justSaid,
   reorder,
+  held,
+  tools,
+  inert,
   onSelect,
 }: {
   phrase: Phrase
@@ -44,11 +49,22 @@ const PhraseCell = memo(function PhraseCell({
    */
   spoken?: boolean
   /**
-   * Present only while the grid is being arranged. Undefined the rest of the
-   * time, which is what keeps this memo holding over a couple of thousand cells
-   * — `propsFor` builds a fresh object per cell per render.
+   * Present only on every other cell while one is in the air — somewhere to put
+   * it. Undefined the rest of the time, which is what keeps this memo holding
+   * over a couple of thousand cells — `propsFor` builds a fresh object per cell
+   * per render.
    */
   reorder?: ReorderProps
+  /** This is the phrase in the air — lifted by its own drag pad. */
+  held?: boolean
+  /** **The phrase open in the message box** carries its tools — see `PhraseGrid`. */
+  tools?: React.ReactNode
+  /**
+   * **Not to be chosen**: in edit mode, while the box holds a phrase opened and
+   * not yet changed — see `choosing` on the screen. Still somewhere to drop a
+   * phrase in the air.
+   */
+  inert?: boolean
   onSelect: (p: Phrase) => void
 }) {
   const { settings } = useSettings()
@@ -71,7 +87,9 @@ const PhraseCell = memo(function PhraseCell({
   const { active, props } = useDwellControl(settings.phraseDwellMs, handleActivate, {
     // A dwell landing mid-drag would lift a second cell out from under the one
     // already in the pointer's hand.
-    disabled: reorder?.dragging,
+    // The phrase open in the box answers to its tools, not to itself — as the
+    // tab showing does.
+    disabled: reorder?.dragging || Boolean(tools) || (inert && !reorder),
   })
   const fillable = hasChoices(phrase.segments)
   // What the cell says, not how it is marked up: a screen reader announcing
@@ -89,8 +107,9 @@ const PhraseCell = memo(function PhraseCell({
         active && 'dwelling',
         justSaid && 'selected',
         editMode && !reorder && 'edit-mode',
-        reorder && 'reorderable',
-        reorder?.held && 'is-held',
+        tools ? 'has-tools' : null,
+        inert && !reorder && !tools && 'is-inert',
+        held && 'is-held',
         // Somewhere the held phrase could go — every other cell, while one is
         // in the air.
         reorder?.heldLabel && 'is-drop-zone',
@@ -134,6 +153,8 @@ const PhraseCell = memo(function PhraseCell({
         })
       }
       {...props}
+      // Disabled would say so of the tools inside it too, which are live.
+      aria-disabled={tools ? undefined : props['aria-disabled']}
     >
       <span className="phrase-cell-text">
         <PhraseText segments={phrase.segments} />
@@ -147,6 +168,7 @@ const PhraseCell = memo(function PhraseCell({
           {phrase.detail}
         </span>
       )}
+      {tools && <span className="cell-tools">{tools}</span>}
       <div className="dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )
@@ -315,10 +337,7 @@ function GridScrollBar({
   sort,
   orderFixed,
   canArrange,
-  narrowed,
   onChooseSort,
-  reordering,
-  onToggleReorder,
   onBeforeJumpToBottom,
 }: {
   gridRef: React.RefObject<HTMLElement | null>
@@ -327,12 +346,7 @@ function GridScrollBar({
   orderFixed?: string
   /** False under the answers and Translations: neither holds phrases in an order of its own. */
   canArrange: boolean
-  /** The grid is narrowed to a word, so what shows is not the whole tab to arrange. */
-  narrowed?: boolean
   onChooseSort: (sort: PhraseSort) => void
-  reordering?: boolean
-  /** Edit mode only; absent otherwise, and the control with it. */
-  onToggleReorder?: () => void
   /** Renders the rest of the list, so the jump has somewhere to land. */
   onBeforeJumpToBottom: () => void
 }) {
@@ -359,25 +373,6 @@ function GridScrollBar({
           position, and nothing may be inserted among them. */}
       <div className="rail-tools">
         <SortControl sort={sort} orderFixed={orderFixed} canArrange={canArrange} onChoose={onChooseSort} />
-        {onToggleReorder && (
-          <ScrollBtn
-            className="rail-tool reorder-btn"
-            disabled={!canArrange || (narrowed && !reordering)}
-            pressed={reordering}
-            onAction={onToggleReorder}
-            label={
-              !canArrange
-                ? 'Arrange the phrases by hand. Open a category first — this tab is not one'
-                : narrowed && !reordering
-                  ? 'Arrange the phrases by hand. Start a new phrase first — the board is showing only what matches a word'
-                  : reordering
-                    ? 'Done arranging the phrases'
-                    : 'Arrange the phrases by hand'
-            }
-          >
-            <ReorderIcon />
-          </ScrollBtn>
-        )}
       </div>
       <ScrollBtn onAction={() => scrollTo(0)} label="Scroll to top">
         <ToTopIcon />
@@ -431,8 +426,9 @@ export function PhraseGrid({
   canArrange,
   narrowed,
   onChooseSort,
-  reordering,
-  onToggleReorder,
+  open,
+  onDeleteOpen,
+  choosing = true,
   onReorder,
   onLift,
   onSelect,
@@ -462,15 +458,28 @@ export function PhraseGrid({
   /** False under the answers and Translations: no Custom order, and nothing to arrange. */
   canArrange: boolean
   /**
-   * The grid is narrowed to a word — in edit mode, the one it was narrowed to
-   * when the mode came on. Arranging then would arrange only what matched, so
-   * the control goes quiet and says why.
+   * The grid is narrowed to a word. Arranging then would arrange only what
+   * matched, so the drag pad is not offered.
    */
   narrowed?: boolean
   onChooseSort: (sort: PhraseSort) => void
-  /** All four of these are edit-mode only. */
-  reordering?: boolean
-  onToggleReorder?: () => void
+  /**
+   * **The phrase open in the message box**, in edit mode — the active phrase,
+   * as the tab showing is the active tab. Its cell carries a bin against its
+   * left edge, which asks first (`onDeleteOpen`), and a drag pad against its
+   * right where the tab is one to arrange. `changed` once its words are not
+   * what they were. Null where nothing is open, or it is not in this grid.
+   * `pinned` where the tab does not hold it and it is shown first anyway, and
+   * `bin` what the bin does here — forgets, takes out, or deletes.
+   */
+  open?: { id: string; changed: boolean; pinned?: boolean; bin?: string } | null
+  onDeleteOpen?: () => void
+  /**
+   * **Whether a phrase may be chosen off the board** — false in edit mode while
+   * the box holds a phrase opened and not yet changed, so a rest meant for
+   * reading cannot put a second phrase into the first.
+   */
+  choosing?: boolean
   onReorder?: (from: string, to: string) => void
   /** Announced when a phrase is picked up — the styling alone says nothing aloud. */
   onLift?: (label: string) => void
@@ -529,25 +538,63 @@ export function PhraseGrid({
 
   // A phrase is keyed by its id, so what it is called has to be looked up — and
   // through a map rather than a scan, since every cell asks what is in the air.
-  // Built only while arranging: a couple of thousand entries is cheap, and the
+  // Built only in edit mode: a couple of thousand entries is cheap, and the
   // board is rebuilt on every phrase spoken under an order that follows use.
+  const { editMode } = useEdit()
   const labels = useMemo(
-    () => (reordering ? new Map(phrases.map(p => [p.id, stripMarkdown(p.text)])) : null),
-    [reordering, phrases],
+    () => (editMode ? new Map(phrases.map(p => [p.id, stripMarkdown(p.text)])) : null),
+    [editMode, phrases],
   )
-  const { propsFor, release } = useReorder({
+  const { propsFor, release, held, dragging } = useReorder({
     onReorder,
     onLift,
     labelOf: id => labels?.get(id) ?? id,
   })
-
-  // Switching the mode off puts down whatever was in the air. Without this the
-  // phrase stays held across the round trip, and the next dwell drops the
-  // forgotten one instead of lifting the cell under the pointer.
-  const toggleReorder = useCallback(() => {
+  // **The drag pad only where arranging means something**: a tab of its own
+  // order, not narrowed to a word.
+  const canMove = editMode && canArrange && !narrowed && onReorder !== undefined
+  // Whatever was in the air is put back when the phrase open in the box is
+  // another, or none, or reworded, or edit mode ends — the tool that lifted it
+  // has gone.
+  const openId = open?.id ?? null
+  const changed = open?.changed ?? false
+  const pinned = open?.pinned ?? false
+  useEffect(() => {
     release()
-    onToggleReorder?.()
-  }, [release, onToggleReorder])
+  }, [openId, changed, editMode, release])
+
+  // In the air by a dwell or by a mouse: either way every other one is
+  // somewhere to put it.
+  const inHand = held ?? dragging
+  /**
+   * **The open phrase's two tools**: the bin against its left edge, and the
+   * drag pad against its right — the pad only where there is somewhere to
+   * move it, so not on a tab kept in an order of its own or narrowed to a
+   * word, Translations among them, nor on a phrase pinned to a tab that does
+   * not hold it.
+   */
+  const toolsFor = (id: string) => (
+    <>
+      <ItemTool
+        className="delete-tool"
+        label={open?.bin ?? 'Delete this phrase'}
+        onActivate={() => onDeleteOpen?.()}
+      >
+        <TrashIcon />
+      </ItemTool>
+      {canMove && !pinned && (
+        <ItemTool
+          className="reorder-tool"
+          label={held === id ? 'Put it back where it was' : 'Move this phrase'}
+          pressed={held === id}
+          onActivate={() => propsFor(id).onLiftOrDrop()}
+          drag={propsFor(id)}
+        >
+          <GripIcon />
+        </ItemTool>
+      )}
+    </>
+  )
   /** Cells one measured windowful holds. Null until something has been laid out. */
   const [step, setStep] = useState<number | null>(null)
   /** How many to render. Null renders the lot, which is the unmeasured answer. */
@@ -674,7 +721,7 @@ export function PhraseGrid({
   // by measuring and windowing again on the very next pass.
   const showEverything = useCallback(() => setShown(phrases.length), [phrases.length])
 
-  useMagnifier(innerRef, gridRef, phrases, !!reordering)
+  useMagnifier(innerRef, gridRef, phrases, held !== null || !choosing)
 
   return (
     <div className="grid-area">
@@ -687,7 +734,10 @@ export function PhraseGrid({
               <PhraseCell
                 phrase={phrase}
                 spoken={phrase.id === spokenId}
-                reorder={reordering ? propsFor(phrase.id) : undefined}
+                reorder={inHand && inHand !== phrase.id ? propsFor(phrase.id) : undefined}
+                held={held === phrase.id}
+                tools={phrase.id === openId ? toolsFor(phrase.id) : undefined}
+                inert={!choosing}
                 onSelect={selectPhrase}
               />
             </div>
@@ -710,10 +760,7 @@ export function PhraseGrid({
         sort={sort}
         orderFixed={orderFixed}
         canArrange={canArrange}
-        narrowed={narrowed}
         onChooseSort={onChooseSort}
-        reordering={reordering}
-        onToggleReorder={onToggleReorder && toggleReorder}
         onBeforeJumpToBottom={showEverything}
       />
     </div>
@@ -752,19 +799,20 @@ const FIRST_WINDOW = 120
  * the pointer to it (`cameToPointer` in `ui/dwell.ts`). A cell grown before it
  * was asked would cover where the pointer had just been, and be refused as
  * one that moved. Kept inside the grid's own edges, where it would run off
- * them. Not for touch, where nothing hovers, nor while the cells are being
- * arranged, where a cell is a thing to pick up.
+ * them. Not for touch, where nothing hovers; nor while a phrase is in the air,
+ * where a cell is a thing to put it on; nor while the box holds a phrase as it
+ * was opened, where nothing on the board is to be chosen (`choosing`).
  */
 function useMagnifier(
   gridRef: React.RefObject<HTMLElement | null>,
   wrapperRef: React.RefObject<HTMLElement | null>,
   phrases: Phrase[],
-  reordering: boolean,
+  off: boolean,
 ) {
   useEffect(() => {
     const grid = gridRef.current
     const wrapper = wrapperRef.current
-    if (!grid || !wrapper || reordering) return
+    if (!grid || !wrapper || off) return
     let current: HTMLElement | null = null
     let frame = 0
     const shrink = () => {
@@ -825,7 +873,7 @@ function useMagnifier(
       shrink()
     }
     // A new list puts every cell somewhere else as well.
-  }, [gridRef, wrapperRef, phrases, reordering])
+  }, [gridRef, wrapperRef, phrases, off])
 }
 
 function measure(wrapper: HTMLElement | null, grid: HTMLElement | null): number | null {

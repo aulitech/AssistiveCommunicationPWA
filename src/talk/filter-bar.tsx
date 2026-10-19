@@ -17,6 +17,7 @@ import { useSettings } from '../ui/settings'
 import { ChooseIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { TAB_GAP, tabsThatFit } from '../core/tab-rows'
+import { ItemTool } from './item-tool'
 
 /** How much of a category's name a tab shows, unless it is the tab showing. */
 const CLIP = 7
@@ -32,37 +33,6 @@ function TabLabel({ label, whole }: { label: string; whole: boolean }) {
   return (
     <span className="tab-label" data-short={short}>
       {label}
-    </span>
-  )
-}
-
-/** One of the tools on the tab showing: rename, reorder, delete. */
-function TabTool({
-  className,
-  label,
-  pressed,
-  onActivate,
-  children,
-}: {
-  className: string
-  label: string
-  pressed?: boolean
-  onActivate: () => void
-  children: React.ReactNode
-}) {
-  const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate)
-  return (
-    <span
-      className={cx('tab-tool', className, active && 'dwelling', pressed && 'is-on')}
-      style={dwellVar(settings.actionDwellMs)}
-      role="button"
-      aria-label={label}
-      aria-pressed={pressed}
-      {...props}
-    >
-      {children}
-      <span className="tab-tool-fill" key={active ? 'a' : 'i'} />
     </span>
   )
 }
@@ -424,7 +394,7 @@ export function FilterBar({
   const canMove = tabsOnBar >= 5 || held !== null
   const toolsFor = (id: string) =>
     renaming?.id === id ? (
-      <TabTool
+      <ItemTool
         className="delete-tool"
         label={`Delete ${id}`}
         onActivate={() => {
@@ -433,16 +403,16 @@ export function FilterBar({
         }}
       >
         <TrashIcon />
-      </TabTool>
+      </ItemTool>
     ) : canMove ? (
-      <TabTool
+      <ItemTool
         className="reorder-tool"
         label={held === id ? `Put ${id} back where it was` : `Move ${id}`}
         pressed={held === id}
         onActivate={() => propsFor(id).onLiftOrDrop()}
       >
         <GripIcon />
-      </TabTool>
+      </ItemTool>
     ) : null
 
   return (

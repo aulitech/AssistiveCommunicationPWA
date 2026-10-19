@@ -82,8 +82,8 @@ test('opens the phrase in the message box, and leaves the board as it was', asyn
   await editMode(page)
 
   await expect(activeTab(page)).toHaveText('Library')
-  // Open, which the bin says — nothing else in the card does.
-  await expect(page.locator('.icon-btn[aria-label="Delete phrase"]')).not.toHaveClass(/is-absent/)
+  // Open, which the drag pad on its cell says — nothing in the card does.
+  await expect(cell(page, 'Once in a blue moon').first().locator('.reorder-tool')).toBeVisible()
   await expect(messageBox(page)).toHaveValue('Once in a blue moon')
   await expect(marked(page)).toHaveCount(0)
   const after = await page.evaluate(() => ({
@@ -94,19 +94,140 @@ test('opens the phrase in the message box, and leaves the board as it was', asyn
   expect(errors).toEqual([])
 })
 
+// **The phrase open in the box carries its bin against its left edge and its
+// drag pad against its right**, top to bottom, each with 1.5rem of itself
+// between its glyph and the words — and the words give up the room, so none of
+// them sits under either. Both on the cell's ground, two shades lighter.
+test('puts the bin and the drag pad on the open phrase, flush with its edges', async ({ page }) => {
+  await openBoard(page)
+  await editMode(page)
+  const target = page.locator('.phrase-cell').nth(2)
+  await target.click()
+
+  await expect(target.locator('.reorder-tool')).toBeVisible()
+  // Off the board, so the cell is not magnified while it is measured.
+  await page.mouse.move(5, 5, { steps: 4 })
+  const m = await target.evaluate(el => {
+    const style = getComputedStyle(el)
+    const r = el.getBoundingClientRect()
+    const rect = (sel: string) => {
+      const b = el.querySelector(sel)!.getBoundingClientRect()
+      return { left: b.left, right: b.right, top: b.top, bottom: b.bottom }
+    }
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+    const tool = (sel: string) => {
+      const t = el.querySelector(sel)!
+      const s = getComputedStyle(t)
+      return {
+        ...rect(sel),
+        padLeft: parseFloat(s.paddingLeft),
+        padRight: parseFloat(s.paddingRight),
+        ground: s.backgroundColor,
+      }
+    }
+    return {
+      // Inside the border.
+      left: r.left + parseFloat(style.borderLeftWidth),
+      right: r.right - parseFloat(style.borderRightWidth),
+      top: r.top + parseFloat(style.borderTopWidth),
+      bottom: r.bottom - parseFloat(style.borderBottomWidth),
+      rem,
+      bin: tool('.delete-tool'),
+      pad: tool('.reorder-tool'),
+      words: rect('.phrase-cell-text'),
+    }
+  })
+  expect(Math.abs(m.bin.left - m.left), 'the bin is not against the left edge').toBeLessThanOrEqual(0.5)
+  expect(Math.abs(m.pad.right - m.right), 'the pad is not against the right edge').toBeLessThanOrEqual(0.5)
+  for (const t of [m.bin, m.pad]) {
+    expect(Math.abs(t.top - m.top), 'not from the top').toBeLessThanOrEqual(0.5)
+    expect(Math.abs(t.bottom - m.bottom), 'not to the bottom').toBeLessThanOrEqual(0.5)
+    expect(t.ground, 'no ground of its own').not.toBe('rgba(0, 0, 0, 0)')
+  }
+  expect(m.bin.padRight).toBeCloseTo(1.5 * m.rem, 1)
+  expect(m.pad.padLeft).toBeCloseTo(1.5 * m.rem, 1)
+  expect(m.words.left, 'the words run under the bin').toBeGreaterThanOrEqual(m.bin.right - 0.5)
+  expect(m.words.right, 'the words run under the pad').toBeLessThanOrEqual(m.pad.left + 0.5)
+  // Only the open phrase carries them.
+  await expect(page.locator('.phrase-cell .tab-tool')).toHaveCount(2)
+})
+
 test('puts a deleted phrase back where it was', async ({ page }) => {
   await openBoard(page)
   await editMode(page)
   const target = page.locator('.phrase-cell').nth(2)
   const text = (await target.innerText()).trim()
   await target.click()
-  await page.locator('.icon-btn[aria-label="Delete phrase"]').click()
+  // The bin on its cell asks first.
+  await page.locator('.cell-tools .delete-tool').click()
+  await page.locator('.edit-action-btn.danger').click()
   await expect(cell(page, text)).toHaveCount(0)
 
   await page.locator('.topbar-clear .icon-btn').first().click()
 
   await expect(cell(page, text)).toHaveCount(1)
   await expect(messageBox(page)).toHaveValue(text)
+})
+
+// **The bin's question stands over everything** — the emergency bar and the
+// message box included — and Enter answers it.
+test('covers the whole screen while it asks, and Enter answers it', async ({ page }) => {
+  const { errors } = await openBoard(page)
+  await editMode(page)
+  const target = page.locator('.phrase-cell').nth(2)
+  const text = (await target.innerText()).trim()
+  await target.click()
+  await page.locator('.cell-tools .delete-tool').click()
+  await expect(page.locator('[role="alertdialog"]')).toBeVisible()
+
+  const covered = await page.evaluate(() =>
+    ['.emergency-btn', '.text-display', '.filter-tab'].map(sel => {
+      const r = document.querySelector(sel)!.getBoundingClientRect()
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return Boolean(top?.closest('.edit-modal-scrim'))
+    }),
+  )
+  expect(covered, 'something behind the question was still under the pointer').toEqual([true, true, true])
+
+  await page.keyboard.press('Enter')
+  await expect(page.locator('[role="alertdialog"]')).toHaveCount(0)
+  await expect(cell(page, text)).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
+// **Each answer fills as it is rested on, and Keep is taken by a rest** —
+// the pointer going straight from the bin to it and holding there with a
+// gaze's jitter, as it does on the rig. Keep is the nearer answer, so it was
+// often reached before the pointer had gone far enough, and then never armed.
+test('fills Keep it as it is rested on, and keeps the phrase', async ({ page }) => {
+  const { errors } = await openBoard(page)
+  await editMode(page)
+  const target = page.locator('.phrase-cell').nth(2)
+  const text = (await target.innerText()).trim()
+  await target.click()
+  await page.locator('.cell-tools .delete-tool').click()
+
+  const keep = page.locator('.edit-action-btn', { hasText: 'Keep it' })
+  const at = (await keep.boundingBox())!
+  const x = at.x + at.width / 2
+  const y = at.y + at.height / 2
+  await page.mouse.move(x, y, { steps: 8 })
+  // Holding as still as a gaze does: a pixel or two either way.
+  let filled = 0
+  for (let i = 0; i < 30 && (await page.locator('[role="alertdialog"]').count()) > 0; i++) {
+    await page.mouse.move(x + (i % 2 ? 2 : -2), y)
+    const bar = await keep
+      .locator('.dwell-bar')
+      .evaluate(el => el.getBoundingClientRect().width)
+      .catch(() => 0)
+    filled = Math.max(filled, bar)
+    await page.waitForTimeout(100)
+  }
+
+  await expect(page.locator('[role="alertdialog"]'), 'Keep it never answered a rest').toHaveCount(0)
+  expect(filled, 'the fill never showed').toBeGreaterThan(0)
+  await expect(cell(page, text)).toHaveCount(1)
+  expect(errors).toEqual([])
 })
 
 // **The tab showing carries its tools in edit mode**: none on Library; on a
@@ -144,7 +265,7 @@ test('moves a category by its own reorder tool', async ({ page }) => {
   await openBoard(page, { phrases: categories(['Drinks', 'Food', 'Greetings']) })
   await editMode(page)
   await tab(page, 'Greetings').click()
-  await page.locator('.reorder-tool').click()
+  await page.locator('.filter-tab .reorder-tool').click()
 
   const held = page.locator('.filter-tab.is-held')
   await expect(held).toHaveText('Greetings')
@@ -223,8 +344,11 @@ test('puts a phrase in two categories, and takes it out of one', async ({ page }
   await expect(page.locator('.toast')).toHaveText('Already on the board — added to Drinks')
   await expect(cell(page, 'Tea and toast')).toHaveCount(1)
 
+  // Saved, the box is empty, so the phrase chosen opens.
   await cell(page, 'Tea and toast').click()
-  await page.locator('.icon-btn[aria-label="Take out of Drinks"]').click()
+  await page.locator('.cell-tools .delete-tool').click()
+  await expect(page.locator('.edit-modal[role="alertdialog"]')).toContainText('Take it out of Drinks?')
+  await page.locator('.edit-action-btn.danger').click()
   await expect(cell(page, 'Tea and toast')).toHaveCount(0)
   await tab(page, 'Food').click()
   await expect(cell(page, 'Tea and toast')).toHaveCount(1)

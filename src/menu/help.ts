@@ -214,13 +214,13 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Putting the phrases in your own order',
     blocks: [
       text(
-        'You can also arrange a category by hand. Turn on :edit: mode, open the category you want, and rest on :arrange: just under the order button at the top of the scrolling buttons.',
+        'You can also arrange a category by hand. Turn on :edit: mode, open the category you want, and choose the phrase to move. It comes into the message box, and its button on the board has :grip: at its right edge, as the tab showing does.',
       ),
       list(
-        'Rest on a phrase to pick it up. It lifts, and the screen says what you are holding.',
+        ':grip: picks the phrase up. It turns blue, and the screen says what you are holding.',
         'Rest on another phrase to drop the held one there.',
-        'Rest on the held phrase again to put it back where it was.',
-        'With a mouse you can drag a phrase instead, if that is easier.',
+        'Rest on :grip: again to put it back where it was.',
+        'With a mouse you can drag :grip: onto another phrase instead, if that is easier.',
       ),
       text(
         'Arranging a category switches it to Custom order and keeps what you built. Whatever order was on screen when you moved something becomes your starting point, so you can sort A to Z first and then move the few you want elsewhere.',
@@ -229,7 +229,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'A phrase you add later goes at the end rather than disturbing what you arranged. Rewording a phrase leaves it exactly where you put it.',
       ),
-      text('Rest on :arrange: again when you are done. Leaving edit mode switches it off too.'),
+      text(
+        ':grip: is not there while what you type is searching the phrases, or on Translations, which keeps the order things were said in. Choosing another phrase, or leaving edit mode, puts down whatever you were holding.',
+      ),
     ],
   },
   {
@@ -310,7 +312,10 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         ':save:, right after the last word, saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for. Like Speak, it is there once there is something to save.',
         ':speak: after :save: says what is in the box and saves it too, so a message you build is kept as a phrase.',
-        ':delete:, at the far right of the row once you have chosen a phrase, on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
+        'The phrase in the box has :delete: at the left edge of its button on the board, and :grip: at the right edge where it can be moved. :delete: asks first.',
+        'While it asks, nothing else answers. Move the pointer well away before choosing Keep it or Delete: neither takes a rest or a click until you do. Enter deletes and Escape keeps it.',
+        'While you change it, the phrase stays on the board, at the top if what you type is searching for others, so :delete: is always in reach.',
+        ':delete: on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
         ':clear: at the left end of the line starts a new phrase — the same button that empties the message the rest of the time. :paste: stays where it is; :copy: is not there in edit mode.',
         ':save: puts the phrase in the category whose tab is showing, or in Library alone when Library is showing. A phrase already in other categories stays in them too.',
@@ -319,7 +324,8 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text('And on the board itself:'),
       list(
-        'Choose any phrase into an empty box to bring it in and change its wording. With words in the box, a phrase you choose goes in where the caret is; :clear: first to change a different phrase.',
+        'Choose any phrase into an empty box to bring it in and change its wording. While it is as you opened it, the phrases are dimmed and choosing one does nothing, so a rest while you read cannot add to it. The blue bar still works, and says what you choose on it rather than adding it to the phrase.',
+        'Once you change its words, a phrase you choose goes in where the caret is. :clear: first to change a different phrase.',
         'A new phrase starts in the voice you last used, so adding several in a row takes one choice rather than one each.',
         'After a delete, or taking a phrase out of a category, :undo: where :clear: was puts it back where it was, until you start on something else.',
         ':add:, right after the last category tab, makes a new category.',
@@ -328,7 +334,8 @@ export const HELP_SECTIONS: ProseSection[] = [
         ':grip: picks the tab up, and it turns blue. Rest on another tab to put it there, or on :grip: again to put it back.',
         'A category goes by itself once its last phrase is taken out, and an import leaves no empty ones behind. A new category you have not put anything in yet stays until you do.',
         'Use :add: at the end of the blue bar to add an emergency phrase.',
-        ':arrange: beside it rearranges the blue bar: choose a phrase to pick it up, then choose where it should go. Choosing it again puts it back.',
+        'To change an emergency phrase, empty the box with :clear: and choose it. With words in the box, choosing one says it.',
+        'An emergency phrase you choose has :delete: and :grip: on its button, the same way: :grip: picks it up to move it along the blue bar, and resting on another puts it there.',
       ),
       text('Links behave a little differently from other text:'),
       list(
@@ -595,7 +602,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Newest first, always. The tab is a record of what you said rather than a category, so it is not one you can reorder or arrange by hand.',
         'Choosing one says it again, in that language and in the voice you chose for it. It is not translated a second time.',
         'A phrase said in two languages is on the tab twice, once for each.',
-        'In edit mode, the bin forgets a translation and Save keeps it as a phrase of your own. A kept one is an ordinary phrase, spoken in whatever language the board is set to.',
+        'In edit mode, :delete: on a translation you choose forgets it, and Save keeps it as a phrase of your own. A kept one is an ordinary phrase, spoken in whatever language the board is set to.',
       ),
       text(
         'It stays on this device. It is a record of what you actually said, so it is never in a backup file and never sent to your other devices — the same as how often you use each phrase. A factory reset clears it.',
@@ -761,6 +768,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Every button can be reached with the Tab key and activated with Enter or the space bar, so the app can be used with a keyboard or a switch instead of a pointer.',
       ),
       text('The button currently in focus is outlined, so you can always see where you are.'),
+      text(
+        'In the message box, Enter does what :speak: does, or :save: in edit mode, and Escape empties the box as :clear: does. Enter with Shift, Ctrl, Alt or Command held starts a new line.',
+      ),
     ],
   },
   {

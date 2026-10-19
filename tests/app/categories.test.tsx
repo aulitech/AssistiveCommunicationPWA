@@ -95,7 +95,8 @@ const askToDelete = (name: string) => {
   renameTab(name)
   click(deleteTool())
 }
-const action = (label: string) => $$('.edit-action-btn').find(b => b.textContent?.includes(label))
+const action = (label: string) =>
+  [...document.body.querySelectorAll<HTMLElement>('.edit-action-btn')].find(b => b.textContent?.includes(label))
 const saveModal = () => click(action('Save'))
 const type = (el: Element, value: string) => {
   fireEvent.change(el, { target: { value } })
@@ -110,6 +111,16 @@ const box = () => $<HTMLTextAreaElement>('.text-display')!
 const iconBtn = (label: string) =>
   $$<HTMLButtonElement>('.icon-btn').find(b => b.getAttribute('aria-label') === label)
 const writePhrase = (value: string) => type(box(), value)
+/**
+ * **The bin on the phrase open in the box**, and the question it asks first.
+ * What the question said comes back, since what the bin does depends on the tab.
+ */
+const deleteOpen = () => {
+  click($('.cell-tools .delete-tool'))
+  const asked = document.body.querySelector<HTMLElement>('[role="alertdialog"]')?.textContent ?? ''
+  click([...document.body.querySelectorAll<HTMLElement>('.edit-action-btn.danger')][0])
+  return asked
+}
 const savePhrase = () => click(iconBtn('Save phrase'))
 const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
 const pickerBtn = (label: string) =>
@@ -301,7 +312,7 @@ describe('adding a category', () => {
     click($('.add-tab'))
     type(nameField(), existing.toUpperCase())
 
-    expect($('.edit-modal-note')?.textContent).toMatch(/already called/i)
+    expect(document.body.querySelector<HTMLElement>('.edit-modal-note')?.textContent).toMatch(/already called/i)
     expect(action('Save')?.className).toMatch(/is-disabled/)
   })
 
@@ -478,7 +489,9 @@ describe('renaming a category', () => {
     click(deleteTool())
 
     expect(catLabels()).toContain(name)
-    expect($('.edit-modal[role="alertdialog"]')?.textContent).toContain(`Delete ${name}?`)
+    expect(document.body.querySelector<HTMLElement>('.edit-modal[role="alertdialog"]')?.textContent).toContain(
+      `Delete ${name}?`,
+    )
   })
 })
 
@@ -496,7 +509,7 @@ describe('deleting a category', () => {
     moveAway()
     click(action('Delete'))
   }
-  const question = () => $('.edit-modal[role="alertdialog"]')
+  const question = () => document.body.querySelector<HTMLElement>('.edit-modal[role="alertdialog"]')
 
   it('deletes one that is empty, once asked', () => {
     renderApp()
@@ -523,7 +536,7 @@ describe('deleting a category', () => {
 
     expect(question()?.getAttribute('aria-label')).toBe(`Delete ${name}`)
     expect(question()?.textContent).toContain(`Delete ${name}?`)
-    expect($('.edit-modal-note')?.textContent).toContain(`${count} phrase`)
+    expect(document.body.querySelector<HTMLElement>('.edit-modal-note')?.textContent).toContain(`${count} phrase`)
     // Asking changed nothing.
     expect(tabLabels()).toContain(name)
     expect(storedStore().hidden ?? []).toEqual([])
@@ -538,7 +551,7 @@ describe('deleting a category', () => {
     const name = catTabs()[0].textContent!
     askToDelete(name)
 
-    const buttons = $$('.edit-action-btn').map(b => b.textContent)
+    const buttons = [...document.body.querySelectorAll<HTMLElement>('.edit-action-btn')].map(b => b.textContent)
     expect(buttons).toEqual(['Keep it', 'Delete'])
 
     fireEvent.click(action('Delete')!)
@@ -632,7 +645,7 @@ describe('a category left with nothing in it', () => {
   // the category with it.
   it('goes when its last phrase is taken out', () => {
     openSolo()
-    click(iconBtn('Take out of Solo'))
+    expect(deleteOpen()).toContain('Take it out of Solo?')
 
     expect(tabLabels()).not.toContain('Solo')
     expect(storedStore().members).not.toHaveProperty('Solo')
@@ -645,7 +658,9 @@ describe('a category left with nothing in it', () => {
   it('goes when its last phrase is deleted from Library', () => {
     openSolo()
     click(tabNamed('Library'))
-    click(iconBtn('Delete phrase'))
+    // Library is thousands of phrases; changing its words brings it to the top.
+    writePhrase('Only me in here, again')
+    expect(deleteOpen()).toContain('Delete this phrase?')
 
     expect(tabLabels()).not.toContain('Solo')
     expect(storedStore().custom.map((c: { id: string }) => c.id)).not.toContain('custom-solo')
@@ -653,7 +668,7 @@ describe('a category left with nothing in it', () => {
 
   it('comes back where it was when the removal is undone', () => {
     openSolo()
-    click(iconBtn('Take out of Solo'))
+    expect(deleteOpen()).toContain('Take it out of Solo?')
     click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo deleting')))
 
     expect(catLabels()[0]).toBe('Solo')
@@ -664,7 +679,9 @@ describe('a category left with nothing in it', () => {
   it('comes back, with the phrase in it, when a delete on Library is undone', () => {
     openSolo()
     click(tabNamed('Library'))
-    click(iconBtn('Delete phrase'))
+    // Library is thousands of phrases; changing its words brings it to the top.
+    writePhrase('Only me in here, again')
+    expect(deleteOpen()).toContain('Delete this phrase?')
     click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo deleting')))
 
     expect(catLabels()[0]).toBe('Solo')
@@ -701,7 +718,7 @@ describe('a category left with nothing in it', () => {
     // Another phrase opens into an empty box: the one open is put aside first.
     click(iconBtn('Start a new phrase'))
     click(cells()[0])
-    click(iconBtn('Take out of Drinks'))
+    expect(deleteOpen()).toContain('Take it out of Drinks?')
 
     expect(tabLabels()).toContain('Drinks')
   })
@@ -715,7 +732,7 @@ describe('a category left with nothing in it', () => {
     click(tabNamed('Drinks'))
     click(iconBtn('Start a new phrase'))
     click(cells()[0])
-    click(iconBtn('Take out of Drinks'))
+    expect(deleteOpen()).toContain('Take it out of Drinks?')
 
     expect(tabLabels()).toContain('Not yet')
   })
@@ -1076,7 +1093,7 @@ describe('a category that runs out of phrases', () => {
 
     enterEditMode()
     click(cells()[0])
-    click(iconBtn('Take out of Solo'))
+    expect(deleteOpen()).toContain('Take it out of Solo?')
 
     expect(tabNamed('Solo')).toBeUndefined()
     expect(tabNamed('Library')?.getAttribute('aria-selected')).toBe('true')

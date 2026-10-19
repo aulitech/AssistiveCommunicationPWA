@@ -112,7 +112,20 @@ export const writeIn = (el: Element, value: string) => {
 }
 export const writePhrase = (value: string) => writeIn(box(), value)
 export const savePhrase = () => click(iconBtn('Save phrase'))
-export const deletePhrase = () => click(iconBtn('Delete phrase'))
+/**
+ * **The bin on the phrase open in the box** — against the left edge of its
+ * cell, or of its button on the emergency bar — and the question it asks first.
+ */
+export const binOnOpen = () => $('.cell-tools .delete-tool')
+/** The tools on the phrase open in the box, which say a phrase is open at all. */
+export const toolsOnOpen = () => $('.cell-tools')
+/** The far answer in the bin's question: Delete, Take out or Forget. */
+export const confirmAsked = () =>
+  click([...document.body.querySelectorAll<HTMLElement>('.edit-action-btn.danger')][0])
+export const deletePhrase = () => {
+  click(binOnOpen())
+  confirmAsked()
+}
 
 /** What the strip under the box says is being edited. */
 

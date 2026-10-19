@@ -15,8 +15,9 @@ import { useEdit } from '../ui/edit-mode'
 import { speak } from '../voice/speech'
 import { stripMarkdown } from '../core/markdown'
 import { type Phrase } from '../core/phrases'
-import { PlusIcon, ReorderIcon } from '../ui/icons'
+import { GripIcon, PlusIcon, TrashIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
+import { ItemTool } from './item-tool'
 import { PhraseText } from './phrase-text'
 
 /**
@@ -28,17 +29,32 @@ export function EmergencyButton({
   phrase,
   voice,
   reorder,
+  held,
+  tools,
+  saysInEditMode,
   onPeek,
 }: {
   phrase: Phrase
   voice?: string
-  /** Present only in reorder mode. */
+  /** Present on every other button while one is in the air — somewhere to put it. */
   reorder?: ReorderProps
+  /** This is the phrase in the air — lifted by its own drag pad. */
+  held?: boolean
+  /** **The emergency phrase open in the message box** carries its tools — see `EmergencyBar`. */
+  tools?: React.ReactNode
+  /**
+   * **Says itself in edit mode too**, while the box is in use — see
+   * `saysInEditMode` on `EmergencyBar`.
+   */
+  saysInEditMode?: boolean
   /** Its words to show whole while it is rested on — see `clipped` in `EmergencyBar`. */
   onPeek?: (words: string | null) => void
 }) {
   const { settings } = useSettings()
-  const { editMode, openEdit } = useEdit()
+  const { editMode: editModeOn, openEdit } = useEdit()
+  // Edit mode as far as this button is concerned: a thing to open, or — while
+  // a phrase is being written — a thing to say, as it is everywhere else.
+  const editMode = editModeOn && !saysInEditMode
   const [flash, setFlash] = useState(false)
 
   const handleActivate = useCallback(() => {
@@ -72,7 +88,8 @@ export function EmergencyButton({
   const { active, props } = useDwellControl(settings.phraseDwellMs, handleActivate, {
     // A dwell landing mid-drag would lift a second button out from under the
     // one already in the pointer's hand.
-    disabled: reorder?.dragging,
+    // The phrase open in the box answers to its tools, not to itself.
+    disabled: reorder?.dragging || Boolean(tools),
     // **Live while something else is being said**, when it is saying: it
     // never waits on anything, and saying it stops what was playing. Being
     // arranged or edited, it is a thing to change, and waits like the rest.
@@ -86,8 +103,8 @@ export function EmergencyButton({
         active && 'dwelling',
         flash && 'flashed',
         editMode && !reorder && 'edit-mode',
-        reorder && 'reorderable',
-        reorder?.held && 'is-held',
+        tools ? 'has-tools' : null,
+        held && 'is-held',
         // Somewhere the held phrase could go — every other button, while one is
         // in the air.
         reorder?.heldLabel && 'is-drop-zone',
@@ -129,6 +146,7 @@ export function EmergencyButton({
       <span className="emergency-label">
         <PhraseText segments={phrase.segments} />
       </span>
+      {tools && <span className="cell-tools">{tools}</span>}
       <div className="emergency-dwell-bar" key={active ? 'a' : 'i'} />
     </div>
   )
@@ -170,8 +188,9 @@ function EmergencyTool({
 export function EmergencyBar({
   phrases,
   voiceFor,
-  reordering,
-  onToggleReorder,
+  open,
+  onDeleteOpen,
+  saysInEditMode,
   onReorder,
   onLift,
   onPeek,
@@ -179,15 +198,28 @@ export function EmergencyBar({
   phrases: Phrase[]
   voiceFor: (id: string) => string | undefined
   /**
+   * **The emergency phrase open in the message box**, in edit mode. Its button
+   * carries a bin against its left edge, which asks first, and a drag pad
+   * against its right — as a phrase open in the grid does.
+   */
+  open?: { id: string; changed: boolean } | null
+  onDeleteOpen?: () => void
+  /**
+   * **Whether a button chosen in edit mode is said rather than opened** — true
+   * while the box holds a phrase or any words. Opened, it would go into them
+   * at the caret, and an emergency phrase is for saying: somebody in the
+   * middle of rewording something who needs help has no time to clear the
+   * box first. Into an empty box it opens, which is how one is changed.
+   */
+  saysInEditMode?: boolean
+  /**
    * **The words of the button rested on, while any button's words are cut
    * off** — a phone held upright fits six buttons a word or two wide — shown
    * whole and large in the middle of the phrase table. Null when the pointer
    * leaves it, or when nothing on the bar is cut off.
    */
   onPeek?: (words: string | null) => void
-  /** All of the below are edit-mode only. */
-  reordering?: boolean
-  onToggleReorder?: () => void
+  /** Edit mode only. */
   onReorder?: (from: string, to: string) => void
   /** Announced when a phrase is picked up — the styling alone says nothing aloud. */
   onLift?: (text: string) => void
@@ -196,15 +228,38 @@ export function EmergencyBar({
   // A phrase is keyed by its id, so what it is called has to be looked up: two
   // buttons can read the same and an id survives rewording either of them.
   const labelOf = (id: string) => phrases.find(p => p.id === id)?.text ?? id
-  const { propsFor, release } = useReorder({ onReorder, onLift, labelOf })
+  const { propsFor, release, held, dragging } = useReorder({ onReorder, onLift, labelOf })
 
-  // Switching the mode off puts down whatever was in the air. Without this the
-  // phrase stays held across the round trip, and the next dwell drops the
-  // forgotten one instead of lifting the button under the pointer.
-  const toggleReorder = useCallback(() => {
+  // Put back whatever was in the air when the phrase open in the box is another,
+  // or none, or edit mode ends — the tool that lifted it has gone.
+  const openId = open?.id ?? null
+  const changed = open?.changed ?? false
+  useEffect(() => {
     release()
-    onToggleReorder?.()
-  }, [release, onToggleReorder])
+  }, [openId, changed, editMode, release])
+
+  // In the air by a dwell or by a mouse: either way every other one is
+  // somewhere to put it.
+  const inHand = held ?? dragging
+  /** The open phrase's two tools: the bin against its left edge, the drag pad against its right. */
+  const toolsFor = (id: string) => (
+    <>
+      <ItemTool className="delete-tool" label="Delete this emergency phrase" onActivate={() => onDeleteOpen?.()}>
+        <TrashIcon />
+      </ItemTool>
+      {onReorder && (
+        <ItemTool
+          className="reorder-tool"
+          label={held === id ? 'Put it back where it was' : 'Move this emergency phrase'}
+          pressed={held === id}
+          onActivate={() => propsFor(id).onLiftOrDrop()}
+          drag={propsFor(id)}
+        >
+          <GripIcon />
+        </ItemTool>
+      )}
+    </>
+  )
 
   const handleAdd = useCallback(() => openEdit(null, true), [openEdit])
 
@@ -247,31 +302,19 @@ export function EmergencyBar({
           key={p.id}
           phrase={p}
           voice={voiceFor(p.id)}
-          reorder={reordering ? propsFor(p.id) : undefined}
+          reorder={inHand && inHand !== p.id ? propsFor(p.id) : undefined}
+          held={held === p.id}
+          tools={p.id === openId ? toolsFor(p.id) : undefined}
+          saysInEditMode={saysInEditMode}
           onPeek={clipped ? onPeek : undefined}
         />
       ))}
+      {/* **Adding one, right after the last**, as a new tab follows the last
+          tab. Arranging and deleting are the open phrase's own tools. */}
       {editMode && (
-        <>
-          <EmergencyTool
-            className="emergency-add"
-            label={reordering ? 'Finish reordering to add an emergency phrase' : 'Add emergency phrase'}
-            disabled={reordering}
-            onActivate={handleAdd}
-          >
-            <PlusIcon />
-          </EmergencyTool>
-          {onToggleReorder && (
-            <EmergencyTool
-              className="emergency-reorder"
-              label={reordering ? 'Done reordering emergency phrases' : 'Reorder emergency phrases'}
-              pressed={reordering}
-              onActivate={toggleReorder}
-            >
-              <ReorderIcon />
-            </EmergencyTool>
-          )}
-        </>
+        <EmergencyTool className="emergency-add" label="Add emergency phrase" onActivate={handleAdd}>
+          <PlusIcon />
+        </EmergencyTool>
       )}
     </div>
   )

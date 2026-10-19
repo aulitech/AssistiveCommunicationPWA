@@ -431,10 +431,25 @@ export interface DwellOptions {
   ignoresRest?: boolean
   /** Stays live while something is being said — Stop, and the emergency bar. */
   whileSpeaking?: boolean
+  /**
+   * **Starts once the hold lifts, the pointer still on it**, rather than only
+   * on arriving. Everything else is refused until the pointer leaves and comes
+   * back — the cell that arrives under a resting gaze. The answers to a bin's
+   * question are the exception: the hold there is a long way rather than a
+   * moment, the nearer answer is often reached before the pointer has gone it,
+   * and a pointer that has gone it is aimed at whatever it is on.
+   */
+  armsOnceMoved?: boolean
 }
 
 export function useDwellControl(durationMs: number, onActivate: () => void, options: DwellOptions = {}) {
-  const { disabled: disabledByCaller = false, repeatMs, ignoresRest = false, whileSpeaking = false } = options
+  const {
+    disabled: disabledByCaller = false,
+    repeatMs,
+    ignoresRest = false,
+    whileSpeaking = false,
+    armsOnceMoved = false,
+  } = options
   // Resting disables the control outright rather than only its hover path:
   // tap and Enter/Space go through the same gate, so nothing is left that can
   // fire while the app is meant to be doing nothing.
@@ -453,6 +468,8 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
    * or moves the distance that counts as aiming somewhere new.
    */
   const arrivedRef = useRef<{ x: number; y: number } | null>(null)
+  /** Refused by the hold while the pointer was on it — see `armsOnceMoved`. */
+  const heldBackRef = useRef(false)
 
   // The running timer reads the latest callback and timings through refs so
   // that a re-render mid-dwell doesn't restart it. Syncing them in an effect
@@ -462,6 +479,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
   const disabledRef = useRef(disabled)
   const repeatMsRef = useRef(repeatMs)
   const whileSpeakingRef = useRef(whileSpeaking)
+  const armsOnceMovedRef = useRef(armsOnceMoved)
 
   useEffect(() => {
     activateRef.current = onActivate
@@ -469,6 +487,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     disabledRef.current = disabled
     repeatMsRef.current = repeatMs
     whileSpeakingRef.current = whileSpeaking
+    armsOnceMovedRef.current = armsOnceMoved
   })
 
   const cancel = useCallback(() => {
@@ -497,7 +516,10 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     // Deaf: the screen moved under the pointer a moment ago, so whatever it is
     // resting on now is not what it was aimed at — either for a moment, or
     // until the pointer is aimed somewhere else.
-    if (screenJustMoved()) return
+    if (screenJustMoved()) {
+      heldBackRef.current = armsOnceMovedRef.current
+      return
+    }
     // Something was chosen a moment ago. The fill waits, unlit, and starts
     // when the pause is over if the pointer is still here.
     const wait = pauseLeft()
@@ -552,6 +574,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     dwellFiredRef.current = false
     stalledRef.current = false
     arrivedRef.current = null
+    heldBackRef.current = false
   }, [cancel])
 
   const onPointerMove = useCallback(
@@ -562,6 +585,15 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
       if (arrived) {
         if (Math.abs(e.clientX - arrived.x) + Math.abs(e.clientY - arrived.y) <= MOVED_AWAY_PX) return
         arrivedRef.current = null
+        start()
+        return
+      }
+      // Refused by the hold on arriving, and the hold has lifted with the
+      // pointer still here: it has gone as far as it had to — see
+      // `armsOnceMoved`. The window hears every move first, so this one has
+      // already been measured.
+      if (heldBackRef.current && !screenJustMoved()) {
+        heldBackRef.current = false
         start()
         return
       }
