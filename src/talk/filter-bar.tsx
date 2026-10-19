@@ -17,6 +17,7 @@ import { usePendingChoice } from '../ui/pending-choice'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { moveInOrder } from '../core/store'
 import { useSettings } from '../ui/settings'
+import { useMediaQuery } from '../ui/media'
 import { CustomizeIcon, EyeIcon, EyeOffIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { TAB_GAP, tabsThatFit } from '../core/tab-rows'
@@ -213,6 +214,7 @@ function MoreTab({
   activeFilter,
   hiddenTabs,
   noRoomFor,
+  cramped,
   onSelect,
   onArrange,
 }: {
@@ -224,6 +226,8 @@ function MoreTab({
    * said on the tiles, and asked again as they change here before Done.
    */
   noRoomFor: (hidden: readonly string[], order: readonly string[]) => string[]
+  /** Some tabs on the bar have no room on its row — said in the brand's gold, as the tiles say it. */
+  cramped: boolean
   onSelect: (id: string) => void
   onArrange?: (hidden: string[], order: string[]) => void
 }) {
@@ -275,12 +279,12 @@ function MoreTab({
   return (
     <>
       <div
-        className={cx('filter-tab filter-more', dwelling && 'dwelling')}
+        className={cx('filter-tab filter-more', cramped && 'is-cramped', dwelling && 'dwelling')}
         style={dwellVar(settings.actionDwellMs)}
         role="button"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label="Customize tabs"
+        aria-label={cramped ? 'Customize tabs. Some have no room on the bar' : 'Customize tabs'}
         {...props}
         tabIndex={0}
       >
@@ -479,6 +483,12 @@ export function FilterBar({
    */
   const showing = categories.find(c => c.id === activeFilter)
   const ownTools = showing !== undefined
+  /**
+   * **A narrow screen keeps the tab showing to its name**: no eye and no drag
+   * pad on the bar, which a phone's row has no room to spend on, and Customize
+   * always there instead — where hiding and moving are both done.
+   */
+  const compact = useMediaQuery('(max-width: 700px)')
   /** What is on the bar: every tab not hidden. The tab showing is drawn even if it is. */
   const onBar = useMemo(() => categories.filter(c => !hiddenTabs.includes(c.id)), [categories, hiddenTabs])
   const showingOffBar = showing !== undefined && hiddenTabs.includes(showing.id)
@@ -573,7 +583,7 @@ export function FilterBar({
         ? current
         : { widthOf, room, more: more! },
     )
-  }, [categories, activeFilter, renaming, size, onAddCategory])
+  }, [categories, activeFilter, renaming, size, onAddCategory, compact])
 
   /**
    * **How many of these tabs the row holds** before More — the bar's answer,
@@ -598,7 +608,7 @@ export function FilterBar({
     },
     [metrics, activeFilter],
   )
-  const shown = held ? onBar.length : fitOf(onBar, anyHidden)
+  const shown = held ? onBar.length : fitOf(onBar, anyHidden || compact)
 
   /**
    * **What the row would have no room for**, with these hidden and the
@@ -615,11 +625,11 @@ export function FilterBar({
       ]
       const bar = all.filter(c => !hidden.includes(c.id))
       return bar
-        .slice(fitOf(bar, bar.length < all.length))
+        .slice(fitOf(bar, bar.length < all.length || compact))
         .map(c => c.id)
         .filter(id => id !== activeFilter)
     },
-    [categories, fitOf, activeFilter],
+    [categories, fitOf, activeFilter, compact],
   )
   // Laid out again for a bar of another width, or text of another size.
   useLayoutEffect(() => {
@@ -632,7 +642,7 @@ export function FilterBar({
     return () => observer.disconnect()
   }, [])
   const overflow = shown < onBar.length
-  const moreShown = overflow || anyHidden
+  const moreShown = overflow || anyHidden || compact
   // The tab showing, where More hides it or it is off the bar: drawn as itself
   // before More, so its tools are there.
   const drawnBeforeMore = showing && (showingOffBar || (overflow && activeAt >= shown)) ? showing : null
@@ -659,7 +669,7 @@ export function FilterBar({
       >
         <TrashIcon />
       </ItemTool>
-    ) : (
+    ) : compact ? undefined : (
       <>
         {onHide && (
           <ItemTool className="hide-tool" label={`Hide ${c.label} from the bar`} onActivate={() => hide(c.id)}>
@@ -719,6 +729,7 @@ export function FilterBar({
             activeFilter={activeFilter}
             hiddenTabs={hiddenTabs}
             noRoomFor={noRoomFor}
+            cramped={overflow}
             onSelect={onSelect}
             onArrange={onArrange}
           />
@@ -730,13 +741,16 @@ export function FilterBar({
           {categories.map(c => {
             const mine = ownTools && c.id === activeFilter
             return (
-              <span key={c.id} className={cx('filter-tab active', mine && 'has-tools')}>
+              <span
+                key={c.id}
+                className={cx('filter-tab active', mine && (!compact || renaming?.id === c.id) && 'has-tools')}
+              >
                 {mine && renaming?.id === c.id ? (
                   <span className="tab-rename" />
                 ) : (
                   <TabLabel label={c.label} whole={c.id === activeFilter} />
                 )}
-                {mine && (
+                {mine && !compact && (
                   <span className="tab-tools">
                     <span className="tab-tool">
                       <EyeOffIcon />
@@ -746,6 +760,13 @@ export function FilterBar({
                         <GripIcon />
                       </span>
                     )}
+                  </span>
+                )}
+                {mine && compact && renaming?.id === c.id && (
+                  <span className="tab-tools">
+                    <span className="tab-tool">
+                      <TrashIcon />
+                    </span>
                   </span>
                 )}
               </span>

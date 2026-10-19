@@ -692,13 +692,18 @@ describe('the arrows over the grid', () => {
     renderApp()
     const scrollTo = follow()
 
+    /** Past the half second between pages. */
+    const settleDown = () => act(() => void vi.advanceTimersByTime(600))
+
     click(arrow('down'))
     expect(scrollTo).toHaveBeenLastCalledWith({ top: 320, behavior: 'smooth' })
 
+    settleDown()
     click(arrow('down'))
     expect(scrollTo).toHaveBeenLastCalledWith({ top: 640, behavior: 'smooth' })
 
     // Back up: 640 less 333 is 307, and the nearest row top there or below it is 320.
+    settleDown()
     click(arrow('up'))
     expect(scrollTo).toHaveBeenLastCalledWith({ top: 320, behavior: 'smooth' })
   })
@@ -727,6 +732,30 @@ describe('the arrows over the grid', () => {
 
     act(() => void vi.advanceTimersByTime(1500))
     expect(scrollTo.mock.calls.length, 'the arrow did not repeat').toBe(4)
+  })
+
+  /**
+   * **Debounced.** A rest that fires and a gaze rig's click straight after it,
+   * or a page asked for while the last is still scrolling, move the grid once.
+   */
+  it('takes one page for two asked for together, and none while the grid is still moving', () => {
+    placeCells()
+    renderApp()
+    const scrollTo = follow()
+
+    click(arrow('down'))
+    click(arrow('down'))
+    expect(scrollTo, 'two pages for two clicks a moment apart').toHaveBeenCalledTimes(1)
+
+    // Past the half second, but the grid still moving from the last page.
+    act(() => void vi.advanceTimersByTime(600))
+    fireEvent.scroll(grid())
+    click(arrow('down'))
+    expect(scrollTo, 'a page while the grid was still moving').toHaveBeenCalledTimes(1)
+
+    act(() => void vi.advanceTimersByTime(600))
+    click(arrow('down'))
+    expect(scrollTo).toHaveBeenCalledTimes(2)
   })
 
   it('is hidden where there is no cell to size it by', () => {

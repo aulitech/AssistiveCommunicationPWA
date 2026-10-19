@@ -165,6 +165,11 @@ const PhraseCell = memo(function PhraseCell({
 // {['music','tv']}"). Selecting one walks the user through its slots by dwell
 // rather than dropping raw placeholder text into the message.
 
+/** The least time between two pages — see `page` in `GridArrows`. */
+const PAGE_SETTLE_MS = 500
+/** A scroll this recent means the grid is still moving from the last page. */
+const STILL_MOVING_MS = 150
+
 /**
  * **The two arrows over the grid**, the whole of its scrolling: up at the top
  * of the rightmost column and down at its foot, floating translucent over the
@@ -218,20 +223,33 @@ function GridArrows({
   }, [gridRef, innerRef, update])
 
   /**
-   * Where the last page was aimed, and when: a page smoothly scrolled is still
-   * on its way when the next comes round, and measuring from where it has got
-   * to would land the next one short. So a page asked for while one is still
-   * moving is measured from where that one is going.
+   * **Debounced**: a page is refused while the grid is still moving from the
+   * last one, and within `PAGE_SETTLE_MS` of it whatever — so a rest that
+   * fires and a gaze rig's click straight after it, or a repeat set quicker
+   * than a smooth scroll takes, move the grid once rather than twice, and each
+   * page is measured from where the grid has come to rest.
    */
-  const aimed = useRef<{ top: number; at: number } | null>(null)
+  const lastPage = useRef(0)
+  const lastScroll = useRef(0)
+  useEffect(() => {
+    const wrapper = gridRef.current
+    if (!wrapper) return
+    const moved = () => {
+      lastScroll.current = Date.now()
+    }
+    wrapper.addEventListener('scroll', moved, { passive: true })
+    return () => wrapper.removeEventListener('scroll', moved)
+  }, [gridRef])
 
   const page = useCallback(
     (direction: 1 | -1) => {
       const wrapper = gridRef.current
       const grid = innerRef.current
       if (!wrapper || !grid) return
-      const moving = aimed.current && Date.now() - aimed.current.at < 700 ? aimed.current.top : null
-      const from = moving ?? wrapper.scrollTop
+      const now = Date.now()
+      if (now - lastPage.current < PAGE_SETTLE_MS || now - lastScroll.current < STILL_MOVING_MS) return
+      lastPage.current = now
+      const from = wrapper.scrollTop
       const padding = parseFloat(getComputedStyle(wrapper).paddingTop) || 0
       // Half the gap between rows above the one landed on, so nothing of the
       // row before it shows over the top edge; the first row goes to the very top.
@@ -245,7 +263,6 @@ function GridArrows({
       }
       const most = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight)
       const top = Math.min(most, pageTarget(from, wrapper.clientHeight, [...tops], direction))
-      aimed.current = { top, at: Date.now() }
       wrapper.scrollTo({ top, behavior: 'smooth' })
     },
     [gridRef, innerRef],

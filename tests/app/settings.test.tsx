@@ -37,17 +37,23 @@ describe('the auto-repeat delay', () => {
   // dwell is how long somebody needs to settle on a target, this is how fast they
   // travel once they have. A long dwell with quick repeats is a real combination.
   it('is set independently of the action dwell', () => {
-    placeCells()
+    // A spinner in Settings rather than the arrows over the grid, which hold
+    // half a second between pages whatever the setting says.
     renderApp({ actionDwellMs: 2000, repeatDelayMs: 100 })
-    const scrollBy = vi.fn()
-    $<HTMLElement>('.grid-wrapper')!.scrollTo = scrollBy
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Open menu'))
+    click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Settings'))
+    const volume = () => Number(settingRow('Volume').querySelector<HTMLInputElement>('.setting-number')!.value)
+    const lower = [...settingRow('Volume').querySelectorAll('.step-btn')].find(
+      b => b.getAttribute('aria-label') === 'Decrease',
+    )!
+    const before = volume()
 
-    fireEvent.pointerEnter(nextPage())
+    fireEvent.pointerEnter(lower)
     act(() => void vi.advanceTimersByTime(1999))
-    expect(scrollBy, 'fired before the long dwell was up').not.toHaveBeenCalled()
+    expect(volume(), 'fired before the long dwell was up').toBe(before)
 
     act(() => void vi.advanceTimersByTime(1 + 300))
-    expect(scrollBy.mock.calls.length, 'the quick repeats did not follow').toBeGreaterThan(3)
+    expect(before - volume(), 'the quick repeats did not follow').toBeGreaterThan(3)
   })
 
   it('is offered in Settings and kept', () => {

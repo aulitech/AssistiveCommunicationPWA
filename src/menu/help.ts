@@ -146,6 +146,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Use the tabs above the grid to show one category at a time. Every phrase is in Library, each one once. The categories you make hold phrases from Library, in an order of their own, and a phrase can be in as many as you like.',
         'The tabs always start with Translations, then Answers when there are some, then Library. Your own categories follow, in the order you arranged them.',
         'The tabs keep to one row, each name cut to its first seven letters except the tab showing. Any that do not fit, and any you hide, are behind :customize:, the last tab, which is there whenever a tab is off the bar.',
+        'While the bar has no room for some tabs, :customize: is gold.',
         'Rest on :customize: for a grid of every tab; those the bar has no room for say No room. Rest on one to go to it, on :hide: or :show: to take it off the bar or put it back, and on :grip: to pick one of your own categories up and put it somewhere else. Nothing changes until Done.',
         'The two arrows floating over the last column of the grid scroll it: :up: and :down: move it most of a screen at a time, so the row at the top is always whole, and keep going while you rest on them. Each is only there when there is further to go.',
       ),
@@ -341,6 +342,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         ':add:, right after the last category tab, makes a new category.',
         'The tab that is showing has :hide:, which takes it off the bar and goes on to the next one. Every tab has it, Library and Translations too; :customize: puts them back.',
+        'On a phone the tab showing keeps to its name: hiding and moving tabs are done in :customize:, which is always there.',
         'On a category you made, the tab that is showing has :grip: at its right edge as well, once there are five tabs or more on the bar.',
         'Rest on the name to change it: it turns into a box where it stands. Type the new name and press Enter, or just move on to another tab, to keep it. While the name is a box, :grip: becomes :delete:, the only button on the tab, which removes the category. It asks first, and its phrases stay in Library.',
         ':grip: picks the tab up, and it turns blue. Rest on another tab to put it there, or on :grip: again to put it back.',
