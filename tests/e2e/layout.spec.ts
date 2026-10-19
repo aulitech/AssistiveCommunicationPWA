@@ -696,7 +696,7 @@ test('fits every prompt in the boxes on one line at 320px', async ({ page }) => 
   prompts.push(await fits('.heard-text', 'Say or type a question'), await fits('.heard-text', 'Nothing heard yet'))
   for (const { prompt, width, room } of prompts)
     expect(width, `"${prompt}" is more than a line`).toBeLessThanOrEqual(room)
-  expect(prompts.slice(0, 2).map(p => p.prompt)).toEqual(['Choose a phrase', 'Write or pick a phrase'])
+  expect(prompts.slice(0, 2).map(p => p.prompt)).toEqual(['Choose a phrase', 'Write or choose one'])
 })
 
 // **The question's line is inside the message box**, left of the message's on
