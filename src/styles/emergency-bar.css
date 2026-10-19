@@ -65,3 +65,34 @@
 .emergency-btn.dwelling .emergency-dwell-bar {
   animation: dwellFillH var(--dwell-duration, 1500ms) linear forwards;
 }
+
+/* **An emergency phrase's words, whole and large, in the middle of the phrase
+   table** while its button is rested on and the bar is cutting words off — see
+   `onPeek` in `EmergencyBar`. In the bar's own colours, on a card over the
+   phrases, and letting the pointer through: nothing here is a target. */
+.emergency-peek {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: none;
+}
+
+.emergency-peek span {
+  max-width: 90%;
+  padding: 1.25rem 2rem;
+  border-radius: 1rem;
+  border: 2px solid var(--urgent);
+  background: color-mix(in srgb, var(--urgent) 14%, var(--bg));
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+  color: var(--urgent);
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+

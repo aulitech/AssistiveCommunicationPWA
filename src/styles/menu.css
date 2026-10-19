@@ -7,9 +7,12 @@
 
 /* ── Menu button ── */
 .icon-btn.menu-btn {
-  margin-left: 4px;
+  /* **Last in the card's row, well clear of the voice** — a gap three times
+     the one between the row's other controls, since it opens the app rather
+     than working on the message. */
+  margin-left: 2.5rem;
   margin-right: 0;
-  /* A bare glyph, with no ground or edge of its own: the bar's shows through. */
+  /* A bare glyph, with no ground or edge of its own. */
   background: transparent;
   border-color: transparent;
 }

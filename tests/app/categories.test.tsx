@@ -137,9 +137,53 @@ describe('the tab that is showing', () => {
     return css.slice(at, css.indexOf('}', at))
   }
 
+  // **Only the tab showing has a ground**; the others' names are a step dimmer
+  // than the muted grey. And no rule between the top row and the tabs.
+  it('is the only tab with a ground, the others a step dimmer', () => {
+    expect(rule('.filter-tabs .filter-tab')).toMatch(/background: *transparent/)
+    expect(rule('.filter-tabs .filter-tab')).toMatch(/color: *#a6a6a6/)
+    expect(rule('.filter-tab.active')).toMatch(/background: *var\(--panel\)/)
+    expect(rule('.topbar'), 'a rule under the top row').not.toMatch(/border-bottom/)
+    expect(rule('.topbar'), 'a ground on the top row').not.toMatch(/background/)
+    expect(rule('.filter-bar-wrap'), 'a ground on the tab bar').not.toMatch(/background/)
+  })
+
+  // **Edit mode is said on the panel's edge**, in a muted green — the tab
+  // showing's sides and top and the table's border — and not on the phrases.
+  it("turns the panel's edge green in edit mode, and leaves the phrases alone", () => {
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+    const green = 'color-mix\\(in srgb, var\\(--accent\\) \\d+%, var\\(--panel-edge\\)\\)'
+    expect(css).toMatch(new RegExp(`\\.app\\.edit-mode \\.grid-area \\{ border-color: ${green}; \\}`))
+    const tab = css.match(/\.app\.edit-mode \.filter-tabs \.filter-tab\.active \{([^}]*)\}/)![1]!
+    for (const side of ['top', 'left', 'right']) expect(tab).toMatch(new RegExp(`border-${side}-color: ${green};`))
+    expect(tab, 'its foot, which opens it into the table').not.toMatch(/border-bottom/)
+    const cells = css.match(/\.app\.edit-mode \.phrase-cell\.edit-mode,[^{]*\{([^}]*)\}/)![1]!
+    expect(cells, 'an outline on every phrase').not.toMatch(/outline/)
+  })
+
+  // **The tab showing and the phrase table are one panel**: one ground, one
+  // edge, the tab covering the panel's top edge where they meet — and the
+  // phrases a step lighter than both.
+  it('shares its ground and edge with the phrase table', () => {
+    expect(rule('.grid-area')).toMatch(/background: *var\(--panel\)/)
+    expect(rule('.filter-tab.active')).toMatch(/border-color: *var\(--panel-edge\)/)
+    expect(rule('.grid-area')).toMatch(/border: *1px solid var\(--panel-edge\)/)
+    expect(rule('.grid-area'), "the table's corners are square").toMatch(/border-radius: *12px/)
+    expect(rule('.filter-tabs .filter-tab.active')).toMatch(/border-bottom: *1px solid var\(--panel\)/)
+    const token = (name: string) =>
+      stylesheet()
+        .match(new RegExp(`--${name}: *([^;]+);`))![1]!
+        .trim()
+    expect(token('panel')).toBe('var(--surface)')
+    const lightness = (hex: string) => parseInt(hex.slice(1, 3), 16)
+    expect(lightness(token('cell')), 'the phrases are not lighter than the table').toBeGreaterThan(
+      lightness(token('surface')),
+    )
+  })
+
   it('is not filled in the accent, though the flash of choosing it is', () => {
-    expect(rule('.filter-tab.active')).toMatch(/background: *var\(--bg\)/)
-    expect(rule('.filter-tab.active')).toMatch(/border-top: *3px solid var\(--accent\)/)
+    expect(rule('.filter-tab.active')).toMatch(/background: *var\(--panel\)/)
+    expect(rule('.filter-tab.active')).not.toMatch(/var\(--accent\)/)
     expect(rule('.filter-tab.flashed')).toMatch(/background: *var\(--accent\);/)
   })
 })
@@ -205,6 +249,28 @@ describe('in edit mode', () => {
     expect(row.at(-1)?.getAttribute('aria-label')).toBe('Add category')
     expect(row.at(-2)?.getAttribute('role')).toBe('tab')
     expect($('.filter-bar-tools, .rename-category-tab, .reorder-tab, .sort-order-tab')).toBeNull()
+  })
+
+  // **Only where there is a row worth arranging**: five tabs on the bar or
+  // more. Translations, Library and three of its own is five.
+  it('shows the drag pad with five tabs on the bar, and not with four', () => {
+    localStorage.setItem(
+      STORE_KEY,
+      JSON.stringify({ custom: SEEDED.custom.filter(p => ['Drinks', 'Food'].includes(p.category)) }),
+    )
+    renderApp()
+    enterEditMode()
+    click(tabNamed('Food'))
+    expect(tabs()).toHaveLength(4)
+    expect(reorderTool(), 'a drag pad with four tabs').toBeNull()
+    expect(tabName(), 'renaming went with it').not.toBeNull()
+    expect(tabNamed('Food')?.getAttribute('aria-disabled'), 'its name marked disabled with it').toBeNull()
+
+    click($('.add-tab'))
+    type(nameField(), 'Third')
+    saveModal()
+    expect(tabs()).toHaveLength(5)
+    expect(reorderTool()).not.toBeNull()
   })
 
   // The reorder tool is a drag pad: six dots, the mark of something to pick up.
@@ -1148,8 +1214,15 @@ describe('More', () => {
     expect(tabLabels().slice(-2)).toEqual(['Cat 09', 'More'])
   })
 
-  // A tab behind More is one nobody could drop another on.
+  // A tab behind More is one nobody could drop another on. A bar wide enough
+  // for five tabs, which the drag pad waits for.
   it('shows every tab while one is in the air', () => {
+    Object.defineProperty(Element.prototype, 'clientWidth', {
+      configurable: true,
+      get() {
+        return (this as Element).classList.contains('filter-tabs') ? 640 : 0
+      },
+    })
     renderApp()
     enterEditMode()
     click(tabNamed('Translations'))

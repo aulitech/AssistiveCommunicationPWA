@@ -10,8 +10,7 @@
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  /* No ground: it is the page's. */
 }
 
 .filter-tabs {
@@ -51,7 +50,10 @@
   padding: 8px 18px;
   border-radius: 10px 10px 0 0;
   border-bottom-color: transparent;
-  background: color-mix(in srgb, var(--text) 4%, transparent);
+  /* **Only the tab showing has a ground**; the rest are their edges and their
+     names, the names a step dimmer than the muted grey — still 7:1 on the bar. */
+  background: transparent;
+  color: #a6a6a6;
 }
 
 .filter-tab.dwelling {
@@ -69,24 +71,22 @@
   font-weight: 600;
 }
 
-/* **The tab that is showing is part of the board under it**: the board's own
-   ground, a green edge along its top, and on the last row it covers the bar's
-   lower edge so the two are one surface. It is on all the time, so it is not
-   filled with the accent — that was the loudest thing on the screen, louder
-   than Speak, which is the one control the fill is kept to mean. The moment of
-   choosing one still flashes full. */
+/* **The tab that is showing is part of the panel under it** — the phrase
+   table's ground and edge (`--panel`, `--panel-edge`), and on the last row it
+   covers the panel's top edge so the two are one surface, as a folder's tab is
+   the top of its page. It is on all the time, so it is not filled with the
+   accent — that is kept for Speak. The moment of choosing one still flashes
+   full. */
 .filter-tab.active {
-  background: var(--bg);
-  border-color: var(--border);
-  border-top: 3px solid var(--accent);
+  background: var(--panel);
+  border-color: var(--panel-edge);
   color: var(--text);
   font-weight: 600;
 }
 
 .filter-tabs .filter-tab.active {
-  padding-top: 6px;
   margin-bottom: -1px;
-  border-bottom: 1px solid var(--bg);
+  border-bottom: 1px solid var(--panel);
 }
 
 .filter-tab .dwell-bar {
@@ -140,7 +140,7 @@
 .tab-tools {
   display: inline-flex;
   align-self: stretch;
-  margin: -6px 0 -8px 0.5rem;
+  margin: -8px 0 -8px 0.5rem;
 }
 
 .tab-tool {
@@ -295,7 +295,16 @@
 
 /* ── Grid area + scroll controls ── */
 .grid-area {
+  position: relative;
   display: flex;
   flex: 1;
   overflow: hidden;
+  /* **The panel the tab showing opens into** — its ground and its edge, the
+     corners rounded and the whole set in from the screen's sides as far as
+     the tabs are, so the first tab stands on its edge. The tab showing covers
+     its top edge where they meet (`.filter-tabs .filter-tab.active`). */
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 12px;
+  margin: 0 8px 8px;
 }

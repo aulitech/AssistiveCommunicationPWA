@@ -4,8 +4,7 @@
    was. Clear's muted red, darkened so the word on it reads. */
 .stop-bar {
   position: absolute;
-  /* Over the row's border as well, which an inset of nought stops short of. */
-  inset: 0 0 -1px;
+  inset: 0;
   z-index: 20;
   display: flex;
   align-items: center;

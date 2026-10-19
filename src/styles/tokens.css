@@ -10,9 +10,9 @@
      and a blocking font request would leave the grid unreadable offline. */
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 
-  --bg: #0f0f0f;
+  --bg: #0a0a0a;
   --surface: #1a1a1a;
-  --cell: #1e1e1e;
+  --cell: #222222;
   --cell-hover: #252525;
   --border: #2e2e2e;
   --text: #f2f2f2;
@@ -67,6 +67,12 @@
   --card-ground: #232323;
   --card-edge: #3a3a3a;
   --card-focus: color-mix(in srgb, var(--accent) 55%, var(--card-edge));
+  /* **The panel**: the phrase table and the tab showing, one surface with one
+     edge, a step up from the page the top row and the tabs sit on — so the tab
+     showing reads as the top of the page of phrases under it. The phrases are a
+     step up again (`--cell`). */
+  --panel: var(--surface);
+  --panel-edge: var(--card-edge);
 
 }
 

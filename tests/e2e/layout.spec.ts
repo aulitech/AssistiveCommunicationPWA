@@ -22,11 +22,14 @@ test.describe('on a phone held upright', () => {
   // rest behind More, which goes to one of them and then carries its name.
   test('holds the tabs to one row, and the rest behind More', async ({ page }) => {
     await openBoard(page, { phrases: many() })
-    const tops = await page
-      .locator('.filter-tabs > .filter-tab')
-      // To the nearest 10px: the tab showing stands a pixel lower, over the bar's edge.
-      .evaluateAll(els => [...new Set(els.map(e => Math.round(e.getBoundingClientRect().top / 10)))])
-    expect(tops.length).toBe(1)
+    // A row is tabs within a few pixels of each other: the tab showing stands
+    // a pixel lower, over the bar's edge. Rounding them to the nearest ten put
+    // that pixel either side of a boundary as the bar above moved.
+    const rows = await page.locator('.filter-tabs > .filter-tab').evaluateAll(els => {
+      const tops = els.map(e => e.getBoundingClientRect().top).sort((a, b) => a - b)
+      return tops.filter((top, i) => i === 0 || top - tops[i - 1]! > 4).length
+    })
+    expect(rows).toBe(1)
     const more = page.locator('.filter-more[role="tab"]')
     await expect(more).toHaveText('More')
     await expect(page.locator('.phrase-cell').first()).toBeInViewport()
@@ -144,26 +147,28 @@ test('puts the toast in the upper third of the phrase table, across its middle',
   expect(Math.abs(middle.x - (table.left + table.width / 2))).toBeLessThan(1)
 })
 
-// Edit mode says every phrase is now something to change: a two-pixel solid
-// outline, which keeps the cells their size, where a one-pixel dashed one was
-// too faint to see. And the toast over them is at 85%, ringed in a muted
-// accent rather than the full one.
-test('outlines the phrases solid in edit mode, under a toast at 85%', async ({ page }) => {
+// **Edit mode is said on the panel's edge**, in a muted green, and not on the
+// phrases, which keep their size. And the toast over them is at 85%, ringed in
+// a muted accent rather than the full one.
+test("greens the panel's edge in edit mode, not the phrases, under a toast at 85%", async ({ page }) => {
   await openBoard(page)
   const cell = page.locator('.phrase-cell').first()
   const before = await cell.evaluate(el => el.getBoundingClientRect().toJSON())
+  const edge = () => page.locator('.grid-area').evaluate(el => getComputedStyle(el).borderTopColor)
+  const grey = await edge()
   await page.locator('.edit-toggle').dispatchEvent('click')
   await expect(page.locator('.toast')).toBeVisible()
   const { outline, after, toast } = await cell.evaluate(el => {
     const style = getComputedStyle(el)
     const t = getComputedStyle(document.querySelector('.toast')!)
     return {
-      outline: { width: style.outlineWidth, style: style.outlineStyle },
+      outline: style.outlineStyle,
       after: el.getBoundingClientRect().toJSON(),
       toast: { opacity: t.opacity, ring: t.borderTopColor },
     }
   })
-  expect(outline).toEqual({ width: '2px', style: 'solid' })
+  expect(outline, 'an outline on the phrases').toBe('none')
+  expect(await edge(), "the panel's edge did not change").not.toBe(grey)
   expect(after.width).toBeCloseTo(before.width, 1)
   expect(after.height).toBeCloseTo(before.height, 1)
   expect(toast.opacity).toBe('0.85')
@@ -340,7 +345,7 @@ test('does not speak when Speak arrives under a resting pointer', async ({ page 
       const r = el.getBoundingClientRect()
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
     })
-  await page.setViewportSize({ width: 900, height: 900 })
+  await page.setViewportSize({ width: 820, height: 900 })
   await openBoard(page)
   await page.locator('.edit-toggle').dispatchEvent('click')
   await page.locator('.edit-toggle').dispatchEvent('click')
@@ -359,7 +364,7 @@ test('does not speak when Speak arrives under a resting pointer', async ({ page 
   await page.waitForTimeout(300)
 
   // The screen narrows, the words rewrap, and Speak lands under the pointer.
-  await page.setViewportSize({ width: 900, height: 900 })
+  await page.setViewportSize({ width: 820, height: 900 })
   await page.waitForTimeout(300)
   expect(await speakAt(), 'Speak did not come back to the same place').toEqual(narrow)
   // A gaze is never quite still: it drifts a pixel or two, which is what tells
@@ -388,7 +393,7 @@ test('gives the box its new height when the screen widens and the words rewrap',
   await box.fill('x')
   const oneLine = await height()
 
-  await page.setViewportSize({ width: 900, height: 900 })
+  await page.setViewportSize({ width: 820, height: 900 })
   await box.fill('Could you open the window a little, please, and leave it open until the evening')
   expect(await height(), 'it did not wrap at the narrow width').toBeGreaterThan(oneLine)
 
@@ -398,30 +403,39 @@ test('gives the box its new height when the screen widens and the words rewrap',
 })
 
 /**
- * **The menu is in the upper right corner**, at every width, and the busy
- * indicator — fixed in that corner of the screen, and inert — stands clear of it
- * rather than over the one way into everything else.
+ * **The menu is in the message card, at the upper right**: last in the card's
+ * row of controls, at its right end, and well clear of the voice before it.
+ * The busy indicator stands clear of the top row altogether — over the lower
+ * right of the phrase table — rather than over any control in it.
  */
 for (const width of [360, 1280]) {
-  test(`puts the menu in the upper right corner, clear of the busy indicator, at ${width}px`, async ({ page }) => {
+  test(`puts the menu at the card's upper right, clear of the voice and the busy indicator, at ${width}px`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 800 })
     await openBoard(page)
-    const { menu, card, busyRight } = await page.evaluate(() => {
+    const { menu, card, before, busy, topbar } = await page.evaluate(() => {
       const region = document.createElement('div')
       region.className = 'busy-region'
+      region.style.width = '8rem'
+      region.style.height = '2rem'
       document.body.append(region)
-      const busyRight = region.getBoundingClientRect().right
+      const busy = region.getBoundingClientRect().toJSON()
       region.remove()
+      const menu = document.querySelector('[aria-label="Open menu"]')!
       return {
-        menu: document.querySelector('[aria-label="Open menu"]')!.getBoundingClientRect().toJSON(),
+        menu: menu.getBoundingClientRect().toJSON(),
+        before: menu.previousElementSibling?.getBoundingClientRect().toJSON(),
         card: document.querySelector('.message-wrap')!.getBoundingClientRect().toJSON(),
-        busyRight,
+        busy,
+        topbar: document.querySelector('.topbar')!.getBoundingClientRect().toJSON(),
       }
     })
-    expect(width - menu.right, 'not at the right edge').toBeLessThan(16)
-    expect(menu.top, 'not at the top').toBeLessThan(20)
-    expect(menu.left, 'not right of the card').toBeGreaterThanOrEqual(card.right)
-    expect(busyRight, 'the busy indicator stands over the menu').toBeLessThanOrEqual(menu.left)
+    expect(card.right - menu.right, 'not at the right end of the card').toBeLessThan(20)
+    expect(menu.left, 'not inside the card').toBeGreaterThanOrEqual(card.left)
+    expect(menu.top - card.top, "not in the card's upper row").toBeLessThan(40)
+    if (before) expect(menu.left - before.right, 'not well clear of the voice').toBeGreaterThanOrEqual(36)
+    expect(busy.top, 'the busy indicator stands over the top row').toBeGreaterThanOrEqual(topbar.bottom)
   })
 }
 
@@ -656,3 +670,99 @@ test('rests on a click in the open space of the card’s row of controls, and no
   await page.mouse.click(gap.x, gap.y)
   await expect(app).not.toHaveClass(/resting/)
 })
+
+// **Every prompt in the two boxes is one line on any screen** — measured in
+// the box's own font against the room inside it, on the narrowest phone. The
+// question box's two are measured both, since which shows depends on whether
+// the microphone is listening, and here it never starts.
+test('fits every prompt in the boxes on one line at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 })
+  await openBoard(page)
+  const fits = (sel: string, prompt?: string) =>
+    page.locator(sel).evaluate((el, prompt) => {
+      const field = el as HTMLTextAreaElement
+      const s = getComputedStyle(field)
+      const room = field.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight)
+      const pen = document.createElement('canvas').getContext('2d')!
+      pen.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`
+      const text = prompt ?? field.placeholder
+      return { prompt: text, width: pen.measureText(text).width, room }
+    }, prompt)
+  const prompts = [await fits('.text-display')]
+  await page.locator('.edit-toggle').dispatchEvent('click')
+  prompts.push(await fits('.text-display'))
+  await page.locator('.edit-toggle').dispatchEvent('click')
+  await page.locator('.listen-toggle').dispatchEvent('click')
+  prompts.push(await fits('.heard-text', 'Say or type a question'), await fits('.heard-text', 'Nothing heard yet'))
+  for (const { prompt, width, room } of prompts)
+    expect(width, `"${prompt}" is more than a line`).toBeLessThanOrEqual(room)
+  expect(prompts.slice(0, 2).map(p => p.prompt)).toEqual(['Choose a phrase', 'Write or pick a phrase'])
+})
+
+// **The question's line is inside the message box**, left of the message's on
+// a wide screen and above it on a narrow one.
+for (const [width, beside] of [
+  [1280, true],
+  [390, false],
+] as const) {
+  test(`puts the question's line inside the message box, ${beside ? 'left of' : 'above'} the message's, at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await openBoard(page)
+    await page.locator('.listen-toggle').dispatchEvent('click')
+    const { card, question, message } = await page.evaluate(() => ({
+      card: document.querySelector('.message-wrap')!.getBoundingClientRect().toJSON(),
+      question: document.querySelector('.message-wrap .heard-wrap')!.getBoundingClientRect().toJSON(),
+      message: document.querySelector('.message-wrap .message-line')!.getBoundingClientRect().toJSON(),
+    }))
+    for (const box of [question, message]) {
+      expect(box.left, 'outside the card').toBeGreaterThanOrEqual(card.left - 1)
+      expect(box.right, 'outside the card').toBeLessThanOrEqual(card.right + 1)
+    }
+    if (beside) {
+      expect(question.right, 'not left of the message').toBeLessThanOrEqual(message.left)
+      expect(Math.abs(question.top - message.top), 'not on the same line').toBeLessThan(2)
+    } else {
+      expect(question.bottom, 'not above the message').toBeLessThanOrEqual(message.top)
+    }
+  })
+}
+
+// **Emergency words the bar cuts off are shown whole in the middle of the
+// phrase table** while their button is rested on: on a phone held upright the
+// bar cuts them, and on a wide screen it does not and nothing is shown.
+for (const [width, cut] of [
+  [390, true],
+  [1280, false],
+] as const) {
+  test(`shows a rested-on emergency phrase whole in the table ${cut ? 'where the bar cuts it off' : 'only where the bar cuts it off'}, at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await openBoard(page)
+    const button = page.locator('.emergency-btn:not(.emergency-tool)').first()
+    const words = (await button.getAttribute('aria-label'))!
+    await button.hover()
+    const peek = page.locator('.emergency-peek')
+    if (!cut) {
+      await expect(peek).toHaveCount(0)
+      return
+    }
+    await expect(peek).toHaveText(words)
+    const { table, card } = await page.evaluate(() => ({
+      table: document.querySelector('.grid-area')!.getBoundingClientRect().toJSON(),
+      card: document.querySelector('.emergency-peek span')!.getBoundingClientRect().toJSON(),
+    }))
+    const middle = (r: { left: number; right: number; top: number; bottom: number }) => [
+      (r.left + r.right) / 2,
+      (r.top + r.bottom) / 2,
+    ]
+    const [tx, ty] = middle(table)
+    const [cx, cy] = middle(card)
+    expect(Math.abs(cx - tx), 'not centred across the table').toBeLessThan(2)
+    expect(Math.abs(cy - ty), 'not centred down the table').toBeLessThan(2)
+    await page.mouse.move(width / 2, 100)
+    await expect(peek).toHaveCount(0)
+  })
+}

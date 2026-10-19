@@ -10,34 +10,40 @@
    no icon and no word. Amber, because green already means selected and blue
    means held, and this is the control someone has to find when nothing else
    on screen will answer. Its name lives in `aria-label` alone. */
-/* The two cards, the question's and the message's. `min-width: 0` because a
-   flex child will not shrink below its content without it, and a long message
-   would push the card's controls off the end. */
+/* The message card's place in the top row. `min-width: 0` because a flex
+   child will not shrink below its content without it, and a long message would
+   push the card's controls off the end. */
 .text-display-wrap {
   position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
-  /* Two boxes once listen mode is open, and wrapping is what lets one rule lay
-     them out both ways: the heard box takes a whole line to itself and the
-     message falls underneath, until the wide-screen rule below puts them on one
-     line together. */
+}
+
+/* **The lines the words are written on**, inside the card: the question's,
+   while listen mode is open, and the message's. Wrapping is what lets one rule
+   lay them out both ways — the question takes a whole line to itself and the
+   message falls under it, until the wide-screen rule below puts them on one
+   line together, the question on the left.
+ *
+ * The gutter between them, side by side, is **2rem, a target-separation number
+ * rather than a spacing one** — both boxes are dwell targets, and a gaze
+ * crossing from the question to the answer must not catch the wrong one on the
+ * way. Stacked, three-quarters of a rem, as between every other line in the
+ * card. Top-aligned rather than stretched: both boxes grow with what is in
+ * them, and a message box stretched to the height of the question beside it
+ * would be a box sized by somebody else's words. */
+.message-lines {
+  display: flex;
   flex-wrap: wrap;
-  /* The gutter between them. **2rem is a target-separation number here rather
-     than a spacing one** — both of these are dwell targets, and a gaze crossing
-     from the question to the answer must not catch the wrong one on the way. A
-     flex gap does not shrink, so writing it here makes 2rem a floor as well as
-     a size. */
   column-gap: 2rem;
-  /* Stacked, the two cards are three-quarters of a rem apart. Nothing reaches
-     into the gap any more — every control is inside its card — and the edges and
-     the shadows are what keep a gaze crossing from one to the other from catching
-     the wrong one. */
   row-gap: 0.75rem;
-  /* Top-aligned rather than stretched. Both boxes grow with what is in them, and
-     a message box stretched to the height of the question beside it would be a
-     box sized by somebody else's words. */
   align-items: flex-start;
+}
+
+.message-lines > .message-line {
+  flex: 1 1 100%;
+  min-width: 0;
 }
 
 /* **The line the words are written on** — see `topbar.tsx`. The slot that
@@ -64,18 +70,6 @@
   width: 2rem;
   height: 2rem;
   align-self: center;
-}
-
-/* The live microphone, at the right end of the question's line: room kept for
-   it, so its arriving does not rewrap the question. */
-.heard-end {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  width: var(--heard-tool);
-  height: var(--heard-tool);
-  margin-bottom: calc(var(--box-pad-y) + 0.945rem - 1rem);
 }
 
 /* **The card's row of controls, above the line.** Three columns: the
@@ -137,11 +131,21 @@
     justify-content: flex-end;
     gap: 0.75rem 1.25rem;
   }
+
+  /* **The menu stays at the upper right**: at the right end of the modes'
+     line, which has room either side of them, rather than going down to the
+     values' line with the voice. */
+  .message-tools .menu-btn {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.75rem;
+    margin-left: 0;
+  }
 }
 
-/* The heard card: somebody else's words. Its own dashed edge, so the two read as
-   two things rather than as one box that grew. Above the message on a narrow screen
-   and beside it on a wide one — see the wide-screen rule below. */
+/* The question's line: somebody else's words, inside the message card. Above
+   the message's line on a narrow screen and left of it on a wide one — see the
+   wide-screen rule below. */
 .heard-wrap {
   /* The microphone's height, so every control in either card is the one size. */
   --heard-tool: 2rem;
@@ -155,20 +159,9 @@
      asked to. */
   flex: 1 1 100%;
   min-width: 0;
-  /* **A card like the message's**, with its tools inside along the bottom. Its
-     edge is dashed — somebody else's words, not this person's — and turns solid
-     in the accent while the microphone is on. */
-  background: var(--card-ground);
-  border: 1px dashed var(--card-edge);
+  /* **Like the message's**, with its tools inside along the bottom, and no
+     ground or edge of its own. */
   border-radius: 1.25rem;
-  box-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.35);
-}
-
-.heard-wrap:focus-within { border-color: var(--card-focus); }
-
-.heard-wrap:has(.heard-text.is-listening) {
-  border-style: solid;
-  border-color: var(--accent);
 }
 
 .heard-text {
@@ -221,7 +214,7 @@
    Selectors that can only match while the question is on screen, rather than a
    class saying so — the heard box being in the document *is* the condition. */
 .heard-wrap .heard-text,
-.heard-wrap ~ .message-wrap .text-display {
+.heard-wrap ~ .message-line .text-display {
   max-height: min(var(--box-max-height), 20dvh);
 }
 
@@ -241,6 +234,18 @@
   background-position: bottom left;
   background-size: 0 3px;
   animation: boxDwellFill var(--dwell-duration, 1500ms) linear forwards;
+}
+
+/* **The line along the foot of the question box pulses while the microphone
+   is listening** — the one thing that says so on the question's line. The
+   line's colour alone moves, so nothing changes size; it holds still, lit,
+   where the device asks for less motion. */
+.heard-text.is-listening { animation: heardListening 8s ease-in-out infinite; }
+
+@keyframes heardListening {
+  0%,
+  100% { box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent) 25%, transparent); }
+  50% { box-shadow: inset 0 -2px 0 var(--accent); }
 }
 
 /* No scrollbar, the same as the message box and for the same reason: the two are
@@ -314,54 +319,6 @@
   color: var(--text-muted);
 }
 
-/* The microphone is live — see `HeardBox`. At the right end of the card's row of
-   tools, at the same size, so it reads as part of the same set, and lit in the
-   accent the card's edge turns while it listens.
- *
- * **Only the level inside the capsule moves** — it fills and empties as a meter
- * does, which is what says *live* from across a room. It pulsed at first, the
- * whole light brightening and dimming, and that did not work: the edge under it
- * seemed to pulse with it. Nothing outside the glyph ever changes now. Under reduced motion the
- * level stands still, part full. Not a target, so nothing a pointer does here
- * can arm anything. */
-.heard-live {
-  margin-left: auto;
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--heard-tool);
-  height: var(--heard-tool);
-  border-radius: 0.6rem;
-  background: transparent;
-  color: var(--accent);
-  pointer-events: none;
-}
-
-/* Scaled from the foot of the capsule, as a level rises from the bottom. The
-   steps are uneven on purpose: a level that rose and fell in one even beat would
-   read as a pulse again, and speech is not even. */
-.heard-live .mic-level {
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-  animation: micLevel 1.2s ease-in-out infinite;
-}
-
-@keyframes micLevel {
-  0%,
-  100% { transform: scaleY(0.2); }
-  20% { transform: scaleY(0.7); }
-  40% { transform: scaleY(0.4); }
-  60% { transform: scaleY(0.95); }
-  80% { transform: scaleY(0.5); }
-}
-
-.heard-live svg {
-  width: 1.2rem;
-  height: 1.2rem;
-  filter: drop-shadow(0 0 0.2rem var(--accent));
-}
-
 /* ── Listen mode on a wide screen ── */
 /* The question beside the answer rather than above it, taking 35% of the box's
    width to the message's 65%, with the wrapper's 2rem gutter between them.
@@ -373,9 +330,8 @@
  * and no height to spare, so the question goes beside the answer and the grid
  * keeps its rows.
  *
- * **The message card moves when the question opens** — narrower beside it, lower
- * under it — and the microphone in its row with it, which is why opening or
- * closing it holds the dwells.
+ * **The message's line moves when the question opens** — narrower beside it,
+ * lower under it — which is why opening or closing it holds the dwells.
  *
  * The same width `topbar.tsx` calls `WIDE_ENOUGH`, and one number on purpose:
  * both ask whether the top of the screen has width to spare beyond the message.
@@ -385,7 +341,7 @@
     flex: 35 1 0;
   }
 
-  .text-display-wrap > .message-wrap {
+  .message-lines > .message-line {
     flex: 65 1 0;
   }
 
@@ -402,7 +358,7 @@
   /* Side by side the pair spends width rather than height, so the clamp on a
      short screen's share comes off and both go back to the shared cap. */
   .heard-wrap .heard-text,
-  .heard-wrap ~ .message-wrap .text-display {
+  .heard-wrap ~ .message-line .text-display {
     max-height: var(--box-max-height);
   }
 }
@@ -615,7 +571,6 @@
 /* The row of controls itself is not dimmed, or the open space that resumes
    would be dimmed with it: everything round it is, and everything in it. */
 .app.resting .topbar > :not(.text-display-wrap),
-.app.resting .text-display-wrap > :not(.message-wrap),
 .app.resting .message-wrap > :not(.message-tools),
 .app.resting .message-tools > :not(.rest-surface, .resume-bar),
 .app.resting .filter-bar-wrap,

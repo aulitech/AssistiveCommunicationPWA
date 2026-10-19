@@ -454,10 +454,10 @@ describe('auto-speak', () => {
   // the moment the mode is something else.
   it('says in the empty box what choosing a phrase will do', () => {
     renderApp({ autoSpeak: true })
-    expect(box().placeholder).toBe('Immediately speak selected phrase')
+    expect(box().placeholder).toBe('Choose a phrase')
 
     click(speakToggle())
-    expect(box().placeholder, 'composing still promised to speak').not.toMatch(/speak selected/i)
+    expect(box().placeholder, 'editing still promised to speak').toBe('Write or pick a phrase')
   })
 
   // The board talks the moment it is opened. Somebody who wants to build a

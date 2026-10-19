@@ -633,21 +633,10 @@ export function Topbar({
         </ActionButton>
       )}
 
-      {/* The two cards: the question, when listen mode is open, and the
-          message. Side by side on a wide screen, stacked on a narrow one. */}
+      {/* The message card: the row of controls, and under it the line the
+          words are written on — and, while listen mode is open, the question's
+          line beside it or above it. */}
       <div className="text-display-wrap">
-        {/* What was heard, beside the message rather than in it — or above it
-            on a screen with no width to spare, which is the stylesheet's call
-            and not this file's. Two boxes either way, and one of them is
-            somebody else's words: mixing them would make the question and the
-            answer one thing to be untangled by whoever is waiting for a reply.
-
-            It goes *before* the message in the markup, so the question reads
-            first in both arrangements and in a screen reader. Opening it moves
-            the message card, which is why the microphone holds the dwells. */}
-        {listener.open && <HeardBox listener={listener} fieldRef={heardRef} edges={heardEdges} />}
-
-        {/* The message card: the words and the row of controls. */}
         <div className="message-wrap">
           {/* **The card's row of controls, above the line**: the clipboard at
               the far left, the modes in the middle — the microphone, edit,
@@ -799,6 +788,19 @@ export function Topbar({
                   <TrashIcon />
                 </ActionButton>
               )}
+              {/* **The menu, at the upper right of the card**, where an app's
+                  menu is looked for — and well clear of the voice, being about
+                  the app rather than the message. Back sits in the same corner
+                  of every panel it opens, and holds the dwells as it closes
+                  one — see `PanelBack` — so the pointer left over it does not
+                  open the menu again. */}
+              <ActionButton
+                label={menuOpen ? 'Close menu' : 'Open menu'}
+                onSelect={onToggleMenu}
+                className="in-card menu-btn"
+              >
+                <MenuIcon />
+              </ActionButton>
             </div>
             {/* **Rest is this row's open space** — see `RestSurface`. Last, and
                 behind everything in the row. */}
@@ -806,114 +808,133 @@ export function Topbar({
             {resting && <ResumeBar onResume={toggleRest} waiting={mustLeave} />}
           </div>
 
-          {/* **The line the words are written on**: the slot that empties the box
+          {/* **The lines the words are written on** — the question's, while
+              listen mode is open, and the message's. Left of the message's on
+              a wide screen and above it on a narrow one, which is the
+              stylesheet's call and not this file's. Two boxes either way, and
+              one of them is somebody else's words: mixing them would make the
+              question and the answer one thing to be untangled by whoever is
+              waiting for a reply. The question first in the markup, so it
+              reads first in both arrangements and in a screen reader. Opening
+              it moves the message's line, which is why the toggle holds the
+              dwells. */}
+          <div className="message-lines">
+            {listener.open && <HeardBox listener={listener} fieldRef={heardRef} edges={heardEdges} />}
+
+            {/* **The line the words are written on**: the slot that empties the box
               at its left end, then the words, with Speak — or Save in edit
               mode — right after the last of them. */}
-          <div className="message-line">
-            <div className="topbar-clear">
-              {editMode && undoDelete ? (
-                // The undo glyph the composer's own slot draws, because it means
-                // the same thing: put back the last thing I did.
-                <ActionButton
-                  className="in-card"
-                  onSelect={undoDelete.undo}
-                  label={`Undo deleting “${undoDelete.words}”`}
-                >
-                  <UndoIcon />
-                </ActionButton>
-              ) : editMode ? (
-                <ActionButton
-                  className="in-card"
-                  onSelect={() => startNew()}
-                  label="Start a new phrase"
-                  disabled={isUntouched}
-                >
-                  {/* The same X as Clear: it empties the box in this mode too. */}
-                  <ClearIcon />
-                </ActionButton>
-              ) : (
-                <ActionButton
-                  className="in-card"
-                  onSelect={clearOrUndo}
-                  label={showUndo ? 'Undo' : 'Clear'}
-                  disabled={!canClear}
-                >
-                  {showUndo ? <UndoIcon /> : <ClearIcon />}
-                </ActionButton>
-              )}
-            </div>
-            <div className="message-field">
-              <textarea
-                ref={textareaRef}
-                className={cx(
-                  'text-display',
-                  caret.active && 'dwelling',
-                  (messageEdges.canUp || messageEdges.canDown) && 'has-scroll',
+            <div className="message-line">
+              <div className="topbar-clear">
+                {editMode && undoDelete ? (
+                  // The undo glyph the composer's own slot draws, because it means
+                  // the same thing: put back the last thing I did.
+                  <ActionButton
+                    className="in-card"
+                    onSelect={undoDelete.undo}
+                    label={`Undo deleting “${undoDelete.words}”`}
+                  >
+                    <UndoIcon />
+                  </ActionButton>
+                ) : editMode ? (
+                  <ActionButton
+                    className="in-card"
+                    onSelect={() => startNew()}
+                    label="Start a new phrase"
+                    disabled={isUntouched}
+                  >
+                    {/* The same X as Clear: it empties the box in this mode too. */}
+                    <ClearIcon />
+                  </ActionButton>
+                ) : (
+                  <ActionButton
+                    className="in-card"
+                    onSelect={clearOrUndo}
+                    label={showUndo ? 'Undo' : 'Clear'}
+                    disabled={!canClear}
+                  >
+                    {showUndo ? <UndoIcon /> : <ClearIcon />}
+                  </ActionButton>
                 )}
-                style={dwellVar(settings.actionDwellMs)}
-                aria-label={editMode ? 'Phrase text' : 'Composed message'}
-                value={value}
-                onChange={e => {
-                  write(e.target.value)
-                  track(e)
-                }}
-                // The composer's caret or the editor's, whichever the box holds: it
-                // decides which word the grid narrows to.
-                onSelect={track}
-                onPaste={linkInput.onPaste}
-                onDrop={linkInput.onDrop}
-                onDragOver={linkInput.onDragOver}
-                {...caret.props}
-                onClick={track}
-                onKeyUp={track}
-                placeholder={
-                  editMode ? 'Write a phrase, or choose one to edit it…' : 'Immediately speak selected phrase'
-                }
-                rows={1}
-                spellCheck
-                autoCapitalize="sentences"
-                // The board opens with the caret already in the box, so somebody with a
-                // keyboard can type the first thing they want to say without having to
-                // put it there first — and putting it there is the one thing a dwell
-                // could not do until `useCaretDwell`. A programmatic focus does not
-                // raise a phone's on-screen keyboard, which needs a real gesture.
-                autoFocus
-              />
+              </div>
+              <div className="message-field">
+                <textarea
+                  ref={textareaRef}
+                  className={cx(
+                    'text-display',
+                    caret.active && 'dwelling',
+                    (messageEdges.canUp || messageEdges.canDown) && 'has-scroll',
+                  )}
+                  style={dwellVar(settings.actionDwellMs)}
+                  aria-label={editMode ? 'Phrase text' : 'Composed message'}
+                  value={value}
+                  onChange={e => {
+                    write(e.target.value)
+                    track(e)
+                  }}
+                  // The composer's caret or the editor's, whichever the box holds: it
+                  // decides which word the grid narrows to.
+                  onSelect={track}
+                  onPaste={linkInput.onPaste}
+                  onDrop={linkInput.onDrop}
+                  onDragOver={linkInput.onDragOver}
+                  {...caret.props}
+                  onClick={track}
+                  onKeyUp={track}
+                  // **One line on any screen** — `e2e/layout.spec.ts` measures each
+                  // against the box on the narrowest phone.
+                  placeholder={editMode ? 'Write or pick a phrase' : 'Choose a phrase'}
+                  rows={1}
+                  spellCheck
+                  autoCapitalize="sentences"
+                  // The board opens with the caret already in the box, so somebody with a
+                  // keyboard can type the first thing they want to say without having to
+                  // put it there first — and putting it there is the one thing a dwell
+                  // could not do until `useCaretDwell`. A programmatic focus does not
+                  // raise a phone's on-screen keyboard, which needs a real gesture.
+                  autoFocus
+                />
 
-              <BoxScroll edges={messageEdges} what="message" />
-              {/* **Speak right after the last word**, as if it were the next one —
+                <BoxScroll edges={messageEdges} what="message" />
+                {/* **Speak right after the last word**, as if it were the next one —
                   Save in edit mode — and only once there are words: see
                   `AfterText`, which finds where the words end and holds the
                   dwells if it lands under a resting pointer. */}
-              <AfterText
-                fieldRef={textareaRef}
-                value={value}
+                <AfterText
+                  fieldRef={textareaRef}
+                  value={value}
 
-                className="topbar-actions"
-              >
-                {hasWords &&
-                  (editMode ? (
-                    <>
+                  className="topbar-actions"
+                >
+                  {hasWords &&
+                    (editMode ? (
+                      <>
+                        <ActionButton
+                          className="in-card is-primary"
+                          onSelect={onSavePhrase}
+                          label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
+                          disabled={!draft.canSave}
+                        >
+                          <CheckIcon />
+                        </ActionButton>
+                        {/* **Speak, after Save**: says the phrase being written
+                          and saves it — Save stays where it always stood. */}
+                        <ActionButton className="in-card is-primary" onSelect={onSpeak} label="Speak and save">
+                          <SpeakIcon />
+                        </ActionButton>
+                      </>
+                    ) : (
                       <ActionButton
                         className="in-card is-primary"
-                        onSelect={onSavePhrase}
-                        label={draft.kept ? `Keep this ${draft.kept} as a phrase` : 'Save phrase'}
-                        disabled={!draft.canSave}
+                        onSelect={onSpeak}
+                        label="Speak"
+                        disabled={!text}
                       >
-                        <CheckIcon />
-                      </ActionButton>
-                      {/* **Speak, after Save**: says the phrase being written
-                          and saves it — Save stays where it always stood. */}
-                      <ActionButton className="in-card is-primary" onSelect={onSpeak} label="Speak and save">
                         <SpeakIcon />
                       </ActionButton>
-                    </>
-                  ) : (
-                    <ActionButton className="in-card is-primary" onSelect={onSpeak} label="Speak" disabled={!text}>
-                      <SpeakIcon />
-                    </ActionButton>
-                  ))}
-              </AfterText>
+                    ))}
+                </AfterText>
+              </div>
             </div>
           </div>
 
@@ -922,14 +943,6 @@ export function Topbar({
           <LinkFields text={value} onChange={editMode ? editor.rewrite : composer.rewrite} />
         </div>
       </div>
-
-      {/* **The menu, in the upper right corner**, where an app's menu is
-          looked for. Back sits in the same corner of every panel it opens, and
-          holds the dwells as it closes one — see `PanelBack` — so the pointer
-          left over it does not open the menu again. */}
-      <ActionButton label={menuOpen ? 'Close menu' : 'Open menu'} onSelect={onToggleMenu} className="menu-btn">
-        <MenuIcon />
-      </ActionButton>
 
       {speaking && <StopBar />}
     </header>
