@@ -402,12 +402,15 @@
 /* On a phone the row is the tabs' to spend: the button a little smaller and
    closer to the edge, so three tabs and the plus still fit beside it. */
 @media (max-width: 700px) {
-  .filter-bar-end { padding: 10px 6px 0 2px; }
+  .filter-bar-end { padding: 10px 4px 0 0; }
   .sort-btn { width: 2rem; height: 2rem; }
   /* A margin a wider font still fits: the runner's Linux font set the same
      three tabs a few pixels wider than a Mac does, and More came up for them. */
-  .filter-tabs .filter-tab { padding-left: 11px; padding-right: 11px; }
+  .filter-tabs .filter-tab { padding-left: 9px; padding-right: 9px; }
   .filter-tabs .tab-tool { width: 1.5rem; }
+  /* Customize is always on a phone's row, so the glyphs give back what they can. */
+  .filter-tabs .filter-tab.filter-more { padding-left: 8px; padding-right: 8px; }
+  .add-tab { width: 1.75rem; }
 }
 
 /* Every tab laid out again to be measured, out of sight and out of reach.
