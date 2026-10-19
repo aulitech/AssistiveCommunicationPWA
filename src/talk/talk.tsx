@@ -146,6 +146,8 @@ export function TalkScreen({
   const [resting, setResting] = useState(false)
   // A name to ask before deleting it — the bin on the tab showing — or null to
   // add one. See `CategoryModal`.
+  /** An emergency phrase's words, shown whole in the phrase table — see `onPeek` in `EmergencyBar`. */
+  const [peek, setPeek] = useState<string | null>(null)
   const [editingCategory, setEditingCategory] = useState<{ name: string | null } | null>(null)
   /**
    * A phrase whose choices are being asked for, and what happens once they are
@@ -1276,6 +1278,7 @@ export function TalkScreen({
                   // a new order is not.
                   listKey={`${effectiveFilter}\u0000${filterWord}`}
                   pointing={pointing}
+                  peek={peek}
                   emptyMessage={
                     showingTranslated
                       ? 'Nothing translated yet. Set a spoken language in Settings, and what you say in it is kept here.'
@@ -1319,6 +1322,7 @@ export function TalkScreen({
             onToggleReorder={editMode ? () => setReorderingEmergency(r => !r) : undefined}
             onReorder={editMode ? board.reorderEmergency : undefined}
             onLift={text => flashToast(`Holding ${text} — dwell where it should go`)}
+            onPeek={setPeek}
           />
 
           <TopPanel

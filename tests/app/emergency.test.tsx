@@ -351,7 +351,15 @@ describe('the two reorder modes', () => {
   it('are separate', () => {
     localStorage.setItem(
       STORE_KEY,
-      JSON.stringify({ custom: [{ id: 'custom-kettle', text: 'Put the kettle on', category: 'Kitchen' }] }),
+      // Three of its own, and Translations and Library: five tabs, which the
+      // drag pad waits for.
+      JSON.stringify({
+        custom: ['Kitchen', 'Garden', 'Hall'].map((category, i) => ({
+          id: `custom-room-${i}`,
+          text: `In the ${category}`,
+          category,
+        })),
+      }),
     )
     renderApp()
     enterEditMode()
@@ -366,5 +374,53 @@ describe('the two reorder modes', () => {
     const first = labels()[0]
     click(buttons()[0])
     expect(box().value).toBe(first)
+  })
+})
+
+// **Words the bar cuts off are shown whole, large, in the middle of the phrase
+// table** while their button is rested on — a phone held upright fits six
+// buttons a word or two wide. jsdom lays nothing out, so the cut is supplied:
+// every button's words wider than the button shows.
+describe('a cut-off emergency phrase', () => {
+  const peek = () => $('.grid-area > .emergency-peek')
+  const cutOff = (cut: boolean) => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+      configurable: true,
+      get() {
+        return cut && (this as Element).classList.contains('emergency-btn') ? 200 : 0
+      },
+    })
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get() {
+        return (this as Element).classList.contains('emergency-btn') ? 100 : 0
+      },
+    })
+  }
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollWidth')
+    Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth')
+  })
+
+  it('is shown whole in the table while its button is rested on, and goes when it is left', () => {
+    cutOff(true)
+    renderApp()
+    const first = buttons()[0]!
+    fireEvent.pointerEnter(first)
+    settle()
+    expect(peek()?.textContent).toBe(first.getAttribute('aria-label'))
+    expect(peek()?.getAttribute('aria-hidden')).toBe('true')
+
+    fireEvent.pointerLeave(first)
+    settle()
+    expect(peek()).toBeNull()
+  })
+
+  it('is not shown where nothing on the bar is cut off', () => {
+    cutOff(false)
+    renderApp()
+    fireEvent.pointerEnter(buttons()[0]!)
+    settle()
+    expect(peek()).toBeNull()
   })
 })

@@ -190,13 +190,14 @@
    somebody waiting: an exchange with the sync server, and re-parsing the phrase
    table after an alias list changes. It is not a control — nothing to aim at,
    and inert to the pointer, so a gaze passing over it is not caught. Above the
-   panels, because both of those are started from inside one. **Left of the
-   menu**, which is in the upper right corner: drawn over it, the one way into
-   everything else would be hidden for as long as a board took to save. */
+   panels, because both of those are started from inside one. **Over the lower
+   right of the phrase table, above the emergency bar and clear of the rail** —
+   not in the top row, where it was beside the menu: the message card runs the
+   width of the screen now, and anywhere up there it would cover a control. */
 .busy-region {
   position: fixed;
-  top: 0.75rem;
-  right: calc(10px + 3.5rem + 0.75rem);
+  bottom: 6.5rem;
+  right: calc(44px + 1.5rem);
   z-index: 600;
   pointer-events: none;
 }
@@ -320,6 +321,12 @@
    that showed no focus at all. */
 .caret-field:focus { border-color: var(--accent); }
 
+/* **The two boxes have no edge to say it on**, being grounded without one, so
+   theirs is a line along the foot of the box with the caret in it — drawn
+   inside, so the box keeps its size and the words do not rewrap. */
+.text-display:focus,
+.heard-text:focus { box-shadow: inset 0 -2px 0 var(--card-focus); }
+
 .phrase-cell:focus-visible,
 .slot-option:focus-visible,
 .emergency-btn:focus-visible {
@@ -349,11 +356,10 @@
      colour, and the row is still dimmed over it. */
   .rest-surface.is-resting { animation: none !important; }
 
-  /* The live microphone's level stands still, part full; it is still lit, and
-     still there only while sound is coming in. */
-  .heard-live .mic-level {
+  /* The listening line on the question box stands lit rather than pulsing. */
+  .heard-text.is-listening {
     animation: none !important;
-    transform: scaleY(0.6);
+    box-shadow: inset 0 -2px 0 var(--accent);
   }
 
   .signin-spinner,

@@ -536,19 +536,21 @@ describe('the card', () => {
 
   // The keyboard is offered only where it has been asked for — see *Peri's own
   // keyboard* — so on a board that has not asked, the menu is the whole rail.
-  it('leaves nothing outside it but the menu, and the keyboard where it is offered', () => {
+  // **The menu is in the card**, last in its row of controls, at the upper
+  // right — and only the keyboard, where it is offered, is outside it.
+  it('leaves nothing outside it but the keyboard where it is offered, the menu last in its row', () => {
     renderApp()
-    expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual(['Open menu'])
-    expect($('.message-wrap > .message-line'), 'the line is not inside the card').not.toBeNull()
+    expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual([])
+    expect($('.message-wrap > .message-lines > .message-line'), 'the line is not inside the card').not.toBeNull()
     expect($('.message-wrap > .message-tools'), 'the row is not inside the card').not.toBeNull()
+    const values = $('.message-tools > .tools-values')!
+    expect(values.lastElementChild?.getAttribute('aria-label'), 'the menu is not last in the row').toBe(
+      'Open menu',
+    )
+    expect(stylesheet()).toMatch(/\.icon-btn\.menu-btn \{[^}]*margin-left: 2\.5rem;/)
 
     renderApp({ keyboard: true })
-    // The keyboard at the left end of the bar, the menu at the right.
-    expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual([
-      'Show the keyboard',
-      'Open menu',
-    ])
-    expect($('.topbar')!.lastElementChild!.getAttribute('aria-label'), 'the menu is not last').toBe('Open menu')
+    expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual(['Show the keyboard'])
   })
 
   // The fit lays the copy out at the box's settled width and says so, and the
@@ -563,12 +565,15 @@ describe('the card', () => {
     expect(asked, 'nothing asked for it to be placed again').toBeGreaterThan(0)
   })
 
+  // The row above, and under it the lines — the message's, and the question's
+  // before it while listen mode is open (`app/listen.test.tsx`).
   it('puts the row above the line, and the line under it', () => {
     renderApp()
     expect([...$('.message-wrap')!.children].map(el => el.className.split(' ')[0])).toEqual([
       'message-tools',
-      'message-line',
+      'message-lines',
     ])
+    expect([...$('.message-lines')!.children].map(el => el.className.split(' ')[0])).toEqual(['message-line'])
   })
 
   // Where the words end is the browser's to say — `e2e/layout.spec.ts` holds
@@ -631,6 +636,7 @@ describe('the card', () => {
       expect.stringMatching(/^Language this phrase's voice is for/),
       expect.stringMatching(/^Voice for this phrase/),
       'Delete phrase',
+      'Open menu',
     ])
     // **Not shown with nothing to delete** — a new phrase — but its place kept,
     // so the language and the voice never move as it comes and goes.
@@ -669,10 +675,10 @@ describe('the card', () => {
   /**
    * Its look, asserted against the text of the stylesheet, which is all jsdom
    * allows — whether it looks right is `e2e/layout.spec.ts`'s question and an
-   * eye's. A ground of its own, rounded, and the box inside it bare: the card
-   * is the box, so its focus is said on the card's edge.
+   * eye's. **No ground or edge round the row and the box**: the box has the
+   * ground, and says focus with a line along its foot.
    */
-  it('draws a rounded card on a ground of its own, with the box inside it bare', () => {
+  it('grounds the box, and nothing round it', () => {
     const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
     const block = (selector: string) => {
       const rule = css.slice(css.indexOf(`${selector} {`))
@@ -681,12 +687,13 @@ describe('the card', () => {
     const value = (selector: string, prop: string) =>
       block(selector).match(new RegExp(`\\b${prop}: *([^;]+);`))?.[1]
 
-    expect(value('.message-wrap', 'background')).toBe('var(--card-ground)')
-    expect(value('.message-wrap', 'border-radius')).toBe('1.25rem')
-    expect(value('.heard-wrap', 'background'), 'the question is not a card too').toBe('var(--card-ground)')
-    expect(value('.text-display', 'background')).toBe('transparent')
+    expect(value('.message-wrap', 'background'), 'a ground round the message').toBeUndefined()
+    expect(value('.message-wrap', 'border'), 'an edge round the message').toBeUndefined()
+    expect(value('.heard-wrap', 'background'), 'a ground round the question').toBeUndefined()
+    expect(value('.heard-wrap', 'border'), 'an edge round the question').toBeUndefined()
+    expect(value('.text-display', 'background')).toBe('var(--card-ground)')
     expect(value('.text-display', 'border')).toBe('none')
-    expect(css).toMatch(/\.message-wrap:focus-within \{ border-color: var\(--card-focus\); \}/)
+    expect(css).not.toMatch(/\.message-wrap:focus-within/)
 
     // Every control in either card is the microphone's size, and draws its glyph at the microphone's.
     const mic = { box: value('.mode-btn', 'height'), glyph: value('.mode-btn svg', 'height') }

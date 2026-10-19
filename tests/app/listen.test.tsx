@@ -169,7 +169,7 @@ describe('the control', () => {
   it('asks for a question, spoken or typed, while it listens', () => {
     renderApp()
     toggleMic()
-    expect(heardBox()!.placeholder).toBe('Speak or type a question')
+    expect(heardBox()!.placeholder).toBe('Say or type a question')
 
     // And says so plainly once it has stopped: nothing is listening any more,
     // so asking to be spoken to would be asking for something that will not
@@ -179,104 +179,30 @@ describe('the control', () => {
     expect(heardBox()!.placeholder).toBe('Nothing heard yet')
   })
 
-  /**
-   * **A microphone while sound is actually coming in, and at no other time** —
-   * so there is nothing to read it as but *this is being heard now*. At the
-   * right end of the box's lower border, after the tools.
-   *
-   * **Not when listening is asked for.** The browser asks for permission first,
-   * and a light that came on then said the microphone was live while nothing was
-   * being heard; and it stops taking sound before the session ends.
-   */
-  it('shows a live microphone in the box’s lower right corner only while sound comes in', () => {
-    const live = () => $('.heard-live')
+  // **No microphone glyph on the question's line**, while sound comes in or at
+  // any other time: the question line inside the message box is enough to say
+  // listen mode is on.
+  // **The line along the foot of the question box pulses while listening**,
+  // and holds still, lit, where the device asks for less motion.
+  it('pulses the foot of the question box while listening', () => {
     renderApp()
     toggleMic()
-    expect(live(), 'live before the browser had the microphone').toBeNull()
-
-    act(() => FakeRecognition.last!.soundStarts())
-    settle()
-    expect(live(), 'not shown while sound came in').not.toBeNull()
-    expect($('.heard-end > :last-child')).toBe(live())
-    expect(live()!.getAttribute('aria-label')).toBe('The microphone is on')
-
-    act(() => FakeRecognition.last!.say({ transcript: 'Tea', isFinal: false }))
-    settle()
-    expect(live(), 'went out while it was still hearing').not.toBeNull()
-
-    act(() => FakeRecognition.last!.soundEnds())
-    settle()
-    expect(live(), 'still shown with no sound coming in').toBeNull()
-    expect(heardBox()!.placeholder, 'the session ended with the sound').toBe('Speak or type a question')
-
-    // And back with the sound, and gone with the session however it ends.
-    act(() => FakeRecognition.last!.soundStarts())
-    settle()
-    expect(live()).not.toBeNull()
-    toggleMic()
-    expect(live()).toBeNull()
-  })
-
-  // Not a control: nothing to do to it that the tools beside it do not already
-  // do, and a target that did nothing would be a dwell spent for nothing.
-  it('is a light and not a control', () => {
-    renderApp()
-    toggleMic()
-    act(() => FakeRecognition.last!.soundStarts())
-    settle()
-    const live = $('.heard-live')!
-    expect(live.tagName).toBe('SPAN')
-    expect(live.hasAttribute('tabindex')).toBe(false)
+    expect(heardBox()!.classList.contains('is-listening')).toBe(true)
     const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
-    const rule = css.slice(css.indexOf('.heard-live {'))
-    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/pointer-events: *none/)
-  })
-
-  /**
-   * **Only the level inside the capsule moves**, rising and falling as a meter
-   * does. The light pulsed at first, and its ground dimmed with it so the box's
-   * border showed through, and its glow lay on the border — the border itself
-   * seemed to pulse. So the light's own box is solid and holds still: no
-   * animation, no glow, no fading. And the level stops for somebody whose device
-   * asks for less motion.
-   */
-  it('moves only a level inside the capsule, and holds it still for reduced motion', () => {
-    renderApp()
-    toggleMic()
-    act(() => FakeRecognition.last!.soundStarts())
-    settle()
-    expect($('.heard-live .mic-level'), 'no level in the capsule').not.toBeNull()
-
-    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
-    const block = (selector: string) => {
-      const rule = css.slice(css.indexOf(`${selector} {`))
-      return rule.slice(0, rule.indexOf('}'))
-    }
-    expect(block('.heard-live .mic-level')).toMatch(/animation: *micLevel [\d.]+s [\w-]+ infinite/)
-    const level = css.slice(css.indexOf('@keyframes micLevel'))
-    const frames = level.slice(0, level.indexOf('}\n}'))
-    expect(frames.match(/[\w-]+(?=:)/g), 'the level animates something besides its height').toEqual(
-      expect.arrayContaining(['transform']),
-    )
-    expect(frames, 'the level animates something besides its height').not.toMatch(/opacity|shadow|color/)
-    expect(block('.heard-live'), 'the light itself moves').not.toMatch(/animation|transition|box-shadow|opacity/)
-
+    expect(css).toMatch(/\.heard-text\.is-listening \{ animation: heardListening [\d.]+s [\w-]+ infinite; \}/)
+    const frames = css.slice(css.indexOf('@keyframes heardListening'))
+    expect(frames.slice(0, frames.indexOf('}\n}'))).toMatch(/box-shadow: inset 0 -2px 0/)
     const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
-    expect(reduced.slice(0, reduced.indexOf('\n}\n'))).toMatch(/\.heard-live \.mic-level *\{\s*animation: *none/)
+    expect(reduced.slice(0, reduced.indexOf('\n}\n'))).toMatch(/\.heard-text\.is-listening \{\s*animation: none/)
   })
 
-  // The guide and the privacy policy both say `:mic:`, and a light the guide
-  // draws differently is a light somebody cannot match to it. The guide's stands
-  // still, so it is the same outline with no level in it.
-  it('draws the glyph the guide and the policy show for it', () => {
+  it('shows no microphone glyph, even while sound comes in', () => {
     renderApp()
     toggleMic()
     act(() => FakeRecognition.last!.soundStarts())
     settle()
-    const drawn = $('.heard-live svg')!.cloneNode(true) as SVGElement
-    drawn.querySelector('.mic-level')!.remove()
-    const Guide = PROSE_ICONS.mic!
-    expect(render(<Guide />).container.querySelector('svg')!.outerHTML).toBe(drawn.outerHTML)
+    expect($('.heard-live, .heard-end')).toBeNull()
+    expect($('.heard-line [aria-label="The microphone is on"]')).toBeNull()
   })
 
   // A button that does nothing is worse than no button, and on a board aimed at
@@ -457,7 +383,7 @@ describe('the control', () => {
     hear('Do you want tea?')
 
     const inOrder = [...$('.heard-line')!.children].map(el => el.className.split(' ')[0])
-    expect(inOrder).toEqual(['heard-start', 'heard-field', 'heard-end'])
+    expect(inOrder).toEqual(['heard-start', 'heard-field'])
     expect($('.heard-field > .heard-text'), 'the box is not the first thing in its field').not.toBeNull()
     expect($('.heard-start .heard-btn')!.getAttribute('aria-label')).toMatch(/^clear/i)
 
@@ -576,12 +502,12 @@ describe('the control', () => {
     expect(shape('.heard-text'), 'the two boxes are not the same box').toEqual(message)
   })
 
-  // The question is a card like the message's, with its tools inside it along
-  // the bottom — and its edge dashed, being somebody else's words.
-  it('draws the question as a card, dashed, with its tools inside it', () => {
+  // The question is laid out like the message, with its tools inside it along
+  // the bottom — and, like it, no ground or edge round it.
+  it('draws the question with its tools inside it, and nothing round it', () => {
     const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
     const rule = css.slice(css.indexOf('.heard-wrap {'))
-    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/border: *1px dashed var\(--card-edge\)/)
+    expect(rule.slice(0, rule.indexOf('}'))).not.toMatch(/border:|background:/)
 
     renderApp()
     toggleMic()
@@ -1796,7 +1722,6 @@ describe('the suggested reply', () => {
     withKey()
     toggleMic()
     expect(suggestBtn()).toBeUndefined()
-    expect($('.heard-end'), 'no room is kept for it').not.toBeNull()
   })
 })
 

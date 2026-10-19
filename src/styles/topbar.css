@@ -14,9 +14,7 @@
   /* Room round the cards, which carry their controls inside them now — nothing
      hangs over the bar's edge any more. */
   padding: 0.75rem 10px;
-  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  background: var(--surface);
 
   /* How tall either box is allowed to get. **One number for both**, because the
      two are held to one height — see `topbar.tsx` — and a pair kept equal by
@@ -36,23 +34,15 @@
   position: relative;
   flex: 1;
   min-width: 0;
-  /* **A card, the shape of a chat app's input box**: the words, and under them
-     inside it a row of everything that works on them. A ground a step up from
-     the bar's, a soft edge rather than a ruled one, the corners well rounded and
-     a shadow under it, so it reads as the one thing on the screen to write in.
-     Its focus is said on its own edge, the box inside it having none. */
+  /* **The row of controls and the box under it**, with no ground or edge of
+     their own: the box carries the ground, so what reads as the place to write
+     is the place the words go. */
   display: flex;
   flex-direction: column;
   /* The row of controls stacks by the card's width, not the screen's. */
   container: message / inline-size;
-  background: var(--card-ground);
-  border: 1px solid var(--card-edge);
   border-radius: 1.25rem;
-  box-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.35);
-  transition: border-color 0.15s;
 }
-
-.message-wrap:focus-within { border-color: var(--card-focus); }
 
 /* The words and the arrows that scroll them, so the arrows are placed against
    the words rather than against the line's two ends. */
@@ -79,10 +69,11 @@
      that ate it would be a box with nothing to put in it. */
   max-height: var(--box-max-height);
   padding: var(--box-pad-y) var(--box-pad-x);
-  /* The card is the box now: its ground, its edge, its focus. */
-  background: transparent;
+  /* **The box has the ground**, which the card round it used to: the one
+     surface in the top row that is somewhere to write. */
+  background: var(--card-ground);
   border: none;
-  border-radius: 0;
+  border-radius: 0.9rem;
   font-size: 1.35rem;
   font-weight: 500;
   font-family: var(--font);

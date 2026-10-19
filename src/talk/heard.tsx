@@ -34,7 +34,7 @@ import { cx, dwellVar } from '../ui/style'
 import { BoxScroll } from '../ui/controls'
 import { AfterText } from '../ui/after-text'
 import type { ScrollEdges } from '../ui/scroll-edges'
-import { ClearIcon, MicIcon, SuggestIcon, UndoIcon } from '../ui/icons'
+import { ClearIcon, SuggestIcon, UndoIcon } from '../ui/icons'
 import type { Listener } from './use-listen'
 
 function HeardButton({
@@ -138,7 +138,8 @@ export function HeardBox({
             value={notice || heard.said}
             readOnly={notice !== ''}
             onChange={e => write(e.target.value)}
-            placeholder={heard.listening ? 'Speak or type a question' : 'Nothing heard yet'}
+            // One line on any screen, as the message box's prompt is.
+            placeholder={heard.listening ? 'Say or type a question' : 'Nothing heard yet'}
             rows={1}
             spellCheck
             {...caret.props}
@@ -166,25 +167,6 @@ export function HeardBox({
               </HeardButton>
             )}
           </AfterText>
-        </div>
-        <div className="heard-end">
-          {/* **The microphone is live**, at the right end of the question's line, and
-              drawn only while sound is actually coming in — after the browser has
-              been given the microphone, not when it was asked for it — so there
-              is nothing to read it as but *this is being heard now*.
-
-              Its capsule fills and empties like a level meter, which is the whole
-              of the animation: nothing outside the glyph moves, and its ground
-              stays put, so nothing around it glows. Still under reduced motion.
-
-              Not a control: there is nothing to do to it that the controls beside
-              it do not already do, and a target that did nothing would be a dwell
-              spent for nothing. */}
-          {heard.hearing && (
-            <span className="heard-live" role="img" aria-label="The microphone is on">
-              <MicIcon live />
-            </span>
-          )}
         </div>
       </div>
 

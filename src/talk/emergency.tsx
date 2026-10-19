@@ -7,7 +7,7 @@
 // drag with a mouse, or hold one button and dwell where it should go — and both
 // routes come from `ui/reorder`.
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useDwellControl } from '../ui/dwell'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { useSettings } from '../ui/settings'
@@ -28,11 +28,14 @@ export function EmergencyButton({
   phrase,
   voice,
   reorder,
+  onPeek,
 }: {
   phrase: Phrase
   voice?: string
   /** Present only in reorder mode. */
   reorder?: ReorderProps
+  /** Its words to show whole while it is rested on — see `clipped` in `EmergencyBar`. */
+  onPeek?: (words: string | null) => void
 }) {
   const { settings } = useSettings()
   const { editMode, openEdit } = useEdit()
@@ -114,6 +117,14 @@ export function EmergencyButton({
         })
       }
       {...props}
+      onPointerEnter={e => {
+        props.onPointerEnter?.(e)
+        onPeek?.(spoken)
+      }}
+      onPointerLeave={() => {
+        props.onPointerLeave()
+        onPeek?.(null)
+      }}
     >
       <span className="emergency-label">
         <PhraseText segments={phrase.segments} />
@@ -163,9 +174,17 @@ export function EmergencyBar({
   onToggleReorder,
   onReorder,
   onLift,
+  onPeek,
 }: {
   phrases: Phrase[]
   voiceFor: (id: string) => string | undefined
+  /**
+   * **The words of the button rested on, while any button's words are cut
+   * off** — a phone held upright fits six buttons a word or two wide — shown
+   * whole and large in the middle of the phrase table. Null when the pointer
+   * leaves it, or when nothing on the bar is cut off.
+   */
+  onPeek?: (words: string | null) => void
   /** All of the below are edit-mode only. */
   reordering?: boolean
   onToggleReorder?: () => void
@@ -189,19 +208,47 @@ export function EmergencyBar({
 
   const handleAdd = useCallback(() => openEdit(null, true), [openEdit])
 
+  /**
+   * Whether any button's words are cut off — wider or taller than the button
+   * shows. Measured on every change to the bar and every resize of it, since a
+   * phone turned on its side is a bar where nothing is.
+   */
+  const barRef = useRef<HTMLDivElement>(null)
+  const [clipped, setClipped] = useState(false)
+  const labels = phrases.map(p => p.text).join('\n')
+  useLayoutEffect(() => {
+    const bar = barRef.current
+    if (!bar) return
+    const measure = () =>
+      setClipped(
+        [...bar.querySelectorAll<HTMLElement>('.emergency-btn:not(.emergency-tool)')].some(
+          b => b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 1,
+        ),
+      )
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(bar)
+    return () => observer.disconnect()
+  }, [labels, editMode])
+  // Nothing cut off is nothing to show, whatever was being shown.
+  useEffect(() => {
+    if (!clipped) onPeek?.(null)
+  }, [clipped, onPeek])
+
   if (phrases.length === 0 && !editMode) return null
 
   // Two buttons in edit mode either way. Adding a phrase mid-reorder would drop
   // whatever is in the air, so the add button goes quiet rather than away — the
   // control a user has to find is the one that must not move.
   return (
-    <div className="emergency-bar" role="group" aria-label="Emergency phrases">
+    <div ref={barRef} className="emergency-bar" role="group" aria-label="Emergency phrases">
       {phrases.map(p => (
         <EmergencyButton
           key={p.id}
           phrase={p}
           voice={voiceFor(p.id)}
           reorder={reordering ? propsFor(p.id) : undefined}
+          onPeek={clipped ? onPeek : undefined}
         />
       ))}
       {editMode && (

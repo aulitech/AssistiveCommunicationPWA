@@ -437,6 +437,7 @@ export function PhraseGrid({
   onLift,
   onSelect,
   pointing,
+  peek,
 }: {
   phrases: Phrase[]
   /**
@@ -489,6 +490,13 @@ export function PhraseGrid({
    * would be the same value both times and do nothing the second.
    */
   pointing?: { id: string } | null
+  /**
+   * An emergency phrase's words, shown whole and large in the middle of the
+   * table while its button is rested on and the bar is cutting words off — see
+   * `onPeek` in `EmergencyBar`. Not a control, and nothing a pointer does here
+   * can arm anything.
+   */
+  peek?: string | null
 }) {
   const gridRef = useRef<HTMLElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
@@ -692,6 +700,11 @@ export function PhraseGrid({
           </p>
         )}
       </main>
+      {peek && (
+        <div className="emergency-peek" aria-hidden="true">
+          <span>{peek}</span>
+        </div>
+      )}
       <GridScrollBar
         gridRef={gridRef}
         sort={sort}

@@ -98,6 +98,9 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Emergency phrases',
     blocks: [
       text('The blue bar along the bottom is always there, on every screen.'),
+      text(
+        'On a narrow screen its buttons may be too small for their words. Rest on one, and its words show whole and large in the middle of the phrases.',
+      ),
       text('Resting on one speaks it immediately — it is never added to the message box first.'),
       text(
         'They take the phrase dwell time, like the phrases in the grid, so they are no easier to trigger by accident than any other phrase.',
@@ -320,7 +323,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'A new phrase starts in the voice you last used, so adding several in a row takes one choice rather than one each.',
         'After a delete, or taking a phrase out of a category, :undo: where :clear: was puts it back where it was, until you start on something else.',
         ':add:, right after the last category tab, makes a new category.',
-        'On a category you made, the tab that is showing has :grip: at its right edge.',
+        'On a category you made, the tab that is showing has :grip: at its right edge, once there are five tabs or more on the bar.',
         'Rest on the name to change it: it turns into a box where it stands. Type the new name and press Enter, or just move on to another tab, to keep it. While the name is a box, :grip: becomes :delete:, the only button on the tab, which removes the category. It asks first, and its phrases stay in Library.',
         ':grip: picks the tab up, and it turns blue. Rest on another tab to put it there, or on :grip: again to put it back.',
         'A category goes by itself once its last phrase is taken out, and an import leaves no empty ones behind. A new category you have not put anything in yet stays until you do.',
@@ -494,12 +497,12 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Hearing a question',
     blocks: [
       text(
-        ":listen:, first of the modes in the middle of the message box's row, listens to whoever is talking to you. What it hears appears in a box of its own — beside the message on a wide screen, above it on a narrow one — where you can correct it, read it in your own language, and answer it.",
+        ":listen:, first of the modes in the middle of the message box's row, listens to whoever is talking to you. What it hears appears on a line of its own inside the message box — left of the message on a wide screen, above it on a narrow one — where you can correct it, read it in your own language, and answer it.",
       ),
       list(
         'Rest on :listen: to start, and again to stop and close the box.',
         'Starting empties the message box, so your answer starts fresh — :undo: brings back what was there. It also turns off edit mode and :please:.',
-        "While sound is coming in, :mic: shows at the right end of that box's line, its level rising and falling. It goes the moment the microphone stops hearing.",
+        'While the microphone is listening, the line under the question pulses.',
         'Typing in the box stops the microphone, so nothing it hears is written over what you type.',
         'The box needs your own Anthropic API key — see Getting suggested answers. Without one, or with one Anthropic does not accept, the box says so and takes nothing, typed or heard.',
         'Starting it switches :auto-speak: on, so the phrase you choose next is spoken straight away — you have just been asked something, and the answer should not need another button first. Stopping leaves the board however you have set it.',

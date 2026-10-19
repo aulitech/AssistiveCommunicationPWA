@@ -9,3 +9,7 @@ The blue bar is the one surface somebody reaches for without reading it, so whic
 - **A phrase added later lands at the end.** `orderByIds` ranks the ids it knows and leaves the rest as they came, so adding an emergency phrase does not rewrite an arrangement, and an id naming a deleted phrase is skipped rather than leaving a hole.
 - **Reordering is its own mode, separate from the category tabs'.** One flag for both would arm the bar somebody speaks with every time they set about tidying their tabs. Both are modes *within* edit mode, and leaving edit mode disarms both.
 - **The add control goes quiet rather than away while reordering.** Adding a phrase mid-reorder would drop whatever is in the air, and moving a control a user has learnt to find is worse than disabling it — so the two tools keep a constant width either way.
+
+## Words the bar cuts off
+
+**On a narrow screen a button can be too small for its words** — a phone held upright fits six a word or two wide. So while any button's words are cut off, resting on one shows its words **whole and large in the middle of the phrase table** (`onPeek` in `EmergencyBar`, drawn by `PhraseGrid` as `.emergency-peek`), and they go when the pointer leaves. Measured on every change to the bar and every resize of it — wider or taller than the button shows — so a screen where nothing is cut off shows nothing. In the bar's own colours, on a card over the phrases, and letting the pointer through: it is not a target, and the button is still the thing being rested on.

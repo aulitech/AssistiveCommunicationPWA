@@ -147,9 +147,9 @@ function FilterTab({
         })
       }
       {...props}
-      // Selected says it is the tab showing; disabled would say so of the
-      // tools inside it too, which are live.
-      aria-disabled={tools ? undefined : props['aria-disabled']}
+      // Selected says it is the tab showing; disabled would say so of what is
+      // inside it too — its name, which renames it, and its tools — which are live.
+      aria-disabled={tools || name ? undefined : props['aria-disabled']}
       tabIndex={0}
     >
       {name ?? <TabLabel label={label} whole={active} />}
@@ -413,6 +413,15 @@ export function FilterBar({
 
   /** The tab showing's tools: rename and reorder, or rename and delete while renaming. */
   /** The tab showing's one tool: reorder, or the bin while it is being renamed. */
+  /**
+   * **The drag pad only where there is a row worth arranging** — five tabs on
+   * the bar or more. Fewer, and moving one is barely a move, while the pad is
+   * one more thing on the tab to aim past. The row keeps its room either way
+   * (`.filter-tabs-measure` measures it with the pad), so the tabs do not
+   * shift as it comes and goes.
+   */
+  const tabsOnBar = hidden ? shown + (drawnBeforeMore ? 1 : 0) + 1 : categories.length
+  const canMove = tabsOnBar >= 5 || held !== null
   const toolsFor = (id: string) =>
     renaming?.id === id ? (
       <TabTool
@@ -425,7 +434,7 @@ export function FilterBar({
       >
         <TrashIcon />
       </TabTool>
-    ) : (
+    ) : canMove ? (
       <TabTool
         className="reorder-tool"
         label={held === id ? `Put ${id} back where it was` : `Move ${id}`}
@@ -434,7 +443,7 @@ export function FilterBar({
       >
         <GripIcon />
       </TabTool>
-    )
+    ) : null
 
   return (
     <div className="filter-bar-wrap" role="tablist" aria-label="Filter phrases by category">
@@ -468,7 +477,7 @@ export function FilterBar({
                   <TabName label={c.label} onRename={() => startRenaming(c.id)} />
                 ) : undefined
               }
-              tools={mine ? toolsFor(c.id) : undefined}
+              tools={mine ? (toolsFor(c.id) ?? undefined) : undefined}
             />
           )
         })}
