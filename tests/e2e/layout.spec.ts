@@ -7,20 +7,21 @@ import { categories, many, messageBox, openBoard } from './board'
 test.describe('on a phone held upright', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  // The bar does not scroll: one row of tabs, and More for what will not fit.
-  // A category of its own and the two pinned tabs fit on one row: no More,
-  // and every tab on screen.
-  test('puts every tab on one row where they fit, with no More', async ({ page }) => {
+  // The bar does not scroll: one row of tabs, and Customize for what will not
+  // fit. A category of its own and the two pinned tabs fit on one row: no
+  // Customize, and every tab on screen.
+  test('puts every tab on one row where they fit, with no Customize', async ({ page }) => {
     await openBoard(page, { phrases: categories(['Nurse']) })
     const tabs = page.locator('.filter-tab[role="tab"]')
     await expect(tabs).toHaveCount(3)
     for (const t of await tabs.all()) await expect(t).toBeInViewport({ ratio: 1 })
-    await expect(page.locator('.filter-more[role="tab"]')).toHaveCount(0)
+    await expect(page.locator('.filter-tabs > .filter-more')).toHaveCount(0)
   })
 
   // Thirty categories were a screen of tabs and no board. One row, and the
-  // rest behind More, which goes to one of them and then carries its name.
-  test('holds the tabs to one row, and the rest behind More', async ({ page }) => {
+  // rest behind Customize, which goes to one of them — drawn then as itself
+  // before Customize, so the tools it carries are there, and still one row.
+  test('holds the tabs to one row, and the rest behind Customize', async ({ page }) => {
     await openBoard(page, { phrases: many() })
     // A row is tabs within a few pixels of each other: the tab showing stands
     // a pixel lower, over the bar's edge. Rounding them to the nearest ten put
@@ -30,19 +31,27 @@ test.describe('on a phone held upright', () => {
       return tops.filter((top, i) => i === 0 || top - tops[i - 1]! > 4).length
     })
     expect(rows).toBe(1)
-    const more = page.locator('.filter-more[role="tab"]')
-    await expect(more).toHaveText('More')
+    const more = page.locator('.filter-tabs > .filter-more')
+    await expect(more).toHaveAttribute('aria-label', 'Customize tabs')
+    await expect(more.locator('svg')).toBeVisible()
     await expect(page.locator('.phrase-cell').first()).toBeInViewport()
 
     await more.click()
     await page
-      .locator('.picker-tile')
-      .filter({ hasText: /^Category 25$/ })
+      .locator('.more-tile-name')
+      .filter({ has: page.locator('.picker-tile-name', { hasText: /^Category 25$/ }) })
       .click()
     await page.locator('.picker-modal-actions .panel-btn[aria-label="Done"]').click()
-    await expect(more).toHaveText('Category 25')
-    await expect(more).toHaveAttribute('aria-selected', 'true')
+    const showing = page.locator('.filter-tabs > .filter-tab[role="tab"][aria-selected="true"]')
+    await expect(showing).toHaveAttribute('aria-label', 'Category 25')
+    await expect(showing.locator('.tab-name')).toBeVisible()
+    await expect(more).toHaveText('')
     await expect(page.locator('.phrase-cell').first()).toHaveText('First in Category 25')
+    const after = await page.locator('.filter-tabs > .filter-tab').evaluateAll(els => {
+      const tops = els.map(e => e.getBoundingClientRect().top).sort((a, b) => a - b)
+      return tops.filter((top, i) => i === 0 || top - tops[i - 1]! > 4).length
+    })
+    expect(after, 'the category drawn before More pushed the row onto two').toBe(1)
   })
 
   test('never scrolls sideways', async ({ page }) => {
@@ -180,16 +189,79 @@ test("greens the panel's edge in edit mode, not the phrases, under a toast at 85
   expect(g).toBeGreaterThan(Math.max(r, b))
 })
 
-test.describe('on a short screen', () => {
-  test.use({ viewport: { width: 1024, height: 640 } })
+// **The two arrows over the grid**: over the rightmost column, against its
+// right edge, half a cell high and a third of one wide; a page of five sixths
+// or less, landing so that the top row is whole and nothing of the row above
+// it shows; and back up the same way. On a phone held upright and a wide screen.
+for (const [what, viewport] of [
+  ['on a phone held upright', { width: 390, height: 844 }],
+  ['on a wide screen', { width: 1280, height: 860 }],
+] as const) {
+  test.describe(what, () => {
+    test.use({ viewport })
+    test('pages the grid by the arrows over its rightmost column, never splitting the top row', async ({
+      page,
+    }) => {
+      const { errors } = await openBoard(page)
+      const down = page.locator('.grid-arrow.is-down')
+      const up = page.locator('.grid-arrow.is-up')
+      await expect(down).toBeVisible()
+      await expect(up).toBeHidden()
 
-  // A nudge repeats while it is held and the ends reach either end in one
-  // dwell, so the page controls are room a short screen has better use for.
-  test('drops the grid rail’s page controls', async ({ page }) => {
-    await openBoard(page)
-    await expect(page.locator('.scroll-btn-page').first()).toBeHidden()
+      const shape = await page.evaluate(() => {
+        const places = [...document.querySelectorAll('.phrase-place')].map(p => p.getBoundingClientRect())
+        const cell = places[0]!
+        const right = Math.max(...places.map(r => r.right))
+        const a = document.querySelector('.grid-arrow.is-down')!.getBoundingClientRect()
+        return { cellW: cell.width, cellH: cell.height, w: a.width, h: a.height, right: a.right, column: right }
+      })
+      expect(shape.w).toBeCloseTo(shape.cellW / 3, 0)
+      expect(shape.h).toBeCloseTo(shape.cellH / 2, 0)
+      expect(Math.abs(shape.right - shape.column), 'not against the rightmost column').toBeLessThanOrEqual(1)
+
+      /** Where the grid is, and whether the row at its top is whole with nothing of the one above showing. */
+      const view = () =>
+        page.evaluate(() => {
+          const w = document.querySelector('.grid-wrapper')!
+          const top = w.getBoundingClientRect().top
+          const rows = [...document.querySelectorAll('.phrase-place')].map(p => p.getBoundingClientRect())
+          const showing = rows.filter(r => r.bottom > top + 0.5)
+          return {
+            scrollTop: w.scrollTop,
+            height: w.clientHeight,
+            split: showing.some(r => r.top < top - 0.5),
+          }
+        })
+      const settled = async () => {
+        let last = -1
+        for (let i = 0; i < 40; i++) {
+          const now = (await view()).scrollTop
+          if (now === last) return
+          last = now
+          await page.waitForTimeout(60)
+        }
+      }
+
+      const before = await view()
+      await down.click()
+      await page.mouse.move(5, 5)
+      await settled()
+      const paged = await view()
+      expect(paged.scrollTop, 'did not move').toBeGreaterThan(before.scrollTop)
+      expect(paged.scrollTop - before.scrollTop, 'more than five sixths').toBeLessThanOrEqual(
+        (before.height * 5) / 6 + 1,
+      )
+      expect(paged.split, 'the top row is split, or the row above it shows').toBe(false)
+      await expect(up).toBeVisible()
+
+      await up.click()
+      await page.mouse.move(5, 5)
+      await settled()
+      expect((await view()).scrollTop).toBe(0)
+      expect(errors).toEqual([])
+    })
   })
-})
+}
 
 // It grows from one line to its cap as what is in it grows — measured, since
 // a line is however many characters fit at this size and width.
@@ -821,3 +893,28 @@ for (const [what, viewport] of [
     })
   })
 }
+
+// **The tab showing and the table are one surface**: the tab stands over the
+// table's top edge where they meet, so no line runs across its foot. The
+// table, painted after the tab, used to draw its edge straight across it.
+test('lets no edge run across the foot of the tab showing', async ({ page }) => {
+  const { errors } = await openBoard(page, { phrases: categories(['Food', 'Drinks']) })
+  for (const name of ['Library', 'Translations']) {
+    // Library is the tab showing to begin with, and the one showing answers nothing.
+    const tab = page.locator('.filter-tabs > .filter-tab[role="tab"]', { hasText: name })
+    if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click()
+    await page.mouse.move(5, 5)
+    const seam = await page.evaluate(() => {
+      const tab = document.querySelector('.filter-tabs > .filter-tab.active')!
+      const grid = document.querySelector('.grid-area')!
+      const t = tab.getBoundingClientRect()
+      const g = grid.getBoundingClientRect()
+      // The row of the table's own top edge, under the middle of the tab.
+      const there = document.elementFromPoint(t.left + t.width / 2, g.top + 0.5)
+      return { onTab: Boolean(there && tab.contains(there)), meets: Math.abs(t.bottom - (g.top + 1)) }
+    })
+    expect(seam.meets, `${name}: the tab does not meet the table's edge`).toBeLessThanOrEqual(0.5)
+    expect(seam.onTab, `${name}: the table's edge is drawn over the tab's foot`).toBe(true)
+  }
+  expect(errors).toEqual([])
+})

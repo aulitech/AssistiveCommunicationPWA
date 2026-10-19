@@ -36,10 +36,10 @@ test('files a new phrase under the tab showing, and marks it', async ({ page }) 
 })
 
 /**
- * On a tab behind More, the twentieth of thirty: filed there, marked and
- * scrolled into view, and More still naming the tab.
+ * On a tab behind Customize, the twentieth of thirty: filed there, marked and
+ * scrolled into view, the tab drawn as itself before Customize.
  */
-test('files a new phrase under a tab behind More, and shows it', async ({ page }) => {
+test('files a new phrase under a tab behind Customize, and shows it', async ({ page }) => {
   const { errors } = await openBoard(page, { phrases: many() })
   await goTo(page, 'Category 20')
   await editMode(page)
@@ -231,13 +231,14 @@ test('fills Keep it as it is rested on, and keeps the phrase', async ({ page }) 
   expect(errors).toEqual([])
 })
 
-// **The tab showing carries its tools in edit mode**: none on Library; on a
+// **The tab showing carries its tools**: on Library only the eye; on a
 // category, a rest on its name makes it a field where it stands — the tab no
 // taller for it — and Enter saves it.
 test('moves between categories in edit mode, and renames one on its own tab', async ({ page }) => {
   await openBoard(page, { phrases: categories(['Food', 'Drinks']) })
   await editMode(page)
-  await expect(page.locator('.filter-tab[role="tab"] .tab-tools')).toHaveCount(0)
+  await expect(page.locator('.filter-tab[role="tab"] .tab-name')).toHaveCount(0)
+  await expect(page.locator('.filter-tab[role="tab"] .hide-tool')).toHaveCount(1)
 
   await tab(page, 'Food').click()
 

@@ -410,7 +410,7 @@ describe('the shape of the source tree', () => {
     const SCROLLED_BY: Record<string, string> = {
       '.text-display': 'BoxScroll, inside its right edge',
       '.heard-text': 'BoxScroll, inside its right edge',
-      '.grid-wrapper': 'the grid rail',
+      '.grid-wrapper': 'the two arrows over the grid',
       '.scroll-row-inner': 'ScrollRow’s arrows',
       '.scroll-pane-inner': 'ScrollPane’s controls above and below',
     }

@@ -96,7 +96,7 @@ const lookAway = () => {
   showSorted()
 }
 
-const sortBtn = () => $('.grid-scrollbar .sort-btn')!
+const sortBtn = () => $('.filter-bar-end .sort-btn')!
 const tiles = () => inBody('.picker-tile')
 const tileNamed = (name: string) => tiles().find(t => t.querySelector('.picker-tile-name')?.textContent === name)
 
@@ -119,21 +119,16 @@ function chooseOrder(name: string) {
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
 
-describe('the control in the rail', () => {
-  // The rail is found by position rather than read, so where this sits is part
-  // of the feature: above the jump to the top, outside the five that scroll.
-  it('sits above the jump to the top, and nothing else moved', () => {
+describe('the order control', () => {
+  // The rail it headed is gone; the order is about what the tab shows, so it
+  // stands at the right end of the row of tabs, outside them.
+  it('stands at the right end of the tab row, outside the tabs', () => {
     renderApp()
-    const rail = $$('.grid-scrollbar .scroll-btn').map(b => b.getAttribute('aria-label'))
-    expect(rail[0]).toMatch(/^Phrase order:/)
-    expect(rail.slice(1)).toEqual([
-      'Scroll to top',
-      'Previous page',
-      'Scroll up',
-      'Scroll down',
-      'Next page',
-      'Scroll to bottom',
-    ])
+    const row = $('.filter-bar-wrap')!
+    expect(row.lastElementChild?.classList.contains('filter-bar-end')).toBe(true)
+    expect(sortBtn().getAttribute('aria-label')).toMatch(/^Phrase order:/)
+    expect($('.filter-tabs .sort-btn'), 'among the tabs').toBeNull()
+    expect($('.grid-scrollbar')).toBeNull()
   })
 
   // One glyph, four meanings — so the name is the only thing that says which of
@@ -839,7 +834,6 @@ describe('the change under a resting pointer', () => {
  */
 describe('the mark on the last phrase said', () => {
   const marked = () => $$('.phrase-cell.selected').map(c => c.textContent)
-  const railBtn = (label: string) => $$('.scroll-btn').find(b => b.getAttribute('aria-label') === label)
 
   it('stays on the phrase rather than fading off a timer', () => {
     renderApp()
@@ -877,7 +871,7 @@ describe('the mark on the last phrase said', () => {
     click(cellFor('Apple'))
     expect(marked()).toEqual(['Apple'])
 
-    click(railBtn('Scroll to top'))
+    click($('.please-toggle'))
 
     expect(marked()).toEqual([])
   })

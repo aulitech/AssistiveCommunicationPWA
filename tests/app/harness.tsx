@@ -136,3 +136,21 @@ export const clearMessage = () => {
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
+
+/**
+ * **Where each cell's place is**, which jsdom will not say: the rows
+ * `tests/setup.ts` gives the grid — four across, 80px each, touching — so the
+ * arrows over the grid have a cell to be sized by and rows to land a page on.
+ * Called before the board renders, since the arrows measure a cell as they
+ * mount. Undone after each test, `restoreMocks` being on.
+ */
+export function placeCells({ width = 150, rowHeight = 80, columns = 4 } = {}) {
+  return vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    const nothing = { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON: () => ({}) }
+    if (!this.classList.contains('phrase-place')) return nothing as DOMRect
+    const wrapper = this.closest('.grid-wrapper')
+    const at = [...(this.parentElement?.children ?? [])].indexOf(this)
+    const top = Math.floor(at / columns) * rowHeight - (wrapper?.scrollTop ?? 0)
+    return { ...nothing, y: top, top, bottom: top + rowHeight, right: width, width, height: rowHeight } as DOMRect
+  })
+}

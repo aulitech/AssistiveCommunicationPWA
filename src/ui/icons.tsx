@@ -858,6 +858,32 @@ export function HelpIcon() {
   )
 }
 
+/**
+ * Customizing the tabs — More, the last tab: three sliders, each set somewhere
+ * different, for what is on the bar, in what order, and which one to go to.
+ */
+export function CustomizeIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width="18"
+      height="18"
+    >
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+      <circle cx="9" cy="6" r="2" fill="currentColor" />
+      <circle cx="15" cy="12" r="2" fill="currentColor" />
+      <circle cx="7" cy="18" r="2" fill="currentColor" />
+    </svg>
+  )
+}
+
 /** Release notes: a page with a list down it — what changed, version by version. */
 export function NotesIcon() {
   return (

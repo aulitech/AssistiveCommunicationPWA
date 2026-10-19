@@ -59,7 +59,7 @@ const onTab = () =>
     c.querySelector('.phrase-cell-detail')?.textContent,
   ])
 
-const sortBtn = () => $('.grid-scrollbar .sort-btn')!
+const sortBtn = () => $('.filter-bar-end .sort-btn')!
 const editToggle = () => $('.edit-toggle')!
 const stored = () => JSON.parse(localStorage.getItem('peri_translated') ?? '[]') as { tag: string }[]
 

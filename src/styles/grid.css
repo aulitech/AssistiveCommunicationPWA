@@ -16,90 +16,63 @@
 
 .grid-wrapper::-webkit-scrollbar { display: none; }
 
-/* ── Grid scroll bar ── */
-.grid-scrollbar {
-  display: flex;
-  flex-direction: column;
-  width: 44px;
-  flex-shrink: 0;
-  border-left: 1px solid var(--panel-edge);
-  background: var(--panel);
-}
-
-.scroll-btn {
-  position: relative;
-  flex: 1;
+/* ── The arrows over the grid ── */
+/* **Two arrows floating over the rightmost column**, the whole of the grid's
+   scrolling: up at the top of the column and down at its foot, each half a cell
+   high and a third of one wide (`--arrow-h`, `--arrow-w`, measured off a cell
+   by `GridArrows`), against the right edge of the column. Translucent, so the
+   cell under one still reads through it, and above a magnified cell, which
+   would otherwise grow over the way down. One with nowhere to go is hidden and
+   lets the pointer through. They replace a rail of six down the grid's right
+   edge, and the column it took. */
+.grid-arrow {
+  position: absolute;
+  right: 10px;
+  z-index: 6;
+  width: var(--arrow-w, 3rem);
+  height: var(--arrow-h, 2.25rem);
   display: flex;
   align-items: center;
   justify-content: center;
-
   overflow: hidden;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
-  transition: color 0.1s, background 0.1s;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  backdrop-filter: blur(6px);
+  color: color-mix(in srgb, var(--text) 75%, transparent);
+  cursor: pointer;
+  transition: color 0.1s, opacity 0.15s;
 }
 
-.scroll-btn:last-child { border-bottom: none; }
+.grid-arrow.is-up { top: 10px; }
+.grid-arrow.is-down { bottom: 10px; }
 
-/* Six controls stacked in a column need vertical room, and on a short screen —
-   a phone on its side, a browser window pulled down — the grid has better use
-   for it. The pages are the pair that goes: a nudge repeats while it is held,
-   so it crosses the same distance a page does, and the two ends still reach
-   either end of the grid in one dwell. Nothing becomes unreachable.
-
-   Height alone is the test, with no orientation clause: the rule the category
-   bar uses needs one because a tablet in portrait is wider than a phone, but a
-   landscape tablet is 768px tall and a landscape phone is 430px, so the height
-   already tells them apart. */
-@media (max-height: 700px) {
-  .scroll-btn-page { display: none; }
-}
-
-.scroll-btn svg {
-  width: 18px;
-  height: 18px;
-  position: relative;
-  z-index: 1;
+.grid-arrow.is-hidden {
+  visibility: hidden;
   pointer-events: none;
 }
 
-.scroll-btn.dwelling {
-  color: var(--text);
+.grid-arrow svg {
+  position: relative;
+  z-index: 1;
+  width: 1.4rem;
+  height: 1.4rem;
+  pointer-events: none;
 }
 
-.scroll-btn-fill {
+.grid-arrow.dwelling { color: var(--text); }
+
+.grid-arrow-fill {
   position: absolute;
   inset: 0;
   background: var(--accent-dim);
   transform: scaleY(0);
   transform-origin: bottom;
+  pointer-events: none;
 }
 
-.scroll-btn.dwelling .scroll-btn-fill {
+.grid-arrow.dwelling .grid-arrow-fill {
   animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
-}
-
-/* The controls in this rail that do not scroll: which order the phrases are in,
-   and — in edit mode — arranging them by hand. Marked off from the five that do
-   scroll, by their own fixed height rather than an equal share of the column and
-   by a heavier rule under the group, because this rail is found by position
-   rather than read and the scrolling controls are one thing.
-
-   Quiet rather than gone where they do not apply: a control that came and went
-   would move the five below it every time somebody looked at the Translations tab. */
-.rail-tools {
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 auto;
-  border-bottom: 2px solid var(--border);
-}
-
-.rail-tool {
-  flex: 0 0 44px;
-}
-
-.rail-tool[aria-disabled] {
-  opacity: 0.4;
 }
 
 .phrase-grid {

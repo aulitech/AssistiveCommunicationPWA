@@ -28,7 +28,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text('The screen has three parts:'),
       list(
         'The message box across the top, with its controls inside it.',
-        'The category tabs, and below them the grid of phrases, with arrows down the right for moving through it. A long phrase is cut short in its cell, ending in …; the one under the pointer grows, as the Dock does, and shows the whole of it in larger words.',
+        'The category tabs, and below them the grid of phrases, with two arrows floating over its last column for moving through it. A long phrase is cut short in its cell, ending in …; the one under the pointer grows, as the Dock does, and shows the whole of it in larger words.',
         'The blue bar at the bottom, for the things that cannot wait.',
       ),
       text(
@@ -145,8 +145,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'In each of those groups, the phrase you used most recently comes first.',
         'Use the tabs above the grid to show one category at a time. Every phrase is in Library, each one once. The categories you make hold phrases from Library, in an order of their own, and a phrase can be in as many as you like.',
         'The tabs always start with Translations, then Answers when there are some, then Library. Your own categories follow, in the order you arranged them.',
-        'The tabs keep to one row, each name cut to its first seven letters except the tab showing. Any that do not fit are behind More, the last tab: rest on it for a grid of every category, rest on the one you want, then Done. While you are in one of those, More shows its name.',
-        'The buttons on the right scroll the grid the same way: :up: and :down: a little at a time, :page-up: and :page-down: a page, and :top: and :bottom: to the very top or bottom. The first two sizes keep going while you rest on them. On a short screen :page-up: and :page-down: are left out.',
+        'The tabs keep to one row, each name cut to its first seven letters except the tab showing. Any that do not fit, and any you hide, are behind :customize:, the last tab, which is there whenever a tab is off the bar.',
+        'Rest on :customize: for a grid of every tab; those the bar has no room for say No room. Rest on one to go to it, on :hide: or :show: to take it off the bar or put it back, and on :grip: to pick one of your own categories up and put it somewhere else. Nothing changes until Done.',
+        'The two arrows floating over the last column of the grid scroll it: :up: and :down: move it most of a screen at a time, so the row at the top is always whole, and keep going while you rest on them. Each is only there when there is further to go.',
       ),
       text('Rest on the words in the box to put the caret there, and type or paste from that point.'),
       text(
@@ -184,7 +185,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Putting the phrases in a different order',
     blocks: [
       text(
-        'The button at the very top of the scrolling buttons, above :top:, sets the order the phrases are shown in. It shows the one that is on:',
+        'The button at the right end of the category tabs sets the order the phrases are shown in. It shows the one that is on:',
       ),
       list(
         ':own-order: Custom order is your own order for that category — the order the board came in, until you arrange it yourself.',
@@ -331,14 +332,18 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Once you change its words, a phrase you choose goes in where the caret is. :clear: first to change a different phrase.',
         'A new phrase starts in the voice you last used, so adding several in a row takes one choice rather than one each.',
         'After a delete, or taking a phrase out of a category, :undo: where :clear: was puts it back where it was, until you start on something else.',
-        ':add:, right after the last category tab, makes a new category.',
-        'On a category you made, the tab that is showing has :grip: at its right edge, once there are five tabs or more on the bar.',
-        'Rest on the name to change it: it turns into a box where it stands. Type the new name and press Enter, or just move on to another tab, to keep it. While the name is a box, :grip: becomes :delete:, the only button on the tab, which removes the category. It asks first, and its phrases stay in Library.',
-        ':grip: picks the tab up, and it turns blue. Rest on another tab to put it there, or on :grip: again to put it back.',
         'A category goes by itself once its last phrase is taken out, and an import leaves no empty ones behind. A new category you have not put anything in yet stays until you do.',
         'Use :add: at the end of the blue bar to add an emergency phrase.',
         'To change an emergency phrase, empty the box with :clear: and choose it. With words in the box, choosing one says it.',
         'An emergency phrase you choose has :delete: and :grip: on its button, the same way: :grip: picks it up to move it along the blue bar, and resting on another puts it there.',
+      ),
+      text('The category tabs work the same whether edit mode is on or not:'),
+      list(
+        ':add:, right after the last category tab, makes a new category.',
+        'The tab that is showing has :hide:, which takes it off the bar and goes on to the next one. Every tab has it, Library and Translations too; :customize: puts them back.',
+        'On a category you made, the tab that is showing has :grip: at its right edge as well, once there are five tabs or more on the bar.',
+        'Rest on the name to change it: it turns into a box where it stands. Type the new name and press Enter, or just move on to another tab, to keep it. While the name is a box, :grip: becomes :delete:, the only button on the tab, which removes the category. It asks first, and its phrases stay in Library.',
+        ':grip: picks the tab up, and it turns blue. Rest on another tab to put it there, or on :grip: again to put it back.',
       ),
       text('Links behave a little differently from other text:'),
       list(

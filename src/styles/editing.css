@@ -21,6 +21,7 @@
 .app.edit-mode .grid-area { border-color: color-mix(in srgb, var(--accent) 45%, var(--panel-edge)); }
 
 .app.edit-mode .filter-tabs .filter-tab.active {
+  --tab-seam: color-mix(in srgb, var(--accent) 45%, var(--panel-edge));
   border-top-color: color-mix(in srgb, var(--accent) 45%, var(--panel-edge));
   border-left-color: color-mix(in srgb, var(--accent) 45%, var(--panel-edge));
   border-right-color: color-mix(in srgb, var(--accent) 45%, var(--panel-edge));
