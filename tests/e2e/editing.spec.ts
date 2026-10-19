@@ -216,10 +216,11 @@ test('fills Keep it as it is rested on, and keeps the phrase', async ({ page }) 
   let filled = 0
   for (let i = 0; i < 30 && (await page.locator('[role="alertdialog"]').count()) > 0; i++) {
     await page.mouse.move(x + (i % 2 ? 2 : -2), y)
-    const bar = await keep
-      .locator('.dwell-bar')
-      .evaluate(el => el.getBoundingClientRect().width)
-      .catch(() => 0)
+    // Asked of the page rather than through the locator, which would wait for
+    // a bar that went with the question the moment Keep answered.
+    const bar = await page.evaluate(
+      () => document.querySelector('.edit-action-btn.cancel .dwell-bar')?.getBoundingClientRect().width ?? 0,
+    )
     filled = Math.max(filled, bar)
     await page.waitForTimeout(100)
   }
