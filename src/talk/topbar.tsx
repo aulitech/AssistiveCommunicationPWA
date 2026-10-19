@@ -24,7 +24,8 @@ import { isSpeaking, stopSpeaking, subscribeSpeaking } from '../voice/speech'
 import { useCaretDwell } from '../ui/caret'
 import { AfterText, PLACE_AGAIN } from '../ui/after-text'
 import { useDwellControl } from '../ui/dwell'
-import { useLinkInput, type PasteResult } from '../ui/link-input'
+import { pasteInto, useLinkInput, type PasteResult } from '../ui/link-input'
+import { useFocusedField } from '../ui/typing'
 import {
   AutoSpeakIcon,
   CheckIcon,
@@ -596,9 +597,17 @@ export function Topbar({
 
   // Asking is asynchronous and can be refused, so what came of it goes back to
   // the screen to be said out loud rather than being swallowed here.
+  //
+  // **Into the field with the caret** — the question, a link's text or
+  // address, a category's name being typed — and into the message where that
+  // is the message, or nothing has the caret. Asking does not move the caret:
+  // no control takes focus, so the field it was in still has it.
+  const focusedField = useFocusedField()
   const paste = useCallback(() => {
-    void linkInput.pasteFromClipboard().then(onPasted)
-  }, [linkInput, onPasted])
+    const field = focusedField()
+    const elsewhere = field !== null && field !== textareaRef.current
+    void (elsewhere ? pasteInto(field) : linkInput.pasteFromClipboard()).then(onPasted)
+  }, [focusedField, textareaRef, linkInput, onPasted])
 
   /**
    * **Rest and Resume answer once, then wait for the pointer to leave their
