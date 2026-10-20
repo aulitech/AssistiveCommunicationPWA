@@ -790,6 +790,38 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'A smaller keyboard on a phone or tablet',
+    blocks: [
+      text(
+        'Your phone or tablet keyboard comes up only when you tap, click or rest in the message box, and goes away when you choose anything else. When it is up, these settings make it take less of the screen.',
+      ),
+      text('On an iPhone:'),
+      list(
+        'Touch and hold the globe or emoji key, then choose the keyboard pushed to the left or right. It is narrower, and leaves the rest of the row free.',
+        'Settings, General, Keyboard: turn off Predictive Text, which takes away the row of suggested words above the keys.',
+      ),
+      text('On an iPad:'),
+      list(
+        'Pinch the keyboard in with two fingers to make it a small floating one you can drag anywhere. Pinch it out again to put it back.',
+        'Or touch and hold the keyboard key in the bottom corner, and choose Floating.',
+        'Settings, General, Keyboard: turn off Predictive Text and Shortcuts, which take away the row above the keys.',
+      ),
+      text('On Android, with Gboard:'),
+      list(
+        'Gboard settings, Preferences, Keyboard height: choose Short or Extra short.',
+        'Open the menu in the row above the keys and choose Floating for a small keyboard you can drag, or One-handed for a narrower one.',
+      ),
+      text('On Android, with Samsung Keyboard:'),
+      list(
+        'Samsung Keyboard settings, Size and transparency: drag the edges in to make it smaller.',
+        'The row above the keys has Floating and One-handed modes as well.',
+      ),
+      text(
+        'A Bluetooth keyboard paired with the device takes the onscreen keyboard away altogether. Or turn on Peri’s keyboard in Settings and use :keyboard: instead, which Peri draws itself.',
+      ),
+    ],
+  },
+  {
     title: 'Using it offline',
     blocks: [
       text(

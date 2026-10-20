@@ -80,6 +80,8 @@ describe('the user guide', () => {
     ['the presentation background', /Presentation background/],
     ['the pause after choosing', /lets a second go by before it answers again/],
     ['a button arriving under a still pointer', /does not answer until you move the pointer/],
+    ['a smaller phone keyboard on iOS', /Predictive Text/],
+    ['a smaller phone keyboard on Android', /Keyboard height: choose Short/],
   ])('covers %s', (_feature, pattern) => {
     expect(allText.some(line => pattern.test(line))).toBe(true)
   })
