@@ -1,5 +1,19 @@
 [
   {
+    "version": "11.8.5",
+    "date": "2026-10-20",
+    "commits": [
+      {
+        "subject": "A guide section on a smaller keyboard on a phone or tablet",
+        "body": [
+          {
+            "text": "What iPhone, iPad, Gboard and Samsung Keyboard each offer to make the onscreen keyboard take less of the screen — one-handed and floating modes, the keyboard height, the row of suggestions turned off — beside the keyboard coming up only when the message box is tapped, and Peri's own as the alternative."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.8.4",
     "date": "2026-10-20",
     "commits": [
