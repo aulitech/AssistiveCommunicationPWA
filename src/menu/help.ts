@@ -66,6 +66,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'After resting or resuming, move the pointer out of that row and back before it answers again, so a gaze that stays put does not switch straight back.',
       ),
+      text(
+        'While resting, the keyboard your phone or browser brings up goes away, and does not come back until you resume.',
+      ),
     ],
   },
   {
@@ -136,6 +139,9 @@ export const HELP_SECTIONS: ProseSection[] = [
     blocks: [
       text(
         'The box at the top holds the message you are putting together. A message of several phrases is built in :edit: mode.',
+      ),
+      text(
+        "Your phone's or browser's own keyboard comes up only when you tap, click or rest in the box, and goes away when you choose anything else.",
       ),
       list(
         'In :edit: mode, rest on a phrase to put it in the box where the caret is, as it was written: the same words, marks and full stop you see when you edit it. Into an empty box, it opens to be reworded instead.',

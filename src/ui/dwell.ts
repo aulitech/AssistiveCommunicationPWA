@@ -15,6 +15,7 @@
 // and `pointerout` fires on every pointer transition between elements.
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { mayTakeCaret } from './typing'
 
 /**
  * True while the app is resting. Dwell is the only input this app has, so
@@ -418,9 +419,14 @@ function cameToPointer(e: React.PointerEvent<HTMLElement>): { x: number; y: numb
  *
  * **Not on something being arranged by hand**, which is draggable then: the
  * browser starts a drag from this same press, and stopping it stops the drag.
+ *
+ * **Not after a finger, with Peri's own keyboard off** (`mayTakeCaret`): the
+ * box keeping focus is a phone keeping its keyboard up, over half the screen,
+ * after every tap on the board. A finger's press lets focus go, and the
+ * keyboard with it; tapping the box brings both back.
  */
 function keepFocus(e: React.MouseEvent<HTMLElement>) {
-  if (!e.currentTarget.draggable) e.preventDefault()
+  if (!e.currentTarget.draggable && mayTakeCaret()) e.preventDefault()
 }
 
 export interface DwellOptions {

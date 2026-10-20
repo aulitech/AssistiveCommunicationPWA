@@ -7,6 +7,7 @@
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSettings } from '../ui/settings'
+import { mayTakeCaret } from '../ui/typing'
 import { speak, type SpeakOptions } from '../voice/speech'
 import { keepPhrased, phraseEndIn, typedFrom as typedFromIn } from './typed'
 
@@ -145,7 +146,7 @@ export function useComposer({
     // After the render that wrote the text, or the box is still holding the old
     // value and the caret lands in the middle of it.
     setTimeout(() => {
-      if (!el) return
+      if (!el || !mayTakeCaret()) return
       el.focus()
       el.setSelectionRange(at, at)
     }, 0)
@@ -173,7 +174,7 @@ export function useComposer({
   // worked one way and not the other.
   useLayoutEffect(() => {
     const el = textareaRef.current
-    if (!shown.selecting || !el || el.value !== shown.text) return
+    if (!shown.selecting || !el || el.value !== shown.text || !mayTakeCaret()) return
     el.focus()
     el.setSelectionRange(0, shown.text.length)
   }, [shown])
