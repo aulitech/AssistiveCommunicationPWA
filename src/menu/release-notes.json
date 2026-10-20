@@ -1,5 +1,22 @@
 [
   {
+    "version": "11.8.4",
+    "date": "2026-10-20",
+    "commits": [
+      {
+        "subject": "A head mouse held still on a magnified phrase chooses it, on an iPad",
+        "body": [
+          {
+            "text": "On an iPad driven by a head mouse, resting on a phrase magnified it and then did nothing: no words in the box, nothing said. The magnified cell grew in from 85%, smaller than its place for its first frames, so a pointer near its edge was briefly off it — and iPadOS said the still pointer had left and come back, which the guard against a control arriving under a still pointer refused until the pointer moved, as a still head never does."
+          },
+          {
+            "text": "The cell now fades in at its full size, covering its place from the first frame; and a control the pointer is said to leave and come back to without moving carries on as the pointer that never left. One refused when it came stays refused."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.8.3",
     "date": "2026-10-20",
     "commits": [
