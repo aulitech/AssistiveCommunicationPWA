@@ -71,6 +71,7 @@ export function HeardBox({
   listener,
   fieldRef,
   edges,
+  noKeyboard = true,
 }: {
   listener: Listener
   /**
@@ -83,6 +84,8 @@ export function HeardBox({
   fieldRef: RefObject<HTMLTextAreaElement | null>
   /** Whether the box has more in it than shows — measured by the bar, beside the height. */
   edges: ScrollEdges
+  /** No system keyboard unless one was asked for, and none while resting — see `Topbar`. */
+  noKeyboard?: boolean
 }) {
   const { settings } = useSettings()
   const { heard, correct, suggest, clearOrUndo, showUndo, canClear, canSuggest, messageEmpty, notice } = listener
@@ -122,6 +125,7 @@ export function HeardBox({
         <div className="heard-field">
           <textarea
             ref={fieldRef}
+            inputMode={noKeyboard ? 'none' : undefined}
             className={cx(
               'heard-text',
               caret.active && 'dwelling',

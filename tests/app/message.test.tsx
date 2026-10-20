@@ -22,6 +22,7 @@ import {
 } from './harness'
 import { stylesheet } from '../stylesheet'
 import { PLACE_AGAIN } from '../../src/ui/after-text'
+import { forgetLastPress } from '../../src/ui/typing'
 
 describe('placing the caret in the message box by dwell', () => {
   const composer = () => $<HTMLTextAreaElement>('.text-display')!
@@ -1314,5 +1315,104 @@ describe('Enter and Escape in the message box', () => {
     press('Enter', { ctrlKey: true })
     expect(message()).toBe('First line\n')
     expect(cells().some(c => c.textContent?.startsWith('First line'))).toBe(false)
+  })
+})
+
+/**
+ * **A finger, with Peri's own keyboard off, leaves the box alone.** A box
+ * taking focus from a tap is what raises a phone's keyboard, and on Android it
+ * came up after every tap on the board. So a finger's press lets focus go, and
+ * nothing puts it back — the words still land in the box; tapping the box
+ * brings the caret and the keyboard. A mouse, a head mouse and Peri's own
+ * keyboard keep the caret in the box as ever.
+ */
+describe('on a touch screen', () => {
+  afterEach(() => forgetLastPress())
+  /** A finger on something, as Android sends one: the press, then the click. */
+  const tap = (el: Element) => {
+    fireEvent.pointerDown(el, { pointerType: 'touch' })
+    const kept = !fireEvent.mouseDown(el)
+    // jsdom moves no focus on a press; the browser does, where nothing stops it.
+    if (!kept) act(() => (document.activeElement as HTMLElement | null)?.blur())
+    fireEvent.click(el)
+    act(() => void vi.advanceTimersByTime(50))
+    return kept
+  }
+
+  it('lets focus go from the box on a tap, and puts nothing back', () => {
+    renderApp()
+    const cell = plainCell()
+    const text = cell.textContent
+    expect(tap(cell), 'the press held focus in the box').toBe(false)
+    expect(document.activeElement, 'the box took focus back').not.toBe(box())
+    // The words are in the box all the same.
+    expect(message()).toBe(text)
+  })
+
+  it('keeps the caret in the box for a mouse', () => {
+    renderApp()
+    const cell = plainCell()
+    fireEvent.pointerDown(cell, { pointerType: 'mouse' })
+    expect(fireEvent.mouseDown(cell), 'a mouse press took focus').toBe(false)
+    act(() => box().blur())
+    act(() => void vi.advanceTimersByTime(10))
+    expect(document.activeElement).toBe(box())
+  })
+
+  // Peri's own keyboard types into whatever has the caret, so it stays.
+  it("keeps the caret in the box with Peri's own keyboard on", () => {
+    renderApp({ keyboard: true })
+    expect(tap(plainCell()), 'the press let focus go').toBe(true)
+    act(() => box().blur())
+    act(() => void vi.advanceTimersByTime(10))
+    expect(document.activeElement).toBe(box())
+  })
+})
+
+/**
+ * **The system keyboard only when asked for**: a click, a tap or a dwell in
+ * the box. Until then the box wants none (`inputMode="none"`) and keeps its
+ * caret all the same, so a hardware keyboard and Peri's own still type into
+ * it; a press or a dwell anywhere else puts it away again.
+ */
+describe('the system keyboard', () => {
+  afterEach(() => forgetLastPress())
+  const mode = () => box().getAttribute('inputmode')
+
+  it('is wanted by nothing as the board opens, though the box has the caret', () => {
+    renderApp()
+    expect(document.activeElement).toBe(box())
+    expect(mode()).toBe('none')
+  })
+
+  it('is asked for by a press in the box, and put away by a press anywhere else', () => {
+    renderApp()
+    fireEvent.pointerDown(box())
+    expect(mode(), 'a press in the box did not ask for it').toBeNull()
+    settle()
+    expect(mode()).toBeNull()
+
+    fireEvent.pointerDown(plainCell())
+    settle()
+    expect(mode(), 'a press on the board left it up').toBe('none')
+    // Put away with the caret still in the box, for whatever else types there.
+    expect(document.activeElement).toBe(box())
+  })
+
+  it('is asked for by a dwell in the box, and put away by a dwell anywhere else', () => {
+    renderApp({ actionDwellMs: 800, phraseDwellMs: 1000 })
+    fireEvent.pointerMove(document.body, { clientX: 5, clientY: 5 })
+    fireEvent.pointerEnter(box(), { clientX: 40, clientY: 10 })
+    act(() => void vi.advanceTimersByTime(850))
+    settle()
+    expect(mode(), 'a dwell in the box did not ask for it').toBeNull()
+    fireEvent.pointerLeave(box())
+
+    const cell = plainCell()
+    fireEvent.pointerMove(document.body, { clientX: 400, clientY: 400 })
+    fireEvent.pointerEnter(cell)
+    act(() => void vi.advanceTimersByTime(1100))
+    settle()
+    expect(mode(), 'a dwell on the board left it up').toBe('none')
   })
 })

@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cancelAllDwells, holdDwellsUntilMoved } from '../ui/dwell'
+import { mayTakeCaret } from '../ui/typing'
 import { LIBRARY, type Phrase } from '../core/phrases'
 import { TRANSLATED_CATEGORY } from './use-translated'
 import { SUGGEST_CATEGORY } from './suggestions'
@@ -273,7 +274,7 @@ export function useEditor({
       // into the box meanwhile — then it is theirs.
       setTimeout(() => {
         const el = box.current
-        if (!el || el.value !== next.text) return
+        if (!el || el.value !== next.text || !mayTakeCaret()) return
         el.focus()
         el.setSelectionRange(from, to)
       }, 0)

@@ -24,9 +24,17 @@ import { VoicePicker } from '../voice/picker'
 import { isSpeaking, stopSpeaking, subscribeSpeaking } from '../voice/speech'
 import { useCaretDwell } from '../ui/caret'
 import { AfterText, PLACE_AGAIN } from '../ui/after-text'
-import { useDwellControl } from '../ui/dwell'
+import { onDwellActivation, useDwellControl } from '../ui/dwell'
 import { pasteInto, useLinkInput, type PasteResult } from '../ui/link-input'
-import { insertText, useFocusedField } from '../ui/typing'
+import {
+  insertText,
+  mayTakeCaret,
+  setOwnKeyboard,
+  useFocusedField,
+  useSystemKeyboardWanted,
+  wantSystemKeyboard,
+  barSystemKeyboard,
+} from '../ui/typing'
 import {
   AutoSpeakIcon,
   CheckIcon,
@@ -431,7 +439,13 @@ export function Topbar({
   useEffect(() => {
     caretRef.current = caretAt
   }, [caretAt])
+  // Before the first `focusBox` below, which asks it.
+  useEffect(() => {
+    setOwnKeyboard(settings.keyboard)
+  }, [settings.keyboard])
   const focusBox = useCallback(() => {
+    // Not on its own after a finger — see `mayTakeCaret` — nor while resting.
+    if (resting || !mayTakeCaret()) return
     const heard = listener.open ? heardRef.current : null
     if (heard) return heard.focus({ preventScroll: true })
     const box = textareaRef.current
@@ -439,10 +453,49 @@ export function Topbar({
     box.focus({ preventScroll: true })
     const at = Math.min(caretRef.current, box.value.length)
     box.setSelectionRange(at, at)
-  }, [listener.open, textareaRef])
+  }, [listener.open, textareaRef, resting])
   useEffect(() => {
     focusBox()
   }, [focusBox])
+  /**
+   * **Resting takes the caret out of every box**, and with it the keyboard a
+   * phone or a browser raises for one: the board is meant to be doing nothing,
+   * and half a screen of keyboard over it is not nothing. Both boxes say they
+   * want none while it lasts (`inputMode` below), so a tap on one cannot raise
+   * it either; resuming puts the caret back as `focusBox` would.
+   */
+  useEffect(() => {
+    barSystemKeyboard(resting)
+    if (!resting) return
+    const at = document.activeElement
+    if (at instanceof HTMLTextAreaElement || at instanceof HTMLInputElement) at.blur()
+  }, [resting])
+
+  /**
+   * **The system keyboard only when asked for** — a click, a tap or a dwell in
+   * one of the boxes; see `wantSystemKeyboard`. A dwell completed anywhere else
+   * puts it away, as a press anywhere else does; a box's own caret dwell asks
+   * for it again straight after, being told after everybody else.
+   */
+  const keyboardWanted = useSystemKeyboardWanted()
+  const noKeyboard = resting || !keyboardWanted
+  useEffect(() => onDwellActivation(() => wantSystemKeyboard(false)), [])
+  // Put away with the box still holding the caret: a phone that changes what a
+  // focused box wants does not always take its keyboard down, so the box lets
+  // the caret go and takes it straight back, wanting none.
+  const wasWanted = useRef(keyboardWanted)
+  useEffect(() => {
+    const was = wasWanted.current
+    wasWanted.current = keyboardWanted
+    if (!was || keyboardWanted) return
+    const box = document.activeElement
+    if (!(box instanceof HTMLTextAreaElement) || !box.matches('.text-display, .heard-text')) return
+    const [from, to] = [box.selectionStart, box.selectionEnd]
+    box.blur()
+    if (resting || !mayTakeCaret()) return
+    box.focus({ preventScroll: true })
+    box.setSelectionRange(from, to)
+  }, [keyboardWanted, resting])
   useEffect(() => {
     const backToBox = () =>
       setTimeout(() => {
@@ -582,6 +635,7 @@ export function Topbar({
         // After the value React is about to render, or the caret is placed in
         // the old one and jumps to the end.
         setTimeout(() => {
+          if (!mayTakeCaret()) return
           el.selectionStart = el.selectionEnd = caret
           el.focus()
         }, 0)
@@ -802,7 +856,9 @@ export function Topbar({
               it moves the message's line, which is why the toggle holds the
               dwells. */}
           <div className="message-lines">
-            {listener.open && <HeardBox listener={listener} fieldRef={heardRef} edges={heardEdges} />}
+            {listener.open && (
+              <HeardBox listener={listener} fieldRef={heardRef} edges={heardEdges} noKeyboard={noKeyboard} />
+            )}
 
             {/* **The line the words are written on**: the slot that empties the box
               at its left end, then the words, with Speak — or Save in edit
@@ -843,6 +899,9 @@ export function Topbar({
               <div className="message-field">
                 <textarea
                   ref={textareaRef}
+                  // No system keyboard unless asked for, and none while resting —
+                  // see `wantSystemKeyboard` and the effects beside `focusBox`.
+                  inputMode={noKeyboard ? 'none' : undefined}
                   className={cx(
                     'text-display',
                     caret.active && 'dwelling',

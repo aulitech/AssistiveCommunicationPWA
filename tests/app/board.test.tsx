@@ -46,6 +46,39 @@ describe('resting', () => {
     click($('.resume-bar'))
   }
 
+  // **No keyboard over a board at rest.** The caret comes out of the box, and
+  // with it the keyboard a phone or browser raises for one; the box wants none
+  // while resting, however it is asked; nothing puts the caret back until
+  // Resume does; and a keyboard asked for before resting is not still asked
+  // for after it, Resume being a choice somewhere else.
+  it('takes the caret out of the box while resting, and wants no system keyboard', () => {
+    renderApp()
+    const box = $<HTMLTextAreaElement>('.text-display')!
+    expect(document.activeElement).toBe(box)
+    fireEvent.pointerDown(box)
+    expect(box.getAttribute('inputmode'), 'asked for, and refused').toBeNull()
+
+    startResting()
+    expect(document.activeElement, 'the caret stayed in the box').not.toBe(box)
+    expect(box.getAttribute('inputmode')).toBe('none')
+    // Tapped while resting: still none.
+    fireEvent.pointerDown(box)
+    settle()
+    expect(box.getAttribute('inputmode'), 'a tap raised a keyboard while resting').toBe('none')
+    // Focus falling to nothing puts nothing back while resting — the box
+    // tapped and left, say.
+    act(() => {
+      box.focus()
+      box.blur()
+    })
+    act(() => void vi.advanceTimersByTime(50))
+    expect(document.activeElement, 'put back while resting').not.toBe(box)
+
+    resume()
+    expect(document.activeElement, 'Resume did not put the caret back').toBe(box)
+    expect(box.getAttribute('inputmode'), 'Resume brought back a keyboard nobody asked for').toBe('none')
+  })
+
   // **The open space in the message card's row of controls**: a surface
   // behind everything in that row, which the row lets the pointer through to
   // wherever nothing answers. Where it is drawn and what reaches it is

@@ -13,7 +13,7 @@
 // screen and gone at the next render. Going through the descriptor is what makes
 // the change visible to React, and it is why this cannot be four lines.
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 
 export type TextField = HTMLInputElement | HTMLTextAreaElement
 
@@ -104,4 +104,110 @@ export function useFocusedField() {
     if (remembered && document.contains(remembered) && isTextField(remembered)) return remembered
     return null
   }, [])
+}
+
+// ── Taking the caret back ────────────────────────────────────────────────────
+
+/** What last pressed on the screen — a mouse, a pen, a finger — or nothing yet. */
+let lastPressedBy: string | null = null
+/** Whether Peri's own keyboard is on, which types into whatever has the caret. */
+let ownKeyboard = false
+
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'pointerdown',
+    e => {
+      lastPressedBy = e.pointerType
+    },
+    { capture: true, passive: true },
+  )
+}
+
+/** Set by the screen as the Peri's keyboard setting is. */
+export function setOwnKeyboard(on: boolean) {
+  ownKeyboard = on
+}
+
+/** Test seam: nothing pressed yet. */
+export function forgetLastPress() {
+  lastPressedBy = null
+}
+
+/**
+ * **Whether the app may put the caret in a box on its own** — after a phrase
+ * is chosen, auto-speak says one, an answer is taken or a paste lands, and
+ * whenever focus falls to nothing. Not after a finger, with Peri's own keyboard
+ * off: a box taking focus from a tap is what raises a phone's keyboard, and on
+ * Android it came up after every tap on the board, over half the screen. The
+ * words and where the caret goes are kept all the same; the caret goes in when
+ * somebody taps the box. A mouse, a head mouse or a gaze rig raises no keyboard
+ * and keeps the caret where typing lands, and so does Peri's own keyboard,
+ * which types into whatever has it. Nothing pressed yet, a screen whose main
+ * pointer is a finger counts as one.
+ */
+export function mayTakeCaret(): boolean {
+  if (ownKeyboard) return true
+  const finger =
+    lastPressedBy !== null
+      ? lastPressedBy === 'touch'
+      : typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches
+  return !finger
+}
+
+// ── The system keyboard ──────────────────────────────────────────────────────
+
+/** Whether somebody has asked to type into the message or the question box. */
+let systemKeyboard = false
+const systemKeyboardListeners = new Set<() => void>()
+
+/**
+ * **A phone's or a browser's own keyboard comes up only when it is asked for**
+ * — a click, a tap or a dwell in the message or the question box — and goes
+ * down again at a press or a dwell anywhere else. Until then both boxes say
+ * they want none (`inputMode="none"`), and they keep their caret all the same,
+ * so a hardware keyboard and Peri's own still type into them. Peri puts the
+ * caret in a box on its own often — after a phrase, after a paste, whenever
+ * focus falls to nothing — and each of those was half a screen of keyboard
+ * nobody asked for.
+ */
+export function wantSystemKeyboard(on: boolean) {
+  if (systemKeyboard === on) return
+  systemKeyboard = on
+  for (const listener of [...systemKeyboardListeners]) listener()
+}
+
+export function useSystemKeyboardWanted(): boolean {
+  return useSyncExternalStore(
+    listener => {
+      systemKeyboardListeners.add(listener)
+      return () => systemKeyboardListeners.delete(listener)
+    },
+    () => systemKeyboard,
+  )
+}
+
+/** While the app rests, no system keyboard however it is asked for — see `Topbar`. */
+let keyboardBarred = false
+export function barSystemKeyboard(on: boolean) {
+  keyboardBarred = on
+}
+
+/** The two boxes the system keyboard is asked for in. */
+export const ASKS_FOR_KEYBOARD = '.text-display, .heard-text'
+
+/**
+ * A press anywhere but in one of the boxes puts the keyboard away. Where it is
+ * in one, the box drops its `inputMode="none"` there and then rather than at
+ * the next render, so the very tap that asked is the one the browser answers.
+ */
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'pointerdown',
+    e => {
+      const box = e.target instanceof Element ? e.target.closest(ASKS_FOR_KEYBOARD) : null
+      if (box && !keyboardBarred) box.removeAttribute('inputmode')
+      wantSystemKeyboard(box !== null)
+    },
+    { capture: true, passive: true },
+  )
 }

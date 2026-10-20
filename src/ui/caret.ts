@@ -22,6 +22,7 @@
 
 import { useCallback, useEffect, useRef, type PointerEvent, type RefObject } from 'react'
 import { useDwellControl } from './dwell'
+import { ASKS_FOR_KEYBOARD, wantSystemKeyboard } from './typing'
 
 /** Either kind of text box: the message box, and the fields in the Aliases panel. */
 export type CaretField = HTMLTextAreaElement | HTMLInputElement
@@ -196,6 +197,12 @@ export function useCaretDwell(
   const placeCaret = useCallback(() => {
     const el = fieldRef.current
     if (!el) return
+    // A dwell in the message or the question box is asking to type there, so
+    // it may have the system keyboard — see `wantSystemKeyboard`.
+    if (el.matches(ASKS_FOR_KEYBOARD)) {
+      el.removeAttribute('inputmode')
+      wantSystemKeyboard(true)
+    }
     // Focus alone is worth having even where the browser will not say which
     // character was meant — it is the difference between a box that can be
     // typed into and one that cannot.
