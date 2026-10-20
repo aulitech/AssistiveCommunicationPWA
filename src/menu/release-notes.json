@@ -1,5 +1,22 @@
 [
   {
+    "version": "11.8.3",
+    "date": "2026-10-20",
+    "commits": [
+      {
+        "subject": "The phone's keyboard only when asked for: a tap, a click or a dwell in a box",
+        "body": [
+          {
+            "text": "On a phone, Peri's habit of keeping the caret in the message box raised the system keyboard after every tap on the board, over half the screen."
+          },
+          {
+            "text": "The message and question boxes now want no system keyboard (inputMode none) until a click, a tap or a dwell in one asks for it, and a press or a dwell anywhere else puts it away; they keep their caret all the same, so a hardware keyboard and Peri's own still type into them. After a finger, with Peri's own keyboard off, Peri also stops putting the caret back on its own, and a finger's press lets focus go. While resting, no system keyboard at all: the caret comes out of the box, nothing puts it back, and a tap cannot raise one."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.8.2",
     "date": "2026-10-19",
     "commits": [
