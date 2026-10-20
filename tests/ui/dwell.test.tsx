@@ -940,6 +940,38 @@ describe('a control that came to the pointer', () => {
     expect(onActivate).toHaveBeenCalledTimes(1)
   })
 
+  /**
+   * Regression guard, from an iPad with a head mouse. The browser said a
+   * pointer held still had left the phrase and come back — the cell drawn again
+   * under it as it was magnified — and the return was refused as a control
+   * that came to the pointer, with nothing a still head could do about it.
+   */
+  it('carries on for a pointer said to leave and come back without moving', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    fireEvent.pointerMove(document.body, { clientX: 300, clientY: 300 })
+    under(document.body)
+    fireEvent.pointerEnter(probe())
+    advance(100)
+    // Nothing moved, and the browser says it left and came back.
+    under(probe())
+    fireEvent.pointerLeave(probe())
+    fireEvent.pointerEnter(probe())
+    advance(500)
+    expect(onActivate, 'refused a pointer that never moved').toHaveBeenCalledTimes(1)
+  })
+
+  // Refused when it came, it stays refused however it is said to leave and return.
+  it('still refuses a control that came to the pointer, said to leave and come back', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} />)
+    arrive()
+    fireEvent.pointerLeave(probe())
+    fireEvent.pointerEnter(probe())
+    advance(600)
+    expect(onActivate).not.toHaveBeenCalled()
+  })
+
   // A finger has no place between taps; every tap is aimed.
   it('leaves a touch alone', () => {
     const onActivate = vi.fn()

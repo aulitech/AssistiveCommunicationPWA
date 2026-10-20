@@ -245,8 +245,12 @@
   overflow: visible;
 }
 
+/* **Faded in at its full size, never grown from smaller.** It grew from 85%,
+   which for its first frames left it smaller than the place it covers — and a
+   pointer resting near the cell's edge was off it. An iPad said so, a leave and
+   a return with nothing moved, and a head mouse held still could not choose. */
 @keyframes magnify {
-  from { scale: 0.85; opacity: 0.6; }
+  from { opacity: 0.6; }
 }
 
 .phrase-cell:hover, .phrase-cell.dwelling {

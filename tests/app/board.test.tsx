@@ -1251,6 +1251,17 @@ describe('the magnified cell', () => {
     expect(place(cell).classList.contains('is-magnified')).toBe(false)
   })
 
+  // Regression guard, from an iPad: grown from 85%, it was smaller than its
+  // place for its first frames, and a pointer near its edge was off it.
+  it('fades in at its full size, never smaller than the place it covers', () => {
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+    const grow = css.match(/@keyframes magnify \{([\s\S]*?)\n\}/)![1]!
+    expect(grow).not.toMatch(/scale|transform|width|height/)
+    const lens = css.match(/\.phrase-place\.is-magnified > \.phrase-cell \{([^}]*)\}/)![1]!
+    expect(lens).toMatch(/min-width: *calc\(100% \+/)
+    expect(lens).toMatch(/min-height: *calc\(100% \+/)
+  })
+
   it('is not for a finger, which hovers over nothing', () => {
     renderApp()
     const cell = plainCell()

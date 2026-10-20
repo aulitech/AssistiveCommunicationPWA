@@ -474,6 +474,15 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
    * or moves the distance that counts as aiming somewhere new.
    */
   const arrivedRef = useRef<{ x: number; y: number } | null>(null)
+  /**
+   * Where the pointer was as it last left this control. **Back with the
+   * pointer not having moved since**, it is the pointer that never left, not a
+   * control that came to it: a browser can say a still pointer left and came
+   * back as what is under it is drawn again — a cell magnified out of its place
+   * and back over it, a pointer an iPad hid and showed — and refusing it then
+   * left a head mouse held still on a phrase with nothing it could do.
+   */
+  const leftFromRef = useRef<{ x: number; y: number } | null>(null)
   /** Refused by the hold while the pointer was on it — see `armsOnceMoved`. */
   const heldBackRef = useRef(false)
 
@@ -569,13 +578,19 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
 
   const onPointerEnter = useCallback(
     (e: React.PointerEvent<HTMLElement>) => {
-      arrivedRef.current = cameToPointer(e)
+      const left = leftFromRef.current
+      leftFromRef.current = null
+      const neverMoved =
+        left !== null && lastPointer !== null && left.x === lastPointer.x && left.y === lastPointer.y
+      arrivedRef.current = neverMoved ? null : cameToPointer(e)
       if (!arrivedRef.current) start()
     },
     [start],
   )
 
   const onPointerLeave = useCallback(() => {
+    // Refused when it came, it stays refused if it is back with nothing moved.
+    leftFromRef.current = lastPointer && !arrivedRef.current ? { ...lastPointer } : null
     cancel()
     dwellFiredRef.current = false
     stalledRef.current = false
