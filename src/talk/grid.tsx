@@ -169,6 +169,8 @@ const PhraseCell = memo(function PhraseCell({
 const PAGE_SETTLE_MS = 500
 /** A scroll this recent means the grid is still moving from the last page. */
 const STILL_MOVING_MS = 150
+/** Frames without the grid moving that say a scroll has come to rest. */
+const SCROLL_AT_REST_FRAMES = 5
 
 /**
  * **The two arrows over the grid**, the whole of its scrolling: up at the top
@@ -601,12 +603,39 @@ export function PhraseGrid({
    *
    * Centred rather than merely on screen — a cell against the top edge sits
    * under the message box, and one against the bottom under the emergency bar.
+   *
+   * **And aimed again once the scroll comes to rest, until it is on screen.**
+   * A cell is `content-visibility: auto`, a placeholder height until it comes
+   * near the screen, so every cell the scroll passes takes its real height as
+   * it goes and the phrase moves after it was aimed at: one two hundred cells
+   * down landed a screen and a half past where it was. A few tries at most —
+   * a cell can be past where the grid can scroll, and somebody may be paging.
    */
   useEffect(() => {
     if (!pointing) return
-    innerRef.current
-      ?.querySelector(`[data-phrase="${pointing.id}"]`)
-      ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const wrapper = gridRef.current
+    const cell = () => innerRef.current?.querySelector(`[data-phrase="${pointing.id}"]`)
+    const aim = () => cell()?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    aim()
+    let frame = 0
+    let last = NaN
+    let still = 0
+    let tries = 0
+    const settle = () => {
+      const top = wrapper?.scrollTop ?? 0
+      still = top === last ? still + 1 : 0
+      last = top
+      if (still >= SCROLL_AT_REST_FRAMES) {
+        const at = cell()?.getBoundingClientRect()
+        const view = wrapper?.getBoundingClientRect()
+        if (!at || !view || (at.top >= view.top && at.bottom <= view.bottom) || ++tries > 3) return
+        aim()
+        still = 0
+      }
+      frame = requestAnimationFrame(settle)
+    }
+    frame = requestAnimationFrame(settle)
+    return () => cancelAnimationFrame(frame)
   }, [pointing])
 
   useMagnifier(innerRef, gridRef, phrases, held !== null || !choosing)

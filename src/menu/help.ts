@@ -147,6 +147,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'In edit mode, rest on a phrase to put it in the box where the caret is, as it was written: the same words, marks and full stop you see when you edit it. Into an empty box, it opens to be reworded instead.',
         ':speak: after :save: says what is in the box and saves it as a phrase, in one rest. If Library has those words already, it only says them.',
         'Type in the box to find phrases in Library. After you choose a phrase, what you type next starts a new search.',
+        'In edit mode, a phrase you find by typing into an otherwise empty box opens to be changed when it is on the tab showing, and the board scrolls to its button.',
         'Phrases that begin with what you typed come first, then phrases with a word that begins with it. Last are phrases whose first letters it spells, so "ttyl" finds "Talk to you later".',
         'In each of those groups, the phrase you used most recently comes first.',
         'Use the tabs above the grid to show one category at a time. Every phrase is in Library, each one once. The categories you make hold phrases from Library, in an order of their own, and a phrase can be in as many as you like.',
