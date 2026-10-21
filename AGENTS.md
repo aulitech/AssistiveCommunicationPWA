@@ -253,7 +253,7 @@ Paths below are relative to `tests/`.
 - `app/signin.test.tsx` - Getting in: the sign-in page, what can be worked before anybody has signed in, and the two documents it links to
 - `app/board.test.tsx` - The board: choosing a phrase off it, the slots that ask first, what it speaks as it is chosen, the two arrows over it (`placeCells` in the harness supplies where the cells are), **how much of it is rendered**, the guards against a pointer that has not moved, and when the cell under the pointer is magnified
 - `app/editing.test.tsx` - Writing a phrase and rewording one, which happens in the message box rather than in a dialog
-- `app/message.test.tsx` - The message being built: the caret, the keys, the box that grows, the card and the row of controls inside it, and what is said being kept in Library — once each, counted as used, and a Sent list from before brought in
+- `app/message.test.tsx` - The message being built: the caret, the keys, the box that grows, the card and the row of controls inside it, and what is said being kept in Library — once each, counted as used, filed under the category whose tab is showing, and a Sent list from before brought in
 - `app/aliases.test.tsx` - The Aliases panel, and every way of changing a list
 - `app/menu.test.tsx` - The menu and the panels it opens, what it does on the way out, signing out, and Release notes after Help, folding by major release, by version and by change
 - `app/backup.test.tsx` - Writing the board out as a file and reading one back

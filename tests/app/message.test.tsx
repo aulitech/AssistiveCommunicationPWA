@@ -1,5 +1,5 @@
 // The message being built: the caret, the keys, the box that grows with what is in it, the controls on its borders, and what is said being kept in Library.
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { cleanup, fireEvent, act } from '@testing-library/react'
 import { setClipboardText, spoken } from '../setup'
 import {
@@ -207,6 +207,55 @@ describe('what is said', () => {
       expect.objectContaining({ text: 'Nobody has said this here before', category: 'Library' }),
     ])
     expect(Object.values(store().members ?? {}).flat()).toEqual([])
+  })
+
+  /**
+   * **And in the category whose tab is showing**, where Save would file it: a
+   * sentence said on a tab is there on the tab afterwards. Regression guard —
+   * it went into Library alone, and the tab it was said on never showed it.
+   */
+  describe('on a category of its own', () => {
+    const seeded = { custom: [{ id: 'custom-seed-0', text: 'Toast and jam', category: 'Food' }] }
+    const members = (): Record<string, string[]> => store().members ?? {}
+    const keptId = (text: string) => store().custom.find((c: { text: string }) => c.text === text)?.id
+    const goTo = (name: string) => click(tabs().find(t => t.textContent === name)!)
+    beforeEach(() => localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringify(seeded)))
+
+    it('files a message spoken there under it, after what it had', () => {
+      renderApp()
+      goTo('Food')
+      say('Something nobody has said')
+
+      expect(members().Food).toEqual(['custom-seed-0', keptId('Something nobody has said')])
+      expect(cells().map(c => c.textContent)).toContain('Something nobody has said')
+    })
+
+    it('files a message copied out there under it', async () => {
+      renderApp()
+      goTo('Food')
+      writeIn(box(), 'Copied on the Food tab')
+      await copied()
+      expect(members().Food).toEqual(['custom-seed-0', keptId('Copied on the Food tab')])
+    })
+
+    // What typing finds comes from Library whichever tab is showing, so a
+    // phrase found that way and said is not something the tab was asked to hold.
+    it('files nothing Library says already', () => {
+      renderApp()
+      goTo('Food')
+      say('Once in a blue moon')
+      expect(kept()).toEqual(['Toast and jam'])
+      expect(cells().map(c => c.textContent)).toEqual(['Toast and jam'])
+    })
+
+    it('files nothing on Library or a record', () => {
+      renderApp()
+      say('Said on Library')
+      goTo('Translations')
+      say('Said on Translations')
+      expect(members()).toEqual({ Food: ['custom-seed-0'] })
+      expect(kept()).toEqual(['Toast and jam', 'Said on Library', 'Said on Translations'])
+    })
   })
 
   // Kept once the clipboard confirms it took it, so a copy that failed is not

@@ -464,19 +464,22 @@ export function TalkScreen({
 
   /**
    * **What is said is kept in Library** — every message spoken or copied, as a
-   * phrase in no category, unless Library says it already — and counted as used
-   * the moment it is, so it is first under Recently used and first among what
-   * typing finds. There was a Sent tab for this; see
-   * docs/decisions/sent-messages.md. One Library already says is not counted
-   * again: choosing it off the board counted it.
+   * phrase of its own, unless Library says it already — **and in the category
+   * whose tab is showing**, where Save would file it, so a sentence said on a
+   * tab is there on the tab afterwards. Counted as used the moment it is, so it
+   * is first under Recently used and first among what typing finds. There was a
+   * Sent tab for this; see docs/decisions/sent-messages.md. One Library already
+   * says is not counted again, nor filed: choosing it off the board counted it,
+   * and what typing finds comes from Library whichever tab is showing.
    */
   const { keepSaid: keepInLibrary } = board
+  const keptInto = activeFilter !== LIBRARY && allCategories.includes(activeFilter) ? activeFilter : undefined
   const keepSaid = useCallback(
     (text: string) => {
-      const id = keepInLibrary(text)
+      const id = keepInLibrary(text, keptInto)
       if (id) recordUsed(id)
     },
-    [keepInLibrary, recordUsed],
+    [keepInLibrary, keptInto, recordUsed],
   )
 
   // ── Choosing a phrase ──────────────────────────────────────────────────────
