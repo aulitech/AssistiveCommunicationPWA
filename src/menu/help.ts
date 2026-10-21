@@ -453,7 +453,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Something said twice is kept once.',
       ),
       text(
-        'It is in no category. In edit mode you can file it under one, like any phrase, or delete it. Deleting is worth knowing about if you have just said something private.',
+        'Said on a category of your own, it goes in that category too, as Save would file it; said on Library, it is in no category. In edit mode you can file it under others, like any phrase, or delete it. Deleting is worth knowing about if you have just said something private.',
       ),
       text(
         'Because it is a phrase, it goes wherever your phrases go: into a backup file, to your other devices if Synchronize is on, and with the phrases on your board when you ask for suggested answers.',

@@ -268,21 +268,23 @@ export function useBoard() {
   )
 
   /**
-   * **Keeps a message just said in Library**, as a phrase in no category, and
-   * hands back the id it went in under — or nothing, when Library says it
-   * already, a phrase with its choices made among what it says. See
-   * `keepingSaid`. Written against the store as it stands when the
-   * write lands rather than as this render saw it, so two messages said without
-   * a render between them are both kept, and one said twice is kept once.
+   * **Keeps a message just said in Library** — and in the category `into`,
+   * the tab showing when it was said, as Save files a phrase there — and hands
+   * back the id it went in under — or nothing, when Library says it already, a
+   * phrase with its choices made among what it says. See `keepingSaid`.
+   * Written against the store as it stands when the write lands rather than as
+   * this render saw it, so two messages said without a render between them are
+   * both kept, and one said twice is kept once.
    */
   const keepSaid = useCallback(
-    (text: string) => {
+    (text: string, into?: string) => {
       if (!text.trim() || libraryKeys.has(wordingKey(text)) || saysWithChoices(mainPhrases, text.trim())) {
         return undefined
       }
       const id = newPhraseId()
       setStore(s => {
-        const next = keepingSaid(tablePhrases, s, [{ id, text }])
+        const kept = keepingSaid(tablePhrases, s, [{ id, text }])
+        const next = kept !== s && into ? { ...kept, members: withMemberships(kept.members, id, [into]) } : kept
         if (next !== s) savePhraseStore(next)
         return next
       })
