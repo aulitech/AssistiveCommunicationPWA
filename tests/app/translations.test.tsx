@@ -60,7 +60,7 @@ const onTab = () =>
   ])
 
 const sortBtn = () => $('.filter-bar-end .sort-btn')!
-const editToggle = () => $('.edit-toggle')!
+const speakToggle = () => $('.autospeak-toggle')!
 const stored = () => JSON.parse(localStorage.getItem('peri_translated') ?? '[]') as { tag: string }[]
 
 /** Says a seeded phrase in the language the board is set to. */
@@ -110,7 +110,7 @@ describe('where the tab sits', () => {
     saySpanish()
     click(cellFor('Apple'))
     showTranslations()
-    click(editToggle())
+    click(speakToggle())
     click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Start a new phrase'))
     click(cells()[0])
 
@@ -377,7 +377,7 @@ describe('in edit mode', () => {
     saySpanish()
     click(cellFor('Cherry'))
     showTranslations()
-    click(editToggle())
+    click(speakToggle())
     // Edit mode opened what the box held; a cell opens into an empty box.
     click(action('Start a new phrase'))
   }

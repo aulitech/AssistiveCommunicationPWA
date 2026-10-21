@@ -10,7 +10,7 @@ import {
   renderApp,
   message,
   cells,
-  editToggle,
+  speakToggle,
   plainCell,
   box,
   writeIn,
@@ -611,7 +611,7 @@ describe('the card', () => {
     writeIn(box(), 'Some words')
     let asked = 0
     $('.message-field > .after-text-mirror')!.addEventListener(PLACE_AGAIN, () => asked++)
-    click(editToggle())
+    click(speakToggle())
     expect(asked, 'nothing asked for it to be placed again').toBeGreaterThan(0)
   })
 
@@ -655,11 +655,10 @@ describe('the card', () => {
     // And Rest, the open space behind them — see `RestSurface`.
     expect(row()).toEqual(['tools-clipboard', 'tools-modes', 'tools-values', 'rest-surface'])
     expect(labels('.tools-clipboard')).toEqual(['Copy to clipboard', 'Paste from clipboard'])
-    // Please after auto-speak: it is about how what is said comes out. Present
-    // last, being about where it goes.
+    // Auto-speak, whose off is edit mode. Please after it: it is about how
+    // what is said comes out. Present last, being about where it goes.
     expect(labels('.tools-modes')).toEqual([
-      'Edit phrases',
-      expect.stringMatching(/auto-speak/i),
+      'Turn off auto-speak — edit phrases',
       'Say please at the end of everything spoken',
       'Present: show what is said in a window of its own',
     ])
@@ -673,7 +672,7 @@ describe('the card', () => {
    */
   it('keeps its places in edit mode, with nothing beside the words', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     expect(labels('.message-line > .topbar-clear')).toEqual(['Start a new phrase'])
     expect(labels('.message-field > .after-text')).toEqual([])
     writePhrase('Something new')
@@ -766,7 +765,7 @@ describe('the card', () => {
     const clearX = iconBtn('Clear')!.querySelector('svg')!.outerHTML
     expect(iconBtn('Start a new phrase'), 'the phrase controls are showing already').toBeUndefined()
 
-    click(editToggle())
+    click(speakToggle())
     expect(iconBtn('Clear'), 'the message controls are still showing').toBeUndefined()
     expect(iconBtn('Start a new phrase')!.closest('.topbar-clear')).not.toBeNull()
     // **The same X as Clear**: it empties the box here too, so it looks it.
@@ -862,7 +861,7 @@ describe('pasting by dwell', () => {
   // the two the box is holding — there is one box now, and one paste.
   it('offers the same while a phrase is being written', async () => {
     renderApp()
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
     click(plainCell())
     fireEvent.change(box(), { target: { value: 'I want' } })
 
@@ -1012,7 +1011,7 @@ describe('the keyboard Peri draws', () => {
   // is searched as it is typed, by the same rule.
   it('narrows the board while a phrase is being written, too', () => {
     renderApp({ keyboard: true })
-    click(editToggle())
+    click(speakToggle())
     act(() => box().focus())
     toggleKeyboard()
     const before = cells().length
@@ -1072,7 +1071,7 @@ describe('choosing one phrase after another', () => {
     // Building a sentence out of phrases is what edit mode's box does: the
     // first phrase into an empty box opens, and each one after goes in at the
     // caret.
-    if (editing) click(editToggle())
+    if (editing) click(speakToggle())
     click(tab('Sayings'))
   }
   /** Written into the box as a person types it, caret at the end. */
@@ -1341,7 +1340,7 @@ describe('Enter and Escape in the message box', () => {
 
   it('saves on Enter in edit mode, and starts a new phrase on Escape', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     writeAtEnd('A phrase of my very own')
     press('Enter')
     expect($('.toast')?.textContent).toMatch(/^Added to Library/)
@@ -1359,7 +1358,7 @@ describe('Enter and Escape in the message box', () => {
 
   it('puts in a new line on a modified Enter in edit mode, and saves nothing', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     writeAtEnd('First line')
     press('Enter', { ctrlKey: true })
     expect(message()).toBe('First line\n')

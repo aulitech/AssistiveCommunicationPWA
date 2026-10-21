@@ -71,7 +71,6 @@ const toggleMic = () => {
   click(micBtn())
   act(() => void vi.advanceTimersByTime(1100))
 }
-const editToggle = () => $('.edit-toggle')!
 const speakToggle = () => $('.autospeak-toggle')!
 const speaking = () => speakToggle().getAttribute('aria-pressed') === 'true'
 const heardBox = () => $<HTMLTextAreaElement>('.heard-text')
@@ -143,9 +142,9 @@ describe('the control', () => {
   it('sits at the box’s upper-left corner, and nothing else moved', () => {
     renderApp()
     expect($('.topbar-listen .listen-toggle')).not.toBeNull()
-    // The modes strip holds the two modes, please and present, and the
+    // The modes strip holds auto-speak, please and present, and the
     // microphone is not among them.
-    expect($$('.topbar-modes > *')).toHaveLength(4)
+    expect($$('.topbar-modes > *')).toHaveLength(3)
     expect($('.topbar-modes .listen-toggle')).toBeNull()
   })
 
@@ -298,7 +297,7 @@ describe('the control', () => {
   it('puts the board in auto-speak on the way in', () => {
     renderApp()
     // Edit mode, the only other way of working.
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
     expect(speaking(), 'the board was already talking, so this proves nothing').toBe(false)
 
     toggleMic()
@@ -341,7 +340,7 @@ describe('the control', () => {
    */
   it('takes the board out of edit mode', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     expect($('.app')?.classList.contains('edit-mode')).toBe(true)
 
     toggleMic()
@@ -1253,7 +1252,7 @@ describe('the suggested reply', () => {
     // way in — so this is somebody who opened the box and then went to change a
     // phrase, which is the only way the two are ever on together.
     toggleMic()
-    click(editToggle())
+    click(speakToggle())
     expect(messageBox().value, 'the draft is not empty, so this proves nothing').toBe('')
 
     act(() => FakeRecognition.last!.say({ transcript: 'Are you comfortable', isFinal: true }))
@@ -1349,14 +1348,14 @@ describe('the suggested reply', () => {
 
     it('takes the board out of edit mode', () => {
       renderApp()
-      click(editToggle())
-      expect(editToggle().getAttribute('aria-pressed')).toBe('true')
+      click(speakToggle())
+      expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
       // A phrase half written: leaving edit mode would make it the message, and
       // the question empties the box all the same.
       fireEvent.change(messageBox(), { target: { value: 'half a phrase' } })
       settle()
       toggleMic()
-      expect(editToggle().getAttribute('aria-pressed')).toBe('false')
+      expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
       expect(messageBox().value).toBe('')
     })
 

@@ -104,7 +104,7 @@ describe('Stop, while anything is being said', () => {
   it('keeps the emergency bar still in edit mode', () => {
     holdSpeech()
     renderApp()
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
     writeIn(box(), 'Something being said')
     click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak and save'))
     expect(stop()).not.toBeNull()

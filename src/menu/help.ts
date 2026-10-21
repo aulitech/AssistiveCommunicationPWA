@@ -23,7 +23,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Peri is a board of phrases you speak with, and it opens ready to talk. Rest the pointer on a phrase and it is said straight away, because :auto-speak: is on every time Peri is opened. Nothing needs a click.',
       ),
       text(
-        'To build a longer message first, turn on :edit:. Then each phrase you rest on goes into the message box at the top, where the caret is, and :speak: says the whole of it.',
+        'To build a longer message first, turn :auto-speak: off: that is edit mode. Then each phrase you rest on goes into the message box at the top, where the caret is, and :speak: says the whole of it.',
       ),
       text('The screen has three parts:'),
       list(
@@ -36,7 +36,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'At the far left of the top row: :copy: and :paste:.',
-        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then :edit: and :auto-speak: — then :please: and :present:.',
+        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then :auto-speak:, lit while it is on and edit mode while it is off — then :please: and :present:.',
         'At the right of the top row, on a wide screen: the language and the voice.',
         'At the left end of the line: :clear:, which empties the box — and afterwards offers :undo:.',
         'Right after the last word you write: :speak:, filled in green, because it is the one the whole board exists to reach. It is there once there is something in the box, and moves along as the words do.',
@@ -75,7 +75,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Speaking straight away',
     blocks: [
       text(
-        ':auto-speak: to the right of :edit:, in the message box, is auto-speak. It lights up when it is on, and it is on every time Peri is opened, so the board can always talk straight away.',
+        ':auto-speak: in the middle of the message box says Peri is in auto-speak. It is on every time Peri is opened, so the board can always talk straight away.',
       ),
       text(
         'With auto-speak on, every phrase you choose is spoken the moment you choose it. This suits quick back-and-forth conversation.',
@@ -83,16 +83,16 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'The phrase also goes into the message box as it was written, in place of what was there, and is selected. Type and your words replace it; :copy: copies it, and :speak: says it again in the same voice and language.',
       ),
-      text('The two buttons side by side move between two ways of working:'),
+      text(':auto-speak: moves between two ways of working:'),
       list(
-        ':auto-speak: Auto-speak — a phrase is spoken the moment you choose it.',
-        ':edit: Edit — a phrase you choose goes into the box: into an empty box it opens to be reworded, and into one with words in it, it goes in where the caret is.',
+        'Lit, auto-speak — a phrase is spoken the moment you choose it.',
+        'Not lit, edit mode — a phrase you choose goes into the box: into an empty box it opens to be reworded, and into one with words in it, it goes in where the caret is.',
       ),
       text(
-        'One of the two is always on. Turning :auto-speak: off turns :edit: on, and turning :edit: off turns :auto-speak: back on.',
+        'One of the two is always on, so there is no separate button for edit mode: turning :auto-speak: off is turning edit mode on, and turning it back on leaves edit mode.',
       ),
       text(
-        'Switching between them never changes what is in the message box or which phrases are showing. Turning :edit: off keeps what you wrote in the box as your message.',
+        'Switching between them never changes what is in the message box or which phrases are showing. Leaving edit mode keeps what you wrote in the box as your message.',
       ),
 
       text(
@@ -138,13 +138,13 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Building a message',
     blocks: [
       text(
-        'The box at the top holds the message you are putting together. A message of several phrases is built in :edit: mode.',
+        'The box at the top holds the message you are putting together. A message of several phrases is built in edit mode, with :auto-speak: off.',
       ),
       text(
         "Your phone's or browser's own keyboard comes up only when you tap, click or rest in the box, and goes away when you choose anything else.",
       ),
       list(
-        'In :edit: mode, rest on a phrase to put it in the box where the caret is, as it was written: the same words, marks and full stop you see when you edit it. Into an empty box, it opens to be reworded instead.',
+        'In edit mode, rest on a phrase to put it in the box where the caret is, as it was written: the same words, marks and full stop you see when you edit it. Into an empty box, it opens to be reworded instead.',
         ':speak: after :save: says what is in the box and saves it as a phrase, in one rest. If Library has those words already, it only says them.',
         'Type in the box to find phrases in Library. After you choose a phrase, what you type next starts a new search.',
         'Phrases that begin with what you typed come first, then phrases with a word that begins with it. Last are phrases whose first letters it spells, so "ttyl" finds "Talk to you later".',
@@ -225,7 +225,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Putting the phrases in your own order',
     blocks: [
       text(
-        'You can also arrange a category by hand. Turn on :edit: mode, open the category you want, and choose the phrase to move. It comes into the message box, and its button on the board has :grip: at its right edge, as the tab showing does.',
+        'You can also arrange a category by hand. Turn :auto-speak: off for edit mode, open the category you want, and choose the phrase to move. It comes into the message box, and its button on the board has :grip: at its right edge, as the tab showing does.',
       ),
       list(
         ':grip: picks the phrase up. It turns blue, and the screen says what you are holding.',
@@ -254,7 +254,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'With auto-speak on, the chooser opens as soon as you choose the phrase.',
-        'In :edit: mode, the phrase goes in where the caret is, and the chooser opens when you rest on :speak:. The box keeps the phrase, so the next :speak: asks again.',
+        'In edit mode, the phrase goes in where the caret is, and the chooser opens when you rest on :speak:. The box keeps the phrase, so the next :speak: asks again.',
       ),
       text(
         'A phrase showing ___ has a blank with nothing behind it yet. It is added as it stands, with the blank ready to type over.',
@@ -311,7 +311,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Changing the phrases',
     blocks: [
       text(
-        ':edit: to the left of the Rest bar, in the message box, turns on edit mode. Auto-speak switches off while it is on: the two ask opposite things of a dwell on a phrase.',
+        'Turn :auto-speak: off, in the middle of the message box, and edit mode is on. The two ask opposite things of a dwell on a phrase, so one of them is always on.',
       ),
       text(
         'In edit mode the message box is where phrases are written. Whatever is in it comes with you, so a message worth keeping becomes a phrase without being typed again.',
@@ -361,7 +361,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'If a link does not open, allow pop-ups for Peri in your browser settings. Browsers only open new tabs off the back of a tap or a key press, and dwelling is neither.',
         "A link opens in the browser profile Peri is running in, signed in to whatever accounts that profile is. If several people share a computer, install Peri from each person's own browser profile, and their links will open with their own accounts.",
       ),
-      text('Turn :edit: off again to go back to speaking.'),
+      text('Turn :auto-speak: back on to go back to speaking.'),
     ],
   },
   {

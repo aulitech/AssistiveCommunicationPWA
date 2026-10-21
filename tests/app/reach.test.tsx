@@ -98,7 +98,7 @@ describe('fields that take the caret by dwell', () => {
   // left the caret. Fixing a letter in the middle of a name needed a click.
   it("lets a rest put the caret in a category's name", () => {
     renderApp()
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
     click($('.add-tab'))
     expect(arms($('.edit-modal-input'))).toBe(true)
   })

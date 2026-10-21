@@ -10,7 +10,6 @@ import {
   click,
   renderApp,
   cells,
-  editToggle,
   speakToggle,
   plainCell,
   slotCell,
@@ -46,7 +45,7 @@ beforeEach(() => localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringi
 // fill-in-the-blank phrase showed "I want the red/blue one" and saving it stored
 // exactly that — flattening the slot, with no way back and nothing said about it.
 describe('editing a phrase that has choices behind it', () => {
-  const enterEditMode = () => click(editToggle())
+  const enterEditMode = () => click(speakToggle())
   const save = () => savePhrase()
 
   it('opens on what the phrase was written as, brackets and all', () => {
@@ -82,7 +81,7 @@ describe('editing a phrase that has choices behind it', () => {
       'the slot was flattened by opening the editor and saving',
     ).not.toBeNull()
 
-    click(editToggle()) // leave edit mode
+    click(speakToggle()) // leave edit mode
     click(cells().find(c => c.textContent === shown))
     act(() => void vi.advanceTimersByTime(0))
     click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak'))
@@ -95,7 +94,7 @@ describe('editing a phrase that has choices behind it', () => {
 // the input a gaze user does not have. Typing comes from whatever keyboard they
 // already use; saying *where* to type is the part no keyboard supplies.
 describe('placing the caret in a phrase by dwell', () => {
-  const enterEditMode = () => click(editToggle())
+  const enterEditMode = () => click(speakToggle())
   // The same box the message is composed in. It was a second textarea in a
   // dialog until the editor moved onto the main screen; the dwell is what has
   // to keep working in both of the box's jobs.
@@ -228,7 +227,7 @@ describe('edit mode', () => {
   // array, so the grid kept showing the old text until the filter moved.
   it('shows an edited phrase immediately', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
 
     const before = cells()[0].textContent
     click(cells()[0])
@@ -241,7 +240,7 @@ describe('edit mode', () => {
 
   it('adds an emergency phrase', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     expect($('.emergency-add')).not.toBeNull()
 
     const before = $$('.emergency-btn').length
@@ -257,7 +256,7 @@ describe('edit mode', () => {
 
   it('removes a deleted phrase from the grid', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
 
     const doomed = cells()[0].textContent
     click(cells()[0])
@@ -273,18 +272,18 @@ describe('edit mode', () => {
     renderApp()
     expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
 
-    click(editToggle())
+    click(speakToggle())
     expect($('.app')?.classList.contains('edit-mode')).toBe(true)
     expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
   })
 
   it('is switched off by auto-speak in turn', () => {
     renderApp()
-    click(editToggle())
-    expect(editToggle().getAttribute('aria-pressed')).toBe('true')
+    click(speakToggle())
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
 
     click(speakToggle())
-    expect(editToggle().getAttribute('aria-pressed')).toBe('false')
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
     expect($('.app')?.classList.contains('edit-mode')).toBe(false)
   })
 
@@ -304,7 +303,7 @@ describe('edit mode', () => {
     const narrowed = cells().map(c => c.textContent)
     expect(narrowed, 'composing did not narrow the grid at all').not.toEqual(board.slice(0, narrowed.length))
 
-    click(editToggle())
+    click(speakToggle())
     expect(
       cells().map(c => c.textContent),
       'the grid changed as edit mode came on',
@@ -336,7 +335,7 @@ describe('edit mode', () => {
   // off its last word and the board searches for that word, as in the message.
   it('searches for the word being changed in a phrase opened to edit', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     const whole = cells().map(c => c.textContent)
     click(cells()[0])
     const text = box().value
@@ -350,7 +349,7 @@ describe('edit mode', () => {
   // composing a phrase has.
   it('holds the dwells when opening a phrase lets the whole tab back', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     writePhrase('I want')
     const chosen = cells()[0].textContent
     click(cells()[0])
@@ -376,7 +375,7 @@ describe('edit mode', () => {
     const seed = () => {
       localStorage.setItem('dwellspeak_phrase_store_v2', JSON.stringify({ custom: [KITCHEN, PANTRY] }))
       renderApp()
-      click(editToggle())
+      click(speakToggle())
     }
     const kettles = () =>
       JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2')!).custom.filter(
@@ -461,7 +460,7 @@ describe('edit mode', () => {
     // The bar is a category like any other for this purpose.
     it('is refused on the emergency bar too', () => {
       renderApp()
-      click(editToggle())
+      click(speakToggle())
       const first = $('.emergency-btn .emergency-label')!.textContent!
 
       click($('.emergency-add'))
@@ -484,7 +483,7 @@ describe('edit mode', () => {
    */
   it('says words already on the board in a toast, nothing beside the words, and puts the voice in its row', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
 
     expect($('.message-line')!.children, 'something beside the words').toHaveLength(2)
     writePhrase('Tea please')
@@ -501,7 +500,7 @@ describe('edit mode', () => {
   // happened at all.
   it('says a phrase was saved, and empties the box for the next one', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     writePhrase('Something worth keeping')
     savePhrase()
 
@@ -515,7 +514,7 @@ describe('edit mode', () => {
 // keeping becomes a phrase without being typed a second time. There was a dialog
 // held open by a dwell on the box, and it is gone along with the rest of them.
 describe('keeping a composed message as a phrase', () => {
-  const enterEditMode = () => click(editToggle())
+  const enterEditMode = () => click(speakToggle())
   const compose = (value: string) => writeIn(box(), value)
 
   it('carries the composed message into the phrase being written', () => {
@@ -534,7 +533,7 @@ describe('keeping a composed message as a phrase', () => {
     compose('Please pass me the water')
     enterEditMode()
     savePhrase()
-    click(editToggle()) // leave edit mode
+    click(speakToggle()) // leave edit mode
     clearMessage()
 
     expect(cells().map(c => c.textContent)).toContain('Please pass me the water')
@@ -558,7 +557,7 @@ describe('keeping a composed message as a phrase', () => {
     writePhrase('I want')
     const narrowed = cells().map(c => c.textContent)
 
-    click(editToggle())
+    click(speakToggle())
 
     expect(box().value).toBe('I want')
     expect(
@@ -573,7 +572,7 @@ describe('keeping a composed message as a phrase', () => {
     renderApp()
     enterEditMode()
     writePhrase("I'd like the {['red', 'blue']} one")
-    click(editToggle())
+    click(speakToggle())
 
     expect(box().value).not.toMatch(/[{}[\]]/)
     expect(box().value).toBe("I'd like the red/blue one")
@@ -612,8 +611,8 @@ describe('keeping a composed message as a phrase', () => {
 // both questions are asked through the same full-screen grid and the same tabs.
 const toast = () => $('.toast')?.textContent
 const inDoc = (sel: string) => [...document.body.querySelectorAll<HTMLElement>(sel)]
-const enterEditMode = () => click(editToggle())
-const leaveEditMode = () => click(editToggle())
+const enterEditMode = () => click(speakToggle())
+const leaveEditMode = () => click(speakToggle())
 const tab = (name: string) => $$('.filter-tab[role="tab"]').find(t => t.textContent === name)
 /** Which tab the board is on, as the bar itself says. */
 const activeTab = () => $('.filter-tab[aria-selected="true"]')?.textContent
@@ -1042,7 +1041,7 @@ describe('choosing while a phrase is open in the box', () => {
 
   it('takes nothing off the board, and magnifies nothing, until its words are changed', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     const first = plainCell()
     const text = first.textContent!
     click(first)
@@ -1074,7 +1073,7 @@ describe('choosing while a phrase is open in the box', () => {
 
   it('opens whatever is chosen into an empty box', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     const first = plainCell()
     click(first)
     click(iconBtn('Start a new phrase'))
@@ -1089,7 +1088,7 @@ describe('choosing while a phrase is open in the box', () => {
   // and what it answers with is its words said, not put into the phrase.
   it('leaves the emergency bar to be reached, and it speaks', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     const first = plainCell()
     const text = first.textContent!
     click(first)
@@ -1106,7 +1105,7 @@ describe('choosing while a phrase is open in the box', () => {
   // Changed, or a new phrase being written: still said rather than put in.
   it('speaks while words are being written, and opens into an empty box', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     writePhrase('Something of my own')
     const words = sos().textContent!
     click(sos())
@@ -1147,7 +1146,7 @@ describe('the question the bin asks', () => {
   /** A phrase opened, and its bin chosen with the pointer at 300. */
   const askAboutOne = () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     const cell = plainCell()
     const text = cell.textContent!
     click(cell)

@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { act, fireEvent } from '@testing-library/react'
 import { downloads } from '../setup'
-import { $, $$, box, cells, click, editToggle, renderApp, savePhrase, writePhrase } from './harness'
+import { $, $$, box, cells, click, speakToggle, renderApp, savePhrase, writePhrase } from './harness'
 
 let refused: ReturnType<typeof vi.spyOn> | null = null
 /** Every write from here on refused, the way a full store refuses them. */
@@ -34,7 +34,7 @@ const keepButton = () => $('.not-keeping .panel-btn')
  */
 const saveWhileRefused = (text: string) => {
   storageRefuses()
-  click(editToggle())
+  click(speakToggle())
   pastTheHold()
   writePhrase(text)
   savePhrase()
@@ -91,8 +91,8 @@ describe('when this device stops saving', () => {
     // A toast would be gone before a gaze reached it. This is still here after
     // several more dwells.
     pastTheHold()
-    click(editToggle())
-    click(editToggle())
+    click(speakToggle())
+    click(speakToggle())
     expect(strip()).not.toBeNull()
   })
 
@@ -119,7 +119,7 @@ describe('when this device stops saving', () => {
   it('holds the dwells as the strip arrives', () => {
     renderApp()
     storageRefuses()
-    click(editToggle())
+    click(speakToggle())
 
     fireEvent.pointerEnter(cells()[0])
     act(() => void vi.advanceTimersByTime(1600))
@@ -129,7 +129,7 @@ describe('when this device stops saving', () => {
 
   it('says nothing while the device is saving', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     writePhrase('Written and kept')
     savePhrase()
 

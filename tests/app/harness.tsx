@@ -67,7 +67,6 @@ export function renderFresh() {
 export const message = () => $<HTMLTextAreaElement>('.text-display')!.value
 export const cells = () => $$('.phrase-cell')
 export const modes = () => $$('.mode-btn')
-export const editToggle = () => $('.edit-toggle')!
 export const speakToggle = () => $('.autospeak-toggle')!
 export const plainCell = (skip: string[] = []) =>
   cells().find(c => !c.querySelector('.phrase-slot') && !skip.includes(c.textContent ?? ''))!

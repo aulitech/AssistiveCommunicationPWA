@@ -44,8 +44,8 @@ const storedStore = () => JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}')
 const buttons = () => $$('.emergency-btn:not(.emergency-tool)')
 const labels = () => buttons().map(b => b.textContent)
 const named = (text: string) => buttons().find(b => b.textContent === text)
-const editToggle = () => $('.edit-toggle')
-const enterEditMode = () => click(editToggle())
+const speakToggle = () => $('.autospeak-toggle')
+const enterEditMode = () => click(speakToggle())
 /** The drag pad on the emergency phrase open in the box — there is no reorder mode. */
 const pad = () => $('.emergency-btn .reorder-tool')
 const bin = () => $('.emergency-btn .delete-tool')
@@ -388,7 +388,7 @@ describe('leaving edit mode', () => {
     enterEditMode()
     const before = labels()
     lift(before[1]!)
-    click(editToggle()) // leave edit mode
+    click(speakToggle()) // leave edit mode
     enterEditMode()
 
     expect($('.emergency-btn.is-held')).toBeNull()
@@ -405,7 +405,7 @@ describe('leaving edit mode', () => {
     enterEditMode()
     const first = labels()[0]!
     lift(first)
-    click(editToggle()) // leave edit mode
+    click(speakToggle()) // leave edit mode
 
     expect(named(first)?.getAttribute('aria-label')).toBe(first)
     expect($('.emergency-btn .tab-tool')).toBeNull()

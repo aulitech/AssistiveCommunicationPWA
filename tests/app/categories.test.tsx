@@ -56,8 +56,8 @@ const SEEDED = {
 const storedStore = () => JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}')
 
 const cells = () => $$('.phrase-cell')
-const editToggle = () => $('.edit-toggle')
-const enterEditMode = () => click(editToggle())
+const speakToggle = () => $('.autospeak-toggle')
+const enterEditMode = () => click(speakToggle())
 // The bar also holds add / sort / reorder buttons, which are role="button"
 // rather than role="tab" — this keeps them out of the category list.
 const tabs = () => $$('.filter-tab[role="tab"]')
@@ -404,7 +404,7 @@ describe('renaming a category', () => {
     expect($('.toast')?.textContent).toBe(`Renamed ${original} to Renamed`)
 
     // The phrases followed rather than being orphaned under a vanished tab.
-    click(editToggle()) // leave edit mode
+    click(speakToggle()) // leave edit mode
     click(tabNamed('Renamed'))
     expect(cells().length).toBeGreaterThan(0)
   })
@@ -506,7 +506,7 @@ describe('renaming a category', () => {
     renameTab(name!)
     type(nameField(), 'Left with')
 
-    click(editToggle())
+    click(speakToggle())
     expect(nameField().value).toBe('Left with')
 
     fireEvent.blur(nameField())
@@ -803,7 +803,7 @@ describe('the phrase editor', () => {
     writePhrase('A brand new phrase')
     savePhrase()
 
-    click(editToggle()) // leave edit mode
+    click(speakToggle()) // leave edit mode
     click(tabNamed('Invented'))
     expect(cells().map(c => c.textContent)).toEqual(['A brand new phrase'])
   })
@@ -819,7 +819,7 @@ describe('the phrase editor', () => {
     click(tabNamed(destination))
     savePhrase()
 
-    click(editToggle()) // leave edit mode
+    click(speakToggle()) // leave edit mode
     click(tabNamed(destination))
     expect(cells().map(c => c.textContent)).toContain(moved)
   })
@@ -844,7 +844,7 @@ describe('the phrase editor', () => {
     savePhrase()
 
     expect(box().value).toBe('')
-    click(editToggle()) // leave edit mode
+    click(speakToggle()) // leave edit mode
     click(tabNamed(destination))
     expect(cells().map(c => c.textContent)).toContain('Somewhere particular')
   })
@@ -1106,7 +1106,7 @@ describe('ordering categories', () => {
     const before = names()
     lift(before[1]!)
 
-    click(editToggle())
+    click(speakToggle())
 
     expect($('.filter-tab.is-held')?.textContent).toBe(before[1])
     click(tabNamed(before[2]!))

@@ -66,7 +66,7 @@ export async function openBoard(
   return { errors }
 }
 
-export const editMode = (page: Page) => page.locator('.edit-toggle').click()
+export const editMode = (page: Page) => page.locator('.autospeak-toggle').click()
 
 export const tab = (page: Page, name: string) =>
   page.locator('.filter-tab[role="tab"]').filter({ hasText: new RegExp(`^${name}$`) })

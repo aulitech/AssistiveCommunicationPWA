@@ -307,7 +307,7 @@ for (const [what, viewport] of [
       const { errors } = await openBoard(page, { phrases: categories(['Food']) })
       // Straight to the toggle: on a phone the microphone's hit area covers the
       // edit toggle's centre, and a click there lands on the microphone.
-      await page.locator('.edit-toggle').dispatchEvent('click')
+      await page.locator('.autospeak-toggle').dispatchEvent('click')
       await goTo(page, 'Food')
       // Aimed at, rather than arrived under the pointer: away, and back.
       await page.mouse.move(viewport.width / 2, viewport.height / 2, { steps: 4 })
