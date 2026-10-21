@@ -74,7 +74,7 @@ test.describe('on a phone held upright', () => {
     await openBoard(page)
     // The microphone's area answers over the edit toggle at this width, so the
     // click goes to the toggle itself.
-    await page.locator('.edit-toggle').dispatchEvent('click')
+    await page.locator('.autospeak-toggle').dispatchEvent('click')
     const toast = page.locator('.toast')
     await expect(toast).toBeVisible()
     const { left, right, table, border, lines } = await toast.evaluate(el => {
@@ -150,7 +150,7 @@ test.describe('on a wide screen', () => {
 // Where a gaze working the board already is, rather than a corner.
 test('puts the toast in the upper third of the phrase table, across its middle', async ({ page }) => {
   await openBoard(page)
-  await page.locator('.edit-toggle').dispatchEvent('click')
+  await page.locator('.autospeak-toggle').dispatchEvent('click')
   await expect(page.locator('.toast')).toBeVisible()
   const { toast, table } = await page.evaluate(() => ({
     toast: document.querySelector('.toast')!.getBoundingClientRect().toJSON(),
@@ -171,7 +171,7 @@ test("greens the panel's edge in edit mode, not the phrases, under a toast at 85
   const before = await cell.evaluate(el => el.getBoundingClientRect().toJSON())
   const edge = () => page.locator('.grid-area').evaluate(el => getComputedStyle(el).borderTopColor)
   const grey = await edge()
-  await page.locator('.edit-toggle').dispatchEvent('click')
+  await page.locator('.autospeak-toggle').dispatchEvent('click')
   await expect(page.locator('.toast')).toBeVisible()
   const { outline, after, toast } = await cell.evaluate(el => {
     const style = getComputedStyle(el)
@@ -299,7 +299,7 @@ for (const [width, height] of [
     await page.setViewportSize({ width, height })
     await openBoard(page)
     for (const mode of ['speaking', 'editing']) {
-      if (mode === 'editing') await page.locator('.edit-toggle').dispatchEvent('click')
+      if (mode === 'editing') await page.locator('.autospeak-toggle').dispatchEvent('click')
       // Words in the box, so Speak — or Save and Speak — is drawn at the end of the line.
       await page.locator('.text-display').fill('Could you open the window a little, please?')
       const { outside, crowded, offCentre, narrow, onTop } = await page.evaluate(() => {
@@ -445,8 +445,8 @@ test('does not speak when Speak arrives under a resting pointer', async ({ page 
     })
   await page.setViewportSize({ width: 820, height: 900 })
   await openBoard(page)
-  await page.locator('.edit-toggle').dispatchEvent('click')
-  await page.locator('.edit-toggle').dispatchEvent('click')
+  await page.locator('.autospeak-toggle').dispatchEvent('click')
+  await page.locator('.autospeak-toggle').dispatchEvent('click')
   await page
     .locator('.text-display')
     .fill('Could you open the window a little, please, and leave it open until the evening')
@@ -564,7 +564,7 @@ test('puts Save after the last word when edit mode rewraps the words', async ({ 
     return at()
   }
   for (const label of ['into edit mode', 'out of edit mode']) {
-    await page.locator('.edit-toggle').click()
+    await page.locator('.autospeak-toggle').click()
     await page.mouse.move(5, 790)
     await page.waitForTimeout(400)
     const now = await at()
@@ -598,7 +598,7 @@ test.describe('on a high-density screen', () => {
       })
     for (const label of ['building', 'editing', 'building again']) {
       if (label !== 'building') {
-        await page.locator('.edit-toggle').click()
+        await page.locator('.autospeak-toggle').click()
         await page.mouse.move(5, 790)
         await page.waitForTimeout(400)
       }
@@ -628,7 +628,7 @@ for (const width of [1280, 390]) {
       })
     for (const mode of ['building', 'editing']) {
       if (mode === 'editing') {
-        await page.locator('.edit-toggle').click()
+        await page.locator('.autospeak-toggle').click()
         await page.mouse.move(5, 890)
       }
       for (const words of [
@@ -745,7 +745,7 @@ test('rests on a click in the open space of the card’s row of controls, and no
     return {
       gap: at((clipboard.right + modes.left) / 2, tools.top + tools.height / 2),
       above: at(card.left + 60, card.top - 4),
-      edit: at(...centre('.edit-toggle')),
+      edit: at(...centre('.autospeak-toggle')),
       box: at(...centre('.text-display')),
       menu: at(...centre('.menu-btn')),
     }
@@ -787,9 +787,9 @@ test('fits every prompt in the boxes on one line at 320px', async ({ page }) => 
       return { prompt: text, width: pen.measureText(text).width, room }
     }, prompt)
   const prompts = [await fits('.text-display')]
-  await page.locator('.edit-toggle').dispatchEvent('click')
+  await page.locator('.autospeak-toggle').dispatchEvent('click')
   prompts.push(await fits('.text-display'))
-  await page.locator('.edit-toggle').dispatchEvent('click')
+  await page.locator('.autospeak-toggle').dispatchEvent('click')
   await page.locator('.listen-toggle').dispatchEvent('click')
   prompts.push(await fits('.heard-text', 'Say or type a question'), await fits('.heard-text', 'Nothing heard yet'))
   for (const { prompt, width, room } of prompts)

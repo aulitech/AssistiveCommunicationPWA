@@ -308,7 +308,7 @@ describe('pasting and dropping a link', () => {
 
   it('takes one into a phrase being written too', () => {
     renderApp()
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
     click(marked())
     const field = box()
     // A paste goes to the caret. Put it where somebody who had just typed
@@ -382,7 +382,7 @@ describe('choosing a phrase that is a link', () => {
   // reword — every attempt to open the editor would leave the app instead.
   it('loads the phrase into the editor in edit mode rather than opening the link', () => {
     showMarkedAnd([LINK])
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
     click(cells()[0])
 
     expect(opened).toEqual([])
@@ -408,7 +408,7 @@ describe('editing a marked-up phrase', () => {
   // rather than the rendering — there is nowhere else to reach the markers.
   it('loads the markup, not the words', () => {
     renderApp()
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
     click(marked())
     expect(box().value).toBe('**Help** me up')
   })

@@ -669,7 +669,7 @@ describe('the board moving under a resting gaze', () => {
   const composing = () => {
     renderApp(SHARE_A_WORD)
     showSorted()
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
   }
   /** Changed — a space after it — so the board can be chosen from again: see `choosing` in talk.tsx. */
   const changeIt = () => {
@@ -904,7 +904,7 @@ describe('the mark on the last phrase said', () => {
   it('marks nothing in edit mode', () => {
     renderApp()
     showSorted()
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
 
     click(cellFor('Apple'))
 
@@ -942,7 +942,7 @@ describe('what is said', () => {
  * dwell user cannot make.
  */
 describe('arranging the phrases by hand', () => {
-  const editToggle = () => $('.edit-toggle')!
+  const speakToggle = () => $('.autospeak-toggle')!
   const pad = () => $('.phrase-cell .reorder-tool')
   const toast = () => $('.toast')?.textContent
   /** Empty the box, so the next phrase chosen opens rather than going in beside it. */
@@ -961,7 +961,7 @@ describe('arranging the phrases by hand', () => {
     showSorted()
     expect($('.reorder-tool')).toBeNull()
 
-    click(editToggle())
+    click(speakToggle())
     expect(pad()).toBeNull()
     // The rail's own arrange toggle is gone.
     expect($('.reorder-btn')).toBeNull()
@@ -977,7 +977,7 @@ describe('arranging the phrases by hand', () => {
   it('moves a phrase to where it is dropped', () => {
     renderApp()
     showSorted()
-    click(editToggle())
+    click(speakToggle())
 
     lift('Cherry')
     click(cellFor('Banana'))
@@ -988,7 +988,7 @@ describe('arranging the phrases by hand', () => {
   it('moves one by mouse, dragging the pad', () => {
     renderApp()
     showSorted()
-    click(editToggle())
+    click(speakToggle())
 
     click(cellFor('Cherry'))
     fireEvent.dragStart(pad()!)
@@ -1003,7 +1003,7 @@ describe('arranging the phrases by hand', () => {
   it('keeps it there, by id, across a reload', () => {
     renderApp()
     showSorted()
-    click(editToggle())
+    click(speakToggle())
     lift('Cherry')
     click(cellFor('Banana'))
     expect(stored()).toEqual({ Sorted: ['custom-a', 'custom-b', 'custom-c'] })
@@ -1021,7 +1021,7 @@ describe('arranging the phrases by hand', () => {
   it('says what is in the air', () => {
     renderApp()
     showSorted()
-    click(editToggle())
+    click(speakToggle())
     click(cellFor('Cherry'))
     expect(pad()!.getAttribute('aria-label')).toBe('Move this phrase')
 
@@ -1038,7 +1038,7 @@ describe('arranging the phrases by hand', () => {
   it('puts a phrase back where it was when its pad is dwelled again', () => {
     renderApp()
     showSorted()
-    click(editToggle())
+    click(speakToggle())
 
     lift('Cherry')
     click(pad())
@@ -1057,7 +1057,7 @@ describe('arranging the phrases by hand', () => {
     renderApp()
     showSorted()
     chooseOrder('A to Z')
-    click(editToggle())
+    click(speakToggle())
 
     lift('Cherry')
     click(cellFor('Apple'))
@@ -1069,12 +1069,12 @@ describe('arranging the phrases by hand', () => {
   it('is put down by leaving edit mode', () => {
     renderApp()
     showSorted()
-    click(editToggle())
+    click(speakToggle())
     lift('Cherry')
     expect($('.phrase-cell.is-held')).not.toBeNull()
 
-    click(editToggle()) // edit → talking
-    click(editToggle()) // talking → edit
+    click(speakToggle()) // edit → talking
+    click(speakToggle()) // talking → edit
 
     expect($('.phrase-cell.is-held')).toBeNull()
     expect($('.phrase-cell.is-drop-zone')).toBeNull()
@@ -1083,7 +1083,7 @@ describe('arranging the phrases by hand', () => {
   // Library has an order of its own, kept apart from every category's.
   it('arranges Library by an order of its own', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     const [first, second] = cells().map(c => c.getAttribute('data-phrase')!)
     click(cells()[1])
     click(pad())
@@ -1102,7 +1102,7 @@ describe('arranging the phrases by hand', () => {
   it('offers the bin and no pad while what is typed narrows the board, and keeps the cell', () => {
     renderApp()
     showSorted()
-    click(editToggle())
+    click(speakToggle())
     click(cellFor('Cherry'))
 
     fireEvent.change(box(), { target: { value: 'Cherry Banana' } })
@@ -1121,7 +1121,7 @@ describe('arranging the phrases by hand', () => {
   it('puts down what was in the air when another phrase is opened', () => {
     renderApp()
     showSorted()
-    click(editToggle())
+    click(speakToggle())
     lift('Cherry')
 
     startNew()
@@ -1136,7 +1136,7 @@ describe('arranging the phrases by hand', () => {
   it('puts down what was in the air when the open phrase is reworded', () => {
     renderApp()
     showSorted()
-    click(editToggle())
+    click(speakToggle())
     lift('Cherry')
 
     fireEvent.change(box(), { target: { value: 'Cherries' } })
@@ -1150,7 +1150,7 @@ describe('arranging the phrases by hand', () => {
   it('forgets a phrase taken out of the category', () => {
     renderApp()
     showSorted()
-    click(editToggle())
+    click(speakToggle())
     lift('Cherry')
     click(cellFor('Banana'))
     expect(stored()).toEqual({ Sorted: ['custom-a', 'custom-b', 'custom-c'] })
@@ -1166,7 +1166,7 @@ describe('arranging the phrases by hand', () => {
   it('keeps no empty arrangement behind', () => {
     renderApp([{ id: 'custom-only', text: 'Alone', category: 'Sorted' }, ...BOARD])
     showSorted()
-    click(editToggle())
+    click(speakToggle())
     lift('Alone')
     click(cellFor('Cherry'))
 
@@ -1194,7 +1194,7 @@ describe('what is counted', () => {
   it('counts nothing in edit mode, where a cell is opened rather than used', () => {
     renderApp()
     showSorted()
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
     click(cellFor('Apple'))
 
     expect(localStorage.getItem('peri_usage')).toBeNull()
@@ -1207,7 +1207,7 @@ describe('what is counted', () => {
     renderApp()
     showSorted()
     click(cellFor('Apple'))
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
     click(tab('Library'))
     click(cellFor('Apple'))
     deleteOpen()
@@ -1221,7 +1221,7 @@ describe('what is counted', () => {
     showSorted()
     click(cellFor('Apple'))
     // Edit mode opens the phrase the box holds.
-    click($('.edit-toggle'))
+    click($('.autospeak-toggle'))
     deleteOpen()
 
     expect(JSON.parse(localStorage.getItem('peri_usage')!)['custom-a']?.count).toBe(1)

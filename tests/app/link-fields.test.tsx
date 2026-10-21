@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { act, fireEvent } from '@testing-library/react'
 import { setClipboardText } from '../setup'
-import { $, $$, box, click, editToggle, renderApp, settle, writeIn } from './harness'
+import { $, $$, box, click, speakToggle, renderApp, settle, writeIn } from './harness'
 
 const rows = () => $$('.link-row')
 const field = (row: number, name: 'Link text' | 'Link address') =>
@@ -121,7 +121,7 @@ describe('the fields for a link in the message box', () => {
 
   it('edit the phrase being written in edit mode', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     writeIn(box(), 'Our [club](https://club.org)')
     typeIn(field(0, 'Link text'), 'running club')
     expect(box().value).toBe('Our [running club](https://club.org)')

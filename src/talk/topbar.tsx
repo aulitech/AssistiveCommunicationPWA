@@ -40,7 +40,6 @@ import {
   CheckIcon,
   ClearIcon,
   CopyIcon,
-  EditIcon,
   KeyboardIcon,
   MenuIcon,
   PasteIcon,
@@ -154,10 +153,9 @@ function ActionButton({
 }
 
 /**
- * A mode toggle — auto-speak, edit, or the microphone. Edit and auto-speak sit
- * either side of Rest in the card's row, because all three are modes. The area
- * answering to a pointer is a little larger than the painted one, and invisible
- * — see `.mode-btn::before`.
+ * A mode toggle — the microphone, auto-speak, please or present. The area
+ * answering to a pointer is a little larger than the painted one, and
+ * invisible — see `.mode-btn::before`.
  */
 /**
  * Whether the screen has room for the language and voice controls.
@@ -300,8 +298,6 @@ export function Topbar({
   editor,
   editMode,
   onToggleEdit,
-  autoSpeak,
-  onToggleAutoSpeak,
   menuOpen,
   onToggleMenu,
   keyboardOpen,
@@ -323,8 +319,6 @@ export function Topbar({
   editor: Editor
   editMode: boolean
   onToggleEdit: () => void
-  autoSpeak: boolean
-  onToggleAutoSpeak: () => void
   menuOpen: boolean
   onToggleMenu: () => void
   /** Peri's own keyboard, for a device where nothing else can type. */
@@ -697,8 +691,8 @@ export function Topbar({
       <div className="text-display-wrap">
         <div className="message-wrap">
           {/* **The card's row of controls, above the line**: the clipboard at
-              the far left, the modes in the middle — the microphone, edit,
-              auto-speak — and the language, the voice and the menu at the
+              the far left, the modes in the middle — the microphone,
+              auto-speak, please and present — and the language, the voice and the menu at the
               right. */}
           <div className="message-tools" onPointerLeave={() => setMustLeave(false)}>
             <div className="tools-clipboard">
@@ -731,20 +725,19 @@ export function Topbar({
                 </div>
               )}
               <div className="topbar-modes">
-                <ModeToggle
-                  className="edit-toggle"
-                  on={editMode}
-                  onToggle={onToggleEdit}
-                  label={editMode ? 'Exit edit mode' : 'Edit phrases'}
-                >
-                  <EditIcon />
-                </ModeToggle>
-
+                {/* **Auto-speak is the one mode control**, lit while it is on.
+                    Off is edit mode — one of the two is always on — so there
+                    is no edit button beside it: two buttons, one of them always
+                    lit, said the same thing twice. */}
                 <ModeToggle
                   className="autospeak-toggle"
-                  on={autoSpeak}
-                  onToggle={onToggleAutoSpeak}
-                  label={autoSpeak ? 'Turn off auto-speak' : 'Turn on auto-speak — speak phrases immediately'}
+                  on={!editMode}
+                  onToggle={onToggleEdit}
+                  label={
+                    editMode
+                      ? 'Turn on auto-speak — speak phrases immediately'
+                      : 'Turn off auto-speak — edit phrases'
+                  }
                 >
                   <AutoSpeakIcon />
                 </ModeToggle>

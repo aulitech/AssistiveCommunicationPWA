@@ -9,7 +9,6 @@ import {
   settle,
   click,
   renderApp,
-  editToggle,
   speakToggle,
   plainCell,
   slotCell,
@@ -82,7 +81,7 @@ describe('giving a phrase its own voice', () => {
     played.length = 0
     spoken.length = 0
   }
-  const enterEditMode = () => click(editToggle())
+  const enterEditMode = () => click(speakToggle())
   const stored = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}').voiceOverrides ?? {}
 
   const linkAccount = () => localStorage.setItem('peri_elevenlabs', JSON.stringify(LINKED))
@@ -267,7 +266,7 @@ describe('giving a phrase its own voice', () => {
     await chooseVoice('Rachel')
     savePhrase()
     await flush()
-    click(editToggle()) // leave edit mode
+    click(speakToggle()) // leave edit mode
 
     // Nothing may be asked for at this point: the bar never waits.
     const fetcher = vi.fn()
@@ -308,7 +307,7 @@ describe('giving a phrase its own voice', () => {
     writePhrase('**Stop** right now')
     savePhrase()
     await flush()
-    click(editToggle()) // leave edit mode
+    click(speakToggle()) // leave edit mode
 
     // Nothing may be asked for now: it was fetched when the phrase was saved.
     const fetcher = vi.fn()
@@ -414,7 +413,7 @@ describe('giving a phrase its own voice', () => {
     savePhrase()
     await flush()
 
-    click(editToggle())
+    click(speakToggle())
     click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
     click($$('.nav-item').find(n => n.getAttribute('aria-label') === 'Backup & sharing'))
     click(inDoc('.panel-btn').find(b => b.getAttribute('aria-label') === 'Save a file'))

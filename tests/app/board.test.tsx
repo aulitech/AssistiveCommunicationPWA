@@ -16,7 +16,6 @@ import {
   renderFresh,
   message,
   cells,
-  editToggle,
   speakToggle,
   plainCell,
   placeCells,
@@ -254,7 +253,7 @@ describe('choosing a phrase', () => {
     settle()
     expect(message()).toBe('I want a hug.')
 
-    click(editToggle())
+    click(speakToggle())
     expect(box().value).toBe('I want a hug.')
     expect($('.toast')?.textContent).toBe('Editing this phrase, in Library')
   })
@@ -293,7 +292,7 @@ describe('building in edit mode', () => {
   it('opens a phrase chosen into an empty box', () => {
     unmeasuredGrid()
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
     expect(box().value).toBe('I want a hug.')
@@ -304,7 +303,7 @@ describe('building in edit mode', () => {
   it('puts a phrase chosen into words at the caret, and counts it as used', () => {
     unmeasuredGrid()
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
     // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
@@ -323,7 +322,7 @@ describe('building in edit mode', () => {
   it('puts it in at the caret rather than at the end', () => {
     unmeasuredGrid()
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
     // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
@@ -342,7 +341,7 @@ describe('building in edit mode', () => {
 
   it('says the phrase being written, and saves it', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     writeIn(box(), 'Nobody has written this before')
     click(speakAndSave())
     expect(spoken).toEqual(['Nobody has written this before'])
@@ -354,7 +353,7 @@ describe('building in edit mode', () => {
   it('only says words that are on the board already', () => {
     unmeasuredGrid()
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     writeIn(box(), 'I want a hug.')
     click(speakAndSave())
     expect(spoken).toEqual(['I want a hug'])
@@ -363,7 +362,7 @@ describe('building in edit mode', () => {
 
   it('asks for the choices before saying them, and keeps the phrase with them', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     writeIn(box(), "I want the {['red', 'blue']} one")
     click(speakAndSave())
     expect($('.slot-picker')).not.toBeNull()
@@ -374,7 +373,7 @@ describe('building in edit mode', () => {
 
   it('has Save first and Speak after it', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     writeIn(box(), 'Some words')
     expect($$('.after-text .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual([
       'Save phrase',
@@ -439,7 +438,7 @@ describe('fill-in-the-blank phrases', () => {
   it('goes in at the caret in edit mode, and is asked for when said', () => {
     visit()
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
     // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
@@ -471,25 +470,24 @@ describe('fill-in-the-blank phrases', () => {
     renderApp()
     click(visitCell())
     click($('.slot-cancel'))
-    click(editToggle())
+    click(speakToggle())
     expect(box().value).toBe(VISIT.text)
     expect($('.toast')?.textContent).toMatch(/^Editing this phrase/)
   })
 })
 
 describe('auto-speak', () => {
-  // The modes share one strip across the top of the message box, in the
-  // order edit, auto-speak — and please after them. DOM order is what can be checked here — jsdom
-  // lays nothing out — but in a flex row with nothing setting `order` that is
-  // also the order they are seen in, left to right.
-  it('sits to the right of edit', () => {
+  // The modes share one strip across the top of the message box: auto-speak,
+  // whose off is edit mode, and please and present after it. DOM
+  // order is what can be checked here — jsdom lays nothing out — but in a flex
+  // row with nothing setting `order` that is also the order they are seen in.
+  it('comes first among the modes, with no edit button beside it', () => {
     renderApp()
     const strip = $$('.topbar-modes > *')
-    expect(strip.map(el => el.className.split(' ')[0])).toEqual(['mode-btn', 'mode-btn', 'mode-btn', 'mode-btn'])
-    expect(strip[0].getAttribute('aria-label')).toMatch(/edit/i)
-    expect(strip[1].getAttribute('aria-label')).toMatch(/auto-speak/i)
-    expect(strip[2].getAttribute('aria-label')).toMatch(/please/i)
-    expect(strip[3].getAttribute('aria-label')).toMatch(/present/i)
+    expect(strip.map(el => el.className.split(' ')[0])).toEqual(['mode-btn', 'mode-btn', 'mode-btn'])
+    expect(strip[0].getAttribute('aria-label')).toMatch(/auto-speak/i)
+    expect(strip[1].getAttribute('aria-label')).toMatch(/please/i)
+    expect(strip[2].getAttribute('aria-label')).toMatch(/present/i)
   })
 
   // The empty box is where somebody looks to learn what a dwell on a phrase
@@ -617,24 +615,28 @@ describe('auto-speak', () => {
     expect(message()).toBe(held)
   })
 
-  // **Two ways of working, and always one of them.** There was a third —
-  // composing — and it was taken out on request: switching auto-speak off is
-  // switching edit mode on, and the other way round.
-  it('goes to edit mode when it is switched off, and back when edit goes off', () => {
+  // **Two ways of working, and always one of them** — so one control:
+  // auto-speak, lit while it is on, and edit mode while it is off. There was a
+  // third, composing, taken out on request; and then an edit button beside it,
+  // one of the two always lit, which said the mode twice.
+  it('is the one mode control: lit for auto-speak, unlit for edit mode', () => {
     renderApp()
+    const icon = () => speakToggle().querySelector('svg')!.outerHTML
+    const lit = () => speakToggle().classList.contains('active')
+    expect($('.edit-toggle')).toBeNull()
+    const autoSpeak = icon()
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
+    expect(lit()).toBe(true)
+
     click(speakToggle())
-    expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
-    expect(editToggle().getAttribute('aria-pressed')).toBe('true')
     expect($('.app')?.classList.contains('edit-mode')).toBe(true)
+    expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
+    expect(lit()).toBe(false)
+    expect(icon()).toBe(autoSpeak)
 
-    click(editToggle())
-    expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
-    expect(editToggle().getAttribute('aria-pressed')).toBe('false')
-
-    click(editToggle())
     click(speakToggle())
-    expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
-    expect(editToggle().getAttribute('aria-pressed')).toBe('false')
+    expect($('.app')?.classList.contains('edit-mode')).toBe(false)
+    expect(lit()).toBe(true)
   })
 
   // Stored like every other setting, and ignored on the way back in. A board
@@ -813,7 +815,7 @@ describe('a phrase with a blank', () => {
     expect(midBlank, 'no phrase on the board has a gap with words after it').toBeDefined()
 
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
     // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
@@ -830,7 +832,7 @@ describe('a phrase with a blank', () => {
   it('sits at the end when there is no blank to land on', () => {
     unmeasuredGrid()
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     click(cells().find(c => c.textContent === 'I want a hug.')!)
     settle()
     // Changed, so the board can be chosen from again — see `choosing` in talk.tsx.
@@ -1165,7 +1167,7 @@ describe('the line that says what just happened', () => {
 
   it('is still there after the two seconds it used to last', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     expect(toast()).toMatch(/edit mode/i)
 
     act(() => void vi.advanceTimersByTime(5000))
@@ -1175,7 +1177,7 @@ describe('the line that says what just happened', () => {
 
   it('goes on the next dwell, whatever it is', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
     expect(toast()).toBeTruthy()
 
     // Translations rather than Library: Library is where the board opens, and
@@ -1189,7 +1191,7 @@ describe('the line that says what just happened', () => {
   // that raises a message is not the one that takes it away.
   it('stays for the dwell that raised it', () => {
     renderApp()
-    click(editToggle())
+    click(speakToggle())
 
     click(speakToggle())
 

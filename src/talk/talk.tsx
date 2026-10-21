@@ -1040,8 +1040,6 @@ export function TalkScreen({
 
   const toggleEditMode = useCallback(() => setMode(editMode ? 'speak' : 'edit'), [editMode, setMode])
 
-  const toggleAutoSpeak = useCallback(() => setMode(editMode ? 'speak' : 'edit'), [editMode, setMode])
-
   /**
    * The microphone, and the one thing it does to the board besides opening the
    * box above the message.
@@ -1304,8 +1302,6 @@ export function TalkScreen({
                   composer={composer}
                   editMode={editMode}
                   onToggleEdit={toggleEditMode}
-                  autoSpeak={!editMode}
-                  onToggleAutoSpeak={toggleAutoSpeak}
                   menuOpen={menuOpen}
                   onToggleMenu={() => setMenuOpen(o => !o)}
                   keyboardOpen={keyboardOpen}
