@@ -1,5 +1,38 @@
 [
   {
+    "version": "11.9.0",
+    "date": "2026-10-21",
+    "commits": [
+      {
+        "subject": "A phrase found by typing in edit mode opens, and the board scrolls to it",
+        "body": [
+          {
+            "text": "In edit mode, a phrase found by typing into an otherwise empty box went in as words: a copy of itself with no cell to carry its tools, which Save then refused. Where it is on the tab showing it now opens, ready to be changed, and the board brings its cell into view and marks it once the search lets the tab back. After other words, or off the tab, it goes in at the caret as before."
+          },
+          {
+            "text": "Bringing a cell into view far down a long tab also landed a screen and a half past it: cells take their real height only as they near the screen, so the scroll's target moved while it ran. The grid now aims again once the scroll comes to rest, which also fixes it for a phrase just saved."
+          }
+        ]
+      },
+      {
+        "subject": "Auto-speak is the one mode button, lit while it is on",
+        "body": [
+          {
+            "text": "Edit and auto-speak were two buttons side by side, one of them always lit, so the board said which mode it was in twice. Now auto-speak is the only one: lit while it is on, and turning it off is edit mode, as it always was. The pencil is gone from the row, and the guide says to turn auto-speak off rather than to turn edit on."
+          }
+        ]
+      },
+      {
+        "subject": "A message said on a category's tab is kept in that category too",
+        "body": [
+          {
+            "text": "Every message spoken or copied is kept in Library as a phrase of its own; said on a category of the person's own, it now goes in that category as well, where Save would file it, so a sentence said on a tab is there on the tab afterwards. Said on Library or a record, it is in no category, as before; and words Library has already are not filed, since what typing finds comes from Library whichever tab is showing."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.8.5",
     "date": "2026-10-20",
     "commits": [
