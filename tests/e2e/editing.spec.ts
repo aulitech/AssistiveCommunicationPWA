@@ -356,3 +356,49 @@ test('puts a phrase in two categories, and takes it out of one', async ({ page }
   await expect(cell(page, 'Tea and toast')).toHaveCount(1)
   expect(errors).toEqual([])
 })
+
+// **Found by typing in edit mode, a phrase on the tab showing opens and its
+// cell comes into view** — here two hundred cells down Library. Every cell the
+// scroll passes takes its real height as it comes near the screen
+// (`content-visibility: auto`), so the cell moved after it was aimed at and
+// the scroll went a screen and a half past it: the grid aims again once the
+// scroll comes to rest. jsdom has no layout, so only a browser can see it.
+test('opens a phrase found by typing and brings its cell into view, however far down', async ({ page }) => {
+  const { errors } = await openBoard(page)
+  await editMode(page)
+  const box = page.locator('.text-display')
+  await box.click()
+  await page.keyboard.type('ttyl')
+  const found = page.locator('.phrase-cell').first()
+  const text = (await found.textContent())!
+  await found.click()
+
+  const cell = page.locator('.phrase-cell[aria-current="true"]')
+  await expect(cell).toHaveText(text)
+  await expect(box).toHaveValue(text)
+  await expect(cell.locator('.cell-tools'), 'opened, with its tools').toHaveCount(1)
+  const index = await page.evaluate(
+    t => [...document.querySelectorAll('.phrase-cell')].findIndex(c => c.textContent === t),
+    text,
+  )
+  expect(index, 'not far enough down to need the scroll').toBeGreaterThan(100)
+  // Where it comes to rest, not somewhere it passes on the way: the scroll
+  // went through it, and a check made then saw it on screen.
+  await page.waitForFunction(
+    () =>
+      new Promise(done => {
+        const grid = document.querySelector('.grid-wrapper')!
+        let last = -1
+        let still = 0
+        const watch = () => {
+          still = grid.scrollTop === last ? still + 1 : 0
+          last = grid.scrollTop
+          if (still > 20) done(true)
+          else requestAnimationFrame(watch)
+        }
+        requestAnimationFrame(watch)
+      }),
+  )
+  await expect(cell).toBeInViewport({ ratio: 1, timeout: 1 })
+  expect(errors).toEqual([])
+})

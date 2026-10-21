@@ -1231,13 +1231,24 @@ export function TalkScreen({
    * part of what is said, so it is counted as used, as one said is; one opened
    * to be reworded is not, and neither is a translation or an answer, whose ids
    * name nothing on the board.
+   *
+   * **One found by typing and opened** — on the tab showing, and the first
+   * thing in the box — has its cell brought into view, marked, once the search
+   * it ended lets the tab back: see `choose`. The tab is read through a ref so
+   * this stays stable across tabs, reaching every cell as it does.
    */
   const { choose: chooseForDraft } = editor
+  const onTab = useRef<(id: string) => boolean>(() => false)
+  const { phrasesOf } = board
+  useEffect(() => {
+    onTab.current = id => phrasesOf(effectiveFilter).some(p => p.id === id)
+  }, [phrasesOf, effectiveFilter])
   const chooseInEdit = useCallback(
     (phrase: Phrase | null, isEmergency = false) => {
-      const into = chooseForDraft(phrase, isEmergency)
+      const into = chooseForDraft(phrase, isEmergency, !!phrase && onTab.current(phrase.id))
       const record = phrase?.category === TRANSLATED_CATEGORY || phrase?.category === SUGGEST_CATEGORY
       if (into === 'inserted' && phrase && !isEmergency && !record) recordUsed(phrase.id)
+      if (into === 'found' && phrase) setPointing({ id: phrase.id, movedTo: null })
     },
     [chooseForDraft, recordUsed],
   )

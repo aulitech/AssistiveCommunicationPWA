@@ -243,10 +243,16 @@ export function useEditor({
    * being written. So a sentence is built out of phrases here, now that edit
    * mode is the only place one is.
    *
+   * **Found by typing, the first phrase in the box opens** where `inTab` says
+   * it is on the tab showing: the words typed were looking for it, and put in
+   * at the caret it would be a copy of itself waiting for a Save that refuses
+   * it. Opened, it is the phrase itself, ready to be changed — `'found'`, so
+   * the board can bring its cell into view.
+   *
    * Stable for the reason `open` is.
    */
   const choose = useCallback(
-    (phrase: Phrase | null, isEmergency = false) => {
+    (phrase: Phrase | null, isEmergency = false, inTab = false) => {
       const { text, phrased: was, cursor: at } = live.current
       // **Choosing changes the box under the pointer that chose**, opened or
       // put in — it can grow and push the grid down, and a search it ends lets
@@ -259,6 +265,10 @@ export function useEditor({
       }
       cancelAllDwells()
       const next = insertAt(text, was, at, phrase.source)
+      if (inTab && !isEmergency && typedIn(text, was, at) && next.text === phrase.source) {
+        open(phrase)
+        return 'found' as const
+      }
       // **A blank is selected**, so the word typed next is the one that fills
       // it — the gap a phrase leaves to be typed into, as edit mode shows it.
       const gap = phrase.source.match(BLANK_IN_SOURCE)

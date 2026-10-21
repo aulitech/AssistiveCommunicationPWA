@@ -1036,6 +1036,58 @@ describe('opening the phrase the message is', () => {
  * only for reading would put a second phrase into the first. Changed, it is
  * being built on, and choosing goes in as before; an empty box opens it.
  */
+/**
+ * **Found by typing, and the first thing in the box, a phrase on the tab
+ * showing opens** — ready to be changed, its cell brought into view and
+ * marked once the search lets the tab back. Put in at the caret instead, it
+ * was a copy of itself with no cell to carry its tools, and Save refused it.
+ */
+describe('finding a phrase to change by typing', () => {
+  const marked = () => $('.phrase-cell[aria-current="true"]')?.textContent
+  const cellFor = (text: string) => $$('.phrase-cell').find(c => c.textContent === text)
+  const onFood = () => {
+    renderApp()
+    click(tab('Food'))
+    enterEditMode()
+    scrolledIntoView.length = 0
+  }
+
+  it('opens one on the tab showing, and brings its cell into view', () => {
+    onFood()
+    writePhrase('soup')
+    click(cellFor('Soup of the day')!)
+
+    expect(box().value).toBe('Soup of the day')
+    expect(cellFor('Toast and jam'), 'the search did not let the tab back').toBeDefined()
+    expect(scrolledIntoView).toContain(cellFor('Soup of the day'))
+    expect(marked()).toBe('Soup of the day')
+    expect(toolsOnOpen()?.closest('.phrase-cell')?.textContent).toBe('Soup of the day')
+  })
+
+  it('puts in one the tab showing does not hold, as before', () => {
+    onFood()
+    writePhrase('tea pl')
+    click(cellFor('Tea please')!)
+
+    expect(box().value).toBe('Tea please')
+    expect(scrolledIntoView.filter(el => el.classList.contains('phrase-cell'))).toEqual([])
+    expect(toolsOnOpen()).toBeNull()
+  })
+
+  // Only the first: after a phrase already in the box, one found is part of a
+  // sentence being built.
+  it('puts one in after a phrase already in the box', () => {
+    onFood()
+    writePhrase('tea pl')
+    click(cellFor('Tea please')!)
+    writePhrase('Tea please soup')
+    click(cellFor('Soup of the day')!)
+
+    expect(box().value).toBe('Tea please Soup of the day')
+    expect(toolsOnOpen()).toBeNull()
+  })
+})
+
 describe('choosing while a phrase is open in the box', () => {
   const sos = () => $$('.emergency-btn:not(.emergency-tool)')[0]
 
