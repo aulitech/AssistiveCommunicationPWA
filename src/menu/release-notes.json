@@ -1,5 +1,22 @@
 [
   {
+    "version": "11.10.0",
+    "date": "2026-10-22",
+    "commits": [
+      {
+        "subject": "Undo and Redo for the board, and no clipboard controls on a phone",
+        "body": [
+          {
+            "text": "Saves, deletes, phrases taken out of a category and deleted categories can now be undone and done again, by Undo and Redo after Paste in the message card's top row, in both modes. Each names what it will reach. The last 50 changes are kept on this device across a reload, in no backup and nothing Synchronize sends; the words of deleted phrases are among them, which the guide and the privacy policy say. A change is kept as the difference it made and applied to the board as it stands, so what came since is left alone. This replaces the single undo that appeared after a delete."
+          },
+          {
+            "text": "On a phone, Copy, Paste, Undo and Redo are not drawn: the top line had no room for them, and the modes were squeezed into a column three deep. A delete on a phone is final; the phone's own copy and paste are a press on the box away."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.9.0",
     "date": "2026-10-21",
     "commits": [
