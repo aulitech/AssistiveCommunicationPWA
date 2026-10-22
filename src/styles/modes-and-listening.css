@@ -93,7 +93,8 @@
   padding: 0.6rem 0.75rem 0;
 }
 
-.tools-clipboard { grid-area: clipboard; justify-self: start; }
+/* The clipboard, and Undo and Redo for the board after it, at the left. */
+.tools-left { grid-area: clipboard; justify-self: start; }
 .tools-modes { grid-area: modes; justify-self: center; }
 .tools-values {
   grid-area: values;
@@ -102,7 +103,9 @@
   justify-content: flex-end;
 }
 
+.tools-left,
 .tools-clipboard,
+.tools-history,
 .tools-modes,
 .tools-values,
 .topbar-listen {
@@ -123,7 +126,7 @@
     grid-template-columns: auto minmax(0, 1fr) 2rem;
     grid-template-areas:
       'clipboard modes .'
-      'values values values';
+      'history values values';
     /* At the top of the line, so the clipboard stays level with the menu where
        the modes wrap to two; and the groups three-quarters of a rem apart, the
        gap the modes keep between themselves, so a phone of 360px keeps them on
@@ -131,6 +134,15 @@
     align-items: start;
     column-gap: 0.75rem;
   }
+
+  /* **Undo and Redo go to the start of the line under**, the language and
+     the voice at its other end: beside the clipboard, the modes and the menu,
+     the top line of a phone had no room left for them, and the modes were
+     squeezed into a column three deep. The group that holds them at the left
+     of a wide card steps aside, so each of its two is placed on its own. */
+  .tools-left { display: contents; }
+  .tools-clipboard { grid-area: clipboard; }
+  .tools-history { grid-area: history; justify-self: start; }
 
   .tools-modes { min-width: 0; }
   .tools-modes,
@@ -590,7 +602,8 @@
    would be dimmed with it: everything round it is, and everything in it. */
 .app.resting .topbar > :not(.text-display-wrap),
 .app.resting .message-wrap > :not(.message-tools),
-.app.resting .message-tools > :not(.rest-surface, .resume-bar),
+.app.resting .message-tools > :not(.rest-surface, .resume-bar, .tools-left),
+.app.resting .tools-left > *,
 .app.resting .filter-bar-wrap,
 .app.resting .grid-wrapper,
 .app.resting .grid-arrow,

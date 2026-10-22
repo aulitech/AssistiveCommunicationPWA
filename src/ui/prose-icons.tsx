@@ -63,6 +63,7 @@ import {
   StopIcon,
   SuggestIcon,
   TrashIcon,
+  RedoIcon,
   UndoIcon,
 } from './icons'
 
@@ -78,6 +79,7 @@ export const PROSE_ICONS: Record<string, () => React.ReactElement> = {
   stop: StopIcon,
   clear: ClearIcon,
   undo: UndoIcon,
+  redo: RedoIcon,
   copy: CopyIcon,
   paste: PasteIcon,
   please: PleaseIcon,
@@ -137,6 +139,7 @@ export const PROSE_ICON_NAMES: Record<string, string> = {
   stop: 'Stop',
   clear: 'Clear',
   undo: 'Undo',
+  redo: 'Redo',
   copy: 'Copy',
   paste: 'Paste',
   please: 'Please',

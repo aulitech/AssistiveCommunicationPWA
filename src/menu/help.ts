@@ -35,7 +35,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Everything the message box needs is inside it — in a row along its top, and on the line you write on under that:',
       ),
       list(
-        'At the far left of the top row: :copy: and :paste:.',
+        'At the far left of the top row: :copy: and :paste:, then :undo: and :redo:, which take back the last change you made to the board and make it again. A phone has none of these: press and hold in the box to copy or paste.',
         'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then :auto-speak:, lit while it is on and edit mode while it is off — then :please: and :present:.',
         'At the right of the top row, on a wide screen: the language and the voice.',
         'At the left end of the line: :clear:, which empties the box — and afterwards offers :undo:.',
@@ -339,7 +339,8 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Choose any phrase into an empty box to bring it in and change its wording. While it is as you opened it, the phrases are dimmed and choosing one does nothing, so a rest while you read cannot add to it. The blue bar still works, and says what you choose on it rather than adding it to the phrase.',
         'Once you change its words, a phrase you choose goes in where the caret is. :clear: first to change a different phrase.',
         'A new phrase starts in the voice you last used, so adding several in a row takes one choice rather than one each.',
-        'After a delete, or taking a phrase out of a category, :undo: where :clear: was puts it back where it was, until you start on something else.',
+        'After a save, a delete, taking a phrase out of a category or deleting a category, :undo: at the top left puts the board back as it was, and :redo: makes the change again. Each names what it will do.',
+        'Peri keeps your last 50 changes on this device, so they are still there after a reload. They are in no backup and go to no other device. On a phone there is no Undo or Redo, so a delete there is final.',
         'A category goes by itself once its last phrase is taken out, and an import leaves no empty ones behind. A new category you have not put anything in yet stays until you do.',
         'Use :add: at the end of the blue bar to add an emergency phrase.',
         'To change an emergency phrase, empty the box with :clear: and choose it. With words in the box, choosing one says it.',
@@ -351,7 +352,8 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The tab that is showing has :hide:, which takes it off the bar and goes on to the next one. Every tab has it, Library and Translations too; :customize: puts them back.',
         'On a phone the tab showing keeps to its name: hiding and moving tabs are done in :customize:, which is always there.',
         'On a category you made, the tab that is showing has :grip: at its right edge as well, once there are five tabs or more on the bar.',
-        'Rest on the name to change it: it turns into a box where it stands. Type the new name and press Enter, or just move on to another tab, to keep it. While the name is a box, :grip: becomes :delete:, the only button on the tab, which removes the category. It asks first, and its phrases stay in Library.',
+        'Rest on the name to change it: it turns into a box where it stands. Type the new name and press Enter, or just move on to another tab, to keep it. While the name is a box, :grip: becomes :delete:, the only button on the tab, which removes the category.',
+        'It asks first, its phrases stay in Library, and :undo: brings it back.',
         ':grip: picks the tab up, and it turns blue. Rest on another tab to put it there, or on :grip: again to put it back.',
       ),
       text('Links behave a little differently from other text:'),
@@ -455,6 +457,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'Said on a category of your own, it goes in that category too, as Save would file it; said on Library, it is in no category. In edit mode you can file it under others, like any phrase, or delete it. Deleting is worth knowing about if you have just said something private.',
+      ),
+      text(
+        'Undo can bring back a phrase you deleted, so its words stay on this device among your last 50 changes until newer ones push them out.',
       ),
       text(
         'Because it is a phrase, it goes wherever your phrases go: into a backup file, to your other devices if Synchronize is on, and with the phrases on your board when you ask for suggested answers.',

@@ -42,45 +42,9 @@ import {
   newPhraseId,
   wordingKey,
   type PhraseStore,
-  type StoredPhrase,
 } from '../core/store'
 
 const EMERGENCY = 'Emergency'
-
-/**
- * Everything a delete or a removal takes, so it can be put back.
- *
- * **Deleting was the one change the app offered no way back from**, and the bin
- * sits a dwell's breadth from Save. On Library the bin deletes the phrase: its
- * own entry goes (or, for one Peri ships, it is hidden), and with it its places
- * on the emergency bar, in Library's arrangement and in every category that
- * referred to it. On a category it only takes the phrase out of that category.
- * Its wording and voice stay in the store either way, which is what lets this
- * be so small.
- */
-export interface Removed {
-  id: string
-  /** Only taken out of this category — the phrase itself is still in Library. */
-  from: string | null
-  /** A phrase somebody wrote: its entry, and where it was among the others. Null for one Peri ships. */
-  custom: { entry: StoredPhrase; at: number } | null
-  /** Where it was on the emergency bar's arrangement, or -1. */
-  emergencyAt: number
-  /** Where it was in Library's arrangement, or -1. */
-  libraryAt: number
-  /** Every category that referred to it, and where in each. */
-  referredBy: { category: string; at: number }[]
-  /**
-   * The categories it emptied, and where each stood in the tabs' order — a
-   * category goes with its last phrase, and an undo brings it back to the place
-   * it had rather than the end of the bar.
-   */
-  emptied: { category: string; orderAt: number }[]
-}
-
-/** A list with this item put back at this place, if it is not there already. */
-const putBack = (list: string[], item: string, at: number) =>
-  at < 0 || list.includes(item) ? list : [...list.slice(0, at), item, ...list.slice(at)]
 
 /**
  * The board as it was kept, with **the Sent list brought into Library** — once.
@@ -372,17 +336,16 @@ export function useBoard() {
 
   /**
    * Takes a phrase off the board, or — `from` a category — out of that category
-   * alone, and hands back everything that took (see `Removed`) so an undo can
-   * put it back exactly where it was.
+   * alone. **Undo puts it back**, from the difference it made — see
+   * `talk/use-history.ts`.
    */
   const removePhrase = useCallback(
-    (id: string, from: string | null = null): Removed => {
+    (id: string, from: string | null = null) => {
       const referredBy = Object.entries(store.members)
         .filter(([category, ids]) => ids.includes(id) && (from === null || category === from))
-        .map(([category, ids]) => ({ category, at: ids.indexOf(id) }))
-      const customAt = store.custom.findIndex(p => p.id === id)
+        .map(([category]) => category)
       const members = { ...store.members }
-      for (const { category } of referredBy) members[category] = members[category].filter(i => i !== id)
+      for (const category of referredBy) members[category] = members[category].filter(i => i !== id)
       const patch: Partial<PhraseStore> = { members }
       if (from === null) {
         Object.assign(patch, {
@@ -397,63 +360,32 @@ export function useBoard() {
         })
       }
       // The last phrase in a category takes the category with it.
-      const next = withoutEmptyCategories(
-        tablePhrases,
-        { ...store, ...patch },
-        referredBy.map(r => r.category),
-      )
+      const next = withoutEmptyCategories(tablePhrases, { ...store, ...patch }, referredBy)
       updateStore({ ...patch, members: next.members, categoryOrder: next.categoryOrder })
-      return {
-        id,
-        from,
-        custom:
-          from === null && id.startsWith('custom-') && customAt >= 0
-            ? { entry: store.custom[customAt], at: customAt }
-            : null,
-        emergencyAt: from === null ? store.emergencyOrder.indexOf(id) : -1,
-        libraryAt: from === null ? store.libraryOrder.indexOf(id) : -1,
-        referredBy,
-        emptied: referredBy
-          .filter(r => !(r.category in next.members))
-          .map(r => ({ category: r.category, orderAt: store.categoryOrder.indexOf(r.category) })),
-      }
     },
     [store, updateStore, tablePhrases],
   )
 
   /**
-   * Puts back what `removePhrase` took, **where it was**: among the phrases
-   * somebody wrote, on the emergency bar, in Library's arrangement, in every
-   * category that referred to it, and each category it emptied back in its
-   * place among the tabs.
+   * **A whole board put in place** — the one Undo or Redo worked out from this
+   * one (`applyDelta`), which is this one with one change taken back or made
+   * again.
    */
-  const restorePhrase = useCallback(
-    (r: Removed) => {
-      const members = { ...store.members }
-      for (const { category, at } of r.referredBy) members[category] = putBack(members[category] ?? [], r.id, at)
-      let categoryOrder = store.categoryOrder
-      for (const { category, orderAt } of r.emptied) categoryOrder = putBack(categoryOrder, category, orderAt)
-      updateStore({
-        members,
-        categoryOrder,
-        ...(r.from === null && {
-          ...(r.custom
-            ? store.custom.some(p => p.id === r.id)
-              ? {}
-              : {
-                  custom: [
-                    ...store.custom.slice(0, r.custom.at),
-                    r.custom.entry,
-                    ...store.custom.slice(r.custom.at),
-                  ],
-                }
-            : { hidden: store.hidden.filter(i => i !== r.id) }),
-          emergencyOrder: putBack(store.emergencyOrder, r.id, r.emergencyAt),
-          libraryOrder: putBack(store.libraryOrder, r.id, r.libraryAt),
-        }),
-      })
+  const replaceStore = useCallback((next: PhraseStore) => updateStore(next), [updateStore])
+
+  /**
+   * A phrase on a board that is not on screen yet — one Undo has just worked
+   * out — and whether it is on the emergency bar, or nothing where it is not
+   * on that board at all.
+   */
+  const phraseIn = useCallback(
+    (on: PhraseStore, id: string): { phrase: Phrase; isEmergency: boolean } | null => {
+      const main = libraryOf(tablePhrases, on).find(p => p.id === id)
+      if (main) return { phrase: main, isEmergency: false }
+      const emergency = emergencyPhrasesOf(on).find(p => p.id === id)
+      return emergency ? { phrase: emergency, isEmergency: true } : null
     },
-    [store, updateStore],
+    [tablePhrases],
   )
 
   const addCategory = useCallback(
@@ -577,7 +509,8 @@ export function useBoard() {
     editPhrase,
     refile,
     removePhrase,
-    restorePhrase,
+    replaceStore,
+    phraseIn,
     addCategory,
     renameCategoryTo,
     removeCategory,

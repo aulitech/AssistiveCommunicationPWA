@@ -35,6 +35,8 @@ export const USAGE_KEY = 'peri_usage'
 export const PHRASE_SORT_KEY = 'peri_phrase_sort'
 // The tabs somebody has hidden from the bar — see `loadHiddenTabs`.
 export const HIDDEN_TABS_KEY = 'peri_hidden_tabs'
+// The changes Undo and Redo can reach — see `store/history.ts`.
+export const HISTORY_KEY = 'peri_history'
 export const SYNC_KEY = 'peri_sync'
 export const INTRODUCTION_KEY = 'peri_introduction'
 // The picture behind the presentation window — see `store/presentation.ts`.
@@ -72,6 +74,7 @@ export const RESETTABLE_KEYS = [
   USAGE_KEY,
   PHRASE_SORT_KEY,
   HIDDEN_TABS_KEY,
+  HISTORY_KEY,
   SYNC_KEY,
   INTRODUCTION_KEY,
   PRESENTATION_BACKGROUND_KEY,
