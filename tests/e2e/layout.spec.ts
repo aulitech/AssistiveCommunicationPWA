@@ -2,7 +2,7 @@
 // these was written in AGENTS.md as "a question for the deploy preview".
 
 import { expect, test } from '@playwright/test'
-import { categories, many, messageBox, openBoard } from './board'
+import { categories, editMode, many, messageBox, openBoard } from './board'
 
 test.describe('on a phone held upright', () => {
   test.use({ viewport: { width: 390, height: 844 } })
@@ -284,7 +284,7 @@ test('grows the message box with what is in it', async ({ page }) => {
 /**
  * **The message box is a card with its controls inside it** — on its line and
  * in the row under it, the modes on the card's centre, or on a phone between
- * the clipboard at the top line's left end and the menu at its right — and
+ * the top line's left end — no clipboard there — and the menu at its right — and
  * still none of them close enough to another to share a rest. Each carries an invisible area 6px past its edges, so two closer than
  * 12px overlap there, and a gaze resting between them answers to whichever the
  * browser picks. In both modes, since edit mode's row is the wider.
@@ -305,17 +305,20 @@ for (const [width, height] of [
       const { outside, crowded, offCentre, narrow, onTop } = await page.evaluate(() => {
         const card = document.querySelector('.message-wrap')!.getBoundingClientRect()
         const modes = document.querySelector('.tools-modes')!.getBoundingClientRect()
-        // **On a wide card the modes are on its centre**; on a narrow one the
-        // clipboard keeps the top line's left end and the menu its right, and
-        // the modes are centred between the two.
-        const clipboard = document.querySelector('.tools-clipboard')!.getBoundingClientRect()
+        // **On a wide card the modes are on its centre**; on a narrow one they
+        // are centred between the top line's left end — the clipboard's right
+        // edge, where there is one, and a phone has none — and the menu.
+        const clipboard = document.querySelector('.tools-clipboard')?.getBoundingClientRect()
         const menu = document.querySelector('.menu-btn')!.getBoundingClientRect()
+        const leftEnd =
+          clipboard?.right ??
+          card.left + parseFloat(getComputedStyle(document.querySelector('.message-tools')!).paddingLeft)
         // The card's own width decides, as `@container message` does.
         const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
         const narrow = card.width <= 38 * rem
-        const onTop = Math.abs(clipboard.top - modes.top) < 2
+        const onTop = Math.abs((clipboard ?? menu).top - modes.top) < 2
         const offCentre = narrow
-          ? Math.abs(modes.left - clipboard.right - (menu.left - modes.right))
+          ? Math.abs(modes.left - leftEnd - (menu.left - modes.right))
           : Math.abs((modes.left + modes.right) / 2 - (card.left + card.right) / 2)
         const controls = [
           ...document.querySelectorAll<HTMLElement>(
@@ -344,10 +347,10 @@ for (const [width, height] of [
       expect(crowded, `${mode}: close enough to share a rest`).toEqual([])
       expect(
         offCentre,
-        `${mode}: the modes are not on the card's centre, or between the clipboard and the menu`,
+        `${mode}: the modes are not on the card's centre, or between the line's left end and the menu`,
       ).toBeLessThan(2)
       expect(narrow, `${mode}: the card is not narrow on a phone`).toBe(width < 1100)
-      expect(onTop, `${mode}: the clipboard is not on the top line`).toBe(true)
+      expect(onTop, `${mode}: the modes are not on the top line`).toBe(true)
     }
   })
 }
@@ -923,6 +926,58 @@ test('lets no edge run across the foot of the tab showing', async ({ page }) => 
     })
     expect(seam.meets, `${name}: the tab does not meet the table's edge`).toBeLessThanOrEqual(0.5)
     expect(seam.onTab, `${name}: the table's edge is drawn over the tab's foot`).toBe(true)
+  }
+  expect(errors).toEqual([])
+})
+
+// **No clipboard and no Undo or Redo on a phone**: beside the modes and the
+// menu, the top line of a 360px phone had no room for them, and the modes were
+// squeezed into a column three deep.
+test('keeps a phone to the modes and the menu, on one line', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 })
+  const { errors } = await openBoard(page)
+  for (const mode of ['speak', 'edit']) {
+    if (mode === 'edit') await editMode(page)
+    await expect(page.locator('.tools-left')).toHaveCount(0)
+    const tops = await page.evaluate(() =>
+      [...document.querySelectorAll('.tools-modes .mode-btn, .message-tools .menu-btn')].map(el =>
+        Math.round(el.getBoundingClientRect().top),
+      ),
+    )
+    expect(new Set(tops).size, `${mode}: the modes and the menu on more than one line`).toBe(1)
+  }
+  expect(errors).toEqual([])
+})
+
+// **A narrow card that is not a phone** — large text on a small tablet, the
+// card's breakpoint being in rem — keeps them, with Undo and Redo at the start
+// of the line under, the language and the voice at its other end.
+test('puts Undo and Redo on the line under on a narrow card that is not a phone', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('dwellspeak_settings')) {
+      localStorage.setItem('dwellspeak_settings', JSON.stringify({ selectionPauseMs: 0, zoom: 1.5 }))
+    }
+  })
+  await page.setViewportSize({ width: 800, height: 1000 })
+  const { errors } = await openBoard(page)
+  for (const mode of ['speak', 'edit']) {
+    if (mode === 'edit') await editMode(page)
+    const at = await page.evaluate(() => {
+      const top = (sel: string) =>
+        [...document.querySelectorAll(sel)].map(el => Math.round(el.getBoundingClientRect().top))
+      const left = (sel: string) => Math.round(document.querySelector(sel)!.getBoundingClientRect().left)
+      return {
+        modes: top('.tools-modes .mode-btn'),
+        clipboard: top('.tools-clipboard .icon-btn'),
+        history: top('.tools-history .icon-btn'),
+        historyLeft: left('.tools-history'),
+        clipboardLeft: left('.tools-clipboard'),
+      }
+    })
+    expect(new Set(at.modes).size, `${mode}: the modes on more than one line`).toBe(1)
+    expect(at.modes[0], `${mode}: the modes off the top line`).toBe(at.clipboard[0])
+    expect(at.history[0], `${mode}: Undo and Redo not on the line under`).toBeGreaterThan(at.clipboard[0])
+    expect(at.historyLeft, `${mode}: not at the line's start`).toBe(at.clipboardLeft)
   }
   expect(errors).toEqual([])
 })

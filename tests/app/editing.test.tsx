@@ -1,6 +1,6 @@
 // Writing a phrase and rewording one, which in edit mode happens in the message box rather than in a dialog.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { fireEvent, act } from '@testing-library/react'
+import { cleanup, fireEvent, act } from '@testing-library/react'
 import { scrolledIntoView, spoken, unmeasuredGrid } from '../setup'
 import { stylesheet } from '../stylesheet'
 import {
@@ -1309,9 +1309,17 @@ describe('the question the bin asks', () => {
  * one that starts a new phrase, which has nothing to do the moment after a
  * delete — offers the phrase back.
  */
-describe('putting back a phrase just deleted', () => {
-  const undoButton = () =>
-    $$<HTMLButtonElement>('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo deleting'))
+/**
+ * **Undo and Redo for the board**, after Paste: every save, every delete and
+ * every phrase taken out of a category, kept on this device across a reload.
+ * The old single undo, in the slot that starts a new phrase, put back only the
+ * last delete and only until something else was written.
+ */
+describe('undo and redo', () => {
+  const undoButton = () => labelled('Undo:')
+  const redoButton = () => labelled('Redo:')
+  const labelled = (start: string) =>
+    $$<HTMLButtonElement>('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith(start))
   const stored = () => JSON.parse(localStorage.getItem('dwellspeak_phrase_store_v2') ?? '{}')
   const onBoard = () => cells().map(c => c.textContent)
 
@@ -1324,7 +1332,8 @@ describe('putting back a phrase just deleted', () => {
 
     deletePhrase()
 
-    expect(undoButton()?.getAttribute('aria-label')).toBe(`Undo deleting “${text}”`)
+    expect(undoButton()?.getAttribute('aria-label')).toBe(`Undo: Deleted “${text}”`)
+    expect(iconBtn('Nothing to redo')?.disabled).toBe(true)
   })
 
   it('puts it back where it was, and open in the box as it was', () => {
@@ -1416,27 +1425,117 @@ describe('putting back a phrase just deleted', () => {
     expect(JSON.parse(localStorage.getItem('peri_usage')!)).toEqual(JSON.parse(counted!))
   })
 
-  it('stops offering once something else is written', () => {
+  // Writing something else, or leaving edit mode, used to take the offer away.
+  it('still offers it once something else is written, and in auto-speak', () => {
     renderApp()
     enterEditMode()
+    const text = plainCell().textContent!
     click(plainCell())
     deletePhrase()
-
     writePhrase('Something new')
+    leaveEditMode()
+    clearMessage()
 
-    expect(undoButton()).toBeUndefined()
-    expect(iconBtn('Start a new phrase')).toBeDefined()
+    click(undoButton())
+
+    expect(onBoard()).toContain(text)
   })
 
-  it('stops offering once edit mode is left, and does not offer again on coming back', () => {
+  it('does it again with Redo, count and all', () => {
+    renderApp()
+    const text = plainCell().textContent!
+    click(plainCell())
+    clearMessage()
+    enterEditMode()
+    click(cells().find(c => c.textContent === text))
+    deletePhrase()
+    const deleted = { usage: localStorage.getItem('peri_usage'), store: stored() }
+    click(undoButton())
+    expect(redoButton()?.getAttribute('aria-label')).toBe(`Redo: Deleted “${text}”`)
+
+    click(redoButton())
+
+    expect(onBoard()).not.toContain(text)
+    expect(stored()).toEqual(deleted.store)
+    expect(localStorage.getItem('peri_usage')).toBe(deleted.usage)
+    expect(redoButton()).toBeUndefined()
+  })
+
+  const texts = () => stored().custom.map((c: { text: string }) => c.text)
+
+  it('takes back a new phrase, and makes it again', () => {
     renderApp()
     enterEditMode()
-    click(plainCell())
-    deletePhrase()
+    const before = texts()
+    writePhrase('A brand new phrase')
+    savePhrase()
+    expect(onBoard()).toContain('A brand new phrase')
 
-    leaveEditMode()
+    click(undoButton())
+    expect(onBoard()).not.toContain('A brand new phrase')
+    expect(texts()).toEqual(before)
+
+    click(redoButton())
+    expect(onBoard()).toContain('A brand new phrase')
+    expect(box().value, 'not open in the box').toBe('A brand new phrase')
+  })
+
+  it('takes back a rewording', () => {
+    renderApp()
     enterEditMode()
+    const text = plainCell().textContent!
+    click(plainCell())
+    writePhrase(`${text}, reworded`)
+    savePhrase()
 
-    expect(undoButton()).toBeUndefined()
+    click(undoButton())
+
+    expect(onBoard()).toContain(text)
+    expect(onBoard()).not.toContain(`${text}, reworded`)
+    expect(box().value).toBe(text)
+  })
+
+  // Applied to the board as it stands: a message kept in the meantime stays.
+  it('leaves alone what came since', () => {
+    renderApp()
+    enterEditMode()
+    const before = texts()
+    writePhrase('Saved and taken back')
+    savePhrase()
+    leaveEditMode()
+    writeIn(box(), 'Said in the meantime')
+    click(iconBtn('Speak'))
+
+    click(undoButton())
+
+    expect(texts()).toEqual([...before, 'Said in the meantime'])
+  })
+
+  it('forgets what was undone once something new is done', () => {
+    renderApp()
+    enterEditMode()
+    writePhrase('First')
+    savePhrase()
+    click(undoButton())
+    writePhrase('Second')
+    savePhrase()
+
+    expect(redoButton()).toBeUndefined()
+    expect(undoButton()?.getAttribute('aria-label')).toBe('Undo: Saved “Second”')
+  })
+
+  it('is still there after a reload', () => {
+    renderApp()
+    enterEditMode()
+    const before = texts()
+    writePhrase('Here tomorrow too')
+    savePhrase()
+    expect(texts()).toContain('Here tomorrow too')
+    cleanup()
+    renderApp()
+
+    click(undoButton())
+
+    expect(texts()).toEqual(before)
   })
 })

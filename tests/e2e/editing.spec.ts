@@ -163,10 +163,15 @@ test('puts a deleted phrase back where it was', async ({ page }) => {
   await page.locator('.edit-action-btn.danger').click()
   await expect(cell(page, text)).toHaveCount(0)
 
-  await page.locator('.topbar-clear .icon-btn').first().click()
+  // Undo, after Paste in the card's top row.
+  await page.locator('.tools-history .icon-btn[aria-label^="Undo:"]').click()
 
   await expect(cell(page, text)).toHaveCount(1)
   await expect(messageBox(page)).toHaveValue(text)
+
+  // Redo takes it again.
+  await page.locator('.tools-history .icon-btn[aria-label^="Redo:"]').click()
+  await expect(cell(page, text)).toHaveCount(0)
 })
 
 // **The bin's question stands over everything** — the emergency bar and the

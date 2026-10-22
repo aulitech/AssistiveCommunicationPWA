@@ -48,11 +48,12 @@ import {
   QuestionIcon,
   SpeakIcon,
   StopIcon,
+  RedoIcon,
   UndoIcon,
 } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { useScrollEdges } from '../ui/scroll-edges'
-import { useMediaQuery } from '../ui/media'
+import { PHONE, useMediaQuery } from '../ui/media'
 import { BoxScroll } from '../ui/controls'
 import type { Composer } from './use-composer'
 import type { Editor } from './use-editor'
@@ -166,14 +167,6 @@ function ActionButton({
  * every phone for two controls that phone never shows.
  */
 const WIDE_ENOUGH = '(min-width: 1100px)'
-
-/**
- * **Too narrow to present from** — a phone, where a second window is a tab
- * nobody can share beside the board, and where the row of modes has no room
- * for one more at 360px. Asked this way round so that a screen nothing can
- * measure keeps the toggle.
- */
-const PHONE = '(max-width: 700px)'
 
 /**
  * One of the two value controls in the card's row, before the actions.
@@ -305,7 +298,7 @@ export function Topbar({
   resting,
   onToggleRest,
   onSavePhrase,
-  undoDelete,
+  history,
   onSpeak,
   onCopy,
   onPasted,
@@ -329,12 +322,11 @@ export function Topbar({
   /** It changes the board, so the screen does it, not the editor. */
   onSavePhrase: () => void
   /**
-   * The phrase just deleted, while it can still be put back — see
-   * `lastDeleted` in `talk.tsx`. It takes the slot that starts a new phrase,
-   * which has nothing to do at that moment: the bin has just left the draft
-   * blank.
+   * **Undo and Redo for the board** — what each would reach, or nothing — see
+   * `talk/use-history.ts`. After Paste, in both modes: a category can be
+   * deleted from its tab in either.
    */
-  undoDelete: { words: string; undo: () => void } | null
+  history: { undo?: string; redo?: string; onUndo: () => void; onRedo: () => void }
   /** Both of these are how a message leaves, which the screen keeps a record of. */
   onSpeak: () => void
   onCopy: () => void
@@ -695,22 +687,53 @@ export function Topbar({
               auto-speak, please and present — and the language, the voice and the menu at the
               right. */}
           <div className="message-tools" onPointerLeave={() => setMustLeave(false)}>
-            <div className="tools-clipboard">
-              {/* Paste in both modes, meaning the same thing either way; copy only
-                  outside edit mode, where the message is what there is to copy.
-                  Paste is never disabled: what is on the clipboard is not this
-                  app's to know until it asks — and the keyboard route into a text
-                  box is Ctrl-V, which is exactly the input this app exists
-                  without. */}
-              {!editMode && (
-                <ActionButton className="in-card" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
-                  <CopyIcon />
-                </ActionButton>
-              )}
-              <ActionButton className="in-card" onSelect={paste} label="Paste from clipboard">
-                <PasteIcon />
-              </ActionButton>
-            </div>
+            {/* The clipboard, and Undo and Redo for the board after it: one
+                group at the left of a wide card, and on a narrow one the
+                history at the start of the line under — see `.tools-left`.
+                **None of it on a phone**, where the top line has room only for
+                the modes and the menu, and the phone's own copy and paste are
+                a press on the box away. */}
+            {!phone && (
+              <div className="tools-left">
+                <div className="tools-clipboard">
+                  {/* Paste in both modes, meaning the same thing either way; copy only
+                    outside edit mode, where the message is what there is to copy.
+                    Paste is never disabled: what is on the clipboard is not this
+                    app's to know until it asks — and the keyboard route into a text
+                    box is Ctrl-V, which is exactly the input this app exists
+                    without. */}
+                  {!editMode && (
+                    <ActionButton className="in-card" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
+                      <CopyIcon />
+                    </ActionButton>
+                  )}
+                  <ActionButton className="in-card" onSelect={paste} label="Paste from clipboard">
+                    <PasteIcon />
+                  </ActionButton>
+                </div>
+                <div className="tools-history">
+                  {/* **Undo and Redo for the board**, naming what each reaches.
+                    Quiet rather than away with nothing to reach, so nothing
+                    moves along the row as they come and go. */}
+                  <ActionButton
+                    className="in-card"
+                    onSelect={history.onUndo}
+                    label={history.undo ? `Undo: ${history.undo}` : 'Nothing to undo'}
+                    disabled={!history.undo}
+                  >
+                    <UndoIcon />
+                  </ActionButton>
+                  <ActionButton
+                    className="in-card"
+                    onSelect={history.onRedo}
+                    label={history.redo ? `Redo: ${history.redo}` : 'Nothing to redo'}
+                    disabled={!history.redo}
+                  >
+                    <RedoIcon />
+                  </ActionButton>
+                </div>
+              </div>
+            )}
             <div className="tools-modes">
               {listener.available && (
                 <div className="topbar-listen">
@@ -858,17 +881,7 @@ export function Topbar({
               mode — right after the last of them. */}
             <div className="message-line">
               <div className="topbar-clear">
-                {editMode && undoDelete ? (
-                  // The undo glyph the composer's own slot draws, because it means
-                  // the same thing: put back the last thing I did.
-                  <ActionButton
-                    className="in-card"
-                    onSelect={undoDelete.undo}
-                    label={`Undo deleting “${undoDelete.words}”`}
-                  >
-                    <UndoIcon />
-                  </ActionButton>
-                ) : editMode ? (
+                {editMode ? (
                   <ActionButton
                     className="in-card"
                     onSelect={() => startNew()}

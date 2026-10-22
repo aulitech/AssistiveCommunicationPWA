@@ -653,8 +653,15 @@ describe('the card', () => {
     renderApp()
     const row = () => [...$('.message-tools')!.children].map(el => el.className.split(' ')[0])
     // And Rest, the open space behind them — see `RestSurface`.
-    expect(row()).toEqual(['tools-clipboard', 'tools-modes', 'tools-values', 'rest-surface'])
+    expect(row()).toEqual(['tools-left', 'tools-modes', 'tools-values', 'rest-surface'])
     expect(labels('.tools-clipboard')).toEqual(['Copy to clipboard', 'Paste from clipboard'])
+    // Undo and Redo for the board after them, quiet with nothing to reach.
+    expect(labels('.tools-left')).toEqual([
+      'Copy to clipboard',
+      'Paste from clipboard',
+      'Nothing to undo',
+      'Nothing to redo',
+    ])
     // Auto-speak, whose off is edit mode. Please after it: it is about how
     // what is said comes out. Present last, being about where it goes.
     expect(labels('.tools-modes')).toEqual([
@@ -679,7 +686,7 @@ describe('the card', () => {
     // Save where it always stood, and Speak after it, which saves as well.
     expect(labels('.message-field > .after-text')).toEqual(['Save phrase', 'Speak and save'])
 
-    expect(labels('.tools-clipboard')).toEqual(['Paste from clipboard'])
+    expect(labels('.tools-left')).toEqual(['Paste from clipboard', 'Nothing to undo', 'Nothing to redo'])
     expect(labels('.tools-values')).toEqual([
       expect.stringMatching(/^Language this phrase's voice is for/),
       expect.stringMatching(/^Voice for this phrase/),

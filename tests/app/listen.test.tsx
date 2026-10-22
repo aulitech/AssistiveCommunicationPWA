@@ -1430,7 +1430,7 @@ describe('the suggested reply', () => {
     chooseAnswer('Tea please')
 
     click($$('.icon-btn').find(b => /clear/i.test(b.getAttribute('aria-label') ?? '')))
-    click($$('.icon-btn').find(b => /undo/i.test(b.getAttribute('aria-label') ?? '')))
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Undo'))
 
     expect(messageBox().value).toBe('Tea please')
   })

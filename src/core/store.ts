@@ -115,6 +115,7 @@ export { accountId, changesWhoIsSignedIn, clearUser, loadUser, saveUser, type Us
 export { forgetWhoseBoard, openBoardFor, ownerOf, storageKey } from './store/owner'
 export { emptySync, loadSync, saveSync, type SyncConfig } from './store/sync-config'
 export { factoryReset, factoryState } from './store/reset'
+export { loadHistory, saveHistory } from './store/history'
 export {
   isPresentationBackground,
   loadPictureRecord,

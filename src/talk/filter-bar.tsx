@@ -17,7 +17,7 @@ import { usePendingChoice } from '../ui/pending-choice'
 import { useReorder, reorderLabel, type ReorderProps } from '../ui/reorder'
 import { moveInOrder } from '../core/store'
 import { useSettings } from '../ui/settings'
-import { useMediaQuery } from '../ui/media'
+import { PHONE, useMediaQuery } from '../ui/media'
 import { CustomizeIcon, EyeIcon, EyeOffIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons'
 import { cx, dwellVar } from '../ui/style'
 import { TAB_GAP, tabsThatFit } from '../core/tab-rows'
@@ -488,7 +488,7 @@ export function FilterBar({
    * pad on the bar, which a phone's row has no room to spend on, and Customize
    * always there instead — where hiding and moving are both done.
    */
-  const compact = useMediaQuery('(max-width: 700px)')
+  const compact = useMediaQuery(PHONE)
   /** What is on the bar: every tab not hidden. The tab showing is drawn even if it is. */
   const onBar = useMemo(() => categories.filter(c => !hiddenTabs.includes(c.id)), [categories, hiddenTabs])
   const showingOffBar = showing !== undefined && hiddenTabs.includes(showing.id)

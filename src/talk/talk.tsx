@@ -40,9 +40,10 @@ import {
   saveHiddenTabs,
   saveReplyKey,
   saveRecent,
-  type PhraseUse,
+  type PhraseStore,
   type User,
 } from '../core/store'
+import { type Change } from '../core/history'
 import { type AppState } from '../core/backup'
 import { isSpeaking, speak, subscribeSpeaking, warmVoice } from '../voice/speech'
 import { cx } from '../ui/style'
@@ -57,7 +58,8 @@ import { EmergencyBar } from './emergency'
 import { SlotPicker } from './slots'
 import { AskFirst, CategoryModal } from './editors'
 import { TopPanel } from '../menu/menu'
-import { useBoard, type Removed } from './use-board'
+import { useBoard } from './use-board'
+import { useHistory } from './use-history'
 import { useComposer } from './use-composer'
 import { useEditor } from './use-editor'
 import { useListen } from './use-listen'
@@ -72,7 +74,16 @@ import { useToast } from './use-toast'
 import { usePresentation } from './use-presentation'
 import { ToastRegion } from './toast'
 import { BESIDE_THE_BOARD, Introduction } from '../menu/introduction'
-import { useMediaQuery } from '../ui/media'
+import { PHONE, useMediaQuery } from '../ui/media'
+
+/**
+ * A phrase's words in quotation marks, as Undo and Redo name the change they
+ * reach — its markup off, and cut short where it would not fit on a toast.
+ */
+function quoted(text: string) {
+  const words = stripMarkdown(text).trim()
+  return `“${words.length > 40 ? `${words.slice(0, 39).trimEnd()}…` : words}”`
+}
 
 export function TalkScreen({
   user,
@@ -94,6 +105,8 @@ export function TalkScreen({
   const [introducing, setIntroducing] = useState(() => arrivedBySignIn && settings.introduction)
   /** Beside the board rather than in its place — see `BESIDE_THE_BOARD`. */
   const beside = useMediaQuery(BESIDE_THE_BOARD) && introducing
+  // No Undo on a phone to name in a toast — see `PHONE`.
+  const phone = useMediaQuery(PHONE)
   const closeIntroduction = useCallback(() => {
     // The board arrives under a pointer resting where Close was.
     holdDwells()
@@ -171,15 +184,6 @@ export function TalkScreen({
   /** What was under the pointer as a mode was switched — see the effect after `setMode`. */
   const beforeSwitch = useRef<Element | null | undefined>(undefined)
   const [pointing, setPointing] = useState<{ id: string; movedTo: string | null } | null>(null)
-  /**
-   * The last phrase deleted, and everything the delete took — see `Removed` in
-   * `use-board.ts`. Offered back in the slot at the box's lower left, the one
-   * that starts a new phrase, while the draft is still the blank the delete
-   * left behind; anything written or opened after it takes the offer away.
-   */
-  const [lastDeleted, setLastDeleted] = useState<{ phrase: Phrase; removed: Removed; use?: PhraseUse } | null>(
-    null,
-  )
   const [recent, setRecent] = useState(loadRecent)
 
   const { store, allCategories, voiceFor, phraseSaying, categoriesOf } = board
@@ -197,11 +201,12 @@ export function TalkScreen({
     box: composer.textareaRef,
   })
   const { draft, startNew, open: openPhrase } = editor
-  // Anything written or opened after a delete takes the offer to undo it away:
-  // the blank the bin left is the only draft a phrase can be put back into
-  // without writing over something. Adjusted during render — state following
-  // state — so no frame shows an undo that would do that.
-  if (lastDeleted && !editor.isUntouched) setLastDeleted(null)
+  /**
+   * **Undo and Redo** for what is done to the board: a phrase saved, deleted or
+   * taken out of a category, and a category deleted — see `use-history.ts`.
+   */
+  const history = useHistory(board.store, board.replaceStore)
+  const { record: recordChange } = history
   // Pulled out rather than reached through `composer`, which is a fresh object
   // every render: a callback depending on the whole of it would change identity
   // on every render too, and `deliverPhrase` reaches the memoised phrase cells.
@@ -656,6 +661,7 @@ export function TalkScreen({
     // in the box as it was.
     if (sameAs && into) {
       board.refile(sameAs, [...categoriesOf(sameAs), into])
+      recordChange({ what: `Added ${quoted(draft.text)} to ${into}`, phrase: sameAs, tab: effectiveFilter })
       setPointing({ id: sameAs, movedTo: null })
       startNew()
       flashToast(`Already on the board — added to ${into}`)
@@ -700,6 +706,11 @@ export function TalkScreen({
       // for it — there is no id to hang one on until the phrase exists.
       const id = board.addPhrase(text, categories, isEmergency)
       if (voice) board.setVoice(id, voice)
+      recordChange({
+        what: keeping ? `Kept ${quoted(text)} as a phrase` : `Saved ${quoted(text)}`,
+        phrase: id,
+        tab: movesTo ?? effectiveFilter,
+      })
       // Which cell it is, for the board to point at — see `pointing`.
       // Nothing for the emergency bar, whose phrases are never in the grid and
       // are on screen under every tab anyway.
@@ -710,6 +721,7 @@ export function TalkScreen({
       // never waits.
       board.setVoice(phrase.id, voice)
       board.editPhrase(phrase, text, categories, isEmergency)
+      recordChange({ what: `Saved ${quoted(text)}`, phrase: phrase.id, tab: effectiveFilter })
       // Into the category showing, as well as the ones it was in.
       // Nothing to point at: rewording puts no new cell anywhere, and the mark
       // on the last one is already gone — every dwell clears it, this one
@@ -726,7 +738,7 @@ export function TalkScreen({
             ? `Saved, and added to ${into}`
             : 'Saved',
     )
-  }, [draft, board, categoriesOf, startNew, flashToast, moveToShow, showTab])
+  }, [draft, board, categoriesOf, startNew, flashToast, moveToShow, showTab, recordChange, effectiveFilter])
   const handleSave = saveDraft
 
   /**
@@ -796,40 +808,45 @@ export function TalkScreen({
     } else if (removingFrom) {
       // On a category, the bin takes the phrase out of it and no further: it is
       // still in Library, with its count.
-      setLastDeleted({ phrase, removed: board.removePhrase(phrase.id, removingFrom) })
+      board.removePhrase(phrase.id, removingFrom)
+      recordChange({
+        what: `Took ${quoted(phrase.text)} out of ${removingFrom}`,
+        phrase: phrase.id,
+        tab: effectiveFilter,
+      })
     } else {
-      const removed = board.removePhrase(phrase.id)
+      board.removePhrase(phrase.id)
       // Its count goes with it, so the record stays the size of the board —
-      // kept here instead, until nobody can ask for the phrase back.
+      // kept in the history instead, for an Undo to put back.
       const use = forgetUsed(phrase.id)
-      setLastDeleted({ phrase, removed, use })
+      recordChange({
+        what: `Deleted ${quoted(phrase.text)}`,
+        phrase: phrase.id,
+        tab: effectiveFilter,
+        ...(use && { use: { id: phrase.id, use } }),
+      })
     }
     startNew()
     flashToast(
       keeping
         ? 'Forgotten'
         : removingFrom
-          ? `Taken out of ${removingFrom} — undo is at the lower left`
-          : 'Deleted — undo is at the lower left',
+          ? `Taken out of ${removingFrom}${phone ? '' : ' — Undo is beside Paste'}`
+          : `Deleted${phone ? '' : ' — Undo is beside Paste'}`,
     )
-  }, [draft, board, forgetTranslated, forgetSuggestion, forgetUsed, startNew, flashToast, removingFrom])
-
-  /**
-   * Put back the phrase just deleted, **as it was**: on the board where it
-   * was, with its count, and open in the box, which is where it was when the
-   * bin took it — an undo that left somebody to find it again would be half of
-   * one. It takes the mark and the scroll a phrase just made takes.
-   */
-  const handleUndoDelete = useCallback(() => {
-    if (!lastDeleted) return
-    const { phrase, removed, use } = lastDeleted
-    board.restorePhrase(removed)
-    if (use) restoreUsed(phrase.id, use)
-    openPhrase(phrase, phrase.category === 'Emergency')
-    setPointing({ id: phrase.id, movedTo: null })
-    setLastDeleted(null)
-    flashToast('Put back')
-  }, [lastDeleted, board, restoreUsed, openPhrase, flashToast])
+  }, [
+    draft,
+    board,
+    forgetTranslated,
+    forgetSuggestion,
+    forgetUsed,
+    startNew,
+    flashToast,
+    removingFrom,
+    recordChange,
+    effectiveFilter,
+    phone,
+  ])
 
   // ── Editing the categories ─────────────────────────────────────────────────
 
@@ -876,6 +893,7 @@ export function TalkScreen({
     if (!name) return
     const count = board.phraseCountByCategory.get(name) ?? 0
     board.removeCategory(name)
+    recordChange({ what: `Deleted ${name}`, tab: name, ...(hiddenTabs.includes(name) && { hiddenTab: name }) })
     // Gone, it is hidden no longer — or a category made later under its name
     // would arrive off the bar.
     if (hiddenTabs.includes(name)) keepHidden(hiddenTabs.filter(id => id !== name))
@@ -888,7 +906,7 @@ export function TalkScreen({
         ? `Deleted ${name} — its ${count} phrase${count === 1 ? ' is' : 's are'} still in Library`
         : `Deleted ${name}`,
     )
-  }, [editingCategory, board, flashToast, hiddenTabs, keepHidden])
+  }, [editingCategory, board, flashToast, hiddenTabs, keepHidden, recordChange])
 
   /** Renamed where it stands, on its own tab — see `FilterBar`. */
   const renameCategory = useCallback(
@@ -904,6 +922,53 @@ export function TalkScreen({
 
   /** The bin on the tab showing, which asks before anything goes. */
   const askToDeleteCategory = useCallback((name: string) => setEditingCategory({ name }), [])
+
+  /**
+   * **What Undo or Redo leaves on screen**: the tab the change was made on,
+   * where it is still there; the phrase it was about, open in the box in edit
+   * mode — where an undone delete was when the bin took it — and marked on the
+   * board; and the count and the hidden tab it took with it, put back or taken
+   * again. A phrase open in the box that the change took off the board leaves
+   * it.
+   */
+  const { undo: undoChange, redo: redoChange } = history
+  const { phraseIn } = board
+  const showStep = useCallback(
+    (step: { change: Change; next: PhraseStore } | null, undone: boolean) => {
+      if (!step) return
+      const { change, next } = step
+      const back = undone
+      if (change.use) {
+        if (back) restoreUsed(change.use.id, change.use.use)
+        else forgetUsed(change.use.id)
+      }
+      if (change.hiddenTab) {
+        const there = change.hiddenTab in next.members
+        if (there && !hiddenTabs.includes(change.hiddenTab)) keepHidden([...hiddenTabs, change.hiddenTab])
+        if (!there) keepHidden(hiddenTabs.filter(id => id !== change.hiddenTab))
+      }
+      if (change.tab && (change.tab === LIBRARY || change.tab in next.members)) setActiveFilter(change.tab)
+      const found = change.phrase ? phraseIn(next, change.phrase) : null
+      if (found && editMode) openPhrase(found.phrase, found.isEmergency)
+      else if (draft.phrase && !phraseIn(next, draft.phrase.id)) startNew()
+      setPointing(found && !found.isEmergency ? { id: found.phrase.id, movedTo: null } : null)
+      flashToast(`${back ? 'Undone' : 'Done again'}: ${change.what}`)
+    },
+    [
+      restoreUsed,
+      forgetUsed,
+      hiddenTabs,
+      keepHidden,
+      phraseIn,
+      editMode,
+      openPhrase,
+      draft.phrase,
+      startNew,
+      flashToast,
+    ],
+  )
+  const handleUndo = useCallback(() => showStep(undoChange(), true), [showStep, undoChange])
+  const handleRedo = useCallback(() => showStep(redoChange(), false), [showStep, redoChange])
 
   // ── Modes ──────────────────────────────────────────────────────────────────
 
@@ -954,9 +1019,6 @@ export function TalkScreen({
       beforeSwitch.current = targetUnderPointer()
       update({ autoSpeak: mode === 'speak' })
       setEditMode(mode === 'edit')
-      // A delete is undone in edit mode or not at all: coming back to a blank
-      // draft later is not coming back to the moment after the bin.
-      setLastDeleted(null)
       // **Leaving edit mode, what the box holds becomes the message** — the
       // words, the caret and what was typed, so the box and the grid narrowed to
       // it stay as they were. A phrase with choices in it is carried as the
@@ -1321,9 +1383,7 @@ export function TalkScreen({
                   onToggleRest={toggleRest}
                   editor={editor}
                   onSavePhrase={handleSave}
-                  undoDelete={
-                    lastDeleted && { words: stripMarkdown(lastDeleted.phrase.text), undo: handleUndoDelete }
-                  }
+                  history={{ undo: history.toUndo, redo: history.toRedo, onUndo: handleUndo, onRedo: handleRedo }}
                   onSpeak={handleSpeak}
                   onCopy={handleCopy}
                   onPasted={reportPaste}

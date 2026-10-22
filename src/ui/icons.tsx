@@ -45,6 +45,23 @@ export function StopIcon() {
   )
 }
 
+/** Undo's hook the other way round: what was taken back, done again. */
+export function RedoIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M15 14l5-5-5-5" />
+      <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+    </svg>
+  )
+}
+
 export function UndoIcon() {
   return (
     <svg

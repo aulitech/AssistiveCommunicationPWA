@@ -50,6 +50,7 @@ export const PRIVACY: ProseDocument = {
           'What you have said in another language, and which language, under the Translations tab.',
           'Questions you asked for a suggested reply to, and the replies, for a day.',
           'Which parts of Getting started you have been through, and when. That stays on the device: it is in no backup file and nothing Synchronize sends.',
+          'Your last 50 changes to your phrases and categories, so Undo and Redo can reach them after a reload — the words of phrases you deleted among them, until newer changes push them out. That stays on the device: it is in no backup file and nothing Synchronize sends.',
         ),
         text(
           'Everything on that list but the account you signed in with belongs to that account. Somebody who signs in on the same device with a different account gets a board of their own, and cannot open yours. Every guest on a device shares one guest board, so anything kept while you are a guest can be seen by whoever continues as a guest next.',

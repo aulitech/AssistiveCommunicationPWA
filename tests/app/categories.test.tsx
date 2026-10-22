@@ -718,7 +718,7 @@ describe('a category left with nothing in it', () => {
   it('comes back where it was when the removal is undone', () => {
     openSolo()
     expect(deleteOpen()).toContain('Take it out of Solo?')
-    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo deleting')))
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo:')))
 
     expect(catLabels()[0]).toBe('Solo')
     expect(storedStore().members.Solo).toEqual(['custom-solo'])
@@ -731,7 +731,7 @@ describe('a category left with nothing in it', () => {
     // Library is thousands of phrases; changing its words brings it to the top.
     writePhrase('Only me in here, again')
     expect(deleteOpen()).toContain('Delete this phrase?')
-    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo deleting')))
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo:')))
 
     expect(catLabels()[0]).toBe('Solo')
     expect(storedStore().members.Solo).toEqual(['custom-solo'])
@@ -1521,5 +1521,61 @@ describe('on a narrow screen', () => {
     renderApp()
     expect(more()?.getAttribute('aria-label')).toBe('Customize tabs')
     expect(more()?.classList.contains('is-cramped')).toBe(false)
+  })
+})
+
+/**
+ * **A category deleted comes back with Undo** — its phrases, its place among
+ * the tabs, on screen — and goes again with Redo. See
+ * docs/decisions/undo-and-redo.md; the phrases' own undo is in
+ * `app/editing.test.tsx`.
+ */
+describe('undoing a deleted category', () => {
+  const labelled = (start: string) =>
+    $$<HTMLButtonElement>('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith(start))
+  const showing = () => tabs().find(t => t.getAttribute('aria-selected') === 'true')?.textContent
+  const deleteCategory = (name: string) => {
+    askToDelete(name)
+    fireEvent.pointerMove(document.body, { clientX: 700, clientY: 500 })
+    click(action('Delete'))
+  }
+  const hidden = (): string[] => JSON.parse(localStorage.getItem('peri_hidden_tabs') ?? '[]')
+
+  it('brings it back with its phrases, in its place and on screen, and Redo takes it again', () => {
+    renderApp()
+    const order = catLabels()
+    click(tabNamed('Drinks'))
+    const inIt = cells().map(c => c.textContent)
+    deleteCategory('Drinks')
+    expect(catLabels()).not.toContain('Drinks')
+    expect(labelled('Undo:')?.getAttribute('aria-label')).toBe('Undo: Deleted Drinks')
+
+    click(labelled('Undo:'))
+
+    expect(catLabels()).toEqual(order)
+    expect(showing()).toBe('Drinks')
+    expect(cells().map(c => c.textContent)).toEqual(inIt)
+
+    click(labelled('Redo:'))
+
+    expect(catLabels()).not.toContain('Drinks')
+    expect(showing()).toBe('Library')
+  })
+
+  it('hides it again where it was hidden', () => {
+    localStorage.setItem('peri_hidden_tabs', JSON.stringify(['Drinks']))
+    renderApp()
+    click($('.filter-tabs > .filter-more'))
+    click(inDoc('.more-tile .picker-tile-name').find(n => n.textContent === 'Drinks'))
+    click(pickerBtn('Done'))
+    act(() => void vi.advanceTimersByTime(1100))
+    deleteCategory('Drinks')
+    expect(hidden()).toEqual([])
+
+    click(labelled('Undo:'))
+    expect(hidden()).toEqual(['Drinks'])
+
+    click(labelled('Redo:'))
+    expect(hidden()).toEqual([])
   })
 })
