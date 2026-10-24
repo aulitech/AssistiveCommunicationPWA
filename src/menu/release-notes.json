@@ -1,5 +1,22 @@
 [
   {
+    "version": "11.10.1",
+    "date": "2026-10-24",
+    "commits": [
+      {
+        "subject": "An emergency phrase is added from a plus after the bar, in every mode",
+        "body": [
+          {
+            "text": "The edit-mode tool at the end of the emergency bar opened a blank emergency draft in the message box, which looked exactly as it had, so nothing said the next Save would go to the bar and it read as doing nothing. It is gone. A bare plus now follows the last button in every mode, drawn as Add category is after the last tab and taking 1.75rem and a 0.75rem gap, and it opens a dialog for the words: the message box is left alone, words a button already says are refused, and the addition is on Undo's list."
+          },
+          {
+            "text": "The dialog is guarded against the press that opened it, said again: an operating system's dwell-click went on clicking where the plus had been, where a press on the screen round the dialog closed it, and the next opened it again. That screen closes nothing now, and nothing answers a rest or a click until the pointer is aimed somewhere new as the dialog comes and goes. Add category shares the dialog and the guard."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.10.0",
     "date": "2026-10-22",
     "commits": [
