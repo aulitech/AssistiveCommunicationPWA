@@ -1,5 +1,19 @@
 [
   {
+    "version": "11.10.2",
+    "date": "2026-10-24",
+    "commits": [
+      {
+        "subject": "Each order in the order picker shows its glyph left of its name",
+        "body": [
+          {
+            "text": "The tiles in Order the phrases were words alone, while the control that opens them shows each order as a glyph. Each tile now draws that glyph before its name, so the tile and the control are learnt as one; the selected tile's glyph takes the tile's colour."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.10.1",
     "date": "2026-10-24",
     "commits": [
