@@ -53,30 +53,45 @@
 /* **Made to be seen from anywhere on the board.** For a save, a refused paste
    or a blocked link it is the only thing that says anything, and a gaze on the
    grid rather than on this corner could miss it. It was a dark grey card a step
-   up from a phrase cell, which over the table read as one more cell. So it is
-   **the board turned inside out**: a light ground with dark words, the one light
-   thing on a dark screen, ringed in the accent muted into the grey — the full
-   accent was louder than the words it was around. The whole toast is at 85%,
-   so the board shows faintly through it; the ground is painted to the padding
-   box only, or it would show through the ring as well. The rounding is the
-   outer edge's; the inner is square, the border being wider than it.
+   up from a phrase cell, which over the table read as one more cell — so it is
+   **the board turned inside out**: a light ground with dark words, the one
+   light thing on a dark screen.
+
+   **A pill, sleek rather than loud.** It was a light box framed in a ring of
+   the accent 1.3rem thick and the whole at 85%, which read as a warning sign
+   more than a line of news. Now it is opaque, rounded to a pill on one line, a
+   hairline edge where it meets the board, and a shadow in two layers — a tight
+   one under it and a wide soft one round it — so it stands off the table
+   without a frame. It rises a little and fades in as it comes, and does not
+   move at all for somebody who has asked for less motion — see Reduced motion,
+   below.
 
    `--toast-ground` and `--toast-text` are in `tokens.css`, where
    `tests/app/structure.test.ts` holds the words to 7:1 on the ground and the
    ground to 7:1 against every surface of the board. */
 .toast {
-  padding: 1rem 1.75rem;
-  border-radius: 0.8rem;
-  border: 1.3rem solid color-mix(in srgb, var(--accent) 45%, var(--text-muted));
-  opacity: 0.85;
+  padding: 0.7rem 1.4rem;
+  border-radius: 1.4rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   background: var(--toast-ground);
-  background-clip: padding-box;
   color: var(--toast-text);
   /* The size it always was: the ground is what makes it stand out, and a
      larger size put four lines of it on a phone held upright. */
   font-size: 1.05rem;
   font-weight: 600;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+  line-height: 1.4;
+  letter-spacing: 0.005em;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 12px 40px rgba(0, 0, 0, 0.55);
+  animation: toastIn 180ms ease-out;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
 }
 
 /* ── Peri's own keyboard ── */
@@ -343,6 +358,9 @@
   }
 
   .dwell-cursor-dot { animation: none !important; }
+
+  /* The toast comes in where it stands, without rising. */
+  .toast { animation: none !important; }
 
   /* The held category — or emergency phrase — stops bobbing but stays raised,
      filled and ringed, none of which moves. */

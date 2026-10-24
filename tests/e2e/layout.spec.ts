@@ -1,7 +1,7 @@
 // Where things are, which is the one question jsdom cannot be asked. Each of
 // these was written in AGENTS.md as "a question for the deploy preview".
 
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator } from '@playwright/test'
 import { categories, editMode, many, messageBox, openBoard } from './board'
 
 test.describe('on a phone held upright', () => {
@@ -67,9 +67,9 @@ test.describe('on a phone held upright', () => {
     await expect(page.locator('.emergency-bar')).toBeInViewport()
   })
 
-  // The toast is ringed by a wide border. Placed at the middle, it used to
-  // shrink to the half of the screen right of that, which on a phone left the
-  // words five lines of two.
+  // Placed at the middle, the toast used to shrink to the half of the screen
+  // right of that, which on a phone left the words five lines of two. It is a
+  // pill now, as wide as its words up to the table less a gutter.
   test('gives the toast the width of the table, less a gutter', async ({ page }) => {
     await openBoard(page)
     // The microphone's area answers over the edit toggle at this width, so the
@@ -77,25 +77,22 @@ test.describe('on a phone held upright', () => {
     await page.locator('.autospeak-toggle').dispatchEvent('click')
     const toast = page.locator('.toast')
     await expect(toast).toBeVisible()
-    const { left, right, table, border, lines } = await toast.evaluate(el => {
+    await settled(toast)
+    const { left, right, table, lines } = await toast.evaluate(el => {
       const r = el.getBoundingClientRect()
       const style = getComputedStyle(el)
+      const frame =
+        parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2 * parseFloat(style.borderTopWidth)
       return {
         left: r.left,
         right: r.right,
         table: document.querySelector('.grid-wrapper')!.getBoundingClientRect().right,
-        border: parseFloat(style.borderTopWidth),
-        lines: Math.round(
-          (r.height - 2 * parseFloat(style.borderTopWidth)) / parseFloat(style.lineHeight || '24'),
-        ),
+        lines: Math.round((r.height - frame) / parseFloat(style.lineHeight)),
       }
     })
-    // 1.3rem, which Chrome draws on a whole pixel.
-    expect(Math.abs(border - 1.3 * 16)).toBeLessThan(1)
     expect(left).toBeGreaterThanOrEqual(15)
     expect(right).toBeLessThanOrEqual(table - 15)
-    expect(right - left).toBeGreaterThan(280)
-    expect(lines).toBeLessThanOrEqual(3)
+    expect(lines, 'the words squeezed into a column').toBeLessThanOrEqual(2)
   })
 
   // Getting started stands where the box, the tabs and the grid are: down to
@@ -147,11 +144,15 @@ test.describe('on a wide screen', () => {
   })
 })
 
+/** Once the toast has come in: it rises a little as it arrives, which moves it while it does. */
+const settled = (toast: Locator) => toast.evaluate(el => Promise.all(el.getAnimations().map(a => a.finished)))
+
 // Where a gaze working the board already is, rather than a corner.
 test('puts the toast in the upper third of the phrase table, across its middle', async ({ page }) => {
   await openBoard(page)
   await page.locator('.autospeak-toggle').dispatchEvent('click')
   await expect(page.locator('.toast')).toBeVisible()
+  await settled(page.locator('.toast'))
   const { toast, table } = await page.evaluate(() => ({
     toast: document.querySelector('.toast')!.getBoundingClientRect().toJSON(),
     table: document.querySelector('.grid-wrapper')!.getBoundingClientRect().toJSON(),
@@ -163,9 +164,9 @@ test('puts the toast in the upper third of the phrase table, across its middle',
 })
 
 // **Edit mode is said on the panel's edge**, in a muted green, and not on the
-// phrases, which keep their size. And the toast over them is at 85%, ringed in
-// a muted accent rather than the full one.
-test("greens the panel's edge in edit mode, not the phrases, under a toast at 85%", async ({ page }) => {
+// phrases, which keep their size. And the toast over them is a pill, opaque
+// and edged by a hairline — it was ringed in the accent 1.3rem thick, at 85%.
+test("greens the panel's edge in edit mode, not the phrases, under a sleek toast", async ({ page }) => {
   await openBoard(page)
   const cell = page.locator('.phrase-cell').first()
   const before = await cell.evaluate(el => el.getBoundingClientRect().toJSON())
@@ -173,26 +174,23 @@ test("greens the panel's edge in edit mode, not the phrases, under a toast at 85
   const grey = await edge()
   await page.locator('.autospeak-toggle').dispatchEvent('click')
   await expect(page.locator('.toast')).toBeVisible()
+  await settled(page.locator('.toast'))
   const { outline, after, toast } = await cell.evaluate(el => {
     const style = getComputedStyle(el)
     const t = getComputedStyle(document.querySelector('.toast')!)
     return {
       outline: style.outlineStyle,
       after: el.getBoundingClientRect().toJSON(),
-      toast: { opacity: t.opacity, ring: t.borderTopColor },
+      toast: { opacity: t.opacity, edge: parseFloat(t.borderTopWidth), radius: parseFloat(t.borderTopLeftRadius) },
     }
   })
   expect(outline, 'an outline on the phrases').toBe('none')
   expect(await edge(), "the panel's edge did not change").not.toBe(grey)
   expect(after.width).toBeCloseTo(before.width, 1)
   expect(after.height).toBeCloseTo(before.height, 1)
-  expect(toast.opacity).toBe('0.85')
-  // Muted: no channel of the ring as far from the others as the accent's green.
-  // A colour mixed in sRGB is reported as `color(srgb …)`, each channel 0 to 1.
-  const scale = toast.ring.startsWith('color(') ? 255 : 1
-  const [r, g, b] = (toast.ring.match(/[\d.]+/g) ?? []).map(v => Number(v) * scale)
-  expect(g - Math.min(r, b)).toBeLessThan(120)
-  expect(g).toBeGreaterThan(Math.max(r, b))
+  expect(toast.opacity).toBe('1')
+  expect(toast.edge, 'a ring round it').toBeLessThanOrEqual(1)
+  expect(toast.radius, 'not rounded to a pill').toBeGreaterThanOrEqual(20)
 })
 
 // **The two arrows over the grid**: over the rightmost column, against its
