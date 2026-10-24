@@ -1,5 +1,52 @@
 [
   {
+    "version": "11.11.0",
+    "date": "2026-10-24",
+    "commits": [
+      {
+        "subject": "The guide brought up to date",
+        "body": [
+          {
+            "text": "A read of every section against the app as it is: a phone's top row is the modes and the menu alone, with no clipboard or Undo; how to add an emergency phrase, and that one opens rather than speaks in edit mode with an empty box; dialogs that ignore the pointer until it moves and do not close when pressed outside; adding an emergency phrase on Undo's list; the panels' scroll arrows down their right edge; eleven word lists, not nine; how to reach edit mode; suggested answers kept as phrases when said while a question is open; and what stays on each device rather than synchronizing."
+          }
+        ]
+      },
+      {
+        "subject": "Peri's keyboard floats over the board, small and gold, beside present",
+        "body": [
+          {
+            "text": "The keyboard's button moves from the left of the message card to the end of the modes, right after present, lit while the keyboard is up."
+          },
+          {
+            "text": "The keyboard itself no longer takes the bottom of the screen with the board giving up that height. It floats over the phrase grid, translucent and framed in the brand's gold, standing on the emergency bar so that bar is never covered; the grid makes room under its last row for what it hides and lifts its down arrow above it. It is smaller: about a fifth of the screen high and no wider than 40% of it. Every key now fills as it is rested on, where a rest showed only a green edge."
+          }
+        ]
+      },
+      {
+        "subject": "Listen mode answers in edit mode, and every mode says it changed",
+        "body": [
+          {
+            "text": "Opening the question box turns auto-speak off: the board goes into edit mode, so an answer is built in the box out of phrases and suggested answers and said when it is ready, rather than each phrase said the moment it is chosen. A suggested answer chosen there goes in place of what the box held, the caret in its gap, and is recorded for the next question; a question that settles into an empty box still answers itself. Speak in edit mode saves as well, so an answer said is kept as a phrase."
+          },
+          {
+            "text": "Closing it goes back to the mode it opened from, the answer carried into the message box. Auto-speak's control, while a question is open, stops listening and turns auto-speak on."
+          },
+          {
+            "text": "Listen mode, please and the presentation window now say in a toast when they come on and go off, as auto-speak does — the window when it closes from its own side too."
+          }
+        ]
+      },
+      {
+        "subject": "The toast is a sleek pill",
+        "body": [
+          {
+            "text": "The toast was a light box framed in a ring of the accent 1.3rem thick, the whole at 85%, which read as a warning sign more than a line of news. It is a pill now: opaque, a hairline edge, a two-layer shadow, and a short rise and fade as it comes in, with none for somebody who has asked for less motion. Still the board turned inside out, a light ground and dark words, where a gaze working the board already is."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.10.2",
     "date": "2026-10-24",
     "commits": [
