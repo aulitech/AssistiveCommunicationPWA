@@ -37,7 +37,12 @@ export function ToastRegion({ toast }: { toast: string | null }) {
 
   return (
     <div ref={region} className="toast-region" role="status" aria-live="polite">
-      {toast && <div className="toast">{toast}</div>}
+      {/* Keyed by what it says, so a new line comes in as the first one did. */}
+      {toast && (
+        <div key={toast} className="toast">
+          {toast}
+        </div>
+      )}
     </div>
   )
 }
