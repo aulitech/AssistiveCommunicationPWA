@@ -148,7 +148,14 @@ export function TalkScreen({
     () => flashToast('Blocked. Allow pop-ups for Peri to open the presentation window by dwelling'),
     [flashToast],
   )
-  const { presenting, toggle: togglePresenting } = usePresentation(presentationBlocked)
+  // **Every mode says it changed**, as auto-speak does: the lit toggle is a
+  // glyph in a strip, and the toast is where a gaze working the board already is.
+  const presentationChanged = useCallback(
+    (on: boolean) =>
+      flashToast(on ? 'Presenting — what is said shows in its own window' : 'Presentation window closed'),
+    [flashToast],
+  )
+  const { presenting, toggle: togglePresenting } = usePresentation(presentationBlocked, presentationChanged)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState(LIBRARY)
@@ -258,11 +265,10 @@ export function TalkScreen({
     replyKey,
     replyModel: settings.replyModel,
     phrases: boardPhrases,
-    // Edit mode counts as not empty however little is in the draft: the box is
-    // showing a phrase there, and a reply landing in the message behind it
-    // would be one nobody could see and an exchange nobody asked to pay for.
-    // A phrase auto-speak has just said is not a message being written.
-    messageEmpty: !editMode && (message.trim() === '' || holdsSaid),
+    // In edit mode — which is how a question is answered — the box is empty
+    // when nothing is written in it; a phrase opened there is words. Outside
+    // it, a phrase auto-speak has just said is not a message being written.
+    messageEmpty: editMode ? draft.text.trim() === '' : message.trim() === '' || holdsSaid,
     onWaiting: apologise,
   })
 
@@ -1034,7 +1040,8 @@ export function TalkScreen({
    * at was somewhere else the moment the mode came on.
    */
   const setMode = useCallback(
-    // `carry` is false only for the microphone, which empties the box anyway.
+    // `carry` is false only for the microphone, which empties the box anyway —
+    // on the way into edit mode as well as out of it.
     (mode: 'speak' | 'edit', carry = true) => {
       // What the pointer is on, to compare once the switch has been laid out —
       // see `beforeSwitch`.
@@ -1060,7 +1067,7 @@ export function TalkScreen({
         flashToast('Auto-speak on — phrases speak immediately')
         return
       }
-      const carried = mode === 'edit' ? message.trim() : ''
+      const carried = mode === 'edit' && carry ? message.trim() : ''
       const already = carried ? phraseSaying(carried) : undefined
       // The phrase itself, or a new one carrying whatever was composed — with
       // the word being typed still being typed, so the grid stays narrowed to it.
@@ -1128,41 +1135,85 @@ export function TalkScreen({
    * The microphone, and the one thing it does to the board besides opening the
    * box above the message.
    *
-   * **Opening it puts the board in auto-speak.** Somebody has just been spoken
-   * to and is about to answer, with a person waiting in front of them — which
-   * is the whole of what auto-speak is for, and the alternative is a board that
-   * hears a question and then wants a second dwell somewhere else before it can
-   * say anything back. It is the same bargain the automatic asking strikes: the
-   * dwell it saves is the point.
+   * **Opening it turns auto-speak off and holds it off** — the board goes into
+   * edit mode, the only other way of working, and the auto-speak control cannot
+   * be rested on until the question closes. Asked for: an answer is built out
+   * of phrases and suggestions in the box and said when it is ready, rather
+   * than each phrase said the moment it is chosen. Speak in edit mode saves as
+   * well, so an answer said is kept as a phrase.
    *
-   * **Only on the way in.** Closing the box leaves the mode exactly as it is,
-   * because a conversation that has ended is not a reason to stop talking — and
-   * because a control that undid itself on the way out would take away a mode
-   * somebody had chosen in the middle of one.
-   *
-   * It takes the board out of edit mode as a consequence, those two never being
-   * on together. That is right rather than incidental: a question in the room
-   * is not a moment to be rewriting phrases, and what it costs is the blank
-   * draft that dwelling on auto-speak itself would have cost.
+   * **Closing it goes back to the mode it opened from** — auto-speak, or edit
+   * mode where somebody was already there — with whatever answer was being
+   * written carried into the message box as leaving edit mode always carries
+   * it. **Auto-speak's control closes it too**, into auto-speak.
    */
   const { open: listening, toggle: toggleMic } = listener
   const { clear: clearMessage } = composer
+  /** The mode the board was in when the question opened, which closing it goes back to. */
+  const modeBeforeListening = useRef<'speak' | 'edit'>('speak')
+  /**
+   * Closes the question, into `mode` — the one it opened from, by the
+   * microphone, or auto-speak, by auto-speak's own control. The answer being
+   * written is carried into the message box, as leaving edit mode always
+   * carries it.
+   */
+  const stopListening = useCallback(
+    (mode: 'speak' | 'edit') => {
+      if (mode === 'speak' && editMode) setMode('speak')
+      // Said in place of what the mode switch says, which it follows.
+      flashToast(mode === 'speak' ? 'Stopped listening — auto-speak on' : 'Stopped listening')
+      holdDwells()
+      toggleMic()
+    },
+    [editMode, setMode, flashToast, toggleMic],
+  )
   const toggleListen = useCallback(() => {
-    // **A question starts afresh**: the message box is emptied — Undo brings it
-    // back — so the answer is not written onto the end of something else, and
-    // a question that settles answers itself, which it does only into an empty
-    // box. Edit mode goes, and so does please: an answer is said as it is.
-    if (!listening) {
-      if (editMode) setMode('speak', false)
-      clearMessage()
-      if (settings.please) update({ please: false })
+    if (listening) {
+      stopListening(modeBeforeListening.current)
+      return
     }
+    // **A question starts afresh**: the message box is emptied — Undo brings it
+    // back — and so is the phrase being written, so the answer is not written
+    // onto the end of something else. Please goes: an answer is said as it is.
+    modeBeforeListening.current = editMode ? 'edit' : 'speak'
+    clearMessage()
+    if (editMode) startNew()
+    else setMode('edit', false)
+    if (settings.please) update({ please: false })
+    flashToast('Listening — auto-speak is off until you stop')
     // The question's card opens above the message's on a narrow screen and
     // beside it on a wide one, and either way the message card — and the
     // microphone in its row — moves out from under the pointer that rested on it.
     holdDwells()
     toggleMic()
-  }, [listening, editMode, settings.please, setMode, clearMessage, update, toggleMic])
+  }, [
+    listening,
+    stopListening,
+    editMode,
+    settings.please,
+    setMode,
+    clearMessage,
+    startNew,
+    update,
+    toggleMic,
+    flashToast,
+  ])
+
+  /**
+   * **Auto-speak's control, while a question is open, stops listening and turns
+   * auto-speak on** — the one way out of answering that also says how to carry
+   * on. Otherwise it moves between the two ways of working, as it always has.
+   */
+  const toggleAutoSpeak = useCallback(() => {
+    if (listening) stopListening('speak')
+    else toggleEditMode()
+  }, [listening, stopListening, toggleEditMode])
+
+  // **Please says it changed**, as every mode does.
+  const togglePlease = useCallback(() => {
+    update({ please: !settings.please })
+    flashToast(settings.please ? 'Please off' : 'Please on — added to everything said')
+  }, [settings.please, update, flashToast])
 
   // Anything part-way through when rest begins would otherwise complete after
   // it, which is the one thing resting is supposed to prevent.
@@ -1321,7 +1372,7 @@ export function TalkScreen({
    * it ended lets the tab back: see `choose`. The tab is read through a ref so
    * this stays stable across tabs, reaching every cell as it does.
    */
-  const { choose: chooseForDraft } = editor
+  const { choose: chooseForDraft, propose: proposeDraft } = editor
   const onTab = useRef<(id: string) => boolean>(() => false)
   const { phrasesOf } = board
   useEffect(() => {
@@ -1329,12 +1380,21 @@ export function TalkScreen({
   }, [phrasesOf, effectiveFilter])
   const chooseInEdit = useCallback(
     (phrase: Phrase | null, isEmergency = false) => {
+      // **An answer to the question goes in place of whatever was there**, as
+      // it does outside edit mode — see `handleSelectPhrase` — and the one
+      // taken is what the next question is answered alongside.
+      if (phrase?.category === SUGGEST_CATEGORY) {
+        const { text, blankAt } = composeWithBlank(phrase.segments)
+        proposeDraft(text, blankAt)
+        listenerChose(text)
+        return
+      }
       const into = chooseForDraft(phrase, isEmergency, !!phrase && onTab.current(phrase.id))
       const record = phrase?.category === TRANSLATED_CATEGORY || phrase?.category === SUGGEST_CATEGORY
       if (into === 'inserted' && phrase && !isEmergency && !record) recordUsed(phrase.id)
       if (into === 'found' && phrase) setPointing({ id: phrase.id, movedTo: null })
     },
-    [chooseForDraft, recordUsed],
+    [chooseForDraft, proposeDraft, listenerChose, recordUsed],
   )
   /**
    * **While something is being said, nothing answers but Stop** and the
@@ -1396,7 +1456,8 @@ export function TalkScreen({
                 <Topbar
                   composer={composer}
                   editMode={editMode}
-                  onToggleEdit={toggleEditMode}
+                  onToggleEdit={toggleAutoSpeak}
+                  answering={listening}
                   menuOpen={menuOpen}
                   onToggleMenu={() => setMenuOpen(o => !o)}
                   keyboardOpen={keyboardOpen}
@@ -1413,6 +1474,7 @@ export function TalkScreen({
                   onToggleListen={toggleListen}
                   presenting={presenting}
                   onTogglePresenting={togglePresenting}
+                  onTogglePlease={togglePlease}
                 />
 
                 {/* Hidden while a typed word is narrowing the grid: the tabs would be

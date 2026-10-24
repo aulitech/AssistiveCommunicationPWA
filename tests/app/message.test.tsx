@@ -408,6 +408,16 @@ describe('what is said', () => {
       renderApp({ please: true })
       expect(pleaseToggle().getAttribute('aria-pressed')).toBe('true')
     })
+
+    // As every mode says it changed.
+    it('says it is on, and off', () => {
+      renderApp()
+      click(pleaseToggle())
+      expect($('.toast')?.textContent).toBe('Please on — added to everything said')
+      act(() => void vi.advanceTimersByTime(1100))
+      click(pleaseToggle())
+      expect($('.toast')?.textContent).toBe('Please off')
+    })
   })
 
   // Counted as used the moment it is said, so it is first among what typing

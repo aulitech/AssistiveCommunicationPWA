@@ -158,6 +158,35 @@ export function useEditor({
     setCursor(text.length)
   }, [])
 
+  /**
+   * **A suggested answer, in the box in place of whatever was there** — the
+   * composer's `propose`, for edit mode, which is how a question is answered.
+   * A new phrase rather than the answer opened as a record: Save keeps it, as
+   * Speak beside it does. Its gap is where the caret lands, so the fact the
+   * model was not told is typed straight into it; and it is a whole answer,
+   * like a phrase, so nothing at its end is being typed. **It never speaks.**
+   */
+  const propose = useCallback(
+    (answer: string, blankAt = -1) => {
+      cancelAllDwells()
+      holdDwellsUntilMoved()
+      setTarget(null)
+      setEdits({ text: answer })
+      setPhrased(answer)
+      const at = blankAt >= 0 ? blankAt : answer.length
+      setCursor(at)
+      // After the render that writes the words, unless something was typed
+      // into the box meanwhile — then it is theirs.
+      setTimeout(() => {
+        const el = box.current
+        if (!el || el.value !== answer || !mayTakeCaret()) return
+        el.focus()
+        el.setSelectionRange(at, at)
+      }, 0)
+    },
+    [box],
+  )
+
   const setText = useCallback((text: string) => {
     setPhrased(was => keepPhrased(was, text))
     setEdits(e => ({ ...e, text }))
@@ -301,6 +330,7 @@ export function useEditor({
     cursor,
     open,
     choose,
+    propose,
     startNew,
     setText,
     rewrite,

@@ -291,6 +291,7 @@ export function Topbar({
   editor,
   editMode,
   onToggleEdit,
+  answering,
   menuOpen,
   onToggleMenu,
   keyboardOpen,
@@ -306,12 +307,15 @@ export function Topbar({
   onToggleListen,
   presenting,
   onTogglePresenting,
+  onTogglePlease,
 }: {
   composer: Composer
   /** The phrase being written, which in edit mode is what the box holds. */
   editor: Editor
   editMode: boolean
   onToggleEdit: () => void
+  /** A question open: auto-speak is off, and its control stops listening. */
+  answering: boolean
   menuOpen: boolean
   onToggleMenu: () => void
   /** Peri's own keyboard, for a device where nothing else can type. */
@@ -343,6 +347,8 @@ export function Topbar({
   /** Whether the presentation window is open — see `talk/use-presentation.ts`. */
   presenting: boolean
   onTogglePresenting: () => void
+  /** Please on and off — the screen's, which says so in a toast. */
+  onTogglePlease: () => void
 }) {
   const { settings, update } = useSettings()
   const speaking = useSyncExternalStore(subscribeSpeaking, isSpeaking)
@@ -360,7 +366,6 @@ export function Topbar({
     (voiceURI: string) => update(chooseVoice(settings, voiceURI)),
     [settings, update],
   )
-  const togglePlease = useCallback(() => update({ please: !settings.please }), [settings.please, update])
   const { text, setText, showUndo, canClear, clear, clearOrUndo, textareaRef, trackCursor, setCursor } = composer
   const {
     draft,
@@ -756,10 +761,14 @@ export function Topbar({
                   className="autospeak-toggle"
                   on={!editMode}
                   onToggle={onToggleEdit}
+                  // Off while a question is open, and choosing it stops
+                  // listening — see `toggleAutoSpeak` in `talk.tsx`.
                   label={
-                    editMode
-                      ? 'Turn on auto-speak — speak phrases immediately'
-                      : 'Turn off auto-speak — edit phrases'
+                    answering
+                      ? 'Stop listening and turn on auto-speak'
+                      : editMode
+                        ? 'Turn on auto-speak — speak phrases immediately'
+                        : 'Turn off auto-speak — edit phrases'
                   }
                 >
                   <AutoSpeakIcon />
@@ -772,7 +781,7 @@ export function Topbar({
                 <ModeToggle
                   className="please-toggle"
                   on={settings.please}
-                  onToggle={togglePlease}
+                  onToggle={onTogglePlease}
                   label={settings.please ? 'Stop saying please' : 'Say please at the end of everything spoken'}
                 >
                   <PleaseIcon />
