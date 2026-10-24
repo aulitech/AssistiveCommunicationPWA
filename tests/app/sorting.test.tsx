@@ -154,6 +154,23 @@ describe('the order control', () => {
     ])
   })
 
+  // **Each tile draws the glyph the control draws while that order is on**,
+  // left of its name, so the tile and the control are learnt as one.
+  it("draws each order's glyph left of its name, the one the control shows", () => {
+    renderApp()
+    showSorted()
+    click(sortBtn())
+    const glyphs = tiles().map(
+      t => t.querySelector('.picker-tile-name > .picker-tile-icon:first-child svg')?.outerHTML,
+    )
+    expect(glyphs.every(Boolean), 'a tile with no glyph before its name').toBe(true)
+    expect(new Set(glyphs).size, 'two orders drawn alike').toBe(4)
+    const on = tiles().findIndex(t => t.getAttribute('aria-selected') === 'true')
+    expect(glyphs[on]).toBe(sortBtn().querySelector('svg')!.outerHTML)
+    // The name reads as it did: the glyph is drawn, not read.
+    expect(tiles()[0].querySelector('.picker-tile-name')?.textContent).toBe('Custom order')
+  })
+
   /**
    * A hand arrangement belongs to one category, and All shows every category at
    * once — so there is nothing there for Custom order to be an arrangement of,
