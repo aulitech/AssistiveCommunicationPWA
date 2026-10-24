@@ -36,11 +36,11 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'At the far left of the top row: :copy: and :paste:, then :undo: and :redo:, which take back the last change you made to the board and make it again. A phone has none of these: press and hold in the box to copy or paste.',
-        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then :auto-speak:, lit while it is on and edit mode while it is off — then :please: and :present:.',
+        'In the middle of the top row: :listen:, which opens a second box for what somebody is saying to you, then :auto-speak:, lit while it is on and edit mode while it is off — then :please:, and :present: on a computer or tablet.',
         'At the right of the top row, on a wide screen: the language and the voice.',
         'At the left end of the line: :clear:, which empties the box — and afterwards offers :undo:.',
         'Right after the last word you write: :speak:, filled in green, because it is the one the whole board exists to reach. It is there once there is something in the box, and moves along as the words do.',
-        'On a narrow screen :copy: and :paste: stay at the left of the top row, with the modes beside them and :menu: at the right; the language and the voice go on a row under them.',
+        'On a phone the top row is the modes and :menu: alone, and the language and the voice go on a row under them in edit mode.',
       ),
       text(
         'In the upper right corner, :menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — :notes: Release notes, what changed in each version, and :sign-out: Sign out.',
@@ -58,7 +58,7 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Resting',
     blocks: [
       text(
-        'Rest on any open space in the row of buttons at the top of the message box — anywhere in that row that is not a button, such as between :paste: and the modes — and dwelling switches off everywhere else. Clicking there does the same. Use it to look at the screen, or away from it, without choosing anything.',
+        'Rest on any open space in the row of buttons at the top of the message box — anywhere in that row that is not a button, such as either side of the modes — and dwelling switches off everywhere else. Clicking there does the same. Use it to look at the screen, or away from it, without choosing anything.',
       ),
       text(
         'While it is on, Paused shows in the middle of the screen, a gold Resume button covers that row, and nothing else answers to a rest — the blue bar included, which dims to show it — so nothing can be said by accident. Rest on Resume to switch dwelling back on.',
@@ -107,7 +107,12 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'On a narrow screen its buttons may be too small for their words. Rest on one, and its words show whole and large in the middle of the phrases.',
       ),
-      text('Resting on one speaks it immediately — it is never added to the message box first.'),
+      text(
+        'Resting on one speaks it immediately. Only in edit mode with nothing in the box does it open instead, to be changed.',
+      ),
+      text(
+        ':add:, right after the last button, adds one in either mode: type its words and choose Save. Changing, moving and deleting them are under Changing the phrases.',
+      ),
       text(
         'They take the phrase dwell time, like the phrases in the grid, so they are no easier to trigger by accident than any other phrase.',
       ),
@@ -131,6 +136,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         'When the screen changes under a pointer that is holding still, whatever lands under it does not answer until you move the pointer a little. Nothing is chosen that you were not aiming at.',
+      ),
+      text(
+        'A box that opens over the screen — Add category, Add emergency phrase, or a question such as Delete? — answers nothing until you move the pointer to it. Pressing outside it does not close it: use Cancel, or Escape.',
       ),
     ],
   },
@@ -164,7 +172,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'When there is something in the box, :speak: appears right after the last word, filled in green, and moves along as you add more. Rest on it to say the message aloud.',
       ),
-      text('At the far left of the row along the top of the box are the two for the clipboard:'),
+      text(
+        'On a computer or tablet, the far left of the row along the top of the box has the two for the clipboard:',
+      ),
       list(
         ':copy: puts the message on the clipboard to send somewhere else.',
         ":paste: brings in whatever was last copied, at the point the caret is sitting, in whichever box has it — the message or a phrase being written, the question, or a link's text or address.",
@@ -339,7 +349,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Choose any phrase into an empty box to bring it in and change its wording. While it is as you opened it, the phrases are dimmed and choosing one does nothing, so a rest while you read cannot add to it. The blue bar still works, and says what you choose on it rather than adding it to the phrase.',
         'Once you change its words, a phrase you choose goes in where the caret is. :clear: first to change a different phrase.',
         'A new phrase starts in the voice you last used, so adding several in a row takes one choice rather than one each.',
-        'After a save, a delete, taking a phrase out of a category or deleting a category, :undo: at the top left puts the board back as it was, and :redo: makes the change again. Each names what it will do.',
+        'After a save, a delete, taking a phrase out of a category, deleting a category or adding an emergency phrase, :undo: at the top left puts the board back as it was, and :redo: makes the change again. Each names what it will do.',
         'Peri keeps your last 50 changes on this device, so they are still there after a reload. They are in no backup and go to no other device. On a phone there is no Undo or Redo, so a delete there is final.',
         'A category goes by itself once its last phrase is taken out, and an import leaves no empty ones behind. A new category you have not put anything in yet stays until you do.',
         'Use :add: right after the last button on the blue bar to add an emergency phrase, in either mode. Type its words and choose Save. It cannot say what a button already says.',
@@ -374,7 +384,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Open :menu: and choose :aliases: Aliases. Each one is a named list of words, and a phrase that writes that name in curly brackets offers the list to choose from.',
       ),
       text(
-        'Peri comes with nine — pronouns, directions, body parts and so on — and two of them start empty: contacts, and your name. Fill those in and phrases such as "This is …" and "I\'m going to call …" come to life.',
+        'Peri comes with eleven — pronouns, directions, body parts, clothes, meals and so on — and two of them start empty: contacts, split into family, friends, caregivers and others, and your name. Fill those in and phrases such as "This is …" and "I\'m going to call …" come to life.',
       ),
       text(
         'With one word on a list it is filled in for you; with several, you are asked which one you mean. Take words off any list, or add your own.',
@@ -406,7 +416,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'Open :menu: and choose :settings: Settings. :back: Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.',
       ),
-      text('Settings and Aliases scroll if there is more than fits, using the same arrows as the phrase grid.'),
+      text('Settings and Aliases scroll if there is more than fits, using the arrows down their right edge.'),
       list(
         'Text size — how big everything is written, from half again as small to twice as large. It grows the words rather than the screen, so the board keeps the same number of phrases on it.',
         'Phrase dwell — how long to rest on a phrase before it is chosen. The blue bar takes this one too.',
@@ -418,7 +428,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Getting started — this guide, one part at a time, each part you have been through marked :ticked:. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',
         'Spoken language — see Speaking another language.',
         'Presentation background — a picture to show behind the words in the presentation window. It is not in backups. With Synchronize on it goes to your other devices, locked with your passphrase like the board.',
-        'Voice — :choose: opens a full screen of voices, with the same scroll buttons as the phrase grid. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
+        'Voice — :choose: opens a full screen of voices, with scroll arrows down its right edge. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
         'Synchronize, ElevenLabs and Suggested answers — see Keeping two devices the same, Better voices and Getting suggested answers.',
         'Reset to Factory Defaults, at the very bottom, puts this board back to how Peri arrived — phrases, categories, lists, settings and any linked account. It offers to save a backup first, and you stay signed in.',
       ),
@@ -440,7 +450,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'They are written out in full rather than as BRB or TTYL, because everything here can be spoken aloud and letters cannot. Typing the acronym still finds most of them: type "ttyl" and the grid narrows to "Talk to you later".',
       ),
       text(
-        'The rude ones are in there too, with the rude word cut down to its first letter — "What the f". If you would rather they were not on your board, turn on edit mode and delete the ones you do not want.',
+        'The rude ones are in there too, with the rude word cut down to its first letter — "What the f". If you would rather they were not on your board, turn :auto-speak: off for edit mode and delete the ones you do not want.',
       ),
     ],
   },
@@ -578,7 +588,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         ':suggest: under the heard box asks again, which is what you want after correcting the question or clearing the box.',
       ),
       list(
-        'They are only ever suggestions. Resting on one puts it in the message box — it is never spoken for you, even with auto-speak on, and you say it by resting on :speak:.',
+        'They are only ever suggestions. Resting on one puts it in the message box in place of what was there. It is never spoken for you: you say it by resting on :speak:, which while the question is open keeps it as a phrase too.',
         'You can change every word of it first, rest on another answer to swap it, or :clear: it and say something else entirely.',
         'They stay until the next question is answered. Closing the box, correcting the question, listening again or even closing Peri leaves them under the Answers tab, in case you want to go back to one.',
         'While new ones are on their way the old ones are out of sight, so they cannot be mistaken for answers to the new question. If asking fails, they come back.',
@@ -714,6 +724,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       text(
         "Text size, volume and Peri's keyboard are left alone. They belong to the device in front of you — a phone at arm's length and a tablet on a mount want different numbers — so each keeps its own. Everything else follows you: dwell times, the voice, your phrases and lists.",
+      ),
+      text(
+        'The tabs you have hidden, the order each tab shows its phrases in, and the changes Undo can reach stay on each device too: they are how you work on that one.',
       ),
       text(
         'If you have linked an ElevenLabs account, the audio it makes waits on the server too, so the second device does not spend your credits saying what the first already said. It is kept clip by clip, apart from the board, and locked the same way.',
