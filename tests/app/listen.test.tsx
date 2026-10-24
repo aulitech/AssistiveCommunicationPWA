@@ -286,66 +286,85 @@ describe('the control', () => {
   })
 
   /**
-   * **Opening the microphone puts the board in auto-speak.**
-   *
-   * Somebody has just been spoken to and is about to answer, with a person
-   * waiting in front of them — which is the whole of what auto-speak is for.
-   * The alternative is a board that hears a question and then wants a second
-   * dwell somewhere else before it can say anything back, which is the same
-   * cost the automatic asking exists to save.
+   * **Opening the microphone turns auto-speak off** — the board goes into edit
+   * mode, the only other way of working — so an answer is built in the box and
+   * said when it is ready, rather than each phrase said the moment it is
+   * chosen. It was the other way round, auto-speak put on.
    */
-  it('puts the board in auto-speak on the way in', () => {
-    renderApp()
-    // Edit mode, the only other way of working.
-    click($('.autospeak-toggle'))
-    expect(speaking(), 'the board was already talking, so this proves nothing').toBe(false)
-
-    toggleMic()
-    expect(speaking()).toBe(true)
-  })
-
-  /**
-   * And it says nothing where the board was already talking, which is where it
-   * usually is: the toast is the app saying what mode it is now in, and the
-   * pointer here is somebody's gaze — a line appearing about a change nobody
-   * made does not merely distract, it aims.
-   */
-  it('says nothing when the board is already talking', () => {
+  it('turns auto-speak off on the way in', () => {
     renderApp({ autoSpeak: true })
-    toggleMic()
+    expect(speaking(), 'the board was not talking, so this proves nothing').toBe(true)
 
-    expect(speaking()).toBe(true)
-    expect($('.toast')?.textContent ?? '').toBe('')
+    toggleMic()
+    expect(speaking()).toBe(false)
+    expect($('.app')?.classList.contains('edit-mode')).toBe(true)
+    expect(speakToggle().getAttribute('aria-label')).toBe('Stop listening and turn on auto-speak')
   })
 
-  // Only on the way in. A conversation that has ended is not a reason to stop
-  // talking, and a control that undid itself on the way out would take away a
-  // mode somebody had chosen in the middle of one.
-  it('leaves the mode alone on the way out', () => {
-    renderApp()
-    toggleMic()
-    click(speakToggle()) // back to composing, mid-conversation
-    toggleMic() // and out
-
-    expect(speaking(), 'closing the box put auto-speak back on').toBe(false)
-  })
-
-  /**
-   * It takes the board out of edit mode as a consequence, those two never being
-   * on together.
-   *
-   * Right rather than incidental: a question in the room is not a moment to be
-   * rewriting phrases. What it costs is the blank draft that dwelling on
-   * auto-speak itself would have cost.
-   */
-  it('takes the board out of edit mode', () => {
+  it('stays in edit mode when it was there already, with the box emptied', () => {
     renderApp()
     click(speakToggle())
-    expect($('.app')?.classList.contains('edit-mode')).toBe(true)
+    fireEvent.change(messageBox(), { target: { value: 'half a phrase' } })
+    settle()
 
     toggleMic()
-    expect($('.app')?.classList.contains('edit-mode')).toBe(false)
+    expect(speaking()).toBe(false)
+    expect(messageBox().value).toBe('')
+  })
+
+  // As every mode says it changed — in place of what the switch of mode says.
+  it('says it is listening, and that it has stopped', () => {
+    renderApp({ autoSpeak: true })
+    toggleMic()
+    expect($('.toast')?.textContent).toBe('Listening — auto-speak is off until you stop')
+    toggleMic()
+    expect($('.toast')?.textContent).toBe('Stopped listening — auto-speak on')
+  })
+
+  // **Closing it goes back to the mode it opened from**, the answer being
+  // written carried into the message box as leaving edit mode always carries it.
+  it('goes back to auto-speak on the way out, carrying the answer', () => {
+    renderApp({ autoSpeak: true })
+    toggleMic()
+    fireEvent.change(messageBox(), { target: { value: 'An answer of my own' } })
+    settle()
+    toggleMic()
+
     expect(speaking()).toBe(true)
+    expect(heardBox()).toBeNull()
+    expect(messageBox().value).toBe('An answer of my own')
+  })
+
+  it('stays in edit mode on the way out when it opened from there', () => {
+    renderApp()
+    click(speakToggle())
+    toggleMic()
+    fireEvent.change(messageBox(), { target: { value: 'A phrase being written' } })
+    settle()
+    toggleMic()
+
+    expect(speaking()).toBe(false)
+    expect(heardBox()).toBeNull()
+    expect(messageBox().value).toBe('A phrase being written')
+    expect($('.toast')?.textContent).toBe('Stopped listening')
+  })
+
+  // **Auto-speak's control stops listening and turns auto-speak on**, whichever
+  // mode the question opened from.
+  it('stops listening and turns auto-speak on when auto-speak is chosen', () => {
+    renderApp()
+    click(speakToggle())
+    toggleMic()
+    fireEvent.change(messageBox(), { target: { value: 'An answer of my own' } })
+    settle()
+    act(() => void vi.advanceTimersByTime(1100))
+
+    click(speakToggle())
+
+    expect(speaking()).toBe(true)
+    expect(heardBox(), 'still listening').toBeNull()
+    expect(messageBox().value).toBe('An answer of my own')
+    expect($('.toast')?.textContent).toBe('Stopped listening — auto-speak on')
   })
 
   // Opening the box is a box with nothing behind it. An undo reaching past the
@@ -609,12 +628,11 @@ describe('the question', () => {
     settle()
 
     expect($('.heard-error')?.textContent).toMatch(/allow it for Peri/i)
-    // A refused microphone costs the microphone and nothing else: the board is
-    // in auto-speak, because opening it asked for that, and a phrase chosen on
-    // it is still said.
+    // A refused microphone costs the microphone and nothing else: a phrase
+    // chosen on the board still goes into the box, as edit mode puts it.
     const cell = $$('.phrase-cell')[0]!
     click(cell)
-    expect(spoken).toEqual([cell.textContent])
+    expect(messageBox().value).toBe(cell.textContent)
   })
 })
 
@@ -1126,16 +1144,15 @@ describe('the suggested reply', () => {
     expect(first.split('\n'), 'the user’s own phrase is not there').toContain('Apple')
     expect(first.split('\n'), 'the emergency bar is not there').toContain("I'm in pain")
 
-    // Used, which puts it at the head of a grid in Most used order. Said rather
-    // than composed, the board being in auto-speak while the microphone is
-    // open — a use is counted wherever a phrase is chosen, whichever of the two
-    // it then does.
+    // Used, which puts it at the head of a grid in Most used order: said, with
+    // the question closed and auto-speak back on — and then a new question
+    // opened, which listens again and answers itself.
+    toggleMic()
     click($$('.filter-tab').find(t => t.textContent === 'Sorted'))
     click($$('.phrase-cell').find(c => c.textContent === 'Apple'))
     expect(spoken, 'the phrase was never used').toContain('Apple')
+    toggleMic()
 
-    // Emptying the question listens again, and the next one answers itself.
-    click(clearHeard())
     act(() => FakeRecognition.last!.say({ transcript: 'Anything else?', isFinal: true }))
     act(() => FakeRecognition.last!.finish())
     settle()
@@ -1238,22 +1255,18 @@ describe('the suggested reply', () => {
   })
 
   /**
-   * Edit mode counts as *not* empty, however little is in the draft.
-   *
-   * The box is showing a phrase being written there, so a reply would land in
-   * the message behind it — one nobody could see, and an exchange nobody asked
-   * to pay for.
+   * **A phrase in the box is an answer already begun**, so nothing is asked
+   * for: a reply would land on words somebody is writing. An empty box — edit
+   * mode being how a question is answered now — asks as it always did.
    */
   it('asks for nothing while the box is showing a phrase instead', async () => {
     const fetch = suggests('I am, thank you')
     vi.stubGlobal('fetch', fetch)
     withKey()
-    // Edit mode *after* the microphone, which takes the board out of it on the
-    // way in — so this is somebody who opened the box and then went to change a
-    // phrase, which is the only way the two are ever on together.
     toggleMic()
-    click(speakToggle())
-    expect(messageBox().value, 'the draft is not empty, so this proves nothing').toBe('')
+    const cell = $$('.phrase-cell')[0]!
+    click(cell)
+    expect(messageBox().value, 'no phrase in the box, so this proves nothing').toBe(cell.textContent)
 
     act(() => FakeRecognition.last!.say({ transcript: 'Are you comfortable', isFinal: true }))
     act(() => FakeRecognition.last!.finish())
@@ -1336,27 +1349,26 @@ describe('the suggested reply', () => {
   describe('opening the question', () => {
     const pleaseToggle = () => $('.please-toggle')!
 
-    it('empties the message box, with Undo to bring it back', () => {
+    // Undo is the message's, outside edit mode — so it is there once the
+    // question closes and auto-speak is back.
+    it('empties the message box, with Undo to bring it back once it closes', () => {
       renderApp()
       fireEvent.change(messageBox(), { target: { value: 'something half said' } })
       settle()
       toggleMic()
       expect(messageBox().value).toBe('')
-      click($$('.icon-btn').find(b => /^undo/i.test(b.getAttribute('aria-label') ?? '')))
+      toggleMic()
+      click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Undo'))
       expect(messageBox().value).toBe('something half said')
     })
 
-    it('takes the board out of edit mode', () => {
+    it('puts the board in edit mode, with the box empty', () => {
       renderApp()
-      click(speakToggle())
-      expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
-      // A phrase half written: leaving edit mode would make it the message, and
-      // the question empties the box all the same.
-      fireEvent.change(messageBox(), { target: { value: 'half a phrase' } })
+      fireEvent.change(messageBox(), { target: { value: 'half a message' } })
       settle()
       toggleMic()
-      expect(speakToggle().getAttribute('aria-pressed')).toBe('true')
-      expect(messageBox().value).toBe('')
+      expect(speakToggle().getAttribute('aria-pressed')).toBe('false')
+      expect(messageBox().value, 'the message carried into the phrase').toBe('')
     })
 
     it('turns please off', () => {
@@ -1419,8 +1431,8 @@ describe('the suggested reply', () => {
     expect(messageBox().value).toBe('my own words')
   })
 
-  // Cleared by accident, it is one dwell back: the suggestion went into the box
-  // through the composer's own history.
+  // Carried into the message as the question closes, and cleared by accident
+  // there, it is one dwell back through the message's own history.
   it('comes back from the box own undo', async () => {
     vi.stubGlobal('fetch', suggests('Tea please'))
     withKey()
@@ -1428,8 +1440,10 @@ describe('the suggested reply', () => {
     click(suggestBtn())
     await act(async () => {})
     chooseAnswer('Tea please')
+    toggleMic()
+    expect(messageBox().value, 'not carried into the message').toBe('Tea please')
 
-    click($$('.icon-btn').find(b => /clear/i.test(b.getAttribute('aria-label') ?? '')))
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Clear'))
     click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Undo'))
 
     expect(messageBox().value).toBe('Tea please')
@@ -1445,9 +1459,8 @@ describe('the suggested reply', () => {
     click(suggestBtn())
     await act(async () => {})
     chooseAnswer('I would like an apple')
-    // Listening put the board in auto-speak, where a phrase is said rather than
-    // added; building on the answer is composing.
-    click(speakToggle())
+    // Listening put the board in edit mode, where a phrase chosen is added
+    // rather than said — building on the answer.
 
     click($$('.filter-tab').find(t => t.textContent === 'Sorted'))
     click($$('.phrase-cell').find(c => c.textContent === 'Apple'))
@@ -1564,7 +1577,8 @@ describe('the suggested reply', () => {
     settle()
     // The box holds the answer they took, and nothing is asked for while there
     // are words in it — a message half written says they are already answering.
-    click($$('.icon-btn').find(b => /clear/i.test(b.getAttribute('aria-label') ?? '')))
+    // Edit mode's way of emptying the box, auto-speak being off while it is open.
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Start a new phrase'))
     click(suggestBtn())
     await act(async () => {})
 
@@ -1604,7 +1618,8 @@ describe('the suggested reply', () => {
     await act(async () => {})
     chooseAnswer('Coffee please')
 
-    click($$('.icon-btn').find(b => /clear/i.test(b.getAttribute('aria-label') ?? '')))
+    // Edit mode's way of emptying the box, auto-speak being off while it is open.
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Start a new phrase'))
     click(suggestBtn())
     await act(async () => {})
 
@@ -1750,10 +1765,10 @@ describe('what listen mode does not touch', () => {
     const cell = $$('.phrase-cell')[0]!
     click(cell)
 
-    // Said rather than collected, the microphone having put the board in
-    // auto-speak on the way in — which is the whole point of that rule: the
-    // board is answering somebody.
-    expect(spoken).toEqual([cell.textContent])
+    // Into the box rather than said: the answer is built there, auto-speak
+    // being off while the question is open.
+    expect(messageBox().value).toBe(cell.textContent)
+    expect(spoken).toEqual([])
   })
 
   // The box above is somebody else's words. The grid narrows to what is being

@@ -61,6 +61,12 @@ describe('the toggle', () => {
     click(presentToggle())
     expect(open).toHaveBeenCalledWith(PRESENTATION_PATH, 'peri-presentation', expect.stringContaining('popup'))
     expect(presentToggle().getAttribute('aria-pressed')).toBe('true')
+    // As every mode says it changed.
+    expect($('.toast')?.textContent).toBe('Presenting — what is said shows in its own window')
+
+    act(() => void vi.advanceTimersByTime(1100))
+    click(presentToggle())
+    expect($('.toast')?.textContent).toBe('Presentation window closed')
   })
 
   // Opened off a dwell, which a browser does not count as a press.
@@ -124,6 +130,7 @@ describe('the toggle', () => {
     w.closed = true
     act(() => void vi.advanceTimersByTime(1000))
     expect(presentToggle().getAttribute('aria-pressed')).toBe('false')
+    expect($('.toast')?.textContent, 'said nothing as it went').toBe('Presentation window closed')
     click(plainCell())
     expect(stage.show).not.toHaveBeenCalled()
   })

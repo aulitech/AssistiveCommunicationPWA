@@ -23,12 +23,14 @@ export interface PresentingWindow extends Window {
  * said, the camera and the audio, and none of the board.
  *
  * **Opening can be refused**, as a link can: a browser opens a window only off
- * the back of a press, and a dwell is none. `onBlocked` says so.
+ * the back of a press, and a dwell is none. `onBlocked` says so — and `onChange`
+ * says it opened, or that it closed, from either side, as every mode says it
+ * changed.
  *
  * The stage goes in when the window says it is ready, and comes out when the
  * window closes — from here, from its own side, or by Peri going away.
  */
-export function usePresentation(onBlocked: () => void) {
+export function usePresentation(onBlocked: () => void, onChange: (presenting: boolean) => void) {
   const [presenting, setPresenting] = useState(false)
   const popup = useRef<PresentingWindow | null>(null)
 
@@ -38,14 +40,16 @@ export function usePresentation(onBlocked: () => void) {
     popup.current = null
     setPresenting(false)
     if (w && !w.closed) w.close()
-  }, [])
+    if (w) onChange(false)
+  }, [onChange])
 
   const start = useCallback(() => {
     const w = window.open(PRESENTATION_PATH, 'peri-presentation', 'popup,width=1280,height=720')
     if (!w) return onBlocked()
     popup.current = w
     setPresenting(true)
-  }, [onBlocked])
+    onChange(true)
+  }, [onBlocked, onChange])
 
   const toggle = useCallback(() => (popup.current ? end() : start()), [end, start])
 
