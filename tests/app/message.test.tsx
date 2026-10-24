@@ -597,8 +597,9 @@ describe('the card', () => {
   // The keyboard is offered only where it has been asked for — see *Peri's own
   // keyboard* — so on a board that has not asked, the menu is the whole rail.
   // **The menu is in the card**, last in its row of controls, at the upper
-  // right — and only the keyboard, where it is offered, is outside it.
-  it('leaves nothing outside it but the keyboard where it is offered, the menu last in its row', () => {
+  // right — and nothing is outside it, the keyboard where it is offered
+  // included: that is among the modes, right after present.
+  it('leaves nothing outside it, the menu last in its row and the keyboard after present', () => {
     renderApp()
     expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual([])
     expect($('.message-wrap > .message-lines > .message-line'), 'the line is not inside the card').not.toBeNull()
@@ -610,7 +611,9 @@ describe('the card', () => {
     expect(stylesheet()).toMatch(/\.icon-btn\.menu-btn \{[^}]*margin-left: 2\.5rem;/)
 
     renderApp({ keyboard: true })
-    expect($$('.topbar > .icon-btn').map(b => b.getAttribute('aria-label'))).toEqual(['Show the keyboard'])
+    expect($$('.topbar > .icon-btn')).toEqual([])
+    const modes = $$('.topbar-modes > .mode-btn').map(b => b.className.split(' ')[1])
+    expect(modes.slice(-2)).toEqual(['present-toggle', 'keyboard-toggle'])
   })
 
   // The fit lays the copy out at the box's settled width and says so, and the
@@ -915,7 +918,7 @@ describe('the keyboard Peri draws', () => {
     [...document.body.querySelectorAll('.panel-btn')].find(b => b.getAttribute('aria-label') === label)
   const keyNamed = (name: string) =>
     [...document.querySelectorAll('.key')].find(k => k.getAttribute('aria-label') === name)!
-  const toggleKeyboard = () => click(iconBtn('Show the keyboard') ?? iconBtn('Hide the keyboard'))
+  const toggleKeyboard = () => click($('.keyboard-toggle'))
 
   it('is not there until it is asked for', () => {
     renderApp({ keyboard: true })
@@ -938,7 +941,7 @@ describe('the keyboard Peri draws', () => {
   // The setting is what puts the toggle in the rail at all.
   it('is not offered at all on a board that has not asked for it', () => {
     renderApp()
-    expect(iconBtn('Show the keyboard'), 'the toggle is there on a board that never asked').toBeUndefined()
+    expect($('.keyboard-toggle'), 'the toggle is there on a board that never asked').toBeNull()
     expect(keyboard()).toBeNull()
   })
 

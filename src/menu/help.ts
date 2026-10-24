@@ -46,7 +46,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'In the upper right corner, :menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — :notes: Release notes, what changed in each version, and :sign-out: Sign out.',
       ),
       text(
-        'If you turn on Peri’s keyboard in Settings, :keyboard: at the left draws a keyboard, for a device that has none you can rest on.',
+        'If you turn on Peri’s keyboard in Settings, :keyboard: right after :present: draws a keyboard, for a device that has none you can rest on. It is lit while the keyboard is up.',
       ),
     ],
   },
@@ -414,7 +414,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Auto-repeat — how quickly a button that keeps going, such as a scroll arrow, goes again while you go on resting on it.',
         'Pause after choosing — after a rest or a click is taken, others are ignored for this long, so resting where you last chose, or clicking twice, does not choose again. A second to begin with; Off turns it off.',
         'Volume and Speed — how the voice sounds.',
-        'Peri’s keyboard — adds :keyboard: at the left of the message, for a device you cannot otherwise type on, such as an iPad. Each device keeps its own answer.',
+        'Peri’s keyboard — adds :keyboard: at the end of the modes, for a device you cannot otherwise type on, such as an iPad. Each device keeps its own answer.',
         'Getting started — this guide, one part at a time, each part you have been through marked :ticked:. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',
         'Spoken language — see Speaking another language.',
         'Presentation background — a picture to show behind the words in the presentation window. It is not in backups. With Synchronize on it goes to your other devices, locked with your passphrase like the board.',

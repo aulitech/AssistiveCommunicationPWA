@@ -101,36 +101,54 @@
    controls like everything else here.
 
    Fixed and portalled, above the panels — every text field in the app is one it
-   has to reach, and most of them are inside a panel. `.app` gives up the same
-   height from the bottom, so the emergency bar stays above it rather than under
-   it: the one surface somebody reaches for without reading must not be the one
-   the keyboard covers. */
+   has to reach, and most of them are inside a panel.
+
+   **Floating over the board, translucent, and as small as it can be worked.**
+   It took the bottom of the screen and the app gave up that height, so opening
+   it took a third of the board away. It floats over the phrase grid now,
+   standing on the emergency bar — `Keyboard` measures where that is and sets
+   `bottom` — because the one surface somebody reaches for without reading must
+   not be the one the keyboard covers. The grid makes room under its last row
+   for what it hides (`--keyboard-covers`), so nothing is out of reach. */
 
 /* **Height is the whole design.** Typing narrows the board to what matches, and
    a keyboard that leaves no board leaves nothing to narrow — the point of
    typing here is to reach a phrase in three letters rather than to write it out.
-   So four rows are squeezed into as little as they can be worked in, and the
-   spacing between them is pixels rather than rem: the keys grow with the text
-   size, the gutters between them do not need to. */
-:root { --keyboard-height: 30dvh; }
-
-.app.has-keyboard { padding-bottom: var(--keyboard-height); }
+   So four rows are squeezed into as little as they can be worked in, no wider
+   than a hand of keys needs, and the spacing between them is pixels rather than
+   rem: the keys grow with the text size, the gutters between them do not need
+   to. */
+:root { --keyboard-height: 19dvh; }
 
 .keyboard {
   position: fixed;
-  left: 0;
-  right: 0;
+  left: 50%;
   bottom: 0;
+  transform: translateX(-50%);
   z-index: 550;
+  width: min(calc(40vw - 0.4rem), 20.8rem);
   height: var(--keyboard-height);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -10px 40px rgba(0,0,0,0.55);
+  border-radius: 12px;
+  /* **In the brand's gold**, frame and ground, so it reads as Peri's own
+     rather than one more panel of the board it floats over. Opaque enough
+     that the phrases behind are only a shadow of words where a browser draws
+     no blur, and blurred where it does, so they never compete with the
+     letters on the keys. */
+  border: 1.5px solid color-mix(in srgb, var(--brand) 75%, transparent);
+  background: color-mix(in srgb, color-mix(in srgb, var(--brand) 22%, var(--surface)) 78%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
+
+/* Room under the grid's last row for what the keyboard hides, and its down
+   arrow lifted above it, so nothing on the board is out of reach. */
+.app.has-keyboard .grid-wrapper { padding-bottom: var(--keyboard-covers, 0px); }
+.app.has-keyboard .grid-arrow.is-down { bottom: calc(10px + var(--keyboard-covers, 0px)); }
 
 .key-row {
   display: flex;
@@ -149,7 +167,9 @@
   border-radius: 6px;
   /* A key is a cell: the same two greys the phrase grid uses, so the palette's
      contrast guarantees carry over rather than being invented again here. */
-  background: var(--cell);
+  /* Translucent with the board behind, as the keyboard is: the board shows
+     through rather than being blanked out. */
+  background: color-mix(in srgb, var(--cell) 80%, transparent);
   color: var(--text);
   /* The letter on the key, not the text of the app: read at a glance, and in
      rem so it follows the text size like everything else. */
@@ -192,13 +212,32 @@
 
 .key.dwelling { border-color: var(--accent); }
 
+/* **The fill every other control has**, rising behind the letter as it is
+   rested on — a key is too small for a bar along its foot to be seen. Behind
+   the letter rather than over it: the key is its own stacking context, and the
+   fill sits at its back. */
+.key { isolation: isolate; }
+.key .dwell-bar {
+  z-index: -1;
+  inset: 0;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  /* Stronger than the accent's dim wash: a key is small, and a faint fill on
+     it would not be seen rising. */
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+.key.dwelling .dwell-bar { animation: dwellFillV var(--dwell-duration, 800ms) linear forwards; }
+
 /* A short screen has to give up proportionally more, or the keys stop being
-   targets at all. A tall one gives up less, because 30dvh of an iPad is
+   targets at all. A tall one gives up less, because a fifth of an iPad is
    already a generous key. The arrangement never changes with either — a layout
    that reflowed would move every letter, and these are aimed at rather than
    read. */
-@media (max-height: 700px) { :root { --keyboard-height: 42dvh; } }
-@media (min-height: 1000px) { :root { --keyboard-height: 26dvh; } }
+@media (max-height: 700px) { :root { --keyboard-height: 27dvh; } }
+@media (min-height: 1000px) { :root { --keyboard-height: 16dvh; } }
 
 /* ── Waiting ── */
 /* The only thing on screen that says "wait", for the two things that can keep

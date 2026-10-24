@@ -664,24 +664,6 @@ export function Topbar({
 
   return (
     <header className="topbar">
-      {/* At the left, as the menu is at the right, because it is the same kind
-          of thing: a surface the whole app shares, rather than anything about
-          the message in the box. It stays put in both modes — on a device that cannot type without it,
-          a control that moved would be the worst one to have to hunt for.
-
-          **Only where it has been asked for.** It is the one way to type at all
-          on iOS and a target in the way on a device with a real keyboard, so it
-          is a setting rather than something every board carries. */}
-      {settings.keyboard && (
-        <ActionButton
-          label={keyboardOpen ? 'Hide the keyboard' : 'Show the keyboard'}
-          onSelect={onToggleKeyboard}
-          className={cx('keyboard-btn', keyboardOpen && 'is-on')}
-        >
-          <KeyboardIcon />
-        </ActionButton>
-      )}
-
       {/* The message card: the row of controls, and under it the line the
           words are written on — and, while listen mode is open, the question's
           line beside it or above it. */}
@@ -799,6 +781,28 @@ export function Topbar({
                     label={presenting ? 'Stop presenting' : 'Present: show what is said in a window of its own'}
                   >
                     <PresentIcon />
+                  </ModeToggle>
+                )}
+
+                {/* **Peri's own keyboard**, right after present, lit while it is
+                    up — among the modes, being one more way of working the
+                    board, and in the same place in both modes: on a device that
+                    cannot type without it, a control that moved would be the
+                    worst one to have to hunt for. It stood alone at the left of
+                    the message card once.
+
+                    **Only where it has been asked for.** It is the one way to type
+                    at all on iOS and a target in the way on a device with a real
+                    keyboard, so it is a setting rather than something every board
+                    carries. */}
+                {settings.keyboard && (
+                  <ModeToggle
+                    className="keyboard-toggle"
+                    on={keyboardOpen}
+                    onToggle={onToggleKeyboard}
+                    label={keyboardOpen ? 'Hide the keyboard' : 'Show the keyboard'}
+                  >
+                    <KeyboardIcon />
                   </ModeToggle>
                 )}
               </div>
