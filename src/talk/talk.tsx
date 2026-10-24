@@ -1596,7 +1596,11 @@ export function TalkScreen({
           {/* Portalled and fixed, so it is above a panel as well as above the
               board — every field in the app is one it has to be able to type
               into, and most of them are inside one. */}
-          {keyboardOpen && createPortal(<Keyboard onClose={() => setKeyboardOpen(false)} />, document.body)}
+          {keyboardOpen &&
+            createPortal(
+              <Keyboard onClose={() => setKeyboardOpen(false)} above=".emergency-bar" covers=".grid-area" />,
+              document.body,
+            )}
 
           <DwellCursor />
 

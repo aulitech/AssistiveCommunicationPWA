@@ -979,3 +979,38 @@ test('puts Undo and Redo on the line under on a narrow card that is not a phone'
   }
   expect(errors).toEqual([])
 })
+
+// **Peri's keyboard floats over the board**, translucent, standing on the
+// emergency bar: the board keeps its height, the bar is never covered, and the
+// grid's down arrow is lifted above it. It used to take the bottom of the
+// screen, and the board gave up that height to it.
+test('floats the keyboard over the board, on the emergency bar, the down arrow above it', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('dwellspeak_settings')) {
+      localStorage.setItem('dwellspeak_settings', JSON.stringify({ selectionPauseMs: 0, keyboard: true }))
+    }
+  })
+  await page.setViewportSize({ width: 1280, height: 800 })
+  const { errors } = await openBoard(page)
+  const gridHeight = () => page.locator('.grid-area').evaluate(el => el.getBoundingClientRect().height)
+  const before = await gridHeight()
+  await page.locator('.keyboard-toggle').click()
+  await expect(page.locator('.keyboard')).toBeVisible()
+  const m = await page.evaluate(() => {
+    const rect = (sel: string) => document.querySelector(sel)!.getBoundingClientRect()
+    const keyboard = getComputedStyle(document.querySelector('.keyboard')!)
+    return {
+      keyboard: rect('.keyboard').toJSON(),
+      bar: rect('.emergency-bar').toJSON(),
+      arrow: rect('.grid-arrow.is-down').toJSON(),
+      ground: keyboard.backgroundColor,
+    }
+  })
+  expect(await gridHeight(), 'the board gave up its height to the keyboard').toBeCloseTo(before, 0)
+  expect(Math.abs(m.keyboard.bottom - m.bar.top), 'not standing on the emergency bar').toBeLessThan(1)
+  expect(m.arrow.bottom, 'the down arrow is under the keyboard').toBeLessThanOrEqual(m.keyboard.top)
+  expect(m.keyboard.width, 'as wide as the screen').toBeLessThan(1280 - 100)
+  // Translucent: a colour with an alpha below one.
+  expect(m.ground, 'an opaque keyboard').toMatch(/(rgba|color)\(.*\/? ?0?\.\d+\)$/)
+  expect(errors).toEqual([])
+})

@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useState } from 'react'
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import { Keyboard } from '../../src/ui/keyboard'
+import { stylesheet } from '../stylesheet'
 import { DEFAULT_SETTINGS } from '../../src/core/store'
 
 const DWELL = DEFAULT_SETTINGS.actionDwellMs
@@ -218,5 +219,21 @@ describe('the keyboard itself', () => {
     for (const letter of 'abcdefghijklmnopqrstuvwxyz') {
       expect(screen.getByRole('button', { name: letter }), `${letter} is missing`).toBeTruthy()
     }
+  })
+})
+
+/**
+ * **Every key fills as it is rested on**, as every other control does — it had
+ * a fill element and nothing drawing it, so a rest showed only a green edge —
+ * and the keyboard is framed in the brand's gold, floating over the board.
+ */
+describe('how it is drawn', () => {
+  const css = () => stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+  it('fills a key from the bottom while it is rested on', () => {
+    expect(css()).toMatch(/\.key\.dwelling \.dwell-bar \{ animation: dwellFillV /)
+  })
+  it('frames the keyboard in the brand colour', () => {
+    const rule = css().slice(css().indexOf('.keyboard {'))
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/border: [^;]*var\(--brand\)/)
   })
 })

@@ -9,7 +9,7 @@
 // It types into whatever field has the caret rather than into any box it knows
 // about, which is what lets one keyboard serve all of them. See `ui/typing.ts`.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { LETTER_ROWS, SYMBOL_ROWS, afterTyping, nextShift, shifted, type Shift } from '../core/keys'
 import { useDwellControl } from './dwell'
 import { useSettings } from './settings'
@@ -70,8 +70,54 @@ function Key({
  * would mean no way to type a run of capitals; a separate lock key would mean
  * two targets where a gaze user has room for one.
  */
-export function Keyboard({ onClose }: { onClose: () => void }) {
+export function Keyboard({
+  onClose,
+  above,
+  covers,
+}: {
+  onClose: () => void
+  /** What it stands on — the emergency bar, which it must never cover. */
+  above?: string
+  /** What it floats over — the phrase grid, which makes room for it. */
+  covers?: string
+}) {
   const [shift, setShift] = useState<Shift>('off')
+  /**
+   * **Floating over the board, on the bar below it.** It took the bottom third
+   * of the screen and the board gave it up, so a keyboard opened was a board
+   * a third shorter. It floats now, translucent, standing on `above` — the
+   * emergency bar, the one surface somebody reaches for without reading, which
+   * it must not cover — and it says how much of `covers` it hides
+   * (`--keyboard-covers`), so the grid can scroll its last rows clear of it
+   * and lift its down arrow above it. Measured again whenever either moves.
+   */
+  const boardRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const root = document.documentElement
+    const place = () => {
+      const keyboard = boardRef.current
+      if (!keyboard) return
+      const bar = above ? document.querySelector(above)?.getBoundingClientRect() : undefined
+      const lift = bar && bar.height > 0 ? Math.max(0, window.innerHeight - bar.top) : 0
+      keyboard.style.bottom = `${lift}px`
+      const under = covers ? document.querySelector(covers)?.getBoundingClientRect() : undefined
+      const top = keyboard.getBoundingClientRect().top
+      const hidden = under && under.height > 0 ? Math.max(0, under.bottom - top) : 0
+      root.style.setProperty('--keyboard-covers', `${hidden}px`)
+    }
+    place()
+    const observer = new ResizeObserver(place)
+    for (const sel of [above, covers]) {
+      const el = sel ? document.querySelector(sel) : null
+      if (el) observer.observe(el)
+    }
+    window.addEventListener('resize', place)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', place)
+      root.style.removeProperty('--keyboard-covers')
+    }
+  }, [above, covers])
   const [symbols, setSymbols] = useState(false)
   const fieldOf = useFocusedField()
   // Read through a ref: a key is one of ninety and its handler must not be
@@ -112,7 +158,7 @@ export function Keyboard({ onClose }: { onClose: () => void }) {
     })
 
   return (
-    <div className="keyboard" role="group" aria-label="Keyboard">
+    <div ref={boardRef} className="keyboard" role="group" aria-label="Keyboard">
       <div className="key-row">{keysOf(top)}</div>
       <div className="key-row">{keysOf(middle)}</div>
 
