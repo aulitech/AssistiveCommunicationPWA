@@ -100,6 +100,9 @@ describe('fields that take the caret by dwell', () => {
     renderApp()
     click($('.autospeak-toggle'))
     click($('.add-tab'))
+    // Aimed at it: nothing answers the pointer that opened the dialog until it
+    // has moved — see `NameDialog`.
+    fireEvent.pointerMove(document.body, { clientX: 640, clientY: 380 })
     expect(arms($('.edit-modal-input'))).toBe(true)
   })
 

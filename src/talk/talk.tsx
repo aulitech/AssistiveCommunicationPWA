@@ -56,7 +56,7 @@ import { FilterBar } from './filter-bar'
 import { SortControl } from './sort-control'
 import { EmergencyBar } from './emergency'
 import { SlotPicker } from './slots'
-import { AskFirst, CategoryModal } from './editors'
+import { AskFirst, CategoryModal, EmergencyModal } from './editors'
 import { TopPanel } from '../menu/menu'
 import { useBoard } from './use-board'
 import { useHistory } from './use-history'
@@ -863,6 +863,28 @@ export function TalkScreen({
     [board],
   )
 
+  // ── Adding to the emergency bar ────────────────────────────────────────────
+
+  /**
+   * **The plus after the bar's last button**, in every mode — see
+   * `EmergencyModal`. Its words are typed in a dialog of its own, so the
+   * message box and whatever is in it are left as they are.
+   */
+  const [addingEmergency, setAddingEmergency] = useState(false)
+  const addEmergency = useCallback(() => {
+    cancelAllDwells()
+    setAddingEmergency(true)
+  }, [])
+  const saveEmergency = useCallback(
+    (words: string) => {
+      const id = board.addPhrase(words, [], true)
+      recordChange({ what: `Added ${quoted(words)} to the emergency bar`, phrase: id })
+      setAddingEmergency(false)
+      flashToast('Added to Emergency')
+    },
+    [board, recordChange, flashToast],
+  )
+
   /**
    * **The tabs taken off the bar** — this device's view of the board, behind
    * More, which puts them back. See `loadHiddenTabs`.
@@ -1481,6 +1503,7 @@ export function TalkScreen({
             onReorder={editMode ? board.reorderEmergency : undefined}
             onLift={text => flashToast(`Holding ${text} — dwell where it should go`)}
             onPeek={setPeek}
+            onAdd={addEmergency}
           />
 
           <TopPanel
@@ -1588,6 +1611,13 @@ export function TalkScreen({
               onSave={handleCategorySave}
               onDelete={handleCategoryDelete}
               onClose={() => setEditingCategory(null)}
+            />
+          )}
+          {addingEmergency && (
+            <EmergencyModal
+              existing={board.emergencyPhrases.map(p => p.source)}
+              onSave={saveEmergency}
+              onClose={() => setAddingEmergency(false)}
             />
           )}
         </div>

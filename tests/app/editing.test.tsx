@@ -23,6 +23,8 @@ import {
   toolsOnOpen,
   binOnOpen,
   clearMessage,
+  addEmergency,
+  emergencyField,
 } from './harness'
 
 // Everything Peri ships is in Library, and filing a phrase, following it and
@@ -238,20 +240,113 @@ describe('edit mode', () => {
     expect(cells()[0].textContent).not.toBe(before)
   })
 
-  it('adds an emergency phrase', () => {
-    renderApp()
-    click(speakToggle())
-    expect($('.emergency-add')).not.toBeNull()
+  // **By the plus after the bar's last button, in either mode**, and a dialog
+  // for the words. In the message box, a plus that opened a blank draft there
+  // changed nothing anybody could see, and read as doing nothing at all.
+  for (const mode of ['edit mode', 'auto-speak']) {
+    it(`adds an emergency phrase in ${mode}`, () => {
+      renderApp()
+      if (mode === 'edit mode') click(speakToggle())
+      writeIn(box(), 'Left alone')
+      const before = $$('.emergency-btn').length
 
+      addEmergency('I need my inhaler')
+
+      const labels = $$('.emergency-btn .emergency-label').map(e => e.textContent)
+      expect($$('.emergency-btn')).toHaveLength(before + 1)
+      expect(labels.at(-1)).toBe('I need my inhaler')
+      expect($('.edit-modal'), 'the dialog stayed open').toBeNull()
+      expect(box().value, 'the message box was touched').toBe('Left alone')
+    })
+  }
+
+  /**
+   * **Guarded against the press that opened it, said again.** An operating
+   * system's dwell-click goes on clicking where it rests: the screen round the
+   * dialog closed it when pressed, so the next click where the plus had been
+   * closed it and the one after opened it again. Regression guards, all three.
+   */
+  describe('the plus, pressed or rested on again', () => {
+    const dialog = () => $('.edit-modal')
+    const cancel = () =>
+      click(
+        [...document.body.querySelectorAll<HTMLElement>('.edit-modal .edit-action-btn')].find(b =>
+          b.textContent?.includes('Cancel'),
+        ),
+      )
+
+    it('leaves the dialog open when the screen round it is pressed', () => {
+      renderApp()
+      click($('.emergency-add'))
+      const scrim = document.body.querySelector('.edit-modal-scrim')!
+      fireEvent.pointerDown(scrim)
+      fireEvent.click(scrim)
+      settle()
+
+      expect(dialog()).not.toBeNull()
+    })
+
+    it('does not open it again for a click where the pointer already was', () => {
+      renderApp()
+      click($('.emergency-add'))
+      cancel()
+      // Pressed again without the pointer having moved.
+      fireEvent.click($('.emergency-add')!)
+      settle()
+      expect(dialog(), 'opened by a pointer that had not moved').toBeNull()
+
+      fireEvent.pointerMove(document.body, { clientX: 900, clientY: 700 })
+      fireEvent.click($('.emergency-add')!)
+      settle()
+      expect(dialog(), 'refused a pointer aimed at it').not.toBeNull()
+    })
+
+    it('does not open it again for a rest that carries on once it is closed', () => {
+      renderApp()
+      const plus = $('.emergency-add')!
+      fireEvent.pointerMove(document.body, { clientX: 900, clientY: 700 })
+      fireEvent.pointerEnter(plus)
+      act(() => void vi.advanceTimersByTime(3000))
+      settle()
+      expect(dialog()).not.toBeNull()
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      settle()
+      expect(dialog()).toBeNull()
+      fireEvent.pointerEnter(plus)
+      act(() => void vi.advanceTimersByTime(3000))
+      settle()
+
+      expect(dialog(), 'opened again by the rest that opened it').toBeNull()
+    })
+  })
+
+  it('closes the dialog with Cancel, adding nothing', () => {
+    renderApp()
     const before = $$('.emergency-btn').length
     click($('.emergency-add'))
+    writeIn(emergencyField()!, 'Never mind')
+    click(
+      [...document.body.querySelectorAll<HTMLElement>('.edit-modal .edit-action-btn')].find(b =>
+        b.textContent?.includes('Cancel'),
+      ),
+    )
 
-    writePhrase('I need my inhaler')
-    savePhrase()
+    expect($('.edit-modal')).toBeNull()
+    expect($$('.emergency-btn')).toHaveLength(before)
+  })
 
-    const labels = $$('.emergency-btn .emergency-label').map(e => e.textContent)
-    expect($$('.emergency-btn')).toHaveLength(before + 1)
-    expect(labels).toContain('I need my inhaler')
+  it('can be undone', () => {
+    renderApp()
+    const before = $$('.emergency-btn .emergency-label').map(e => e.textContent)
+    addEmergency('I need my inhaler')
+    click(
+      $$<HTMLButtonElement>('.icon-btn').find(
+        b => b.getAttribute('aria-label') === 'Undo: Added “I need my inhaler” to the emergency bar',
+      ),
+    )
+
+    expect($$('.emergency-btn .emergency-label').map(e => e.textContent)).toEqual(before)
   })
 
   it('removes a deleted phrase from the grid', () => {
@@ -457,17 +552,19 @@ describe('edit mode', () => {
       expect(iconBtn('Save phrase')?.disabled).toBe(false)
     })
 
-    // The bar is a category like any other for this purpose.
+    // The bar holds each wording once too, whatever the case.
     it('is refused on the emergency bar too', () => {
       renderApp()
-      click(speakToggle())
       const first = $('.emergency-btn .emergency-label')!.textContent!
 
       click($('.emergency-add'))
-      writePhrase(first)
+      writeIn(emergencyField()!, first.toUpperCase())
 
-      expect(toast()).toMatch(/already on the board/i)
-      expect(iconBtn('Save phrase')?.disabled).toBe(true)
+      expect($('.edit-modal')?.textContent).toMatch(/already says that/i)
+      const save = [...document.body.querySelectorAll<HTMLElement>('.edit-modal .edit-action-btn')].find(b =>
+        b.textContent?.includes('Save'),
+      )
+      expect(save?.classList.contains('is-disabled')).toBe(true)
     })
   })
 
@@ -778,9 +875,7 @@ describe('following a new phrase to where it was filed', () => {
     standingOn()
     click(tab('Translations'))
 
-    click($('.emergency-add'))
-    writePhrase('Call my sister')
-    savePhrase()
+    addEmergency('Call my sister')
 
     expect(activeTab()).toBe('Translations')
   })

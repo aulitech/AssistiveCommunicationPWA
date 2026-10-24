@@ -279,9 +279,7 @@
 .slot-cancel .dwell-bar { animation: none; }
 .slot-cancel.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
 
-/* ── Add-emergency tile (edit mode) ── */
+/* ── Add-emergency tile ── */
 /* Nothing of its own any more. It was a dashed outline, which is how this app
-   draws "nothing here yet", but the tools at the end of this bar are bare glyphs
-   now and an outline is the thing they do not have — see `.emergency-tool`,
-   which is where the width, the colour and the icon come from. The class stays
-   because the tests reach for it by name. */
+   draws "nothing here yet"; it is a bare plus now, in every mode — see
+   `.emergency-add` with the rules for arranging the bar. */

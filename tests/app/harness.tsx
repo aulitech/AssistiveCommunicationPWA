@@ -111,6 +111,21 @@ export const writeIn = (el: Element, value: string) => {
 }
 export const writePhrase = (value: string) => writeIn(box(), value)
 export const savePhrase = () => click(iconBtn('Save phrase'))
+/** The field in the dialog the plus after the emergency bar opens. */
+export const emergencyField = () => $<HTMLInputElement>('input[aria-label="Emergency phrase"]')
+/** The dialog's own Save — not the message box's. */
+export const saveInDialog = () =>
+  click(
+    [...document.body.querySelectorAll<HTMLElement>('.edit-modal .edit-action-btn')].find(b =>
+      b.textContent?.includes('Save'),
+    ),
+  )
+/** **A new emergency phrase**, by the plus after the bar's last button and the dialog it opens. */
+export const addEmergency = (words: string) => {
+  click($('.emergency-add'))
+  writeIn(emergencyField()!, words)
+  saveInDialog()
+}
 /**
  * **The bin on the phrase open in the box** — against the left edge of its
  * cell, or of its button on the emergency bar — and the question it asks first.
