@@ -39,9 +39,8 @@ function renderApp() {
 const STORE_KEY = 'dwellspeak_phrase_store_v2'
 const storedStore = () => JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}')
 
-// The add control carries `.emergency-btn` for its styling, so the phrases
-// are everything that is not one.
-const buttons = () => $$('.emergency-btn:not(.emergency-tool)')
+// The plus after them is not one: the phrases are every `.emergency-btn`.
+const buttons = () => $$('.emergency-btn')
 const labels = () => buttons().map(b => b.textContent)
 const named = (text: string) => buttons().find(b => b.textContent === text)
 const speakToggle = () => $('.autospeak-toggle')
@@ -50,6 +49,19 @@ const enterEditMode = () => click(speakToggle())
 const pad = () => $('.emergency-btn .reorder-tool')
 const bin = () => $('.emergency-btn .delete-tool')
 const addBtn = () => $('.emergency-add')
+/** A new emergency phrase, by the plus and the dialog it opens. */
+const addEmergency = (words: string) => {
+  click(addBtn())
+  fireEvent.change(document.body.querySelector('input[aria-label="Emergency phrase"]')!, {
+    target: { value: words },
+  })
+  settle()
+  click(
+    [...document.body.querySelectorAll<HTMLElement>('.edit-modal .edit-action-btn')].find(b =>
+      b.textContent?.includes('Save'),
+    ),
+  )
+}
 /** Empty the box, so the next phrase chosen opens rather than going in beside it. */
 const startNew = () => click(iconBtn('Start a new phrase'))
 /** Open a phrase in the box, which is what puts the pad on it, and lift it. */
@@ -99,10 +111,12 @@ describe('the emergency bar as it ships', () => {
     expect(spoken.at(-1)).toBe('Help me, please!')
   })
 
-  it('offers nothing to arrange outside edit mode', () => {
+  // Nothing to arrange; but adding one is there in every mode, as adding a
+  // category is.
+  it('offers nothing to arrange outside edit mode, and the plus', () => {
     renderApp()
     expect($('.emergency-btn .tab-tool')).toBeNull()
-    expect(addBtn()).toBeNull()
+    expect(addBtn()).not.toBeNull()
   })
 
   // As the tab showing carries its own: the phrase open in the box, and only it.
@@ -128,7 +142,7 @@ describe('the emergency bar as it ships', () => {
     renderApp()
     enterEditMode()
     expect($('.emergency-reorder')).toBeNull()
-    expect($$('.emergency-tool')).toHaveLength(1)
+    expect($$('.emergency-bar > :not(.emergency-btn)').map(el => el.className)).toEqual(['emergency-add'])
   })
 })
 
@@ -217,9 +231,7 @@ describe('moving an emergency phrase', () => {
     dwellDrag(arranged[0]!, arranged[2]!)
     const before = labels()
 
-    click(addBtn())
-    writePhrase('I need my inhaler')
-    click(iconBtn('Save phrase'))
+    addEmergency('I need my inhaler')
 
     expect(labels()).toEqual([...before, 'I need my inhaler'])
   })

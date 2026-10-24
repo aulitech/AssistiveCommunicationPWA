@@ -74,79 +74,54 @@
 
 /* ── Reordering the emergency bar ── */
 
-/* The tools at the end of the bar. Sized like the add tile they sit beside, so
-   the pair keeps a constant width and the reorder control does not move as the
-   mode is switched. */
-/* Bare glyphs, for the same reason as the category tools: these sit in a row of
-   red phrase tiles, and a tool drawn as another tile reads as another phrase —
-   on the one bar where being read wrongly matters most.
- *
- * The same box as the category tools, to the pixel, because they are the same
- * four glyphs and this bar has six phrases to fit besides. It was 84px wide and
- * stretched to whatever height the phrases came to, which was a tile's worth of
- * room spent on something with no words in it — and made the rising dwell wash a
- * tall column here and a small lozenge there, off the same two icons.
- *
- * Centred rather than stretched, so a phrase long enough to wrap does not drag
- * the tools taller with it. Fixed either way, so the pair holds still as the
- * mode is switched. */
-.emergency-tool {
-  flex: 0 0 46px;
-  height: 36px;
+/* **Adding an emergency phrase, right after the last button**, as Add
+   category follows the last tab: a bare plus, and a round wash rising behind
+   it as it is rested on — the same glyph and wash, so the two read as one
+   control. Not a tile: a tool drawn as another red tile reads as another
+   phrase, on the one bar where being read wrongly matters most. In every mode,
+   and as small as it can be — the bar has six phrases to fit besides — so it
+   pulls in from the bar's 1.5rem gap to 0.75rem, still clear of the last
+   button's invisible area and its own (6px each). */
+.emergency-add {
+  position: relative;
+  flex: 0 0 1.75rem;
   align-self: center;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  background: transparent;
-  border-color: transparent;
+  height: 2rem;
+  margin-left: -0.75rem;
   color: var(--text-muted);
+  cursor: pointer;
 }
 
-/* The two tools sit closer to each other than to anything else, the way the
-   category pair does at 6px. They are direct children of the bar and take its
-   1.5rem gap like the phrases do, and there is no wrapper to give them a gap of
-   their own — so the second one pulls itself back by the difference. Only the
-   second: the space between the phrases and the pair is the bar's rhythm and
-   stays. */
-.emergency-tool + .emergency-tool { margin-left: calc(6px - 1.5rem); }
-
-/* Heavier and larger than anything else on the bar, being the controls a user
-   has to pick out of it, and in rem so they track the text size. */
-.emergency-tool svg { width: 1.2rem; height: 1.2rem; stroke-width: 3; }
-
-/* Not the red wash the phrases use — these are the tools beside the bar, not
-   something to say out loud, and the tint would be the one cue claiming
-   otherwise. The glyph and the wash rising behind it carry the dwell instead. */
-.emergency-tool.dwelling {
-  color: var(--accent);
-  background: transparent;
+.emergency-add::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
 }
 
-/* Bottom up and in the accent rather than left to right in red, for both of the
-   reasons above: it is an icon button now, and it is not a phrase. The base
-   rule sizes the bar as a 3px sliver, and `width: 0` would beat `inset` at
-   deciding how wide it is, so the size has to be undone by hand. */
-.emergency-tool .emergency-dwell-bar {
+.emergency-add svg {
+  position: relative;
+  z-index: 1;
+  width: 1.15rem;
+  height: 1.15rem;
+  stroke-width: 2.6;
+  pointer-events: none;
+}
+
+.emergency-add-fill {
+  position: absolute;
   inset: 0;
-  width: auto;
-  height: auto;
-  background: var(--accent-dim);
-  transform: scaleY(0);
-  transform-origin: bottom;
+  border-radius: 50%;
+  background: var(--cell-hover);
+  transform: scale(0);
+  pointer-events: none;
 }
 
-.emergency-tool.dwelling .emergency-dwell-bar {
-  animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
-}
-
-.emergency-tool[aria-disabled] { opacity: 0.4; }
-
-/* Only the glyph shrinks on a narrow screen now. The tools used to give back
-   half their width here, from 84px to 48px, because two of them beside six
-   phrases was a lot of bar to spend on icons — but 46px at every width is
-   narrower than the concession was, so there is nothing left to give back. */
-@media (max-width: 700px) {
-  .emergency-tool svg { width: 1rem; height: 1rem; }
+.emergency-add.dwelling { color: var(--text); }
+.emergency-add.dwelling .emergency-add-fill {
+  animation: addTabFill var(--dwell-duration, 800ms) linear forwards;
 }
 
 /* The phrase in the air — the loudest thing on the bar, because it is what the

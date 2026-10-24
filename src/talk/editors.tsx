@@ -155,23 +155,9 @@ export function CategoryModal({
   onDelete: () => void
   onClose: () => void
 }) {
-  const [value, setValue] = useState('')
-  const trimmed = value.trim()
-
-  const clash = existing.some(c => c.toLowerCase() === trimmed.toLowerCase())
-  const canSave = trimmed !== '' && !clash
-  const phrases = `${phraseCount} phrase${phraseCount === 1 ? '' : 's'}`
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   // **Deleting asks first** — see `AskFirst`.
   if (name !== null) {
+    const phrases = `${phraseCount} phrase${phraseCount === 1 ? '' : 's'}`
     return (
       <AskFirst
         title={`Delete ${name}?`}
@@ -185,18 +171,107 @@ export function CategoryModal({
       />
     )
   }
+  return (
+    <NameDialog
+      title="Add category"
+      placeholder="Category name…"
+      fieldLabel="Category name"
+      clashNote="A category is already called that."
+      existing={existing}
+      onSave={onSave}
+      onClose={onClose}
+    />
+  )
+}
+
+/**
+ * **A new emergency phrase, from the plus after the bar's last button** — in
+ * every mode, as a category is added from the plus after the last tab. Its
+ * words are typed here rather than in the message box: the plus that opened a
+ * blank draft there changed nothing anybody could see, so it read as doing
+ * nothing at all.
+ */
+export function EmergencyModal({
+  existing,
+  onSave,
+  onClose,
+}: {
+  /** The words already on the bar, which a new button may not repeat. */
+  existing: string[]
+  onSave: (words: string) => void
+  onClose: () => void
+}) {
+  return (
+    <NameDialog
+      title="Add emergency phrase"
+      placeholder="What it says…"
+      fieldLabel="Emergency phrase"
+      clashNote="A button on the bar already says that."
+      existing={existing}
+      onSave={onSave}
+      onClose={onClose}
+    />
+  )
+}
+
+/**
+ * One line of words and Save: a category's name or an emergency button's
+ * words. Focused on arrival, so typing works straight away; Enter saves and
+ * Escape closes; and words already there, in any case, are refused.
+ *
+ * **Guarded against the press that opened it, said again.** A pointer rests
+ * where it last fired, and an operating system's dwell-click goes on clicking
+ * there: the screen round the dialog closed it when pressed, so the next click
+ * where the plus had been closed it, and the one after opened it again. That
+ * screen closes nothing now — Cancel and Escape do, as on every question here —
+ * and nothing answers a rest or a click until the pointer is aimed somewhere
+ * new, as the dialog comes and as it goes: what it uncovers, the plus or a
+ * phrase under Save, is not chosen by the pointer that was resting there.
+ */
+function NameDialog({
+  title,
+  placeholder,
+  fieldLabel,
+  clashNote,
+  existing,
+  onSave,
+  onClose,
+}: {
+  title: string
+  placeholder: string
+  fieldLabel: string
+  clashNote: string
+  existing: string[]
+  onSave: (words: string) => void
+  onClose: () => void
+}) {
+  const [value, setValue] = useState('')
+  const trimmed = value.trim()
+  const clash = existing.some(c => c.trim().toLowerCase() === trimmed.toLowerCase())
+  const canSave = trimmed !== '' && !clash
+
+  useLayoutEffect(() => {
+    cancelAllDwells()
+    holdDwellsUntilMoved()
+    return () => {
+      cancelAllDwells()
+      holdDwellsUntilMoved()
+    }
+  }, [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   return (
-    <div
-      className="edit-modal-scrim"
-      onPointerDown={e => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div className="edit-modal" role="dialog" aria-modal="true" aria-label="Add category">
-        <div className="edit-modal-title">Add category</div>
+    <div className="edit-modal-scrim">
+      <div className="edit-modal" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="edit-modal-title">{title}</div>
 
-        {/* Focused on arrival, so typing works straight away. */}
         <DwellInput
           className="edit-modal-input"
           value={value}
@@ -207,12 +282,12 @@ export function CategoryModal({
               onSave(trimmed)
             }
           }}
-          placeholder="Category name…"
-          aria-label="Category name"
+          placeholder={placeholder}
+          aria-label={fieldLabel}
           autoFocus
         />
 
-        {clash && <p className="edit-modal-note">A category is already called that.</p>}
+        {clash && <p className="edit-modal-note">{clashNote}</p>}
 
         <div className="edit-modal-actions">
           <EditAction kind="cancel" label="Cancel" onActivate={onClose} />

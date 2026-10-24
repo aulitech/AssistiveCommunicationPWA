@@ -342,7 +342,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'After a save, a delete, taking a phrase out of a category or deleting a category, :undo: at the top left puts the board back as it was, and :redo: makes the change again. Each names what it will do.',
         'Peri keeps your last 50 changes on this device, so they are still there after a reload. They are in no backup and go to no other device. On a phone there is no Undo or Redo, so a delete there is final.',
         'A category goes by itself once its last phrase is taken out, and an import leaves no empty ones behind. A new category you have not put anything in yet stays until you do.',
-        'Use :add: at the end of the blue bar to add an emergency phrase.',
+        'Use :add: right after the last button on the blue bar to add an emergency phrase, in either mode. Type its words and choose Save. It cannot say what a button already says.',
         'To change an emergency phrase, empty the box with :clear: and choose it. With words in the box, choosing one says it.',
         'An emergency phrase you choose has :delete: and :grip: on its button, the same way: :grip: picks it up to move it along the blue bar, and resting on another puts it there.',
       ),

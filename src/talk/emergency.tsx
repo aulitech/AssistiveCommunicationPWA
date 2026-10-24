@@ -152,35 +152,25 @@ export function EmergencyButton({
   )
 }
 
-/** The controls at the end of the bar: add, and reorder. Edit mode only. */
-function EmergencyTool({
-  className,
-  label,
-  pressed,
-  disabled,
-  onActivate,
-  children,
-}: {
-  className: string
-  label: string
-  pressed?: boolean
-  disabled?: boolean
-  onActivate: () => void
-  children: React.ReactNode
-}) {
+/**
+ * **Adding an emergency phrase, right after the last button** — a bare plus
+ * with a round wash behind it as it is rested on, as Add category follows the
+ * last tab, and in every mode as that one is. It opens a dialog for the words
+ * (`EmergencyModal`), so it takes no more of the bar than its glyph.
+ */
+function AddEmergency({ onActivate }: { onActivate: () => void }) {
   const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate, { disabled })
+  const { active, props } = useDwellControl(settings.actionDwellMs, onActivate)
   return (
     <div
-      className={cx('emergency-btn emergency-tool', className, active && 'dwelling', pressed && 'is-on')}
+      className={cx('emergency-add', active && 'dwelling')}
       style={dwellVar(settings.actionDwellMs)}
       role="button"
-      aria-label={label}
-      aria-pressed={pressed}
+      aria-label="Add emergency phrase"
       {...props}
     >
-      {children}
-      <div className="emergency-dwell-bar" key={active ? 'a' : 'i'} />
+      <PlusIcon />
+      <span className="emergency-add-fill" key={active ? 'a' : 'i'} />
     </div>
   )
 }
@@ -194,6 +184,7 @@ export function EmergencyBar({
   onReorder,
   onLift,
   onPeek,
+  onAdd,
 }: {
   phrases: Phrase[]
   voiceFor: (id: string) => string | undefined
@@ -223,8 +214,10 @@ export function EmergencyBar({
   onReorder?: (from: string, to: string) => void
   /** Announced when a phrase is picked up — the styling alone says nothing aloud. */
   onLift?: (text: string) => void
+  /** The plus after the last button, in every mode — see `AddEmergency`. */
+  onAdd: () => void
 }) {
-  const { editMode, openEdit } = useEdit()
+  const { editMode } = useEdit()
   // A phrase is keyed by its id, so what it is called has to be looked up: two
   // buttons can read the same and an id survives rewording either of them.
   const labelOf = (id: string) => phrases.find(p => p.id === id)?.text ?? id
@@ -261,8 +254,6 @@ export function EmergencyBar({
     </>
   )
 
-  const handleAdd = useCallback(() => openEdit(null, true), [openEdit])
-
   /**
    * Whether any button's words are cut off — wider or taller than the button
    * shows. Measured on every change to the bar and every resize of it, since a
@@ -276,7 +267,7 @@ export function EmergencyBar({
     if (!bar) return
     const measure = () =>
       setClipped(
-        [...bar.querySelectorAll<HTMLElement>('.emergency-btn:not(.emergency-tool)')].some(
+        [...bar.querySelectorAll<HTMLElement>('.emergency-btn')].some(
           b => b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 1,
         ),
       )
@@ -290,11 +281,7 @@ export function EmergencyBar({
     if (!clipped) onPeek?.(null)
   }, [clipped, onPeek])
 
-  if (phrases.length === 0 && !editMode) return null
-
-  // Two buttons in edit mode either way. Adding a phrase mid-reorder would drop
-  // whatever is in the air, so the add button goes quiet rather than away — the
-  // control a user has to find is the one that must not move.
+  // Drawn with nothing on it, as the plus that puts something there.
   return (
     <div ref={barRef} className="emergency-bar" role="group" aria-label="Emergency phrases">
       {phrases.map(p => (
@@ -311,11 +298,14 @@ export function EmergencyBar({
       ))}
       {/* **Adding one, right after the last**, as a new tab follows the last
           tab. Arranging and deleting are the open phrase's own tools. */}
-      {editMode && (
-        <EmergencyTool className="emergency-add" label="Add emergency phrase" onActivate={handleAdd}>
-          <PlusIcon />
-        </EmergencyTool>
-      )}
+      <AddEmergency
+        onActivate={() => {
+          // Whatever is in the air is put back, as it is when the phrase open
+          // in the box changes: the plus is going somewhere else.
+          release()
+          onAdd()
+        }}
+      />
     </div>
   )
 }
