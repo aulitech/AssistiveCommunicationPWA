@@ -84,6 +84,8 @@ export function SortControl({
               key={option.id}
               name={option.name}
               detail={option.detail}
+              // The glyph the control draws while this order is on.
+              icon={SORT_ICONS[option.id]}
               selected={option.id === pending}
               onSelect={() => mark(option.id)}
             />

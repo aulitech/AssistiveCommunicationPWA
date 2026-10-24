@@ -502,6 +502,17 @@
   white-space: nowrap;
 }
 
+/* A glyph before the name — the order picker's, the one its control draws for
+   each order — level with the words and the size of their capitals. */
+.picker-tile-icon {
+  display: inline-flex;
+  vertical-align: -0.15em;
+  margin-right: 0.5em;
+  color: var(--text-muted);
+}
+.picker-tile-icon svg { width: 1.1em; height: 1.1em; }
+.picker-tile.is-selected .picker-tile-icon { color: inherit; }
+
 .picker-tile-detail {
   font-size: 0.8rem;
   color: var(--text-muted);

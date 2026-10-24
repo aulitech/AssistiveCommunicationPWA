@@ -916,6 +916,7 @@ export function PickerModal({
 export function PickerTile({
   name,
   detail,
+  icon,
   selected,
   className,
   onSelect,
@@ -923,6 +924,11 @@ export function PickerTile({
   name: string
   /** The smaller second line — where a voice came from, what a category holds. */
   detail?: string
+  /**
+   * A glyph before the name — the one the control that opened the grid draws
+   * for this choice, so the tile and the control are learnt as one.
+   */
+  icon?: React.ReactNode
   selected: boolean
   className?: string
   onSelect: () => void
@@ -938,7 +944,14 @@ export function PickerTile({
       aria-label={detail ? `${name} · ${detail}` : name}
       {...props}
     >
-      <span className="picker-tile-name">{name}</span>
+      <span className="picker-tile-name">
+        {icon && (
+          <span className="picker-tile-icon" aria-hidden="true">
+            {icon}
+          </span>
+        )}
+        {name}
+      </span>
       {detail && <span className="picker-tile-detail">{detail}</span>}
       {/* A mark as well as the colour. Green is the app's "selected" cue
           everywhere, and in a grid where several can be on at once, colour alone
