@@ -1,7 +1,32 @@
 [
   {
-    "version": "11.11.1",
+    "version": "11.11.2",
     "date": "2026-10-25",
+    "commits": [
+      {
+        "subject": "The magnified phrase is always drawn",
+        "body": [
+          {
+            "text": "On an iPad the phrase under the pointer vanished as it was magnified. A cell may skip its painting while the browser thinks it out of view, its size held to a placeholder while it does, and the magnified cell is moved out of its place and sized to its words — so Safari could take it as skipped and give its width as nothing. It is never skipped now; every other cell still is."
+          }
+        ]
+      },
+      {
+        "subject": "A phrase said for the first time is counted and shown where it went",
+        "body": [
+          {
+            "text": "A message said or copied was kept in Library and never seen: used once, it sat behind every phrase used more under Most used, below the first screen of a board in use, and read as not kept at all. The board now points at it — marked and scrolled to wherever the order puts it — once the words have ended and the box has stopped searching."
+          },
+          {
+            "text": "And a phrase said with edit mode's Speak and save was saved but never counted as used, so under Recently used it sat at the very end of the board; a question answered in edit mode is answered that way. It is counted now, the phrase Save made or the one that says the words where Save refused them, and pointed at the same way."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "11.11.1",
+    "date": "2026-10-24",
     "commits": [
       {
         "subject": "One pair of floating arrows for all scrolling, repeating on a click too",
