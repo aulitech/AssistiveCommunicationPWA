@@ -851,6 +851,9 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Peri can be installed to a home screen from your browser menu. Once installed it opens like any other app and keeps working with no internet connection.',
       ),
       text(
+        'It updates itself each time it is opened with a connection. If a new version comes out while Peri is open, a strip at the top says so: Update now reloads Peri into it, and Later waits. Updating empties the message box, so finish what you are saying first.',
+      ),
+      text(
         'Your phrases, your word lists and your settings are stored on this device. Nothing is uploaded unless you switch on one of the few things listed below, and signing in does not change that.',
       ),
       text(
