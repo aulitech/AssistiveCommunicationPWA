@@ -226,7 +226,7 @@ export function ReleaseNotesPanel() {
 
   return (
     <div className="help-panel release-notes-panel">
-      <ScrollPane className="help-scroller" paneClassName="help-body" step={120}>
+      <ScrollPane className="help-scroller" paneClassName="help-body">
         <div className="help-measure">
           <h2 className="help-title">Release notes</h2>
           {failed ? (

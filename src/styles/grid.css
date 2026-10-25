@@ -16,16 +16,17 @@
 
 .grid-wrapper::-webkit-scrollbar { display: none; }
 
-/* ── The arrows over the grid ── */
-/* **Two arrows floating over the rightmost column**, the whole of the grid's
-   scrolling: up at the top of the column and down at its foot, each half a cell
-   high and a third of one wide (`--arrow-h`, `--arrow-w`, measured off a cell
-   by `GridArrows`), against the right edge of the column. Translucent, so the
-   cell under one still reads through it, and above a magnified cell, which
-   would otherwise grow over the way down. One with nowhere to go is hidden and
-   lets the pointer through. They replace a rail of six down the grid's right
-   edge, and the column it took. */
-.grid-arrow {
+/* ── The floating arrows ── */
+/* **Two arrows floating over the right edge of anything that scrolls up and
+   down** — see `FloatingArrows`: the grid, every panel and picker, and the two
+   text boxes past their cap. Up at the top and down at the foot; on the grid
+   each half a cell high and a third of one wide (`--arrow-h`, `--arrow-w`,
+   measured off a cell by `GridArrows`), against the right edge of its last
+   column. Translucent, so what is under one still reads through it, and above
+   a magnified cell, which would otherwise grow over the way down. One with
+   nowhere to go is hidden and lets the pointer through. They replace a rail of
+   six down the grid's right edge, and the panels' rail of four. */
+.scroll-arrow {
   position: absolute;
   right: 10px;
   z-index: 6;
@@ -44,15 +45,15 @@
   transition: color 0.1s, opacity 0.15s;
 }
 
-.grid-arrow.is-up { top: 10px; }
-.grid-arrow.is-down { bottom: 10px; }
+.scroll-arrow.is-up { top: 10px; }
+.scroll-arrow.is-down { bottom: 10px; }
 
-.grid-arrow.is-hidden {
+.scroll-arrow.is-hidden {
   visibility: hidden;
   pointer-events: none;
 }
 
-.grid-arrow svg {
+.scroll-arrow svg {
   position: relative;
   z-index: 1;
   width: 1.4rem;
@@ -60,9 +61,9 @@
   pointer-events: none;
 }
 
-.grid-arrow.dwelling { color: var(--text); }
+.scroll-arrow.dwelling { color: var(--text); }
 
-.grid-arrow-fill {
+.scroll-arrow-fill {
   position: absolute;
   inset: 0;
   background: var(--accent-dim);
@@ -71,7 +72,7 @@
   pointer-events: none;
 }
 
-.grid-arrow.dwelling .grid-arrow-fill {
+.scroll-arrow.dwelling .scroll-arrow-fill {
   animation: dwellFillV var(--dwell-duration, 800ms) linear forwards;
 }
 

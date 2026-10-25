@@ -14,7 +14,7 @@ import { DwellCursor, DwellLink, ProseSections, ScrollPane } from '../ui/control
 export function LegalPage({ doc }: { doc: ProseDocument }) {
   return (
     <div className="legal-page">
-      <ScrollPane className="legal-scroller" paneClassName="legal-body" step={160}>
+      <ScrollPane className="legal-scroller" paneClassName="legal-body">
         <article className="legal-measure">
           <p className="legal-back">
             <DwellLink href="/">← Back to Peri</DwellLink>

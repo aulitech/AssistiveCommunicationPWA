@@ -667,12 +667,13 @@ describe('choosing a voice', () => {
     expect(scrim.parentElement).toBe(document.body)
   })
 
-  // Sixty voices is the longest list in the app, and 80 pixels at a time is not
-  // a way to get through it.
-  it('offers all four scroll controls once there is somewhere to go', () => {
+  // Sixty voices is the longest list in the app: the floating arrows page
+  // through it five sixths at a time, as everything that scrolls is paged.
+  it('offers the floating arrows once there is somewhere to go', () => {
     openPicker('Daniel', 'Karen', 'Moira')
     const pane = inDocument('.picker-modal .scroll-pane-inner')[0]
-    const controls = () => inDocument('.picker-modal .pane-scroll-btn').map(b => b.getAttribute('aria-label'))
+    const controls = () =>
+      inDocument('.picker-modal .pane-arrow:not(.is-hidden)').map(b => b.getAttribute('aria-label'))
 
     expect(controls(), 'nothing to scroll yet').toEqual([])
 
@@ -682,7 +683,7 @@ describe('choosing a voice', () => {
     fireEvent.scroll(pane)
     settle()
 
-    expect(controls()).toEqual(['Go to top', 'Scroll up', 'Scroll down', 'Go to bottom'])
+    expect(controls()).toEqual(['Scroll up', 'Scroll down'])
   })
 
   it('takes itself away again when closed', () => {

@@ -120,7 +120,7 @@ export function SlotPicker({
             fifty words and a picker is a screen, so most of them sat below the
             fold with nothing a gaze could use to reach them — and this is the
             chooser somebody opens to say which part of them hurts. */}
-        <ScrollPane className="slot-scroller" paneClassName="slot-options" step={140}>
+        <ScrollPane className="slot-scroller" paneClassName="slot-options">
           <div className="slot-options-grid" role="group">
             {options.map(option => (
               <SlotOption key={option} value={option} onPick={pick} />

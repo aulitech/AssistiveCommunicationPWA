@@ -226,7 +226,7 @@ export function SettingsPanel({
 
   return (
     <div className="settings-panel">
-      <ScrollPane className="settings-scroller" paneClassName="settings-body" step={100}>
+      <ScrollPane className="settings-scroller" paneClassName="settings-body">
         {/* First, because it is the setting somebody needs before they can read
             any of the others — including this panel. It is also the one that
             re-lays the panel out as it changes, and the top row is where that

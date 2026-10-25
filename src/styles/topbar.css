@@ -93,36 +93,32 @@
 }
 
 /* Up and down inside a text box that has more in it than shows — see
-   `BoxScroll`. Down the box's right edge, in padding the box gives up only while
-   they are there (`.has-scroll`), so no word ever sits under one.
- *
- * Inset a little from the top and the bottom, so they stand inside the words'
- * own space rather than against the row of controls under it.
- */
+   `BoxScroll` — the floating arrows every surface that scrolls has, at a size
+   that fits a box of a few lines. Down the box's right edge, in padding the box
+   gives up only while they are there (`.has-scroll`), so no word ever sits
+   under one, and inset a little from its top and its foot. */
 .box-scroll {
   position: absolute;
   top: 0.4rem;
   bottom: 0.4rem;
   right: 0.3rem;
   width: 2rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
   z-index: 2;
-  /* The column is a frame, not a target; only the two buttons in it are. */
+  /* A frame, not a target; only the two arrows in it are. */
   pointer-events: none;
 }
 
-.box-scroll .pane-scroll-btn {
-  flex: 0 0 2rem;
+.box-scroll .scroll-arrow {
+  right: 0;
+  width: 2rem;
+  height: 1.75rem;
   border-radius: 6px;
-  border: 1px solid var(--border);
   pointer-events: auto;
 }
-
-/* The end with nowhere to go keeps its place and answers to nothing, so the one
-   that does never moves under a resting pointer. */
-.box-scroll .pane-scroll-btn.is-idle { pointer-events: none; }
+.box-scroll .scroll-arrow.is-up { top: 0; }
+.box-scroll .scroll-arrow.is-down { bottom: 0; }
+.box-scroll .scroll-arrow.is-hidden { pointer-events: none; }
+.box-scroll .scroll-arrow svg { width: 1rem; height: 1rem; }
 
 /* The room the arrows stand in, taken from the words only while they are there. */
 .text-display.has-scroll,

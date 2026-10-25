@@ -21,15 +21,22 @@ function Probe({
   durationMs = 500,
   disabled = false,
   repeatMs,
+  clickRepeats,
   whileSpeaking,
 }: {
   onActivate: () => void
   durationMs?: number
   disabled?: boolean
   repeatMs?: number
+  clickRepeats?: boolean
   whileSpeaking?: boolean
 }) {
-  const { active, props } = useDwellControl(durationMs, onActivate, { disabled, repeatMs, whileSpeaking })
+  const { active, props } = useDwellControl(durationMs, onActivate, {
+    disabled,
+    repeatMs,
+    clickRepeats,
+    whileSpeaking,
+  })
   return (
     <div role="button" aria-label="probe" data-active={active} {...props}>
       probe
@@ -251,6 +258,36 @@ describe('repeat mode', () => {
     fireEvent.pointerLeave(probe())
     advance(1000)
     expect(onActivate).toHaveBeenCalledTimes(4)
+  })
+
+  /**
+   * **A click starts the repeat too, where the control asks for it** — the
+   * scroll arrows. An operating system's dwell-click is a click, and they paged
+   * once for a gaze that went on resting on them. Not anywhere else: a mouse
+   * that clicks backspace and stays on it must not go on deleting.
+   */
+  it('repeats after a click where it is asked to, until the pointer leaves', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} repeatMs={100} clickRepeats />)
+
+    fireEvent.click(probe())
+    expect(onActivate).toHaveBeenCalledTimes(1)
+    advance(300)
+    expect(onActivate).toHaveBeenCalledTimes(4)
+    expect(probe().dataset.active, 'not lit while it repeats').toBe('true')
+
+    fireEvent.pointerLeave(probe())
+    advance(1000)
+    expect(onActivate).toHaveBeenCalledTimes(4)
+  })
+
+  it('fires a click once on a repeating control that has not asked for it', () => {
+    const onActivate = vi.fn()
+    render(<Probe onActivate={onActivate} repeatMs={100} />)
+
+    fireEvent.click(probe())
+    advance(1000)
+    expect(onActivate).toHaveBeenCalledTimes(1)
   })
 
   it('stays lit for as long as it is repeating', () => {

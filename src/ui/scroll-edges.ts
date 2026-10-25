@@ -13,7 +13,8 @@
 // `style.ts` and `settle.ts` are: a file mixing components with plain functions
 // loses fast refresh for everything importing it.
 
-import { useCallback, useEffect, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { pageTarget } from '../core/paging'
 
 export interface ScrollEdges {
   /** Something is scrolled off the top. */
@@ -30,6 +31,13 @@ export interface ScrollEdges {
   nudge: (dy: number) => void
   toTop: () => void
   toBottom: () => void
+  /**
+   * **A page each way**: five sixths of what shows, landing on the top of one
+   * of `rowTops` where one is in reach — see `pageTarget`.
+   */
+  page: (direction: 1 | -1, rowTops?: readonly number[]) => void
+  /** When it last scrolled, which says whether it is still moving from a page. */
+  movedAt: () => number
 }
 
 /**
@@ -41,6 +49,7 @@ export interface ScrollEdges {
 export function useScrollEdges(ref: RefObject<HTMLElement | null>, mounted: unknown = true): ScrollEdges {
   const [canUp, setCanUp] = useState(false)
   const [canDown, setCanDown] = useState(false)
+  const moved = useRef(0)
 
   const update = useCallback(() => {
     const el = ref.current
@@ -56,11 +65,15 @@ export function useScrollEdges(ref: RefObject<HTMLElement | null>, mounted: unkn
     const el = ref.current
     if (!el) return
     update()
-    el.addEventListener('scroll', update, { passive: true })
+    const onScroll = () => {
+      moved.current = Date.now()
+      update()
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
     const ro = new ResizeObserver(update)
     ro.observe(el)
     return () => {
-      el.removeEventListener('scroll', update)
+      el.removeEventListener('scroll', onScroll)
       ro.disconnect()
     }
   }, [ref, update, mounted])
@@ -72,5 +85,17 @@ export function useScrollEdges(ref: RefObject<HTMLElement | null>, mounted: unkn
     [ref],
   )
 
-  return { canUp, canDown, update, nudge, toTop, toBottom }
+  const page = useCallback(
+    (direction: 1 | -1, rowTops: readonly number[] = []) => {
+      const el = ref.current
+      if (!el) return
+      const most = Math.max(0, el.scrollHeight - el.clientHeight)
+      const top = Math.min(most, pageTarget(el.scrollTop, el.clientHeight, rowTops, direction))
+      el.scrollTo({ top, behavior: 'smooth' })
+    },
+    [ref],
+  )
+  const movedAt = useCallback(() => moved.current, [])
+
+  return { canUp, canDown, update, nudge, toTop, toBottom, page, movedAt }
 }
