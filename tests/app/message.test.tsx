@@ -1,7 +1,7 @@
 // The message being built: the caret, the keys, the box that grows with what is in it, the controls on its borders, and what is said being kept in Library.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { cleanup, fireEvent, act } from '@testing-library/react'
-import { setClipboardText, spoken } from '../setup'
+import { finishSpeech, holdSpeech, scrolledIntoView, setClipboardText, spoken } from '../setup'
 import {
   $$,
   $,
@@ -255,6 +255,54 @@ describe('what is said', () => {
       say('Said on Translations')
       expect(members()).toEqual({ Food: ['custom-seed-0'] })
       expect(kept()).toEqual(['Toast and jam', 'Said on Library', 'Said on Translations'])
+    })
+  })
+
+  /**
+   * **And the board points at it**, marked and scrolled to wherever the order
+   * puts it, as a phrase just saved is. Regression guard: kept and never seen,
+   * it was a phrase lost — used once, it sat after everything used more under
+   * Most used, below the first screen of a board in use, and read as never
+   * kept at all. Once the words have ended, since the board takes its new
+   * order then, and the box has stopped searching for it, since a scroll made
+   * while it was would be lost the moment it was cleared.
+   */
+  describe('pointing at it', () => {
+    const marked = () => $('.phrase-cell[aria-current="true"]')?.textContent
+    const cellFor = (text: string) => $$('.phrase-cell').find(c => c.textContent === text)
+
+    it('points at a message said for the first time, once the words have ended', () => {
+      renderApp()
+      holdSpeech()
+      writeIn(box(), 'Never said before now')
+      click(iconBtn('Speak'))
+      expect(marked(), 'pointed at before the words ended').toBeUndefined()
+
+      finishSpeech()
+      settle()
+      expect(scrolledIntoView, 'scrolled to while the box was still searching').not.toContain(
+        cellFor('Never said before now'),
+      )
+
+      clearMessage()
+      expect(marked()).toBe('Never said before now')
+      expect(scrolledIntoView).toContain(cellFor('Never said before now'))
+    })
+
+    it('points at a message copied out once the box is cleared, there being nothing said to wait for', async () => {
+      renderApp()
+      writeIn(box(), 'Copied for the first time')
+      await copied()
+      clearMessage()
+      expect(marked()).toBe('Copied for the first time')
+    })
+
+    it('points at nothing for words already on the board', () => {
+      renderApp()
+      const text = plainCell().textContent!
+      writeIn(box(), text)
+      click(iconBtn('Speak'))
+      expect(marked()).toBeUndefined()
     })
   })
 

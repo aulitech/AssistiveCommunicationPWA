@@ -1137,6 +1137,41 @@ describe('opening the phrase the message is', () => {
  * marked once the search lets the tab back. Put in at the caret instead, it
  * was a copy of itself with no cell to carry its tools, and Save refused it.
  */
+/**
+ * **A phrase said with Speak and save is counted as used, and pointed at**, as
+ * a message said in auto-speak is. Regression guard: it was saved and never
+ * counted, so under Recently used — and Most used — it sat behind every phrase
+ * with any use at all, at the end of the board; and a question answered in
+ * edit mode is answered that way.
+ */
+describe('speaking a phrase in edit mode', () => {
+  const usage = (): Record<string, { count: number }> => JSON.parse(localStorage.getItem('peri_usage') ?? '{}')
+  const speakAndSave = () => click(iconBtn('Speak and save'))
+  const marked = () => $('.phrase-cell[aria-current="true"]')?.textContent
+
+  it('counts a new phrase it saves as used, and points at it', () => {
+    renderApp()
+    enterEditMode()
+    writePhrase('Brand new to the board')
+    speakAndSave()
+
+    const id = Object.keys(usage()).find(k => k.startsWith('custom-') && !k.startsWith('custom-seed'))
+    expect(id, 'not counted as used').toBeDefined()
+    expect(usage()[id!].count).toBe(1)
+    expect(marked()).toBe('Brand new to the board')
+  })
+
+  // Save refuses words Library has already; it is that phrase that was said.
+  it('counts the phrase that says the words where Save refuses them', () => {
+    renderApp()
+    enterEditMode()
+    writePhrase('Tea please')
+    speakAndSave()
+
+    expect(usage()['custom-seed-0']?.count).toBe(1)
+  })
+})
+
 describe('finding a phrase to change by typing', () => {
   const marked = () => $('.phrase-cell[aria-current="true"]')?.textContent
   const cellFor = (text: string) => $$('.phrase-cell').find(c => c.textContent === text)

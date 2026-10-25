@@ -466,6 +466,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Type the start of it, or the start of any word in it, to find it again.',
         'Put Library in Recently used order to see what you said last, newest first.',
         'Something said twice is kept once.',
+        'A message said for the first time is marked on the board once it has been said and you clear the box, and the board scrolls to it, wherever the order puts it.',
       ),
       text(
         'Said on a category of your own, it goes in that category too, as Save would file it; said on Library, it is in no category. In edit mode you can file it under others, like any phrase, or delete it. Deleting is worth knowing about if you have just said something private.',
