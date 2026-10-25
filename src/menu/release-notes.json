@@ -1,5 +1,19 @@
 [
   {
+    "version": "11.11.3",
+    "date": "2026-10-25",
+    "commits": [
+      {
+        "subject": "An open copy of Peri offers a newer version when one is out",
+        "body": [
+          {
+            "text": "Peri updated itself on every opening with a connection, but a copy already open ran the release it was opened on for as long as it stayed open. It now asks now and then whether the page names another script, and a strip at the top says a new version is ready: Update now reloads into it, Later waits until a newer one still. Never reloaded by itself, since a reload loses whatever is in the message box."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.2",
     "date": "2026-10-25",
     "commits": [
