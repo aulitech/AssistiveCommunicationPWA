@@ -1,5 +1,25 @@
 [
   {
+    "version": "11.11.1",
+    "date": "2026-10-25",
+    "commits": [
+      {
+        "subject": "One pair of floating arrows for all scrolling, repeating on a click too",
+        "body": [
+          {
+            "text": "Every panel, picker and the sign-in page had a rail of four scroll controls; the two text boxes past their cap had small arrows of their own. All of them now have the grid's two floating arrows — up at the top of the right edge, down at the foot, translucent, a page of five sixths at a time, each only while there is somewhere to go."
+          },
+          {
+            "text": "A click on a scroll arrow now goes on paging while the pointer stays, as a rest does: an operating system's dwell-click is a click, and the arrows paged once for a gaze that went on resting on them. Only the arrows; a click on backspace or a spinner still acts once."
+          },
+          {
+            "text": "The down arrow rises clear of Peri's keyboard only where the keyboard is over it, which at its present size is never — it was lifted whatever, and stood in mid-air. And the keyboard steps aside while nothing on screen can be typed into, coming back by itself when something can."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.0",
     "date": "2026-10-24",
     "commits": [
