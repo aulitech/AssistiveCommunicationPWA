@@ -214,3 +214,61 @@ test('edits a link in the box as its text and its address', async ({ page }) => 
   await expect(box).toHaveValue('Look at [Menu](https://example.com/menu) please')
   expect(errors).toEqual([])
 })
+
+// **A message said for the first time is shown where it went.** On a board in
+// use it was kept in Library and never seen: used once, it sat after every
+// phrase used more under Most used, below the first screen — and read as not
+// kept at all. Once the words end and the box is cleared, the board marks it
+// and scrolls to it.
+test('shows a new message where it went in Library, on a board in use', async ({ page }) => {
+  const { errors } = await openBoard(page)
+  await page.evaluate(() => {
+    const ids = [...document.querySelectorAll('.phrase-cell')].slice(0, 40).map(c => c.getAttribute('data-phrase'))
+    const at = Date.now() - 100000
+    localStorage.setItem(
+      'peri_usage',
+      JSON.stringify(Object.fromEntries(ids.map((id, i) => [id, { count: 3, at: at + i }]))),
+    )
+  })
+  await page.reload()
+  await messageBox(page).click()
+  await page.keyboard.type('Zebra crossing at noon')
+  await page.locator('.icon-btn[aria-label="Speak"]').click()
+  await page.evaluate(() => speechSynthesis.cancel())
+  await page.locator('.icon-btn[aria-label="Clear"]').click()
+
+  const marked = page.locator('.phrase-cell[aria-current="true"]')
+  await expect(marked).toHaveText('Zebra crossing at noon')
+  const index = await page.evaluate(() =>
+    [...document.querySelectorAll('.phrase-cell')].findIndex(c => c.textContent === 'Zebra crossing at noon'),
+  )
+  expect(index, 'not below the phrases used more, so this proves nothing').toBeGreaterThan(30)
+  await expect(marked).toBeInViewport({ ratio: 1, timeout: 3000 })
+  expect(errors).toEqual([])
+})
+
+// **Said with Speak and save, a phrase is first under Recently used.** It was
+// saved and never counted as used, so it sat behind every phrase with any use:
+// two thousand cells down a board in use.
+test('puts a phrase said with Speak and save first under Recently used', async ({ page }) => {
+  const { errors } = await openBoard(page)
+  await page.evaluate(() => {
+    const ids = [...document.querySelectorAll('.phrase-cell')].slice(0, 40).map(c => c.getAttribute('data-phrase'))
+    const at = Date.now() - 100000
+    localStorage.setItem(
+      'peri_usage',
+      JSON.stringify(Object.fromEntries(ids.map((id, i) => [id, { count: 3, at: at + i }]))),
+    )
+    localStorage.setItem('peri_phrase_sort', JSON.stringify({ Library: 'recent' }))
+  })
+  await page.reload()
+  await editMode(page)
+  await messageBox(page).click()
+  await page.keyboard.type('Zebra crossing at noon')
+  await page.locator('.icon-btn[aria-label="Speak and save"]').click()
+  await page.evaluate(() => speechSynthesis.cancel())
+
+  await expect(page.locator('.phrase-cell').first()).toHaveText('Zebra crossing at noon')
+  await expect(page.locator('.phrase-cell[aria-current="true"]')).toHaveText('Zebra crossing at noon')
+  expect(errors).toEqual([])
+})

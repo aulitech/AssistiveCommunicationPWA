@@ -433,7 +433,27 @@ export function TalkScreen({
    * be seen to have been said at all.
    */
   const [saidTimes, setSaidTimes] = useState(0)
-  useEffect(() => subscribeSpeaking(on => void (on || setSaidTimes(n => n + 1))), [])
+  /**
+   * **A message said for the first time, pointed at once it has been said** —
+   * see `keepSaid`. Held here until the words end, because the board takes its
+   * new order then and a phrase pointed at sooner would move after the board
+   * had scrolled to it; and then until the board shows the tab again, the box
+   * no longer searching — while it is, the message is what it has found, and a
+   * scroll made then would be lost the moment the box was cleared.
+   */
+  const pointWhenSaid = useRef<string | null>(null)
+  const [pointWhenShown, setPointWhenShown] = useState<string | null>(null)
+  useEffect(
+    () =>
+      subscribeSpeaking(on => {
+        if (on) return
+        setSaidTimes(n => n + 1)
+        const id = pointWhenSaid.current
+        pointWhenSaid.current = null
+        if (id) setPointWhenShown(id)
+      }),
+    [],
+  )
 
   // What order the grid is in, and what it shows — see `use-grid-order.ts`.
   const { phraseSort, visiblePhrases, chooseSort, handleReorderPhrases } = useGridOrder({
@@ -481,17 +501,32 @@ export function TalkScreen({
    * is first under Recently used and first among what typing finds. There was a
    * Sent tab for this; see docs/decisions/sent-messages.md. One Library already
    * says is not counted again, nor filed: choosing it off the board counted it,
-   * and what typing finds comes from Library whichever tab is showing.
+   * and what typing finds comes from Library whichever tab is showing. A new
+   * one is pointed at, so it is seen where it went.
    */
   const { keepSaid: keepInLibrary } = board
   const keptInto = activeFilter !== LIBRARY && allCategories.includes(activeFilter) ? activeFilter : undefined
   const keepSaid = useCallback(
     (text: string) => {
       const id = keepInLibrary(text, keptInto)
-      if (id) recordUsed(id)
+      if (!id) return
+      recordUsed(id)
+      // **And the board points at it** — marked, and scrolled to wherever the
+      // order puts it — as a phrase just saved is. Kept and never seen, it was
+      // a phrase lost: a message used once sits after everything used more
+      // under Most used, and at the very end of a hand arrangement. Once what
+      // is being said has ended, or now, where nothing is — a copy.
+      if (isSpeaking()) pointWhenSaid.current = id
+      else setPointWhenShown(id)
     },
     [keepInLibrary, keptInto, recordUsed],
   )
+  // Adjusted during render, as state that follows state is: the board points
+  // in the render that shows the tab again, so no frame shows it unmarked.
+  if (pointWhenShown && !filterWord) {
+    setPointWhenShown(null)
+    setPointing({ id: pointWhenShown, movedTo: null })
+  }
 
   // ── Choosing a phrase ──────────────────────────────────────────────────────
 
@@ -659,8 +694,8 @@ export function TalkScreen({
    * to a blank phrase, ready for the next one. So this is the only place that
    * can say the save happened, and it says it out loud.
    */
-  const saveDraft = useCallback(() => {
-    if (!draft.canSave) return
+  const saveDraft = useCallback((): string | undefined => {
+    if (!draft.canSave) return undefined
     const { phrase, isEmergency, keeping, categories, sameAs, into } = draft
     // **Never a second copy.** The words are on the board already, so Save
     // puts that phrase in the category showing, and leaves anything opened
@@ -671,7 +706,7 @@ export function TalkScreen({
       setPointing({ id: sameAs, movedTo: null })
       startNew()
       flashToast(`Already on the board — added to ${into}`)
-      return
+      return sameAs
     }
     const text = draft.text.trim()
     const voice = draft.voice || undefined
@@ -707,10 +742,12 @@ export function TalkScreen({
      */
     const movesTo = making && !isEmergency ? moveToShow(categories) : null
 
+    let saved: string
     if (making) {
       // The id comes back so a brand-new phrase can be given the voice chosen
       // for it — there is no id to hang one on until the phrase exists.
       const id = board.addPhrase(text, categories, isEmergency)
+      saved = id
       if (voice) board.setVoice(id, voice)
       recordChange({
         what: keeping ? `Kept ${quoted(text)} as a phrase` : `Saved ${quoted(text)}`,
@@ -725,6 +762,7 @@ export function TalkScreen({
       // Fetched and stored the moment it is assigned, so the phrase can be said
       // in that voice without waiting — including on the emergency bar, which
       // never waits.
+      saved = phrase.id
       board.setVoice(phrase.id, voice)
       board.editPhrase(phrase, text, categories, isEmergency)
       recordChange({ what: `Saved ${quoted(text)}`, phrase: phrase.id, tab: effectiveFilter })
@@ -744,6 +782,7 @@ export function TalkScreen({
             ? `Saved, and added to ${into}`
             : 'Saved',
     )
+    return saved
   }, [draft, board, categoriesOf, startNew, flashToast, moveToShow, showTab, recordChange, effectiveFilter])
   const handleSave = saveDraft
 
@@ -1259,8 +1298,19 @@ export function TalkScreen({
           voiceURI,
         })
       } else speak(plain, settings, { voiceURI, onTranslated: recordTranslated, please: settings.please })
-      // Save refuses words Library holds already, so those are only said.
-      handleSave()
+      // Save refuses words Library holds already, so those are only said —
+      // and it is that phrase that was said.
+      const said = handleSave() ?? phraseSaying(words.trim())?.id
+      // **Counted as used, and pointed at once it has been said**, as a message
+      // said in auto-speak is — see `keepSaid`. Not counted, a phrase said here
+      // sat behind every phrase with any use under Recently used and Most used:
+      // the end of the board. Not a button on the emergency bar, which is
+      // counted nowhere.
+      if (said && !draft.isEmergency) {
+        recordUsed(said)
+        if (isSpeaking()) pointWhenSaid.current = said
+        else setPointWhenShown(said)
+      }
       return
     }
     if (hasChoices(segments)) {
@@ -1282,6 +1332,9 @@ export function TalkScreen({
     settings,
     recordTranslated,
     handleSave,
+    phraseSaying,
+    draft.isEmergency,
+    recordUsed,
   ])
 
   // Copying is the other way a message leaves — into a text, an email, someone
