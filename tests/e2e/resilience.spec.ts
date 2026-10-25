@@ -42,3 +42,34 @@ test('opens the board over a damaged phrase store', async ({ page }) => {
   await expect(page.locator('.still-talking')).toHaveCount(0)
   expect(errors).toEqual([])
 })
+
+// **A newer Peri is offered to a copy already open**, when it is looked at
+// again — and Update now reloads into it. It was found only on opening, so an
+// iPad left on the board for days ran the release it was opened on. Without the
+// service worker, which would answer the ask itself and leave nothing to stand
+// in for.
+test.describe('a newer version', () => {
+  test.use({ serviceWorkers: 'block' })
+  test('offers a newer version to an open copy, and reloads into it when chosen', async ({ page }) => {
+    const { errors } = await openBoard(page)
+    await expect(page.locator('.update-offer')).toHaveCount(0)
+
+    // The page as a newer release would serve it: another script named in it.
+    const root = (url: URL) => url.pathname === '/'
+    await page.route(root, async (route, request) => {
+      if (request.resourceType() !== 'fetch') return route.continue()
+      const res = await route.fetch()
+      const html = (await res.text()).replace(/\/assets\/index-[^"]+\.js/, '/assets/index-newer.js')
+      await route.fulfill({ response: res, body: html })
+    })
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+    await expect(page.locator('.update-offer')).toBeVisible()
+
+    await page.unroute(root)
+    // The strip's arrival holds the dwells for a second, as it moves the screen.
+    await page.waitForTimeout(1100)
+    await Promise.all([page.waitForEvent('load'), page.locator('.update-offer [aria-label="Update now"]').click()])
+    await expect(page.locator('.update-offer')).toHaveCount(0)
+    expect(errors).toEqual([])
+  })
+})

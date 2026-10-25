@@ -82,6 +82,26 @@
   line-height: 1.4;
 }
 
+/* ── A newer Peri ────────────────────────────────────────────────────────────
+   The same strip in the same place — see `use-new-version.ts` — in the accent
+   rather than amber: nothing is wrong, and there is nothing to lose by waiting. */
+.update-offer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.75rem 1rem;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--text);
+}
+.update-offer p {
+  flex: 1;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
 /* ── When the app itself has failed ────────────────────────────────────────
    The emergency bar keeps the bottom of the screen, where it always is — it is
    the surface somebody reaches for without reading, and this is the moment

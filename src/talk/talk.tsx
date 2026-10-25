@@ -68,6 +68,7 @@ import { SUGGEST_CATEGORY, SUGGEST_FILTER } from './suggestions'
 import { useApologies } from './use-apologies'
 import { useSynchronized } from './use-synchronized'
 import { useNotKeeping } from './use-not-keeping'
+import { useNewVersion } from './use-new-version'
 import { useGridOrder } from './use-grid-order'
 import { useUsage } from './use-usage'
 import { useToast } from './use-toast'
@@ -1379,6 +1380,10 @@ export function TalkScreen({
   // `use-not-keeping.ts` — and the backup built from memory that answers it.
   const { notKeeping, keptInFile, keepInFile } = useNotKeeping(board, settings)
 
+  // A newer Peri than this open copy, offered rather than forced — see
+  // `use-new-version.ts`. The built app alone.
+  const newVersion = useNewVersion(import.meta.env.PROD)
+
   // Synchronizing — see `use-synchronized.ts`: the board and the account going
   // to the user's other devices, and what arrives from them landing here.
   const { sync, account, setAccount, picture, choosePicture } = useSynchronized({
@@ -1478,6 +1483,13 @@ export function TalkScreen({
             speaking && 'is-speaking',
           )}
         >
+          {newVersion.offered && (
+            <div className="update-offer" role="status">
+              <p>A new version of Peri is ready. Updating reloads Peri, so finish what you are saying first.</p>
+              <PanelButton label="Update now" kind="primary" onActivate={newVersion.update} />
+              <PanelButton label="Later" kind="plain" onActivate={newVersion.later} />
+            </div>
+          )}
           {notKeeping && (
             <div className="not-keeping" role="alert">
               <p>
