@@ -11,8 +11,8 @@ import { useEdit } from '../ui/edit-mode'
 import { stripMarkdown } from '../core/markdown'
 import { hasChoices, type Phrase } from '../core/phrases'
 import { needsMore, windowSize } from '../core/virtual'
-import { pageTarget } from '../core/paging'
-import { GripIcon, ScrollDownIcon, ScrollUpIcon, TrashIcon } from '../ui/icons'
+import { FloatingArrows } from '../ui/controls'
+import { GripIcon, TrashIcon } from '../ui/icons'
 import { useScrollEdges } from '../ui/scroll-edges'
 import { cx, dwellVar } from '../ui/style'
 import { ItemTool } from './item-tool'
@@ -165,10 +165,6 @@ const PhraseCell = memo(function PhraseCell({
 // {['music','tv']}"). Selecting one walks the user through its slots by dwell
 // rather than dropping raw placeholder text into the message.
 
-/** The least time between two pages — see `page` in `GridArrows`. */
-const PAGE_SETTLE_MS = 500
-/** A scroll this recent means the grid is still moving from the last page. */
-const STILL_MOVING_MS = 150
 /** Frames without the grid moving that say a scroll has come to rest. */
 const SCROLL_AT_REST_FRAMES = 5
 
@@ -224,34 +220,14 @@ function GridArrows({
     return () => ro.disconnect()
   }, [gridRef, innerRef, update])
 
-  /**
-   * **Debounced**: a page is refused while the grid is still moving from the
-   * last one, and within `PAGE_SETTLE_MS` of it whatever — so a rest that
-   * fires and a gaze rig's click straight after it, or a repeat set quicker
-   * than a smooth scroll takes, move the grid once rather than twice, and each
-   * page is measured from where the grid has come to rest.
-   */
-  const lastPage = useRef(0)
-  const lastScroll = useRef(0)
-  useEffect(() => {
-    const wrapper = gridRef.current
-    if (!wrapper) return
-    const moved = () => {
-      lastScroll.current = Date.now()
-    }
-    wrapper.addEventListener('scroll', moved, { passive: true })
-    return () => wrapper.removeEventListener('scroll', moved)
-  }, [gridRef])
-
+  // Paged so that the top row is whole: each row's top is a place a page can
+  // land — see `pageTarget`. The debounce is the arrows' own.
+  const { page: pageTo } = edges
   const page = useCallback(
     (direction: 1 | -1) => {
       const wrapper = gridRef.current
       const grid = innerRef.current
       if (!wrapper || !grid) return
-      const now = Date.now()
-      if (now - lastPage.current < PAGE_SETTLE_MS || now - lastScroll.current < STILL_MOVING_MS) return
-      lastPage.current = now
-      const from = wrapper.scrollTop
       const padding = parseFloat(getComputedStyle(wrapper).paddingTop) || 0
       // Half the gap between rows above the one landed on, so nothing of the
       // row before it shows over the top edge; the first row goes to the very top.
@@ -263,52 +239,23 @@ function GridArrows({
         const at = place.getBoundingClientRect().top - base
         tops.add(at <= padding + 1 ? 0 : Math.round(at - gap / 2))
       }
-      const most = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight)
-      const top = Math.min(most, pageTarget(from, wrapper.clientHeight, [...tops], direction))
-      wrapper.scrollTo({ top, behavior: 'smooth' })
+      pageTo(direction, [...tops])
     },
-    [gridRef, innerRef],
+    [gridRef, innerRef, pageTo],
   )
 
   const style = size
     ? ({ '--arrow-w': `${size.width / 3}px`, '--arrow-h': `${size.height / 2}px` } as React.CSSProperties)
     : undefined
   return (
-    <>
-      <GridArrow direction="up" style={style} hidden={!size || !edges.canUp} onPage={() => page(-1)} />
-      <GridArrow direction="down" style={style} hidden={!size || !edges.canDown} onPage={() => page(1)} />
-    </>
-  )
-}
-
-function GridArrow({
-  direction,
-  style,
-  hidden,
-  onPage,
-}: {
-  direction: 'up' | 'down'
-  style?: React.CSSProperties
-  hidden: boolean
-  onPage: () => void
-}) {
-  const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onPage, {
-    disabled: hidden,
-    repeatMs: settings.repeatDelayMs,
-  })
-  return (
-    <div
-      className={cx('grid-arrow', `is-${direction}`, active && 'dwelling', hidden && 'is-hidden')}
-      style={{ ...style, ...dwellVar(settings.actionDwellMs) }}
-      role="button"
-      aria-label={direction === 'up' ? 'Previous page' : 'Next page'}
-      aria-hidden={hidden || undefined}
-      {...props}
-    >
-      <span className="grid-arrow-fill" key={active ? 'a' : 'i'} />
-      {direction === 'up' ? <ScrollUpIcon /> : <ScrollDownIcon />}
-    </div>
+    <FloatingArrows
+      edges={edges}
+      onPage={page}
+      className="grid-arrow"
+      style={style}
+      hidden={!size}
+      labels={{ up: 'Previous page', down: 'Next page' }}
+    />
   )
 }
 

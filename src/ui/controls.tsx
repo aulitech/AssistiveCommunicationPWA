@@ -356,53 +356,181 @@ function ScrollButton({
   )
 }
 
+/** The least time between two pages — see `FloatingArrows`. */
+const PAGE_SETTLE_MS = 500
+/** A scroll this recent means the surface is still moving from the last page. */
+const STILL_MOVING_MS = 150
+
 /**
- * How far one step moves a box: two lines of its 1.35rem type at 1.4, near
- * enough, so each step leaves a line from before on screen to read on from. A
- * nudge repeats while it is held, so this is the grain of the scroll rather than
- * its reach. One number for both boxes, being the same box in two places.
+ * **The two arrows that scroll anything that scrolls up and down** — the phrase
+ * grid, every panel and picker (`ScrollPane`), and the two text boxes past
+ * their cap (`BoxScroll`). Up at the top of the surface's right edge and down
+ * at its foot, floating translucent over what scrolls, a page of five sixths
+ * per choice, smoothly, and on while the pointer stays — at the Auto-repeat
+ * setting, whether a rest or a click chose it. One set for all of it, so a gaze
+ * that has learnt where to move the board moves a panel the same way. The
+ * panels had a rail of four down their edge, a nudge and an end each way.
+ *
+ * **Debounced**: a page is refused while the surface is still moving from the
+ * last one, and within `PAGE_SETTLE_MS` of it whatever — so a rest that fires
+ * and a gaze rig's click straight after it move it once rather than twice.
+ *
+ * Each is there only while there is somewhere to go; one that has nowhere hides
+ * and lets the pointer through to what is under it. **And the down arrow stands
+ * clear of Peri's keyboard** where the keyboard floats over it, and nowhere
+ * else — it is narrower than the screen, so most arrows it never touches.
  */
-const BOX_SCROLL_STEP = 60
+export function FloatingArrows({
+  edges,
+  onPage,
+  className,
+  style,
+  labels = { up: 'Scroll up', down: 'Scroll down' },
+  hidden = false,
+}: {
+  edges: ScrollEdges
+  /** Moves the surface a page — after the debounce, which is here. */
+  onPage: (direction: 1 | -1) => void
+  /** Also on each arrow — the grid's say `grid-arrow`. */
+  className?: string
+  style?: React.CSSProperties
+  labels?: { up: string; down: string }
+  /** Not yet anything to arrow — the grid before a cell is measured. */
+  hidden?: boolean
+}) {
+  const { movedAt } = edges
+  const lastPage = useRef(0)
+  const page = useCallback(
+    (direction: 1 | -1) => {
+      const now = Date.now()
+      if (now - lastPage.current < PAGE_SETTLE_MS || now - movedAt() < STILL_MOVING_MS) return
+      lastPage.current = now
+      onPage(direction)
+    },
+    [movedAt, onPage],
+  )
+  const downRef = useRef<HTMLDivElement>(null)
+  const lift = useKeyboardLift(downRef)
+  return (
+    <>
+      <FloatingArrow
+        direction="up"
+        className={className}
+        style={style}
+        label={labels.up}
+        hidden={hidden || !edges.canUp}
+        onPage={() => page(-1)}
+      />
+      <FloatingArrow
+        ref={downRef}
+        direction="down"
+        className={className}
+        style={lift ? { ...style, bottom: `calc(10px + ${lift}px)` } : style}
+        label={labels.down}
+        hidden={hidden || !edges.canDown}
+        onPage={() => page(1)}
+      />
+    </>
+  )
+}
+
+/**
+ * How far an arrow at the foot of its surface has to rise to clear Peri's
+ * keyboard — nothing unless the keyboard is over the place it stands. Asked of
+ * where it would stand, its surface's foot, so lifting it does not answer
+ * itself; again when the keyboard comes or goes, and on every resize.
+ */
+function useKeyboardLift(ref: React.RefObject<HTMLElement | null>) {
+  const [lift, setLift] = useState(0)
+  useEffect(() => {
+    const measure = () => {
+      const arrow = ref.current
+      const surface = arrow?.offsetParent?.getBoundingClientRect()
+      const keyboard = document.querySelector('.keyboard')?.getBoundingClientRect()
+      if (!arrow || !surface || !keyboard || keyboard.height === 0) return setLift(0)
+      const width = arrow.offsetWidth
+      const height = arrow.offsetHeight
+      const bottom = surface.bottom - 10
+      const right = surface.right - 10
+      const covered =
+        keyboard.left < right &&
+        keyboard.right > right - width &&
+        keyboard.top < bottom &&
+        keyboard.bottom > bottom - height
+      setLift(covered ? Math.ceil(bottom - keyboard.top) + 8 : 0)
+    }
+    measure()
+    const watch = new MutationObserver(measure)
+    watch.observe(document.body, { childList: true })
+    window.addEventListener('resize', measure)
+    return () => {
+      watch.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [ref])
+  return lift
+}
+
+function FloatingArrow({
+  ref,
+  direction,
+  className,
+  style,
+  label,
+  hidden,
+  onPage,
+}: {
+  ref?: React.Ref<HTMLDivElement>
+  direction: 'up' | 'down'
+  className?: string
+  style?: React.CSSProperties
+  label: string
+  hidden: boolean
+  onPage: () => void
+}) {
+  const { settings } = useSettings()
+  const { active, props } = useDwellControl(settings.actionDwellMs, onPage, {
+    disabled: hidden,
+    repeatMs: settings.repeatDelayMs,
+    clickRepeats: true,
+  })
+  return (
+    <div
+      ref={ref}
+      className={cx('scroll-arrow', className, `is-${direction}`, active && 'dwelling', hidden && 'is-hidden')}
+      style={{ ...style, ...dwellVar(settings.actionDwellMs) }}
+      role="button"
+      aria-label={label}
+      aria-hidden={hidden || undefined}
+      {...props}
+    >
+      <span className="scroll-arrow-fill" key={active ? 'a' : 'i'} />
+      {direction === 'up' ? <ScrollUpIcon /> : <ScrollDownIcon />}
+    </div>
+  )
+}
 
 /**
  * Up and down for a text box that scrolls itself — the message, and the
- * question heard.
+ * question heard — as the floating arrows every surface that scrolls has.
  *
  * **Those were the two surfaces in this app with no way to scroll them by
  * dwell.** Both grow with what is in them up to a cap, and past the cap the rest
- * was scrolled out of the box with nothing to bring it back: a pane can hang its
- * controls above and below its content, but a textarea holds no children, so
- * there was nowhere to put them. They go *inside* the box's right edge instead,
- * in padding the box gives up only while they are there, so no word sits under
- * a control.
- *
- * **Only while there is somewhere to go**, one of each and never the jumps.
- * These ride a box somebody aims into for the caret, and every target added to it
- * is one more thing a rest meant for the words might land on; a nudge repeats
- * while it is held, so it crosses any distance the jumps would.
+ * was scrolled out of the box with nothing to bring it back: a textarea holds no
+ * children, so the arrows go *inside* the box's right edge, in padding the box
+ * gives up only while they are there, so no word sits under one.
  */
 export function BoxScroll({ edges, what }: { edges: ScrollEdges; what: string }) {
-  const step = BOX_SCROLL_STEP
+  const { page } = edges
+  const onPage = useCallback((direction: 1 | -1) => page(direction), [page])
   if (!edges.canUp && !edges.canDown) return null
   return (
     <div className="box-scroll">
-      {/* Both always drawn once either is, so each keeps its place: an arrow
-          that came and went would move the other under a resting pointer. The
-          one with nowhere to go is inert rather than absent — the rule the
-          panes' rails follow, and the grid's. */}
-      <ScrollButton
-        action="up"
-        repeat
-        idle={!edges.canUp}
-        label={`Scroll the ${what} up`}
-        onActivate={() => edges.nudge(-step)}
-      />
-      <ScrollButton
-        action="down"
-        repeat
-        idle={!edges.canDown}
-        label={`Scroll the ${what} down`}
-        onActivate={() => edges.nudge(step)}
+      <FloatingArrows
+        edges={edges}
+        onPage={onPage}
+        className="box-arrow"
+        labels={{ up: `Scroll the ${what} up`, down: `Scroll the ${what} down` }}
       />
     </div>
   )
@@ -498,42 +626,26 @@ export function DwellLink({ href, children }: { href: string; children: React.Re
 export function ScrollPane({
   className = '',
   paneClassName = '',
-  step = 80,
   children,
 }: {
   className?: string
   paneClassName?: string
-  step?: number
   children: React.ReactNode
 }) {
   const listRef = useRef<HTMLDivElement>(null)
-  const { canUp, canDown, nudge, toTop, toBottom } = useScrollEdges(listRef)
+  const edges = useScrollEdges(listRef)
+  const { page } = edges
+  const onPage = useCallback((direction: 1 | -1) => page(direction), [page])
 
   return (
     <div className={cx('scroll-pane', className)}>
       <div ref={listRef} className={cx('scroll-pane-inner', paneClassName)}>
         {children}
       </div>
-      {/* **A rail on the right**, the shape the grid's has always had, rather
-          than a bar across the top and another across the bottom. One place for
-          everything that scrolls, so a gaze that has learnt where to go to move
-          the board goes to the same edge to move a panel — and the bars cost
-          the content two strips of height a short screen has no room for.
-
-          Only while there is somewhere to go at all, so a pane that fits keeps
-          its whole width. But then **all four, always**, the ones with nowhere
-          to go kept in place and answering to nothing. The four share the
-          rail's height, so one that came and went would stretch the others into
-          the space it left — a control moving under a pointer resting on it.
-          Ordered outward by how far each goes, as on the grid. */}
-      {(canUp || canDown) && (
-        <div className="pane-rail">
-          <ScrollButton action="top" idle={!canUp} onActivate={toTop} />
-          <ScrollButton action="up" idle={!canUp} repeat onActivate={() => nudge(-step)} />
-          <ScrollButton action="down" idle={!canDown} repeat onActivate={() => nudge(step)} />
-          <ScrollButton action="bottom" idle={!canDown} onActivate={toBottom} />
-        </div>
-      )}
+      {/* **The floating arrows**, up at the top of its right edge and down at
+          its foot — the grid's, so one way of moving everything that scrolls.
+          It was a rail of four down the edge, a nudge and an end each way. */}
+      <FloatingArrows edges={edges} onPage={onPage} className="pane-arrow" />
     </div>
   )
 }
@@ -901,7 +1013,7 @@ export function PickerModal({
             <ScrollRow>{filters}</ScrollRow>
           </div>
         )}
-        <ScrollPane className="picker-modal-scroller" paneClassName="picker-modal-body" step={160}>
+        <ScrollPane className="picker-modal-scroller" paneClassName="picker-modal-body">
           <div className="picker-grid" role="listbox" aria-label={title}>
             {children}
           </div>

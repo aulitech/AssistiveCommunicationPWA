@@ -33,12 +33,14 @@ describe('sign-in', () => {
 
 describe('reaching the whole sign-in page', () => {
   const pane = () => $('.signin-page .scroll-pane-inner')!
-  const arrows = () => $$('.pane-scroll-btn').map(b => b.getAttribute('aria-label'))
-  /** The ones that answer: an arrow with nowhere to go keeps its place, inert. */
-  const live = () =>
-    $$('.pane-scroll-btn')
-      .filter(b => b.getAttribute('aria-disabled') !== 'true')
-      .map(b => b.getAttribute('aria-label'))
+  /** The floating arrows there to be used: one with nowhere to go is hidden. */
+  const arrows = () => $$('.pane-arrow:not(.is-hidden)').map(b => b.getAttribute('aria-label'))
+  const arrow = (label: string) => $$('.pane-arrow').find(b => b.getAttribute('aria-label') === label)!
+  /**
+   * After the scroll that set the geometry, and the choice before: a page waits
+   * until the pane has stopped moving, and the pause after choosing.
+   */
+  const still = () => act(() => void vi.advanceTimersByTime(1100))
 
   /** jsdom lays nothing out, so the overflow the arrows react to is supplied. */
   const setGeometry = (scrollTop: number, clientHeight: number, scrollHeight: number) => {
@@ -63,98 +65,83 @@ describe('reaching the whole sign-in page', () => {
 
   // A dwell user has no wheel and no scrollbar. Content past the fold with no
   // arrows is content that cannot be reached at all — including the only way
-  // into the app. A jump comes with each nudge: 500 pixels at 80 a time is six
-  // dwells, which is a long way to ask somebody to travel.
+  // into the app.
   /**
-   * **A rail on the right, with exactly the useful ones live.** Nothing at all
-   * while everything fits, so a short pane keeps its width. Past the fold, all
-   * four in the order the grid's rail uses — and the ones with nowhere to go
-   * stay in their place answering to nothing, because the four share the rail's
-   * height and one that came and went would stretch the rest into its space.
+   * **The floating arrows every surface that scrolls has**, each only while
+   * there is somewhere to go that way. It was a rail of four, a nudge and an
+   * end each way, the ones with nowhere to go kept in place and inert.
    */
-  it('offers dwell controls exactly when there is somewhere to go', () => {
+  it('offers an arrow exactly where there is somewhere to go', () => {
     showSignIn()
     expect(arrows()).toEqual([])
-    expect($('.pane-rail'), 'a rail with nothing to scroll').toBeNull()
 
-    const ALL = ['Go to top', 'Scroll up', 'Scroll down', 'Go to bottom']
     setGeometry(0, 400, 900)
-    expect(arrows(), 'the rail lost a control rather than keeping it quiet').toEqual(ALL)
-    expect(live()).toEqual(['Scroll down', 'Go to bottom'])
+    expect(arrows()).toEqual(['Scroll down'])
 
     setGeometry(250, 400, 900)
-    expect(live()).toEqual(ALL)
+    expect(arrows()).toEqual(['Scroll up', 'Scroll down'])
 
     setGeometry(500, 400, 900)
-    expect(arrows()).toEqual(ALL)
-    expect(live()).toEqual(['Go to top', 'Scroll up'])
+    expect(arrows()).toEqual(['Scroll up'])
   })
 
-  // The right-hand edge, which is where the grid's rail has always been: one
-  // edge to go to for everything that scrolls. The layout itself is jsdom's to
-  // ignore, so what is asserted is what puts it there.
-  it('puts the controls on the right of what they scroll', () => {
+  // Floating over the pane's right edge, as over the grid's: the pane is what
+  // they stand against, and they are its own, not a column beside it.
+  it('floats the arrows over the right edge of what they scroll', () => {
     showSignIn()
     setGeometry(0, 400, 900)
     const scroller = $('.signin-page > .scroll-pane')!
-    expect(scroller.lastElementChild?.className, 'the rail is not after the content').toBe('pane-rail')
+    expect(arrow('Scroll down').parentElement).toBe(scroller)
     const css = stylesheet()
     const rule = css.slice(css.indexOf('.scroll-pane {'))
-    expect(rule.slice(0, rule.indexOf('}')), 'the pane stacks its controls again').not.toMatch(
-      /flex-direction: *column/,
-    )
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/position: *relative/)
+    const arrowRule = css.slice(css.search(/^\.scroll-arrow \{/m))
+    expect(arrowRule.slice(0, arrowRule.indexOf('}'))).toMatch(/position: *absolute;[\s\S]*right: *10px/)
   })
 
-  // Holding a nudge keeps scrolling; a jump has nowhere further to go, so it
-  // fires once however long the pointer stays.
-  it('repeats the nudges while held, and not the jumps', () => {
+  // **A page goes on while the pointer stays** — after a rest, and after a
+  // click: an operating system's dwell-click is a click, and the arrows paged
+  // once for a gaze that went on resting on them.
+  it('repeats a page while rested on, and while clicked and stayed on', () => {
     showSignIn()
     setGeometry(250, 400, 900)
-
-    const scrollBy = vi.fn()
+    still()
     const scrollTo = vi.fn()
-    pane().scrollBy = scrollBy
     pane().scrollTo = scrollTo
-    const control = (label: string) => $$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === label)!
 
-    for (const nudge of ['Scroll up', 'Scroll down']) {
-      scrollBy.mockClear()
-      fireEvent.pointerEnter(control(nudge))
-      act(() => void vi.advanceTimersByTime(800 + DEFAULT_SETTINGS.repeatDelayMs * 3))
-      fireEvent.pointerLeave(control(nudge))
-      settle()
-      expect(scrollBy.mock.calls.length, `${nudge} did not repeat`).toBeGreaterThan(2)
-    }
-
-    fireEvent.pointerEnter(control('Go to bottom'))
+    fireEvent.pointerEnter(arrow('Scroll down'))
     act(() => void vi.advanceTimersByTime(800 + DEFAULT_SETTINGS.repeatDelayMs * 3))
-    fireEvent.pointerLeave(control('Go to bottom'))
+    fireEvent.pointerLeave(arrow('Scroll down'))
     settle()
-    expect(scrollTo).toHaveBeenCalledTimes(1)
+    expect(scrollTo.mock.calls.length, 'a rest did not repeat').toBeGreaterThan(2)
+
+    scrollTo.mockClear()
+    still()
+    fireEvent.click(arrow('Scroll up'))
+    act(() => void vi.advanceTimersByTime(DEFAULT_SETTINGS.repeatDelayMs * 3 + 100))
+    expect(scrollTo.mock.calls.length, 'a click did not repeat').toBeGreaterThan(2)
+    fireEvent.pointerLeave(arrow('Scroll up'))
+    settle()
+    const stopped = scrollTo.mock.calls.length
+    act(() => void vi.advanceTimersByTime(DEFAULT_SETTINGS.repeatDelayMs * 3))
+    expect(scrollTo.mock.calls.length, 'it went on once the pointer left').toBe(stopped)
   })
 
-  it('jumps the whole way when a jump is dwelled', () => {
-    showSignIn()
-    setGeometry(250, 400, 900)
-
-    const scrollTo = vi.fn()
-    pane().scrollTo = scrollTo
-    click($$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === 'Go to top'))
-    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
-
-    click($$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === 'Go to bottom'))
-    expect(scrollTo).toHaveBeenLastCalledWith({ top: 900, behavior: 'smooth' })
-  })
-
-  it('scrolls the content when one is dwelled', () => {
+  // Five sixths of what shows, so a sixth of it is still in sight to read on
+  // from — and never past the end.
+  it('scrolls the content a page at a time, never past the end', () => {
     showSignIn()
     setGeometry(0, 400, 900)
+    still()
+    const scrollTo = vi.fn()
+    pane().scrollTo = scrollTo
+    click(arrow('Scroll down'))
+    expect(scrollTo).toHaveBeenCalledWith({ top: expect.closeTo((400 * 5) / 6), behavior: 'smooth' })
 
-    const scrollBy = vi.fn()
-    pane().scrollBy = scrollBy
-    click($$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll down'))
-
-    expect(scrollBy).toHaveBeenCalledWith({ top: 120, behavior: 'smooth' })
+    setGeometry(400, 400, 900)
+    still()
+    click(arrow('Scroll down'))
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 500, behavior: 'smooth' })
   })
 })
 

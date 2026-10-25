@@ -419,7 +419,7 @@ export function AliasesPanel({
     // and a pane told to fill that can never overflow, which is a pane that
     // never scrolls. Bounded in the stylesheet, exactly as Backup is.
     <div className="alias-panel">
-      <ScrollPane className="settings-scroller" paneClassName="settings-body" step={100}>
+      <ScrollPane className="settings-scroller" paneClassName="settings-body">
         <p className="profile-hint">
           The words a phrase offers where it leaves a blank — “Please turn <em>on</em> the lights”, “I'm going to
           call <em>Mum</em>”. Write{' '}

@@ -6,7 +6,7 @@ import { DwellLink, ProseSections, ScrollPane } from '../ui/controls'
 export function HelpPanel() {
   return (
     <div className="help-panel">
-      <ScrollPane className="help-scroller" paneClassName="help-body" step={120}>
+      <ScrollPane className="help-scroller" paneClassName="help-body">
         {/* The panel spans the full viewport, so the prose needs its own
             column — text running the width of a wide monitor is unreadable. */}
         <div className="help-measure">

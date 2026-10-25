@@ -476,7 +476,8 @@ describe('signing out', () => {
 describe('reaching all of a panel that has grown', () => {
   const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
   const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
-  const arrows = () => $$('.pane-scroll-btn').map(b => b.getAttribute('aria-label'))
+  /** The floating arrows that are there to be used — one with nowhere to go is hidden. */
+  const arrows = () => $$('.pane-arrow:not(.is-hidden)').map(b => b.getAttribute('aria-label'))
 
   /** jsdom lays nothing out, so the overflow the arrows react to is supplied. */
   const overflow = (pane: Element) => {
@@ -500,7 +501,9 @@ describe('reaching all of a panel that has grown', () => {
     expect(arrows()).toEqual([])
 
     overflow(pane!)
-    expect(arrows()).toEqual(['Go to top', 'Scroll up', 'Scroll down', 'Go to bottom'])
+    // The floating pair every surface that scrolls has — the panels had a rail
+    // of four, a nudge and an end each way.
+    expect(arrows()).toEqual(['Scroll up', 'Scroll down'])
   })
 
   // A pane fills whatever height it is given, so a panel that hangs down as far
@@ -530,11 +533,15 @@ describe('reaching all of a panel that has grown', () => {
 
     const pane = $('.settings-body')!
     overflow(pane)
-    const scrollBy = vi.fn()
-    pane.scrollBy = scrollBy
+    const scrollTo = vi.fn()
+    pane.scrollTo = scrollTo
+    // Not while it is still moving — the scroll that showed the arrows — nor in
+    // the second the panel's arrival holds the dwells.
+    act(() => void vi.advanceTimersByTime(1100))
 
-    click($$('.pane-scroll-btn').find(b => b.getAttribute('aria-label') === 'Scroll down'))
-    expect(scrollBy).toHaveBeenCalledWith({ top: 100, behavior: 'smooth' })
+    // A page: five sixths of what shows, from where it is.
+    click($$('.pane-arrow').find(b => b.getAttribute('aria-label') === 'Scroll down'))
+    expect(scrollTo).toHaveBeenCalledWith({ top: expect.closeTo(200 + (400 * 5) / 6), behavior: 'smooth' })
   })
 })
 

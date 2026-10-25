@@ -727,8 +727,15 @@ describe('the arrows over the grid', () => {
     renderApp()
     const scrollTo = follow()
 
-    /** Past the half second between pages. */
-    const settleDown = () => act(() => void vi.advanceTimersByTime(600))
+    /**
+     * Away from the arrows and past the half second between pages. A click goes
+     * on paging while the pointer stays, as a rest does; leaving stops it.
+     */
+    const settleDown = () => {
+      fireEvent.pointerLeave(arrow('down'))
+      fireEvent.pointerLeave(arrow('up'))
+      act(() => void vi.advanceTimersByTime(600))
+    }
 
     click(arrow('down'))
     expect(scrollTo).toHaveBeenLastCalledWith({ top: 320, behavior: 'smooth' })

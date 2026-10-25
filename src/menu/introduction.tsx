@@ -178,7 +178,7 @@ export function Introduction({ onClose }: { onClose: () => void }) {
 
       {/* Keyed by the page, so each opens at its top rather than wherever the
           last was scrolled to. */}
-      <ScrollPane key={part ?? 'outline'} className="help-scroller" paneClassName="help-body" step={120}>
+      <ScrollPane key={part ?? 'outline'} className="help-scroller" paneClassName="help-body">
         <div className="help-measure">
           {part === null ? (
             <>

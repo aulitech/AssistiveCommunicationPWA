@@ -52,7 +52,7 @@
    and saying it stops what was playing. */
 .app.is-speaking .filter-bar-wrap,
 .app.is-speaking .grid-wrapper,
-.app.is-speaking .grid-arrow {
+.app.is-speaking .scroll-arrow {
   opacity: 0.45;
   transition: opacity 0.2s;
 }

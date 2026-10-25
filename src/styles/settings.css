@@ -527,6 +527,8 @@
 
 /* Shared scrollable pane with dwell-driven arrows (voice list, help guide). */
 .scroll-pane {
+  /* What its floating arrows stand against. */
+  position: relative;
   display: flex;
   overflow: hidden;
   flex: 1;
@@ -542,32 +544,6 @@
   min-width: 0;
   scrollbar-width: none;
 }
-
-/* **The pane's scroll controls, down its right edge** — see `ScrollPane`. The
-   grid's rail in every particular that a gaze learns by: the same 44px, the same
-   edge, the four sharing the height so each is as tall as the pane allows, and
-   the same fill rising from the bottom. One edge for everything that scrolls. */
-.pane-rail {
-  display: flex;
-  flex-direction: column;
-  width: 44px;
-  flex-shrink: 0;
-  border-left: 1px solid var(--border);
-  background: var(--surface);
-}
-
-.pane-rail .pane-scroll-btn {
-  padding: 0;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
-}
-
-.pane-rail .pane-scroll-btn:last-child { border-bottom: none; }
-/* The rule for a row of these draws a line between neighbours on the left; a
-   rail's neighbours are above and below. */
-.pane-rail .pane-scroll-btn + .pane-scroll-btn { border-left: none; }
-
-.pane-rail .pane-scroll-btn.dwelling { color: var(--text); }
 
 .scroll-pane-inner::-webkit-scrollbar { display: none; }
 

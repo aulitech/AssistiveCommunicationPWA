@@ -982,9 +982,10 @@ test('puts Undo and Redo on the line under on a narrow card that is not a phone'
 
 // **Peri's keyboard floats over the board**, translucent, standing on the
 // emergency bar: the board keeps its height, the bar is never covered, and the
-// grid's down arrow is lifted above it. It used to take the bottom of the
-// screen, and the board gave up that height to it.
-test('floats the keyboard over the board, on the emergency bar, the down arrow above it', async ({ page }) => {
+// grid's down arrow is never under it — lifted where the keyboard is over it,
+// and left where it stands where it is not, which at 40% of the screen and
+// centred is everywhere. It was lifted whatever, and stood in mid-air.
+test('floats the keyboard over the board, on the emergency bar, clear of the down arrow', async ({ page }) => {
   await page.addInitScript(() => {
     if (!localStorage.getItem('dwellspeak_settings')) {
       localStorage.setItem('dwellspeak_settings', JSON.stringify({ selectionPauseMs: 0, keyboard: true }))
@@ -994,6 +995,7 @@ test('floats the keyboard over the board, on the emergency bar, the down arrow a
   const { errors } = await openBoard(page)
   const gridHeight = () => page.locator('.grid-area').evaluate(el => el.getBoundingClientRect().height)
   const before = await gridHeight()
+  const arrowBefore = await page.locator('.grid-arrow.is-down').evaluate(el => el.getBoundingClientRect().bottom)
   await page.locator('.keyboard-toggle').click()
   await expect(page.locator('.keyboard')).toBeVisible()
   const m = await page.evaluate(() => {
@@ -1008,9 +1010,37 @@ test('floats the keyboard over the board, on the emergency bar, the down arrow a
   })
   expect(await gridHeight(), 'the board gave up its height to the keyboard').toBeCloseTo(before, 0)
   expect(Math.abs(m.keyboard.bottom - m.bar.top), 'not standing on the emergency bar').toBeLessThan(1)
-  expect(m.arrow.bottom, 'the down arrow is under the keyboard').toBeLessThanOrEqual(m.keyboard.top)
+  const under =
+    m.arrow.left < m.keyboard.right && m.arrow.right > m.keyboard.left && m.arrow.bottom > m.keyboard.top
+  expect(under, 'the down arrow is under the keyboard').toBe(false)
+  expect(Math.abs(m.arrow.bottom - arrowBefore), 'the down arrow left its place').toBeLessThan(1)
   expect(m.keyboard.width, 'as wide as the screen').toBeLessThan(1280 - 100)
   // Translucent: a colour with an alpha below one.
   expect(m.ground, 'an opaque keyboard').toMatch(/(rgba|color)\(.*\/? ?0?\.\d+\)$/)
+  expect(errors).toEqual([])
+})
+
+// **The keyboard is not drawn while there is nothing to type into** — a panel
+// with no field in it covering the board — and comes back with the board.
+test('hides the keyboard while nothing on screen can be typed into', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('dwellspeak_settings')) {
+      localStorage.setItem('dwellspeak_settings', JSON.stringify({ selectionPauseMs: 0, keyboard: true }))
+    }
+  })
+  await page.setViewportSize({ width: 1280, height: 800 })
+  const { errors } = await openBoard(page)
+  await page.locator('.keyboard-toggle').click()
+  await expect(page.locator('.keyboard')).toBeVisible()
+
+  await page.locator('.menu-btn').click()
+  await page.locator('.nav-item[aria-label="Help"]').click()
+  await expect(page.locator('.keyboard'), 'the keyboard over a guide with nothing to type into').toHaveCount(0)
+
+  await page.locator('[aria-label="Back"]').first().click()
+  // The menu answers nothing for a second after a panel closes — see `REOPEN_GUARD_MS`.
+  await page.waitForTimeout(1100)
+  await page.locator('[aria-label="Back"]').first().click()
+  await expect(page.locator('.keyboard'), 'not back with the board').toBeVisible()
   expect(errors).toEqual([])
 })

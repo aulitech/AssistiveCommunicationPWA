@@ -62,6 +62,34 @@ function Key({
   )
 }
 
+/** What the keyboard can type into: the text boxes and the single-line fields. */
+const FIELDS =
+  'textarea, input:not([type]), input[type="text"], input[type="search"], input[type="password"], input[type="email"], input[type="url"], input[type="tel"]'
+
+/**
+ * **Whether anything on screen can be typed into** — a field drawn, in the
+ * window, and not under something else: a panel, a picker, Getting started.
+ * Asked at a few points across each field, since a control can stand over part
+ * of one (Speak, after the last word), and never of the keyboard itself. Where
+ * the browser cannot say what is at a point — jsdom — every field counts.
+ */
+function fieldOnScreen(keyboard: HTMLElement | null): boolean {
+  if (typeof document.elementsFromPoint !== 'function') return true
+  for (const field of document.querySelectorAll<HTMLElement>(FIELDS)) {
+    const r = field.getBoundingClientRect()
+    if (r.width === 0 || r.height === 0) continue
+    const y = r.top + r.height / 2
+    if (y < 0 || y > window.innerHeight) continue
+    for (const share of [0.25, 0.5, 0.75]) {
+      const x = r.left + r.width * share
+      if (x < 0 || x > window.innerWidth) continue
+      const at = document.elementsFromPoint(x, y).find(el => !keyboard?.contains(el))
+      if (at && (at === field || field.contains(at))) return true
+    }
+  }
+  return false
+}
+
 /**
  * The board of keys, and the shift and layer state behind it.
  *
@@ -92,11 +120,54 @@ export function Keyboard({
    * and lift its down arrow above it. Measured again whenever either moves.
    */
   const boardRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * **Not drawn while there is nothing to type into** — a panel with no field
+   * in it, a picker, Getting started — and back the moment there is. Asked
+   * again whenever the page changes, a frame at a time however much does, and
+   * when anything finishes moving: a panel slides away by a transition, which
+   * changes nothing an observer of the page can see. And every half second
+   * while it is away, which costs nothing while it is up.
+   */
+  const [typeable, setTypeable] = useState(true)
+  useEffect(() => {
+    let frame = 0
+    const check = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => setTypeable(fieldOnScreen(boardRef.current)))
+    }
+    check()
+    const watch = new MutationObserver(check)
+    watch.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style', 'hidden'],
+    })
+    window.addEventListener('resize', check)
+    window.addEventListener('scroll', check, true)
+    window.addEventListener('transitionend', check, true)
+    window.addEventListener('animationend', check, true)
+    return () => {
+      cancelAnimationFrame(frame)
+      watch.disconnect()
+      window.removeEventListener('resize', check)
+      window.removeEventListener('scroll', check, true)
+      window.removeEventListener('transitionend', check, true)
+      window.removeEventListener('animationend', check, true)
+    }
+  }, [])
+  useEffect(() => {
+    if (typeable) return
+    const again = setInterval(() => setTypeable(fieldOnScreen(boardRef.current)), 500)
+    return () => clearInterval(again)
+  }, [typeable])
+
   useLayoutEffect(() => {
     const root = document.documentElement
     const place = () => {
       const keyboard = boardRef.current
-      if (!keyboard) return
+      if (!keyboard) return root.style.removeProperty('--keyboard-covers')
       const bar = above ? document.querySelector(above)?.getBoundingClientRect() : undefined
       const lift = bar && bar.height > 0 ? Math.max(0, window.innerHeight - bar.top) : 0
       keyboard.style.bottom = `${lift}px`
@@ -117,7 +188,7 @@ export function Keyboard({
       window.removeEventListener('resize', place)
       root.style.removeProperty('--keyboard-covers')
     }
-  }, [above, covers])
+  }, [above, covers, typeable])
   const [symbols, setSymbols] = useState(false)
   const fieldOf = useFocusedField()
   // Read through a ref: a key is one of ninety and its handler must not be
@@ -156,6 +227,8 @@ export function Keyboard({
       const face = shifted(key, shift)
       return <Key key={key} label={face} name={face} onPress={() => type(face)} />
     })
+
+  if (!typeable) return null
 
   return (
     <div ref={boardRef} className="keyboard" role="group" aria-label="Keyboard">

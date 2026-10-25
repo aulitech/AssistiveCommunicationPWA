@@ -46,7 +46,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'In the upper right corner, :menu: opens :settings: Settings, :aliases: Aliases, :backup: Backup & sharing, :help: Help — this guide — :notes: Release notes, what changed in each version, and :sign-out: Sign out.',
       ),
       text(
-        'If you turn on Peri’s keyboard in Settings, :keyboard: right after :present: draws a keyboard, for a device that has none you can rest on. It is lit while the keyboard is up.',
+        'If you turn on Peri’s keyboard in Settings, :keyboard: right after :present: draws a keyboard, for a device that has none you can rest on. It is lit while the keyboard is up, and the keyboard steps aside while nothing on screen can be typed into.',
       ),
     ],
   },
@@ -163,11 +163,11 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The tabs keep to one row, each name cut to its first seven letters except the tab showing. Any that do not fit, and any you hide, are behind :customize:, the last tab, which is there whenever a tab is off the bar.',
         'While the bar has no room for some tabs, :customize: is gold.',
         'Rest on :customize: for a grid of every tab; those the bar has no room for say No room. Rest on one to go to it, on :hide: or :show: to take it off the bar or put it back, and on :grip: to pick one of your own categories up and put it somewhere else. Nothing changes until Done.',
-        'The two arrows floating over the last column of the grid scroll it: :up: and :down: move it most of a screen at a time, so the row at the top is always whole, and keep going while you rest on them. Each is only there when there is further to go.',
+        'The two arrows floating over the last column of the grid scroll it: :up: and :down: move it most of a screen at a time, so the row at the top is always whole, and keep going while you rest on them — or click one and stay on it. Each is only there when there is further to go.',
       ),
       text('Rest on the words in the box to put the caret there, and type or paste from that point.'),
       text(
-        'The box grows as the message does, up to five lines. Past that, arrows appear inside its right edge to scroll it.',
+        'The box grows as the message does, up to five lines. Past that, :up: and :down: appear inside its right edge to scroll it, as on the grid.',
       ),
       text(
         'When there is something in the box, :speak: appears right after the last word, filled in green, and moves along as you add more. Rest on it to say the message aloud.',
@@ -416,7 +416,9 @@ export const HELP_SECTIONS: ProseSection[] = [
       text(
         'Open :menu: and choose :settings: Settings. :back: Back, in the top right corner, is the way out of any menu screen — and out of the menu itself.',
       ),
-      text('Settings and Aliases scroll if there is more than fits, using the arrows down their right edge.'),
+      text(
+        'Settings and Aliases scroll if there is more than fits, with :up: and :down: floating at their right edge, as on the grid.',
+      ),
       list(
         'Text size — how big everything is written, from half again as small to twice as large. It grows the words rather than the screen, so the board keeps the same number of phrases on it.',
         'Phrase dwell — how long to rest on a phrase before it is chosen. The blue bar takes this one too.',
@@ -428,7 +430,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Getting started — this guide, one part at a time, each part you have been through marked :ticked:. It opens when you sign in until you say not to, here or with the box on its first page. Open it now brings it back whenever you like.',
         'Spoken language — see Speaking another language.',
         'Presentation background — a picture to show behind the words in the presentation window. It is not in backups. With Synchronize on it goes to your other devices, locked with your passphrase like the board.',
-        'Voice — :choose: opens a full screen of voices, with scroll arrows down its right edge. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
+        'Voice — :choose: opens a full screen of voices, with :up: and :down: at its right edge. Each one speaks as you choose it, so you can try several. Done keeps the last one; Cancel puts back the one you started with.',
         'Synchronize, ElevenLabs and Suggested answers — see Keeping two devices the same, Better voices and Getting suggested answers.',
         'Reset to Factory Defaults, at the very bottom, puts this board back to how Peri arrived — phrases, categories, lists, settings and any linked account. It offers to save a backup first, and you stay signed in.',
       ),

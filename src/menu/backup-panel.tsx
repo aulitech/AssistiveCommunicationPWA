@@ -165,7 +165,7 @@ export function BackupPanel({
 
   return (
     <div className="backup-panel">
-      <ScrollPane className="backup-scroller" paneClassName="backup-body" step={120}>
+      <ScrollPane className="backup-scroller" paneClassName="backup-body">
         <p className="backup-note">
           Your phrases live in this browser and nowhere else. A backup carries everything you changed — what you
           added, reworded, moved or removed, your details and your settings. The phrases Peri came with are already

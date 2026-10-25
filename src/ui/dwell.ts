@@ -433,6 +433,13 @@ export interface DwellOptions {
   disabled?: boolean
   /** When set, the action repeats at this interval while the pointer stays. */
   repeatMs?: number
+  /**
+   * **A click starts the repeat too**, as a rest does — for the scroll arrows,
+   * which an operating system's dwell-click otherwise moved once and no more.
+   * Not for a key or a spinner: a mouse that clicks backspace and stays on it
+   * would go on deleting.
+   */
+  clickRepeats?: boolean
   /** Stays live while the app is resting. Only the Rest control sets this. */
   ignoresRest?: boolean
   /** Stays live while something is being said — Stop, and the emergency bar. */
@@ -452,6 +459,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
   const {
     disabled: disabledByCaller = false,
     repeatMs,
+    clickRepeats = false,
     ignoresRest = false,
     whileSpeaking = false,
     armsOnceMoved = false,
@@ -492,6 +500,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
   const activateRef = useRef(onActivate)
   const durationRef = useRef(durationMs)
   const disabledRef = useRef(disabled)
+  const clickRepeatsRef = useRef(clickRepeats)
   const repeatMsRef = useRef(repeatMs)
   const whileSpeakingRef = useRef(whileSpeaking)
   const armsOnceMovedRef = useRef(armsOnceMoved)
@@ -501,6 +510,7 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     durationRef.current = durationMs
     disabledRef.current = disabled
     repeatMsRef.current = repeatMs
+    clickRepeatsRef.current = clickRepeats
     whileSpeakingRef.current = whileSpeaking
     armsOnceMovedRef.current = armsOnceMoved
   })
@@ -525,6 +535,23 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
 
   // `start` waits out the pause after a selection by calling itself again.
   const startRef = useRef<() => void>(() => {})
+
+  /**
+   * **Goes on while the pointer stays**, for a control that repeats — after a
+   * rest has fired it, or a click. Stopped by the pointer leaving, as the fill is.
+   */
+  const repeatFromHere = useCallback(
+    (every: number) => {
+      repeatRef.current = setInterval(() => {
+        // Checked every tick as well: a repeat left running by a pointer that
+        // has gone is the worst version of this, since it does not stop.
+        if (pointerStalled()) return stall()
+        noteActivation()
+        activateRef.current()
+      }, every)
+    },
+    [stall],
+  )
 
   const start = useCallback(() => {
     if (disabledRef.current || timerRef.current || repeatRef.current || silencedFor(whileSpeakingRef)) return
@@ -560,17 +587,9 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
       if (!repeat) setActive(false)
       noteActivation()
       activateRef.current()
-      if (repeat) {
-        repeatRef.current = setInterval(() => {
-          // Checked every tick as well: a repeat left running by a pointer that
-          // has gone is the worst version of this, since it does not stop.
-          if (pointerStalled()) return stall()
-          noteActivation()
-          activateRef.current()
-        }, repeat)
-      }
+      if (repeat) repeatFromHere(repeat)
     }, durationRef.current)
-  }, [stall])
+  }, [stall, repeatFromHere])
 
   useEffect(() => {
     startRef.current = start
@@ -638,7 +657,17 @@ export function useDwellControl(durationMs: number, onActivate: () => void, opti
     cancel()
     noteActivation()
     activateRef.current()
-  }, [cancel])
+    // **A click on a control that asks for it goes on repeating** while the
+    // pointer stays, as a rest on it does — see `clickRepeats`. An operating
+    // system's dwell-click is a click, and it fired once and stopped: the
+    // scroll arrows paged once for a gaze that went on resting on them.
+    const repeat = repeatMsRef.current
+    if (repeat && clickRepeatsRef.current) {
+      dwellFiredRef.current = true
+      setActive(true)
+      repeatFromHere(repeat)
+    }
+  }, [cancel, repeatFromHere])
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

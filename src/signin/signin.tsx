@@ -73,7 +73,7 @@ export function SignInPage({ onSignIn }: { onSignIn: (user: User) => void }) {
           the height tiers in the stylesheet — but a short landscape phone with
           three providers on offer will still overflow. When it does, the arrows
           are the only way down: a dwell user has no wheel and no scrollbar. */}
-      <ScrollPane paneClassName="signin-content" step={120}>
+      <ScrollPane paneClassName="signin-content">
         <div className="signin-brand">
           <div className="signin-logo">
             <AppLogoIcon />

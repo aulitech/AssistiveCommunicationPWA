@@ -175,7 +175,7 @@ describe('the two text boxes, past their cap', () => {
     Object.defineProperty(box, 'scrollTop', { configurable: true, get: () => 0 })
   }
   const arrow = (label: RegExp) =>
-    $$('.box-scroll .pane-scroll-btn').find(b => label.test(b.getAttribute('aria-label') ?? ''))
+    $$('.box-scroll .scroll-arrow').find(b => label.test(b.getAttribute('aria-label') ?? ''))
 
   /**
    * **The last surface here with no way to scroll it by dwell.** Both boxes grow
@@ -196,13 +196,15 @@ describe('the two text boxes, past their cap', () => {
     expect(down, 'no way down a message past the fold').toBeDefined()
     expect(box.classList.contains('has-scroll'), 'the words run on under the arrows').toBe(true)
 
-    const scrolled = vi.spyOn(Element.prototype, 'scrollBy')
+    // A page, as every surface that scrolls is moved.
+    const scrolled = vi.spyOn(Element.prototype, 'scrollTo')
     rest(down)
     expect(scrolled).toHaveBeenCalled()
   })
 
-  // The way up keeps its place with nowhere to go, rather than coming and going
-  // and moving the way down under a pointer resting on it.
+  // The way up is hidden with nowhere to go, as every floating arrow is, and
+  // keeps its place — each stands on its own, so the way down never moves
+  // under a pointer resting on it.
   it('keeps the way up in its place while there is nothing above', () => {
     renderApp()
     const box = $<HTMLTextAreaElement>('.text-display')!
@@ -210,7 +212,8 @@ describe('the two text boxes, past their cap', () => {
     fireEvent.change(box, { target: { value: 'long enough' } })
     settle()
 
-    expect($$('.box-scroll .pane-scroll-btn')).toHaveLength(2)
+    expect($$('.box-scroll .scroll-arrow')).toHaveLength(2)
+    expect(arrow(/scroll the message up/i)!.classList.contains('is-hidden')).toBe(true)
     expect(
       arrow(/scroll the message up/i)!.getAttribute('aria-disabled'),
       'offered a way up with nothing above',

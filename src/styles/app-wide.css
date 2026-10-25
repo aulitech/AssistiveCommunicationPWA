@@ -145,10 +145,10 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
-/* Room under the grid's last row for what the keyboard hides, and its down
-   arrow lifted above it, so nothing on the board is out of reach. */
+/* Room under the grid's last row for what the keyboard hides, so nothing on the
+   board is out of reach. The down arrow lifts itself clear of the keyboard,
+   where the keyboard is over it — see `FloatingArrows`. */
 .app.has-keyboard .grid-wrapper { padding-bottom: var(--keyboard-covers, 0px); }
-.app.has-keyboard .grid-arrow.is-down { bottom: calc(10px + var(--keyboard-covers, 0px)); }
 
 .key-row {
   display: flex;

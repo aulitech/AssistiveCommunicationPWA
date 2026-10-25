@@ -606,7 +606,7 @@
 .app.resting .tools-left > *,
 .app.resting .filter-bar-wrap,
 .app.resting .grid-wrapper,
-.app.resting .grid-arrow,
+.app.resting .scroll-arrow,
 .app.resting .emergency-bar {
   opacity: 0.45;
   transition: opacity 0.2s;
