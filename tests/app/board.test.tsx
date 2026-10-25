@@ -1271,6 +1271,15 @@ describe('the magnified cell', () => {
     expect(lens).toMatch(/min-height: *calc\(100% \+/)
   })
 
+  // Regression guard, from an iPad: the phrase under the pointer vanished as it
+  // was magnified. A cell may skip its painting, its size held to a placeholder
+  // while it does, and this one is moved out of its place and sized to its words.
+  it('is always drawn, never skipped while the browser thinks it out of view', () => {
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+    const lens = css.match(/\.phrase-place\.is-magnified > \.phrase-cell \{([^}]*)\}/)![1]!
+    expect(lens).toMatch(/content-visibility: *visible/)
+  })
+
   it('is not for a finger, which hovers over nothing', () => {
     renderApp()
     const cell = plainCell()

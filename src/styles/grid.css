@@ -237,6 +237,12 @@
   border-color: var(--accent);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
   animation: magnify 0.12s ease-out;
+  /* **Always drawn.** A cell skips its painting while the browser thinks it
+     out of view (`content-visibility: auto`, above), and its size is held to
+     a placeholder while it does — and this one is moved out of its place and
+     sized to its words. On an iPad the phrase under the pointer vanished as it
+     was magnified: Safari judged it skipped and gave its width as nothing. */
+  content-visibility: visible;
 }
 
 .phrase-place.is-magnified .phrase-cell-text {
