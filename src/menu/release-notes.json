@@ -1,5 +1,19 @@
 [
   {
+    "version": "11.11.5",
+    "date": "2026-10-26",
+    "commits": [
+      {
+        "subject": "The device's voices are read again when the picker opens and Peri is looked at",
+        "body": [
+          {
+            "text": "iOS can add a voice — one downloaded in Settings while Peri waited in the background — without firing voiceschanged, and the list was read only when that fired. It is now read again whenever the voice picker opens and whenever Peri is looked at, which also refreshes the spoken languages. Voices iOS never offers web pages, Siri's and Personal Voice among them, are still out of reach."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.4",
     "date": "2026-10-26",
     "commits": [
