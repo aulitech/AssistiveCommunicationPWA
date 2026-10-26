@@ -5,6 +5,7 @@ import {
   speak,
   stopSpeaking,
   subscribeSpeaking,
+  subscribeVoices,
   warmVoice,
   type Stage,
 } from '../../src/voice/speech'
@@ -1024,5 +1025,24 @@ describe('with a presentation window open', () => {
     await flush()
     expect(shown).toEqual([])
     expect(played).toHaveLength(1)
+  })
+})
+
+/**
+ * **Read again whenever Peri is looked at**: iOS can add a voice — one
+ * downloaded in Settings while Peri waited in the background — without firing
+ * `voiceschanged`, and a list read only when told came back without it.
+ */
+describe('the device voices', () => {
+  it('are read again when Peri is looked at, for one added without a word', () => {
+    voices.length = 0
+    const told = vi.fn()
+    const stop = subscribeVoices(told)
+    expect(told).toHaveBeenLastCalledWith([])
+
+    voices.push({ voiceURI: 'uri-Ava', name: 'Ava (Premium)', lang: 'en-GB' } as SpeechSynthesisVoice)
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(told.mock.lastCall![0].map((v: SpeechSynthesisVoice) => v.name)).toEqual(['Ava (Premium)'])
+    stop()
   })
 })

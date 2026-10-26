@@ -17,7 +17,7 @@ import { PickerFilter, PickerModal, PickerTile, PickerTrigger } from '../ui/cont
 import { loadElevenLabs } from '../core/store'
 import { remoteVoiceURI } from './elevenlabs'
 import { inGroup, voiceGroups, voiceLabel, type VoiceChoice } from './groups'
-import { speak, subscribeVoices } from './speech'
+import { readVoices, speak, subscribeVoices } from './speech'
 
 /** Short, and it says what it is. Cached after the first time on a paid voice. */
 const SAMPLE = 'This is how I sound.'
@@ -84,6 +84,8 @@ export function VoicePicker({
 
   const openPicker = useCallback(() => {
     setAccount(loadElevenLabs())
+    // Read again rather than trusted: iOS can add a voice without saying so.
+    setDeviceVoices(readVoices())
     setBefore(value)
     // Opens on the language the board is spoken in, where there is one and it
     // has voices here — sixty voices in languages nobody is going to choose is

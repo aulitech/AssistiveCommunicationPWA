@@ -452,6 +452,19 @@ describe('choosing a voice', () => {
     click(trigger())
   }
 
+  /**
+   * **A voice the device adds without saying so is there when the grid opens.**
+   * Regression guard, from an iPad: iOS can add a voice — one downloaded in
+   * Settings while Peri waited — without telling the page, and the list was
+   * read only when it was told.
+   */
+  it('reads the voices again when it opens, for one added without a word', () => {
+    openSettings('Daniel')
+    voices.push({ voiceURI: 'uri-Ava', name: 'Ava (Premium)', lang: 'en-GB' } as SpeechSynthesisVoice)
+    click(trigger())
+    expect(tileNamed('Ava (Premium)'), 'a voice the device has was missing').toBeDefined()
+  })
+
   it('shows the chosen voice in settings without a list beside it', () => {
     openSettings('Daniel')
     expect(trigger()?.textContent).toContain('Default')
