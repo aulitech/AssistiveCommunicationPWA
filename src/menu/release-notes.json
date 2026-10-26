@@ -1,5 +1,22 @@
 [
   {
+    "version": "11.11.4",
+    "date": "2026-10-26",
+    "commits": [
+      {
+        "subject": "A phrase the device voice never began is handed over again",
+        "body": [
+          {
+            "text": "Sometimes a phrase chosen went into the message box and nothing was heard. Every phrase begins by cancelling whatever was being said, and Chrome can drop what it is handed straight after a cancel; a synthesiser left paused takes the words and says nothing. Peri noticed the silence a second later and took it as the phrase having ended."
+          },
+          {
+            "text": "The synthesiser is now resumed before every phrase, and a phrase neither begun nor ended a second after it was handed over is handed over again, once, before its silence is believed. One that began is never repeated."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.3",
     "date": "2026-10-25",
     "commits": [
