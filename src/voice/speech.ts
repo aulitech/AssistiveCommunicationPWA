@@ -451,26 +451,42 @@ function say(text: string, settings: VoiceSettings, options: SpeakOptions) {
  * Voices load asynchronously in most browsers and the `voiceschanged` event can
  * fire more than once. Subscribe and re-read rather than snapshotting on mount.
  */
+/**
+ * The device's voices as they stand, grouped by language so a long list stays
+ * navigable, with the UI language first.
+ */
+export function readVoices(): SpeechSynthesisVoice[] {
+  if (!('speechSynthesis' in window)) return []
+  const preferred = navigator.language.toLowerCase()
+  return [...speechSynthesis.getVoices()].sort((a, b) => {
+    const aPref = a.lang.toLowerCase().startsWith(preferred.slice(0, 2)) ? 0 : 1
+    const bPref = b.lang.toLowerCase().startsWith(preferred.slice(0, 2)) ? 0 : 1
+    return aPref - bPref || a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name)
+  })
+}
+
+/**
+ * Told the device's voices now and whenever they change — **and again whenever
+ * Peri is looked at**, since iOS can add voices without saying so: one
+ * downloaded in Settings while Peri waited in the background came back missing
+ * from the list until Peri was closed and opened again.
+ */
 export function subscribeVoices(onChange: (voices: SpeechSynthesisVoice[]) => void): () => void {
   if (!('speechSynthesis' in window)) {
     onChange([])
     return () => {}
   }
-
-  const read = () => {
-    // Group by language so a long list stays navigable, with the UI language first.
-    const preferred = navigator.language.toLowerCase()
-    const voices = [...speechSynthesis.getVoices()].sort((a, b) => {
-      const aPref = a.lang.toLowerCase().startsWith(preferred.slice(0, 2)) ? 0 : 1
-      const bPref = b.lang.toLowerCase().startsWith(preferred.slice(0, 2)) ? 0 : 1
-      return aPref - bPref || a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name)
-    })
-    onChange(voices)
+  const read = () => onChange(readVoices())
+  const onLook = () => {
+    if (document.visibilityState === 'visible') read()
   }
-
   read()
   speechSynthesis.addEventListener('voiceschanged', read)
-  return () => speechSynthesis.removeEventListener('voiceschanged', read)
+  document.addEventListener('visibilitychange', onLook)
+  return () => {
+    speechSynthesis.removeEventListener('voiceschanged', read)
+    document.removeEventListener('visibilitychange', onLook)
+  }
 }
 
 /**
