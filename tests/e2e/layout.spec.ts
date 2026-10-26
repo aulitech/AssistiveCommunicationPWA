@@ -429,7 +429,12 @@ test('does not speak when Speak arrives under a resting pointer', async ({ page 
   await page.addInitScript(() => {
     const w = window as unknown as { said: number }
     w.said = 0
-    speechSynthesis.speak = () => void w.said++
+    // Said and done at once, as a real synthesiser reports it: one that never
+    // began would be handed the words again — see `handOverAgain`.
+    speechSynthesis.speak = u => {
+      w.said++
+      u.onend?.(new Event('end') as SpeechSynthesisEvent)
+    }
     // **A two-second action dwell**, still under the three seconds each wait
     // below gives Speak. Before the screen narrows, the pointer rests on
     // whatever the wide screen has there — open space that rests the app, once

@@ -227,6 +227,7 @@ function installSpeechSynthesis() {
     cancel: () => {
       speech.held = false
     },
+    resume: () => {},
     addEventListener: () => {},
     removeEventListener: () => {},
   }

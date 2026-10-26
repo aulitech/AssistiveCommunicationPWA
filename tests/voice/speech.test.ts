@@ -281,7 +281,48 @@ describe('while something is being said', () => {
       act250()
       expect(isSpeaking(), 'its silence was believed straight away').toBe(true)
       vi.advanceTimersByTime(1_000)
+      // Never begun: handed over again once, and only then is its silence believed.
+      expect(isSpeaking(), 'given up without handing the words over again').toBe(true)
+      expect(spoken.filter(w => w === 'Hello')).toHaveLength(2)
+      vi.advanceTimersByTime(1_250)
       expect(isSpeaking()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  /**
+   * **A phrase the synthesiser took and never began is handed over again**,
+   * once. Regression guard: Chrome can drop the words it is handed straight
+   * after a cancel, which every phrase begins with, and a synthesiser left
+   * paused says nothing — the phrase went into the box and nothing was heard.
+   * The second time, it is resumed first.
+   */
+  it('hands the words over again when they never began, resumed first', () => {
+    vi.useFakeTimers()
+    try {
+      quietSpeech()
+      const resume = vi.spyOn(speechSynthesis, 'resume')
+      speak('Are you there', SETTINGS)
+      expect(spoken).toEqual(['Are you there'])
+      vi.advanceTimersByTime(1_250)
+      expect(spoken).toEqual(['Are you there', 'Are you there'])
+      expect(resume).toHaveBeenCalledTimes(2)
+      vi.advanceTimersByTime(5_000)
+      expect(spoken, 'handed over more than once again').toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // A phrase that began is never handed over again, however long it takes.
+  it('leaves words that began alone', () => {
+    vi.useFakeTimers()
+    try {
+      holdSpeech()
+      speak('A long sentence that takes its time', SETTINGS)
+      vi.advanceTimersByTime(5_000)
+      expect(spoken).toEqual(['A long sentence that takes its time'])
     } finally {
       vi.useRealTimers()
     }
