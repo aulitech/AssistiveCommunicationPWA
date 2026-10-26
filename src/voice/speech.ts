@@ -164,6 +164,15 @@ const listeners = new Set<(speaking: boolean) => void>()
 let onDevice = false
 let handedAt = 0
 let heardBusy = false
+/**
+ * **Handed over again, once**, where the synthesiser took the words and never
+ * began them: Chrome can drop what it is handed straight after a cancel, which
+ * every phrase begins with, and a synthesiser left paused says nothing at all.
+ * The phrase went into the box and nothing was heard. A second later it is
+ * handed over again — a phrase late is recoverable, and silence is not — and
+ * only then is its silence believed.
+ */
+let handOverAgain: (() => void) | null = null
 let watching: ReturnType<typeof setInterval> | null = null
 const WATCH_MS = 250
 const GRACE_MS = 1000
@@ -205,36 +214,56 @@ function speakOnDevice(text: string, settings: VoiceSettings) {
   const mine = generation
   if (!('speechSynthesis' in window)) return finished(mine)
 
-  const utterance = new SpeechSynthesisUtterance(text)
-  utterance.volume = settings.volume
-  utterance.rate = settings.rate
-  if (settings.voiceURI) {
-    const voice = speechSynthesis.getVoices().find(v => v.voiceURI === settings.voiceURI)
-    if (voice) {
-      utterance.voice = voice
-      utterance.lang = voice.lang
+  const utter = () => {
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.volume = settings.volume
+    utterance.rate = settings.rate
+    if (settings.voiceURI) {
+      const voice = speechSynthesis.getVoices().find(v => v.voiceURI === settings.voiceURI)
+      if (voice) {
+        utterance.voice = voice
+        utterance.lang = voice.lang
+      }
     }
+    // A voice is a stronger statement than a language, so it wins — but a
+    // `voiceURI` is a platform string, and one that travelled here from another
+    // device may name nothing at all. This is what stops that falling all the way
+    // back to whatever the *system* speaks.
+    if (!utterance.voice && settings.language) utterance.lang = settings.language
+    utterance.onstart = () => {
+      heardBusy = true
+    }
+    utterance.onend = () => finished(mine)
+    utterance.onerror = () => finished(mine)
+    // A synthesiser left paused takes the words and says nothing until it is
+    // resumed — and resuming one that is not paused does nothing.
+    speechSynthesis.resume()
+    speechSynthesis.speak(utterance)
   }
-  // A voice is a stronger statement than a language, so it wins — but a
-  // `voiceURI` is a platform string, and one that travelled here from another
-  // device may name nothing at all. This is what stops that falling all the way
-  // back to whatever the *system* speaks.
-  if (!utterance.voice && settings.language) utterance.lang = settings.language
-  utterance.onend = () => finished(mine)
-  utterance.onerror = () => finished(mine)
   // Watched from before it is handed over, so an ending reported the moment
   // it is — by a synthesiser with nothing to say — is not then watched for.
   onDevice = true
   handedAt = Date.now()
   heardBusy = false
+  handOverAgain = () => {
+    handOverAgain = null
+    handedAt = Date.now()
+    speechSynthesis.cancel()
+    utter()
+  }
   if (!watching) {
     watching = setInterval(() => {
       if (!onDevice) return
       if (speechSynthesis.speaking || speechSynthesis.pending) heardBusy = true
-      else if (heardBusy || Date.now() - handedAt > GRACE_MS) setSpeaking(false)
+      else if (heardBusy) setSpeaking(false)
+      else if (Date.now() - handedAt > GRACE_MS) {
+        // Never begun: handed over again, once, before its silence is believed.
+        if (handOverAgain) handOverAgain()
+        else setSpeaking(false)
+      }
     }, WATCH_MS)
   }
-  speechSynthesis.speak(utterance)
+  utter()
 }
 
 function playAudio(blob: Blob, settings: VoiceSettings, onFailure: () => void) {

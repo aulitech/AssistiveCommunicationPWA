@@ -113,11 +113,17 @@ describe('Stop, while anything is being said', () => {
   })
 
   // A synthesiser that goes quiet without saying so does not leave Stop up.
+  // Once the words have been handed over a second time and still not begun —
+  // see `handOverAgain` in `voice/speech.ts`.
   it('goes by itself once the voice has gone quiet', () => {
     quietSpeech()
     renderApp({ autoSpeak: true })
+    const words = plainCell().textContent
     click(plainCell())
     expect(stop()).not.toBeNull()
+    act(() => void vi.advanceTimersByTime(1_500))
+    expect(stop(), 'given up before the words were handed over again').not.toBeNull()
+    expect(spoken).toEqual([words, words])
     act(() => void vi.advanceTimersByTime(1_500))
     expect(stop()).toBeNull()
   })
