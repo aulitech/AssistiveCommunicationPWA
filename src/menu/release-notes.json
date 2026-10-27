@@ -1,7 +1,24 @@
 [
   {
-    "version": "11.11.6",
+    "version": "11.11.7",
     "date": "2026-10-27",
+    "commits": [
+      {
+        "subject": "A phrase said in auto-speak is saved as edit mode's Save saves it",
+        "body": [
+          {
+            "text": "Said on a category of somebody's own, a phrase Library has already is now filed under that tab too, as Save files words already on the board — typed out, chosen off the board after typing, or with its choices made. It filed only a message Library did not have, so a phrase found by typing on a tab and said was nowhere on that tab afterwards. One chosen off the tab it is on changes nothing, and no second copy is ever made."
+          },
+          {
+            "text": "Either is now a change Undo reaches, is pointed at, and is said in a toast where a tab took it — after \"Copied to clipboard\" for a copy."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "11.11.6",
+    "date": "2026-10-26",
     "commits": [
       {
         "subject": "No phrase cell skips its drawing on an iPad or iPhone",
