@@ -1,5 +1,30 @@
 [
   {
+    "version": "11.11.6",
+    "date": "2026-10-27",
+    "commits": [
+      {
+        "subject": "No phrase cell skips its drawing on an iPad or iPhone",
+        "body": [
+          {
+            "text": "Safari on an iPad still lost the phrase under the pointer as it was magnified — the first few in a tab, every one from the home screen — with the magnified cell itself drawn. Off-screen skipping (content-visibility: auto) is now off for every cell on iOS WebKit, found by -webkit-touch-callout, which only iOS supports; the window of rendered cells keeps the grid light there. Elsewhere it stays."
+          }
+        ]
+      },
+      {
+        "subject": "The guide says which voices each browser offers, and how to install Peri on each device",
+        "body": [
+          {
+            "text": "Better voices: Chrome on a Mac lists every installed voice where Safari lists fewer; on an iPad or iPhone every browser offers the same shorter list, often without downloaded Enhanced voices; Siri and Personal Voice are never offered to a web page; and a voice one browser lacks is said in the default voice there, never in silence."
+          },
+          {
+            "text": "Using it offline: installing on an iPad or iPhone, in Chrome on a Mac or a PC, on a Chromebook and on Android — and that the home-screen app on an iPad keeps its own board apart from Safari, so a backup or Synchronize carries it across."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.5",
     "date": "2026-10-26",
     "commits": [
