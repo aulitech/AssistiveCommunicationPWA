@@ -144,6 +144,16 @@
   contain-intrinsic-size: auto 72px;
 }
 
+/* **Never skipped on an iPad or iPhone**, the one place that asks this:
+   `-webkit-touch-callout` is iOS WebKit's alone, every browser there included.
+   Safari there lost the phrase under the pointer to skipping even with the
+   magnified cell drawn — the first few at a time in a tab, every one from the
+   home screen. The window of rendered cells (`core/virtual.ts`) is what keeps
+   the grid light there. */
+@supports (-webkit-touch-callout: none) {
+  .phrase-cell { content-visibility: visible; }
+}
+
 /* **The phrase open in the message box carries its tools**, top to bottom:
    the bin against its left edge and the drag pad against its right, each
    glyph by the edge and 1.5rem of the tool between it and the words — see

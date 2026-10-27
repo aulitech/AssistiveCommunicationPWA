@@ -1280,6 +1280,15 @@ describe('the magnified cell', () => {
     expect(lens).toMatch(/content-visibility: *visible/)
   })
 
+  // Regression guard, from an iPad: the lens alone drawn was not enough there —
+  // the first few phrases in Safari still vanished, and every one from the home
+  // screen. On iOS no cell is skipped at all.
+  it('skips no cell at all on an iPad', () => {
+    const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+    const ios = css.match(/@supports \(-webkit-touch-callout: none\) \{([\s\S]*?)\n\}/)![1]!
+    expect(ios).toMatch(/\.phrase-cell \{ *content-visibility: *visible/)
+  })
+
   it('is not for a finger, which hovers over nothing', () => {
     renderApp()
     const cell = plainCell()
