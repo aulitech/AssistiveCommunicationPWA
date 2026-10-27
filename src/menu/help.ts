@@ -469,7 +469,10 @@ export const HELP_SECTIONS: ProseSection[] = [
         'A message said for the first time is marked on the board once it has been said and you clear the box, and the board scrolls to it, wherever the order puts it.',
       ),
       text(
-        'Said on a category of your own, it goes in that category too, as Save would file it; said on Library, it is in no category. In edit mode you can file it under others, like any phrase, or delete it. Deleting is worth knowing about if you have just said something private.',
+        'Said on a category of your own, it goes in that category too, as Save would file it — and so does a phrase already in Library, so one you found by typing on a tab and said is on that tab afterwards. Undo takes either back.',
+      ),
+      text(
+        'Said on Library, it is in no category. In edit mode you can file it under others, like any phrase, or delete it. Deleting is worth knowing about if you have just said something private.',
       ),
       text(
         'Undo can bring back a phrase you deleted, so its words stay on this device among your last 50 changes until newer ones push them out.',
