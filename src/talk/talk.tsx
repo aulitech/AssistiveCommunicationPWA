@@ -175,7 +175,12 @@ export function TalkScreen({
    * made: said as a phrase chosen in auto-speak is, in its own voice, or said
    * from the box as Speak says it — see `handleSpeak`.
    */
-  const [filling, setFilling] = useState<{ phrase: Phrase; then: 'say' | 'speak'; voiceURI?: string } | null>(null)
+  const [filling, setFilling] = useState<{
+    phrase: Phrase
+    then: 'say' | 'speak'
+    voiceURI?: string
+    keep?: boolean
+  } | null>(null)
   /**
    * The phrase the board is pointing at, and the tab it moved to to do it.
    *
@@ -495,32 +500,49 @@ export function TalkScreen({
   )
 
   /**
-   * **What is said is kept in Library** — every message spoken or copied, as a
-   * phrase of its own, unless Library says it already — **and in the category
-   * whose tab is showing**, where Save would file it, so a sentence said on a
-   * tab is there on the tab afterwards. Counted as used the moment it is, so it
-   * is first under Recently used and first among what typing finds. There was a
-   * Sent tab for this; see docs/decisions/sent-messages.md. One Library already
-   * says is not counted again, nor filed: choosing it off the board counted it,
-   * and what typing finds comes from Library whichever tab is showing. A new
-   * one is pointed at, so it is seen where it went.
+   * **What is said is saved as edit mode's Save would save it** — every message
+   * spoken or copied kept in Library, as a phrase of its own, unless Library
+   * says it already — **and in the category whose tab is showing**, so a
+   * sentence said on a tab is there on the tab afterwards. **One Library says
+   * already is filed there too**, as Save files words already on the board:
+   * a phrase found by typing on a tab and said is one somebody wanted on it.
+   * A new one is counted as used the moment it is, so it is first under
+   * Recently used and first among what typing finds; one already there is not
+   * counted again, choosing it off the board having counted it. There was a
+   * Sent tab for this; see docs/decisions/sent-messages.md. Either is pointed
+   * at, and reached by Undo; where a tab took it, what to say about that is
+   * handed back for a toast — a copy says it after its own.
    */
-  const { keepSaid: keepInLibrary } = board
+  const { keepSaid: keepInLibrary, refile } = board
   const keptInto = activeFilter !== LIBRARY && allCategories.includes(activeFilter) ? activeFilter : undefined
   const keepSaid = useCallback(
-    (text: string) => {
-      const id = keepInLibrary(text, keptInto)
-      if (!id) return
-      recordUsed(id)
+    (text: string): string | undefined => {
       // **And the board points at it** — marked, and scrolled to wherever the
       // order puts it — as a phrase just saved is. Kept and never seen, it was
       // a phrase lost: a message used once sits after everything used more
       // under Most used, and at the very end of a hand arrangement. Once what
       // is being said has ended, or now, where nothing is — a copy.
-      if (isSpeaking()) pointWhenSaid.current = id
-      else setPointWhenShown(id)
+      const point = (id: string) => {
+        if (isSpeaking()) pointWhenSaid.current = id
+        else setPointWhenShown(id)
+      }
+      const id = keepInLibrary(text, keptInto)
+      if (id) {
+        recordUsed(id)
+        recordChange({ what: `Kept ${quoted(text)}`, phrase: id, tab: keptInto ?? LIBRARY })
+        point(id)
+        return keptInto && `Added to ${keptInto}`
+      }
+      const there = keptInto ? phraseSaying(text.trim()) : undefined
+      if (!there || !keptInto) return undefined
+      const filed = categoriesOf(there.id)
+      if (filed.includes(keptInto)) return undefined
+      refile(there.id, [...filed, keptInto])
+      recordChange({ what: `Added ${quoted(text)} to ${keptInto}`, phrase: there.id, tab: keptInto })
+      point(there.id)
+      return `Already on the board — added to ${keptInto}`
     },
-    [keepInLibrary, keptInto, recordUsed],
+    [keepInLibrary, keptInto, recordUsed, recordChange, phraseSaying, categoriesOf, refile],
   )
   // Adjusted during render, as state that follows state is: the board points
   // in the render that shows the tab again, so no frame shows it unmarked.
@@ -561,11 +583,12 @@ export function TalkScreen({
         // kept there already. **As it was written**, as Library holds it: the
         // words without their full stop are a wording Library does not have,
         // and every phrase ending in one was kept a second time without it.
-        if (!alreadyIn) keepSaid(written)
+        const filed = alreadyIn ? undefined : keepSaid(written)
+        if (filed) flashToast(filed)
         showSaid(written, { voiceURI, alreadyIn })
       }
     },
-    [settings, keepSaid, recordTranslated, showSaid],
+    [settings, keepSaid, recordTranslated, showSaid, flashToast],
   )
 
   const handleSelectPhrase = useCallback(
@@ -630,7 +653,7 @@ export function TalkScreen({
         const voiceURI = voiceFor(phrase.id)
         showSaid(phrase.source, { voiceURI })
         cancelAllDwells()
-        setFilling({ phrase, then: 'say', voiceURI })
+        setFilling({ phrase, then: 'say', voiceURI, keep: !showingTranslated })
         return
       }
       // A translated cell carries the language it is in, and is said in the
@@ -1267,9 +1290,10 @@ export function TalkScreen({
       speakMessage(words)
       // Not words off Translations, said again: they are in another language
       // and kept there already, as auto-speak leaves them.
-      if (!saidIn) keepSaid(words)
+      const filed = saidIn ? undefined : keepSaid(words)
+      if (filed) flashToast(filed)
     },
-    [speakMessage, keepSaid, saidIn],
+    [speakMessage, keepSaid, saidIn, flashToast],
   )
 
   /**
@@ -1343,8 +1367,8 @@ export function TalkScreen({
   const handleCopy = useCallback(() => {
     if (!message) return
     copyMessage().then(ok => {
-      flashToast(ok ? 'Copied to clipboard' : 'Could not copy — clipboard unavailable')
-      if (ok) keepSaid(message)
+      const filed = ok ? keepSaid(message) : undefined
+      flashToast(ok ? `Copied to clipboard${filed ? `. ${filed}` : ''}` : 'Could not copy — clipboard unavailable')
     })
   }, [message, copyMessage, flashToast, keepSaid])
 
@@ -1680,14 +1704,18 @@ export function TalkScreen({
             <SlotPicker
               phrase={filling.phrase}
               onComplete={(text, _blankAt, choices) => {
-                const { phrase, then, voiceURI } = filling
+                const { phrase, then, voiceURI, keep } = filling
                 setFilling(null)
                 // Chosen in auto-speak: said as any phrase chosen there is, and
-                // the box left holding it as edit mode shows it. Nothing to keep —
-                // a phrase with its choices made is the phrase it came from.
-                if (then === 'say')
+                // the box left holding it as edit mode shows it. Kept as the
+                // phrase it came from — filed under the tab showing, as any
+                // phrase said there is — and never as these words, a phrase with
+                // its choices made being the phrase it came from.
+                if (then === 'say') {
                   speak(text, settings, { voiceURI, onTranslated: recordTranslated, please: settings.please })
-                else sayMessage(composeWritten(phrase.segments, choices))
+                  const filed = keep ? keepSaid(phrase.source) : undefined
+                  if (filed) flashToast(filed)
+                } else sayMessage(composeWritten(phrase.segments, choices))
               }}
               onCancel={() => setFilling(null)}
             />

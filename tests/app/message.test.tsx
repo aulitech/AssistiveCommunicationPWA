@@ -238,14 +238,42 @@ describe('what is said', () => {
       expect(members().Food).toEqual(['custom-seed-0', keptId('Copied on the Food tab')])
     })
 
-    // What typing finds comes from Library whichever tab is showing, so a
-    // phrase found that way and said is not something the tab was asked to hold.
-    it('files nothing Library says already', () => {
+    // **Saved as Save saves it**: words Library says already are not kept a
+    // second time, but the phrase saying them is filed under the tab, as Save
+    // files words already on the board. It filed nothing once — what typing
+    // finds comes from Library whichever tab is showing — and a phrase found
+    // on a tab and said was nowhere to be seen on it afterwards.
+    it('files a phrase Library says already under it, without a second copy', () => {
       renderApp()
       goTo('Food')
-      say('Once in a blue moon')
+      writeIn(box(), 'Once in a blue moon')
+      click(iconBtn('Speak'))
+      expect($('.toast')?.textContent).toBe('Already on the board — added to Food')
+
+      clearMessage()
       expect(kept()).toEqual(['Toast and jam'])
-      expect(cells().map(c => c.textContent)).toEqual(['Toast and jam'])
+      expect(cells().map(c => c.textContent)).toEqual(['Toast and jam', 'Once in a blue moon'])
+    })
+
+    it('files a phrase found by typing and chosen off the board under it', () => {
+      renderApp()
+      goTo('Food')
+      writeIn(box(), 'Once in a blue')
+      settle()
+      click(cells().find(c => c.textContent === 'Once in a blue moon')!)
+      settle()
+      expect(kept()).toEqual(['Toast and jam'])
+      expect(members().Food).toHaveLength(2)
+      expect($('.toast')?.textContent).toBe('Already on the board — added to Food')
+    })
+
+    it('files nothing for a phrase chosen off the tab it is on', () => {
+      renderApp()
+      goTo('Food')
+      click(cells().find(c => c.textContent === 'Toast and jam')!)
+      settle()
+      expect(members().Food ?? ['custom-seed-0']).toEqual(['custom-seed-0'])
+      expect($('.toast')).toBeNull()
     })
 
     it('files nothing on Library or a record', () => {

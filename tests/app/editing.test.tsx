@@ -1626,7 +1626,10 @@ describe('undo and redo', () => {
   })
 
   // Applied to the board as it stands: a message kept in the meantime stays.
-  it('leaves alone what came since', () => {
+  // **A message said in auto-speak is saved as Save saves**, so Undo reaches
+  // it too — the last thing done first. What came since a change is left alone
+  // by taking it back is `core/history.test.ts`'s.
+  it('takes back a message said in auto-speak, before what was saved ahead of it', () => {
     renderApp()
     enterEditMode()
     const before = texts()
@@ -1636,9 +1639,12 @@ describe('undo and redo', () => {
     writeIn(box(), 'Said in the meantime')
     click(iconBtn('Speak'))
 
+    expect(undoButton()?.getAttribute('aria-label')).toBe('Undo: Kept “Said in the meantime”')
     click(undoButton())
+    expect(texts()).toEqual([...before, 'Saved and taken back'])
 
-    expect(texts()).toEqual([...before, 'Said in the meantime'])
+    click(undoButton())
+    expect(texts()).toEqual(before)
   })
 
   it('forgets what was undone once something new is done', () => {
