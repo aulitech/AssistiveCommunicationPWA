@@ -486,7 +486,17 @@ export const HELP_SECTIONS: ProseSection[] = [
         'The voices in the Voice list come from your device. They are instant, they cost nothing and they work with no internet.',
       ),
       text(
-        'If you would rather not sound like a browser, you can link an ElevenLabs account under Settings. Paste the API key from your ElevenLabs account and its voices join the same list.',
+        'Which of them you see depends on your browser, not on Peri. Peri lists every voice the browser offers it:',
+      ),
+      list(
+        'On a Mac, Chrome offers every voice installed in System Settings. Safari offers fewer, so use Chrome there for the full list.',
+        'On an iPad or iPhone every browser offers the same shorter list, and Enhanced and Premium voices you downloaded are often missing from it. Restarting the device after downloading one sometimes helps.',
+        'Siri voices and Personal Voice are never offered to a web page, on any device.',
+        'Peri looks for new voices each time you open the Voice list and each time you come back to it, so one you have just downloaded shows up if the browser offers it.',
+        'A voice chosen in one browser that another does not offer is said in the default voice there, never in silence.',
+      ),
+      text(
+        'If you would rather not sound like a browser, you can link an ElevenLabs account under Settings. Paste the API key from your ElevenLabs account and its voices join the same list — the same voices in every browser and on every device.',
       ),
       list(
         'These voices need an internet connection, and take a moment to arrive the first time — including when you try one in the voice list.',
@@ -848,7 +858,28 @@ export const HELP_SECTIONS: ProseSection[] = [
     title: 'Using it offline',
     blocks: [
       text(
-        'Peri can be installed to a home screen from your browser menu. Once installed it opens like any other app and keeps working with no internet connection.',
+        'Peri can be installed, so it opens like any other app and keeps working with no internet connection. Install it while you have a connection, then open it once from its new icon and leave it a few seconds: that is when it is stored on the device.',
+      ),
+      text('On an iPad or iPhone:'),
+      list(
+        'Open Peri in Safari, tap the Share button — the square with an arrow pointing up — and choose Add to Home Screen. You may have to scroll the list to find it. Tap Add.',
+        'On iPadOS or iOS 16.4 or later, Chrome and the other browsers have Add to Home Screen in their Share menu too.',
+        'The app on the home screen keeps its own board, apart from Safari. Before you start using it, save a backup in Safari under Backup & sharing and choose that file in the app, or turn on Synchronize in both.',
+      ),
+      text('In Chrome on a Mac or a PC:'),
+      list(
+        'Choose the install button at the right end of the address bar, a screen with an arrow, or open the ⋮ menu and choose Cast, save and share, then Install page as app.',
+        'It opens in a window of its own and appears with your other apps. It shares its board with Peri in Chrome on that computer, so nothing needs moving across.',
+      ),
+      text('On a Chromebook:'),
+      list(
+        'In Chrome, choose the install button at the right end of the address bar, or open the ⋮ menu and choose Cast, save and share, then Install page as app.',
+        'Peri then appears in the launcher. Right-click its icon on the shelf and choose Pin to keep it there. It shares its board with Peri in Chrome.',
+      ),
+      text('On an Android phone or tablet:'),
+      list(
+        'In Chrome, open the ⋮ menu and choose Add to Home screen, then Install.',
+        'It shares its board with Peri in Chrome on that device.',
       ),
       text(
         'It updates itself each time it is opened with a connection. If a new version comes out while Peri is open, a strip at the top says so: Update now reloads Peri into it, and Later waits. Updating empties the message box, so finish what you are saying first.',
