@@ -12,3 +12,11 @@
 # pnpm writes the placeholder again on the next machine and the deploy stops.
 allowBuilds:
   esbuild: true
+
+# oxfmt pins tinypool to exactly 2.1.0, which has two critical advisories
+# (prototype pollution into RCE through worker and run() options). 2.1.2 is the
+# patch release of that version and fixes both. Drop this once oxfmt asks for
+# 2.1.2 or later on its own — a newer oxfmt does, but upgrading the formatter
+# can rewrite the tree, so that is its own change.
+overrides:
+  tinypool: 2.1.2
