@@ -1,5 +1,33 @@
 [
   {
+    "version": "11.11.9",
+    "date": "2026-10-30",
+    "commits": [
+      {
+        "subject": "Every dependency with a security advisory moved to its patched release",
+        "body": [
+          {
+            "text": "Clears all 17 open Dependabot alerts, and one pnpm audit found that Dependabot had not yet raised:"
+          },
+          {
+            "items": [
+              "vite 8.2.0 to 8.3.5 (7 alerts, launch-editor and server.fs among them)",
+              "vitest and @vitest/mocker 4.1.11 to 4.1.12 (2)",
+              "undici 8.11.2 to 8.12.3, under jsdom (5)",
+              "source-map-js 1.2.1 to 1.2.2 (1)",
+              "@fastify/busboy 3.2.1 to 3.2.4, under @netlify/blobs (1)",
+              "tinypool 2.1.0 to 2.1.2 (2 critical), by an override: oxfmt pins it exactly, and a newer oxfmt is a formatter upgrade of its own",
+              "zod 4.6.6 to 4.6.7, under eslint-plugin-react-hooks"
+            ]
+          },
+          {
+            "text": "Every one is a patch or minor release inside the range already asked for; pnpm audit finds nothing after it."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.8",
     "date": "2026-10-30",
     "commits": [
