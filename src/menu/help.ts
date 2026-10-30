@@ -61,7 +61,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Rest on any open space in the row of buttons at the top of the message box — anywhere in that row that is not a button, such as either side of the modes — and dwelling switches off everywhere else. Clicking there does the same. Use it to look at the screen, or away from it, without choosing anything.',
       ),
       text(
-        'While it is on, Paused shows in the middle of the screen, a gold Resume button covers that row, and nothing else answers to a rest — the blue bar included, which dims to show it — so nothing can be said by accident. Rest on Resume to switch dwelling back on.',
+        'While it is on, a gold Resume button covers that row and nothing else answers to a rest — the blue bar included — so nothing can be said by accident. The rest of the screen stays as it was, so it can be read. Rest on Resume to switch dwelling back on.',
       ),
       text(
         'After resting or resuming, move the pointer out of that row and back before it answers again, so a gaze that stays put does not switch straight back.',

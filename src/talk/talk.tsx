@@ -1721,15 +1721,6 @@ export function TalkScreen({
             />
           )}
 
-          {/* **Paused**, large and in the middle of the screen, while dwelling
-              is switched off — the row dimmed round the open space says where
-              to rest to resume; this says what has happened. */}
-          {resting && (
-            <div className="paused-note" role="status">
-              Paused
-            </div>
-          )}
-
           {/* **The bin on the phrase open in the box asks first** — what it
               does depends on where it is: forgets a record, takes a phrase out
               of the category showing, or deletes it. */}
