@@ -1,5 +1,19 @@
 [
   {
+    "version": "11.11.10",
+    "date": "2026-10-30",
+    "commits": [
+      {
+        "subject": "The stray debugging browser test is gone",
+        "body": [
+          {
+            "text": "tests/e2e/zz-rep.spec.ts came in by accident with the floating arrows. It asserted nothing: it held the pointer on the grid's down arrow and printed where the grid had scrolled to, a measurement taken once while tuning the repeat."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.9",
     "date": "2026-10-30",
     "commits": [
