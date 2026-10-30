@@ -1,7 +1,21 @@
 [
   {
+    "version": "11.11.8",
+    "date": "2026-10-30",
+    "commits": [
+      {
+        "subject": "Pausing neither dims the screen nor says Paused",
+        "body": [
+          {
+            "text": "While dwelling is switched off, the board is left exactly as it is: no Paused across the middle and nothing dimmed. Resume over the row of controls says it is off, and is still the way back."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.7",
-    "date": "2026-10-27",
+    "date": "2026-10-26",
     "commits": [
       {
         "subject": "A phrase said in auto-speak is saved as edit mode's Save saves it",
