@@ -139,19 +139,16 @@ describe('resting', () => {
     expect($('.app')?.classList.contains('resting')).toBe(true)
   })
 
-  // **Paused, large and in the middle of the screen**, while resting — and
-  // never in the way of resuming.
-  it('says Paused in the middle of the screen while resting, and only then', () => {
+  // **Nothing else on the screen changes while resting** — Resume over the
+  // row says it. A regression guard: it said Paused across the middle and
+  // dimmed everything round the row, and Spero asked for neither.
+  it('neither says Paused nor dims anything while resting', () => {
     renderApp()
-    expect($('.paused-note')).toBeNull()
-
     startResting()
-    expect($('.paused-note')?.textContent).toBe('Paused')
-    expect($('.paused-note')?.getAttribute('role')).toBe('status')
-    expect(stylesheet()).toMatch(/\.paused-note \{[^}]*pointer-events: none;/)
-
-    resume()
-    expect($('.paused-note')).toBeNull()
+    expect($('.app')?.classList.contains('resting')).toBe(true)
+    expect($('.paused-note'), 'a word over the screen').toBeNull()
+    expect(document.body.textContent).not.toMatch(/Paused/)
+    expect(stylesheet(), 'something dimmed while resting').not.toMatch(/\.app\.resting[^{]*\{[^}]*opacity/)
   })
 
   // Dwell is this app's only input, so without a way to switch it off there is

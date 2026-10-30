@@ -766,7 +766,6 @@ test('rests on a click in the open space of the card’s row of controls, and no
   })
   await page.mouse.click(gap.x, gap.y)
   await expect(app).toHaveClass(/resting/)
-  await expect(page.locator('.paused-note')).toHaveText('Paused')
   // Resume came up under the pointer; it answers once the pointer has left the row.
   await page.locator('.resume-bar').dispatchEvent('click')
   await expect(app, 'resumed without the pointer leaving the row').toHaveClass(/resting/)

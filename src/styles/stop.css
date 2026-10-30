@@ -47,8 +47,8 @@
 }
 
 /* **Everything Stop is not**, while something is being said: none of it will
-   answer — see `setSpeakingLock` in `ui/dwell.ts` — so it is dimmed as resting
-   dims it, still legible. The emergency bar is not: it never waits on anything,
+   answer — see `setSpeakingLock` in `ui/dwell.ts` — so it is dimmed, still
+   legible. The emergency bar is not: it never waits on anything,
    and saying it stops what was playing. */
 .app.is-speaking .filter-bar-wrap,
 .app.is-speaking .grid-wrapper,

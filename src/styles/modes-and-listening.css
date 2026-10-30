@@ -574,43 +574,13 @@
 
 .resume-bar.dwelling::before { animation: dwellFillV var(--dwell-duration, 800ms) linear forwards; }
 
-/* **Paused**, large and in the middle of the screen while resting — over
-   everything, and letting the pointer through to what is under it, so it is
-   never in the way of the open space that resumes. */
-.paused-note {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  font-size: 4rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: var(--rest);
-  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.85);
-}
-
 @keyframes restPulse {
   50% { opacity: 0.5; }
 }
 
-/* Everything else, while resting. Dimmed because none of it will answer — but
-   still legible, since reading the screen is most of why someone rests. */
-/* The row of controls itself is not dimmed, or the open space that resumes
-   would be dimmed with it: everything round it is, and everything in it. */
-.app.resting .topbar > :not(.text-display-wrap),
-.app.resting .message-wrap > :not(.message-tools),
-.app.resting .message-tools > :not(.rest-surface, .resume-bar, .tools-left),
-.app.resting .tools-left > *,
-.app.resting .filter-bar-wrap,
-.app.resting .grid-wrapper,
-.app.resting .scroll-arrow,
-.app.resting .emergency-bar {
-  opacity: 0.45;
-  transition: opacity 0.2s;
-}
+/* **Nothing else changes while resting**: no word over the screen and nothing
+   dimmed. Resume over the row of controls says it; the board is left exactly
+   as it is, since reading it is most of why somebody rests. */
 
 /* **Speak right after the last word**, and Ask after the question's — see
    `ui/after-text.tsx`. The copy of the box it measures with is laid out
