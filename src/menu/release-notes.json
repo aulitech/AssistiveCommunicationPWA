@@ -1,5 +1,19 @@
 [
   {
+    "version": "11.11.12",
+    "date": "2026-11-08",
+    "commits": [
+      {
+        "subject": "The phrase table's rim follows the auto-speak toggle, and the paused gold",
+        "body": [
+          {
+            "text": "The border of the phrase table and the tab showing is one colour, --panel-rim, the colour the auto-speak toggle's icon is drawn in: the accent while auto-speak is on and the muted grey in edit mode, changing as the toggle does. It replaces the muted green that edit mode put on a grey edge. While paused it takes the paused edge's gold at 60%, named once as --paused-ground for both, in either mode."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.11",
     "date": "2026-11-08",
     "commits": [
