@@ -175,15 +175,17 @@ describe('the tab that is showing', () => {
     expect(rule('.filter-bar-wrap'), 'a ground on the tab bar').not.toMatch(/background/)
   })
 
-  // **Edit mode is said on the panel's edge**, in a muted green — the tab
-  // showing's sides and top and the table's border — and not on the phrases.
-  it("turns the panel's edge green in edit mode, and leaves the phrases alone", () => {
+  // **The panel's rim follows the auto-speak toggle's icon** — the accent the
+  // icon is lit in while auto-speak is on, the muted grey it is in edit mode —
+  // on the table's border, the tab showing and its flares, and not on the
+  // phrases. Spero asked for the edge to change colour as the toggle does.
+  it("draws the panel's rim in the auto-speak icon's colour, which changes with the mode", () => {
     const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
-    const green = 'color-mix\\(in srgb, var\\(--accent\\) \\d+%, var\\(--panel-edge\\)\\)'
-    expect(css).toMatch(new RegExp(`\\.app\\.edit-mode \\.grid-area \\{ border-color: ${green}; \\}`))
-    const tab = css.match(/\.app\.edit-mode \.filter-tabs \.filter-tab\.active \{([^}]*)\}/)![1]!
-    for (const side of ['top', 'left', 'right']) expect(tab).toMatch(new RegExp(`border-${side}-color: ${green};`))
-    expect(tab, 'its foot, which opens it into the table').not.toMatch(/border-bottom/)
+    expect(css).toMatch(/--panel-rim: var\(--accent\);/)
+    expect(css).toMatch(/\.app\.edit-mode \{ --panel-rim: var\(--text-muted\); \}/)
+    // The same two colours the toggle's icon is drawn in.
+    expect(css).toMatch(/\.mode-btn \{[^}]*color: var\(--text-muted\);/)
+    expect(css).toMatch(/\.mode-btn\.active \{[^}]*color: var\(--accent\);/)
     const cells = css.match(/\.app\.edit-mode \.phrase-cell\.edit-mode,[^{]*\{([^}]*)\}/)![1]!
     expect(cells, 'an outline on every phrase').not.toMatch(/outline/)
   })
@@ -193,8 +195,8 @@ describe('the tab that is showing', () => {
   // phrases a step lighter than both.
   it('shares its ground and edge with the phrase table', () => {
     expect(rule('.grid-area')).toMatch(/background: *var\(--panel\)/)
-    expect(rule('.filter-tab.active')).toMatch(/border-color: *var\(--panel-edge\)/)
-    expect(rule('.grid-area')).toMatch(/border: *1px solid var\(--panel-edge\)/)
+    expect(rule('.filter-tab.active')).toMatch(/border-color: *var\(--panel-rim\)/)
+    expect(rule('.grid-area')).toMatch(/border: *1px solid var\(--panel-rim\)/)
     expect(rule('.grid-area'), "the table's corners are square").toMatch(/border-radius: *12px/)
     expect(rule('.filter-tabs .filter-tab.active')).toMatch(/border-bottom: *1px solid var\(--panel\)/)
     const token = (name: string) =>
@@ -228,8 +230,8 @@ describe('the tab that is showing', () => {
     expect(css).toMatch(
       /:has\(\.filter-tabs > \.filter-tab\.active:first-child\) \+ \.grid-area \{[^}]*border-top-left-radius: *0/,
     )
-    expect(css, 'the flares do not take the green edge in edit mode').toMatch(
-      /\.app\.edit-mode \.filter-tabs \.filter-tab\.active \{[^}]*--tab-seam: *color-mix/,
+    expect(css, 'the flares do not follow the rim').toMatch(
+      /\.filter-tabs \.filter-tab\.active \{[^}]*--tab-seam: *var\(--panel-rim\)/,
     )
   })
 

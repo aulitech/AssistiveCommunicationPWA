@@ -113,9 +113,11 @@ describe('resting', () => {
     expect(rest().textContent).toBe('Paused')
     expect(rest().classList.contains('is-resting')).toBe(true)
     const css = stylesheet()
-    expect(css).toMatch(
-      /\.rest-edge\.is-resting \{ background: color-mix\(in srgb, var\(--brand\) 60%, transparent\); \}/,
-    )
+    expect(css).toMatch(/\.rest-edge\.is-resting \{ background: var\(--paused-ground\); \}/)
+    expect(css).toMatch(/--paused-ground: color-mix\(in srgb, var\(--brand\) 60%, transparent\);/)
+    // **The panel's rim follows the paused gold**, in either mode — edit
+    // mode's own rim is written later, so it is named to outrank it.
+    expect(css).toMatch(/\.app\.resting,\s*\.app\.edit-mode\.resting \{ --panel-rim: var\(--paused-ground\); \}/)
     expect(css).toMatch(/\.rest-edge-place:has\(\.is-resting\) \{ width: 2rem; \}/)
     expect(css).toMatch(/\.rest-edge span \{[^}]*color: var\(--bg\);/)
 

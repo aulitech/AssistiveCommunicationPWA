@@ -6,26 +6,18 @@
    selectors have equal specificity — see *Styling* in AGENTS.md. */
 
 /* ── Edit mode ── */
-/* **The panel says it, not every phrase**: the edge of the tab showing and of
-   the phrase table turn a muted green, which says from across the board that
-   everything in it is now something to change — where an outline on each of
-   a couple of thousand cells said it too loudly. Only the edge's colour, so
-   nothing changes size and the grid does not reflow under a resting pointer;
-   and only the tab's sides and top, its foot being what opens it into the
-   table. */
+/* **The panel says it, not every phrase**: the rim of the tab showing and of
+   the phrase table follows the auto-speak toggle's icon — the accent while it
+   is on, the muted grey here — so the board says from across the screen which
+   mode it is in, where an outline on each of a couple of thousand cells said
+   it too loudly. Only the rim's colour, so nothing changes size and the grid
+   does not reflow under a resting pointer. */
 .app.edit-mode .phrase-cell.edit-mode,
 .app.edit-mode .emergency-btn.edit-mode {
   cursor: pointer;
 }
 
-.app.edit-mode .grid-area { border-color: color-mix(in srgb, var(--accent) 45%, var(--panel-edge)); }
-
-.app.edit-mode .filter-tabs .filter-tab.active {
-  --tab-seam: color-mix(in srgb, var(--accent) 45%, var(--panel-edge));
-  border-top-color: color-mix(in srgb, var(--accent) 45%, var(--panel-edge));
-  border-left-color: color-mix(in srgb, var(--accent) 45%, var(--panel-edge));
-  border-right-color: color-mix(in srgb, var(--accent) 45%, var(--panel-edge));
-}
+.app.edit-mode { --panel-rim: var(--text-muted); }
 
 /* The box is the phrase editor in edit mode, so it keeps the text cursor it has
    everywhere else and says which mode it is in with a dashed edge of its own,
