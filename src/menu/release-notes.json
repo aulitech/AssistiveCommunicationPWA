@@ -1,5 +1,22 @@
 [
   {
+    "version": "11.11.11",
+    "date": "2026-11-08",
+    "commits": [
+      {
+        "subject": "Pause is the phrase table's left edge, and copy is offered in edit mode too",
+        "body": [
+          {
+            "text": "Pause was the open space in the message card's row of controls, and a gaze passing between two controls up there paused the app. It is now a strip 1rem wide laid over the phrase table's left edge, taking no room from the grid: nothing of its own until it is rested on, a gold fill rising as it is, and while paused 2rem wide in the brand's gold at 60% with Paused along it. Resting on it again resumes, and after either it answers nothing until the pointer has left it. The Resume bar, the rest surface and the row passing the pointer through to it are gone."
+          },
+          {
+            "text": "Copy is offered whenever the message box has words, in edit mode too, where it copies the phrase being written and keeps nothing; Save is what keeps it."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.10",
     "date": "2026-10-30",
     "commits": [
