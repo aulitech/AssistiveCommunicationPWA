@@ -541,7 +541,13 @@
   transform-origin: bottom;
 }
 .rest-edge.dwelling::before { animation: dwellFillV var(--dwell-duration, 800ms) linear forwards; }
-.rest-edge.is-resting { background: color-mix(in srgb, var(--brand) 60%, transparent); }
+.rest-edge.is-resting { background: var(--paused-ground); }
+
+/* **And the panel's rim follows it while paused**, in either mode — the table
+   and the tab showing edged in the paused edge's own gold. `.edit-mode` named
+   as well, since edit mode's own rim is written later in the stylesheet. */
+.app.resting,
+.app.edit-mode.resting { --panel-rim: var(--paused-ground); }
 .rest-edge.is-resting::before { background: #000; opacity: 0.2; }
 .rest-edge span {
   position: relative;

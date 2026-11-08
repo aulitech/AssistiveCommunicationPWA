@@ -206,8 +206,9 @@
 .phrase-cell.is-held .tab-tool.is-on,
 .emergency-btn.is-held .tab-tool.is-on { background: color-mix(in srgb, #000 18%, transparent); }
 
-/* Which phrase is open, said on its own edge — the panel's edit-mode green —
-   until it is lifted, when it is the held blue like anything in the air. */
+/* Which phrase is open, said on its own edge in a muted green — inside a panel
+   whose rim is grey in edit mode — until it is lifted, when it is the held
+   blue like anything in the air. */
 .app.edit-mode .phrase-cell.has-tools:not(.is-held),
 .app.edit-mode .emergency-btn.has-tools:not(.is-held) {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--panel-edge));

@@ -72,14 +72,14 @@
 }
 
 /* **The tab that is showing is part of the panel under it** — the phrase
-   table's ground and edge (`--panel`, `--panel-edge`), and on the last row it
+   table's ground and edge (`--panel`, `--panel-rim`), and on the last row it
    covers the panel's top edge so the two are one surface, as a folder's tab is
    the top of its page. It is on all the time, so it is not filled with the
    accent — that is kept for Speak. The moment of choosing one still flashes
    full. */
 .filter-tab.active {
   background: var(--panel);
-  border-color: var(--panel-edge);
+  border-color: var(--panel-rim);
   color: var(--text);
   font-weight: 600;
 }
@@ -93,7 +93,7 @@
   /* The flares stand outside it. */
   overflow: visible;
   /* The edge it shares with the table, for the flares to draw. */
-  --tab-seam: var(--panel-edge);
+  --tab-seam: var(--panel-rim);
 }
 
 /* **Its foot flares into the table, as a Chrome tab does**: at each bottom
@@ -441,7 +441,7 @@
      the tabs are, so the first tab stands on its edge. The tab showing covers
      its top edge where they meet (`.filter-tabs .filter-tab.active`). */
   background: var(--panel);
-  border: 1px solid var(--panel-edge);
+  border: 1px solid var(--panel-rim);
   border-radius: 12px;
   margin: 0 8px 8px;
 }
