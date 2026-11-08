@@ -323,9 +323,7 @@ for (const [width, height] of [
             '.message-line [role="button"], .message-line button, .message-tools [role="button"], .message-tools button',
           ),
         ]
-          // Not Rest, which is the open space behind the row's controls, and
-          // so lies round every one of them.
-          .filter(el => el.offsetParent && !el.classList.contains('rest-surface'))
+          .filter(el => el.offsetParent)
           .map(el => ({ name: el.getAttribute('aria-label') ?? '', r: el.getBoundingClientRect() }))
         const outside = controls
           .filter(
@@ -731,33 +729,14 @@ test.describe('the magnified cell', () => {
   })
 })
 
-// **Rest is the open space in the message card's row of controls.** Wherever
-// nothing in that row answers — the gaps between its groups — the pointer
-// reaches the surface behind, and a click there rests the app; the controls
-// answer as themselves, and the rest of the top row does nothing.
-test('rests on a click in the open space of the card’s row of controls, and nowhere else', async ({ page }) => {
+// **Pause is laid over the phrase table's left edge**: 1rem wide, from the
+// panel's top to its foot, taking no room from the grid. A click in the gaps
+// of the message card's row of controls, where it was, does nothing now.
+// Paused, it is 2rem wide, gold, and says so, and answers again once the
+// pointer has left.
+test('pauses on the left edge of the phrase table, and no longer in the row of controls', async ({ page }) => {
   await openBoard(page)
   const app = page.locator('.app')
-  const hits = await page.evaluate(() => {
-    const at = (x: number, y: number) => document.elementFromPoint(x, y)?.classList.contains('rest-surface')
-    const card = document.querySelector('.message-wrap')!.getBoundingClientRect()
-    const tools = document.querySelector('.message-tools')!.getBoundingClientRect()
-    const clipboard = document.querySelector('.tools-clipboard')!.getBoundingClientRect()
-    const modes = document.querySelector('.tools-modes')!.getBoundingClientRect()
-    const centre = (sel: string) => {
-      const r = document.querySelector(sel)!.getBoundingClientRect()
-      return [r.left + r.width / 2, r.top + r.height / 2] as const
-    }
-    return {
-      gap: at((clipboard.right + modes.left) / 2, tools.top + tools.height / 2),
-      above: at(card.left + 60, card.top - 4),
-      edit: at(...centre('.autospeak-toggle')),
-      box: at(...centre('.text-display')),
-      menu: at(...centre('.menu-btn')),
-    }
-  })
-  expect(hits).toEqual({ gap: true, above: false, edit: false, box: false, menu: false })
-
   const gap = await page.evaluate(() => {
     const tools = document.querySelector('.message-tools')!.getBoundingClientRect()
     const clipboard = document.querySelector('.tools-clipboard')!.getBoundingClientRect()
@@ -765,13 +744,42 @@ test('rests on a click in the open space of the card’s row of controls, and no
     return { x: (clipboard.right + modes.left) / 2, y: tools.top + tools.height / 2 }
   })
   await page.mouse.click(gap.x, gap.y)
+  await expect(app, 'paused from the row of controls').not.toHaveClass(/resting/)
+
+  const geometry = await page.evaluate(() => {
+    const edge = document.querySelector('.rest-edge')!.getBoundingClientRect()
+    const panel = document.querySelector('.grid-area')!.getBoundingClientRect()
+    const grid = document.querySelector('.grid-wrapper')!.getBoundingClientRect()
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+    const hit = document.elementFromPoint(edge.left + edge.width / 2, edge.top + edge.height / 2)
+    return {
+      width: Math.round(edge.width) === rem,
+      inPanel: edge.left >= panel.left && edge.left - panel.left <= 2,
+      fullHeight: Math.abs(edge.height - (panel.height - 2)) <= 2,
+      overGrid: Math.abs(grid.left - (panel.left + 1)) <= 1 && edge.right > grid.left,
+      reached: hit?.classList.contains('rest-edge') ?? false,
+      x: edge.left + edge.width / 2,
+      y: edge.top + edge.height / 2,
+    }
+  })
+  const { x, y, ...shape } = geometry
+  expect(shape).toEqual({ width: true, inPanel: true, fullHeight: true, overGrid: true, reached: true })
+
+  await page.mouse.click(x, y)
   await expect(app).toHaveClass(/resting/)
-  // Resume came up under the pointer; it answers once the pointer has left the row.
-  await page.locator('.resume-bar').dispatchEvent('click')
-  await expect(app, 'resumed without the pointer leaving the row').toHaveClass(/resting/)
-  await page.mouse.move(gap.x, gap.y + 300)
-  await page.mouse.click(gap.x, gap.y)
+  await expect(page.locator('.rest-edge')).toHaveText('Paused')
+  const pausedWidth = await page.evaluate(() => {
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+    return Math.round(document.querySelector('.rest-edge')!.getBoundingClientRect().width) / rem
+  })
+  expect(pausedWidth).toBe(2)
+  // Still on the edge: it answers once the pointer has left it.
+  await page.mouse.click(x, y)
+  await expect(app, 'resumed without the pointer leaving the edge').toHaveClass(/resting/)
+  await page.mouse.move(x + 300, y)
+  await page.mouse.click(x, y)
   await expect(app).not.toHaveClass(/resting/)
+  await expect(page.locator('.rest-edge')).toHaveText('')
 })
 
 // **Every prompt in the two boxes is one line on any screen** — measured in

@@ -65,10 +65,7 @@ describe('the user guide', () => {
     ['the board as a spreadsheet', /Save for Excel/],
     ['bringing a spreadsheet back', /Paste from Sheets/],
     ['the word lists in a spreadsheet', /one word to a row/],
-    [
-      'resting',
-      /open space in the row of buttons at the top of the message box.*dwelling switches off everywhere else/,
-    ],
+    ['pausing', /left edge of the phrases.*dwelling switches off everywhere else/],
     ['paging the grid', /:up: and :down: move it most of a screen at a time/],
     ['putting a deleted phrase back', /:undo: at the top left puts the board back/],
     ['doing a change again', /:redo: makes the change again/],

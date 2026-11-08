@@ -89,31 +89,6 @@ function StopBar() {
   )
 }
 
-/**
- * **Resume, over the row of controls while resting** — the open space that
- * rested the app, covered by the one thing that brings it back, as Stop
- * covers the top row while anything is said. The only control live while
- * resting, so its dwell never depends on the resting state.
- */
-function ResumeBar({ onResume, waiting }: { onResume: () => void; waiting: boolean }) {
-  const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onResume, {
-    ignoresRest: true,
-    disabled: waiting,
-  })
-  return (
-    <button
-      type="button"
-      className={cx('resume-bar', active && 'dwelling')}
-      style={dwellVar(settings.actionDwellMs)}
-      aria-label="Resume. Switch dwell back on"
-      {...props}
-    >
-      <span>Resume</span>
-    </button>
-  )
-}
-
 function ActionButton({
   onSelect,
   className = '',
@@ -240,52 +215,6 @@ function ModeToggle({
   )
 }
 
-/**
- * **Rest is the open space in the message card's row of controls** — a dwell
- * or a click anywhere in that row that is not a control switches dwelling off,
- * and the same again switches it back on. It was a bar among the modes, the
- * size of a lozenge; the gaps between the clipboard, the modes and the values
- * are far bigger, and found without looking.
- *
- * A surface behind everything in the row (`.rest-surface`), which the row lets
- * the pointer through to wherever it has nothing that answers — its groups
- * pass it on; the controls keep it. Only this row: the rest of the card is the
- * words, and the padding round it is nothing. The only control that stays live while the app is resting,
- * since it is the way back: its own dwell never depends on the resting state.
- * No icon and no word: the name lives in `aria-label`, and the state is told by
- * the row dimming over a wash of the rest colour.
- */
-function RestSurface({
-  resting,
-  onToggle,
-  waiting,
-}: {
-  resting: boolean
-  onToggle: () => void
-  /** Until the pointer has left the row — see `mustLeave` in `Topbar`. */
-  waiting: boolean
-}) {
-  const { settings } = useSettings()
-  const { active, props } = useDwellControl(settings.actionDwellMs, onToggle, {
-    ignoresRest: true,
-    disabled: waiting,
-  })
-  return (
-    <div
-      className={cx('rest-surface', resting && 'is-resting', active && 'dwelling')}
-      style={dwellVar(settings.actionDwellMs)}
-      role="button"
-      aria-pressed={resting}
-      aria-label={
-        resting ? 'Resume. Switch dwell back on' : 'Rest. Switch dwell off everywhere but the open space up here'
-      }
-      {...props}
-    >
-      <div className="dwell-bar" key={active ? 'a' : 'i'} />
-    </div>
-  )
-}
-
 export function Topbar({
   composer,
   editor,
@@ -297,7 +226,6 @@ export function Topbar({
   keyboardOpen,
   onToggleKeyboard,
   resting,
-  onToggleRest,
   onSavePhrase,
   history,
   onSpeak,
@@ -322,7 +250,6 @@ export function Topbar({
   keyboardOpen: boolean
   onToggleKeyboard: () => void
   resting: boolean
-  onToggleRest: () => void
   /** It changes the board, so the screen does it, not the editor. */
   onSavePhrase: () => void
   /**
@@ -649,19 +576,6 @@ export function Topbar({
     void (elsewhere ? pasteInto(field) : linkInput.pasteFromClipboard()).then(onPasted)
   }, [focusedField, textareaRef, linkInput, onPasted])
 
-  /**
-   * **Rest and Resume answer once, then wait for the pointer to leave their
-   * row.** Each comes up where the other was, under a pointer that has not
-   * moved, and a gaze that stays put would otherwise switch dwelling straight
-   * back — so after either, neither answers until the pointer has been out of
-   * the row of controls and come back.
-   */
-  const [mustLeave, setMustLeave] = useState(false)
-  const toggleRest = useCallback(() => {
-    setMustLeave(true)
-    onToggleRest()
-  }, [onToggleRest])
-
   return (
     <header className="topbar">
       {/* The message card: the row of controls, and under it the line the
@@ -673,7 +587,7 @@ export function Topbar({
               the far left, the modes in the middle — the microphone,
               auto-speak, please and present — and the language, the voice and the menu at the
               right. */}
-          <div className="message-tools" onPointerLeave={() => setMustLeave(false)}>
+          <div className="message-tools">
             {/* The clipboard, and Undo and Redo for the board after it: one
                 group at the left of a wide card, and on a narrow one the
                 history at the start of the line under — see `.tools-left`.
@@ -683,17 +597,16 @@ export function Topbar({
             {!phone && (
               <div className="tools-left">
                 <div className="tools-clipboard">
-                  {/* Paste in both modes, meaning the same thing either way; copy only
-                    outside edit mode, where the message is what there is to copy.
-                    Paste is never disabled: what is on the clipboard is not this
-                    app's to know until it asks — and the keyboard route into a text
-                    box is Ctrl-V, which is exactly the input this app exists
-                    without. */}
-                  {!editMode && (
-                    <ActionButton className="in-card" onSelect={onCopy} label="Copy to clipboard" disabled={!text}>
-                      <CopyIcon />
-                    </ActionButton>
-                  )}
+                  {/* **Copy and paste in both modes**, in the same places. Copy
+                    whenever the box has words — the message, or in edit mode the
+                    phrase being written — and quiet while it is empty, so nothing
+                    moves along the row. Paste is never disabled: what is on the
+                    clipboard is not this app's to know until it asks — and the
+                    keyboard route into a text box is Ctrl-V, which is exactly the
+                    input this app exists without. */}
+                  <ActionButton className="in-card" onSelect={onCopy} label="Copy to clipboard" disabled={!value}>
+                    <CopyIcon />
+                  </ActionButton>
                   <ActionButton className="in-card" onSelect={paste} label="Paste from clipboard">
                     <PasteIcon />
                   </ActionButton>
@@ -868,10 +781,6 @@ export function Topbar({
                 <MenuIcon />
               </ActionButton>
             </div>
-            {/* **Rest is this row's open space** — see `RestSurface`. Last, and
-                behind everything in the row. */}
-            <RestSurface resting={resting} onToggle={toggleRest} waiting={mustLeave} />
-            {resting && <ResumeBar onResume={toggleRest} waiting={mustLeave} />}
           </div>
 
           {/* **The lines the words are written on** — the question's, while
