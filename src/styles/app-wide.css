@@ -409,10 +409,6 @@
   /* A magnified cell is simply there at its size, without growing into it. */
   .phrase-place.is-magnified > .phrase-cell { animation: none !important; }
 
-  /* The open space stops pulsing while resting; it stays washed in the rest
-     colour, and the row is still dimmed over it. */
-  .rest-surface.is-resting { animation: none !important; }
-
   /* The listening line on the question box stands lit rather than pulsing. */
   .heard-text.is-listening {
     animation: none !important;

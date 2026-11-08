@@ -27,3 +27,11 @@ Two properties hold it together, and both have mutation-tested guards:
 - **Not for touch**, where nothing hovers, and **not while cells are being arranged**, where a cell is a thing to pick up.
 - **Anything that moves the board puts it back** — a new list, a scroll, or the board pushed down by the message box growing round what was just said. The cell goes with its place and would stand grown over somewhere the pointer no longer is, covering the cell that came to the pointer instead; the next movement decides. `e2e/click-through.spec.ts` found it.
 
+## Pausing
+
+**Pause is laid over the table's left edge** — `RestEdge` in `talk/rest-edge.tsx`, a strip 1rem wide over the panel's left side, from its top to its foot, taking no room from the grid and above the cells. It was the open space in the message card's row of controls, and that space lies between everything a gaze aims at up there: passing from the clipboard to the modes, or resting a moment between two of them, paused the app. An edge nothing else shares is chosen on purpose or not at all, and it is the full height of the table, so it is found without looking.
+
+- **Nothing of its own until it is rested on**: no ground and no word. Rested on, a fill rises from its foot in the brand's gold.
+- **Paused, it is 2rem wide and that gold all the way down at 60%**, the cells showing through, with *Paused* along it in near-black — white on the gold was under 2:1. It is the one control that answers while paused, and resting on it again resumes.
+- **After either, it answers nothing until the pointer has left it**: it does not move, so a gaze that stayed put would switch straight back.
+- **Nothing else changes while paused** — no word across the screen and nothing dimmed, both of which it had once. The board is what somebody pauses to read.

@@ -17,6 +17,7 @@ import { useScrollEdges } from '../ui/scroll-edges'
 import { cx, dwellVar } from '../ui/style'
 import { ItemTool } from './item-tool'
 import { PhraseText } from './phrase-text'
+import { RestEdge } from './rest-edge'
 
 const PhraseCell = memo(function PhraseCell({
   phrase,
@@ -281,6 +282,8 @@ export function PhraseGrid({
   onSelect,
   pointing,
   peek,
+  resting,
+  onToggleRest,
 }: {
   phrases: Phrase[]
   /**
@@ -341,6 +344,9 @@ export function PhraseGrid({
    * would be the same value both times and do nothing the second.
    */
   pointing?: { id: string } | null
+  /** Whether dwelling is paused, and the edge that pauses and resumes it — see `RestEdge`. */
+  resting: boolean
+  onToggleRest: () => void
   /**
    * An emergency phrase's words, shown whole and large in the middle of the
    * table while its button is rested on and the bar is cutting words off — see
@@ -589,6 +595,7 @@ export function PhraseGrid({
 
   return (
     <div className="grid-area">
+      <RestEdge resting={resting} onToggle={onToggleRest} />
       <main ref={gridRef} className="grid-wrapper">
         <div ref={innerRef} className="phrase-grid" role="group" aria-label="Phrases">
           {/* Each cell in a place of its own in the grid, which it holds while

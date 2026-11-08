@@ -1365,12 +1365,22 @@ export function TalkScreen({
   // Copying is the other way a message leaves — into a text, an email, someone
   // else's screen. It was still said.
   const handleCopy = useCallback(() => {
+    // **In edit mode, the phrase being written**, as the box shows it — and
+    // only copied: Save is what keeps it.
+    if (editMode) {
+      if (!draft.text) return
+      navigator.clipboard.writeText(draft.text).then(
+        () => flashToast('Copied to clipboard'),
+        () => flashToast('Could not copy — clipboard unavailable'),
+      )
+      return
+    }
     if (!message) return
     copyMessage().then(ok => {
       const filed = ok ? keepSaid(message) : undefined
       flashToast(ok ? `Copied to clipboard${filed ? `. ${filed}` : ''}` : 'Could not copy — clipboard unavailable')
     })
-  }, [message, copyMessage, flashToast, keepSaid])
+  }, [editMode, draft.text, message, copyMessage, flashToast, keepSaid])
 
   /**
    * Both text boxes offer a paste, and both can be refused. Reading the clipboard
@@ -1552,7 +1562,6 @@ export function TalkScreen({
                   keyboardOpen={keyboardOpen}
                   onToggleKeyboard={() => setKeyboardOpen(o => !o)}
                   resting={resting}
-                  onToggleRest={toggleRest}
                   editor={editor}
                   onSavePhrase={handleSave}
                   history={{ undo: history.toUndo, redo: history.toRedo, onUndo: handleUndo, onRedo: handleRedo }}
@@ -1603,6 +1612,8 @@ export function TalkScreen({
 
                 <PhraseGrid
                   phrases={gridPhrases}
+                  resting={resting}
+                  onToggleRest={toggleRest}
                   // A new tab or a new word is a different list; the same phrases in
                   // a new order is not.
                   listKey={`${effectiveFilter}\u0000${filterWord}`}

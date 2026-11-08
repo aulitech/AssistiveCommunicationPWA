@@ -27,22 +27,22 @@ import {
 import { stylesheet } from '../stylesheet'
 
 describe('resting', () => {
-  const rest = () => $('.rest-surface')!
+  const rest = () => $('.rest-edge')!
   const dwell = (el: Element, ms = 1500) => {
     fireEvent.pointerEnter(el)
     act(() => void vi.advanceTimersByTime(ms))
     settle()
   }
   const startResting = () => click(rest())
-  /** The pointer out of the row of controls, which Rest and Resume wait for. */
-  const leaveRow = () => {
-    fireEvent.pointerLeave($('.message-tools')!)
+  /** The pointer off the edge, which it waits for after pausing or resuming. */
+  const leaveEdge = () => {
+    fireEvent.pointerLeave($('.rest-edge-place')!)
     settle()
   }
-  /** Out of the row and back onto Resume. */
+  /** Off the edge and back onto it. */
   const resume = () => {
-    leaveRow()
-    click($('.resume-bar'))
+    leaveEdge()
+    click(rest())
   }
 
   // **No keyboard over a board at rest.** The caret comes out of the box, and
@@ -78,76 +78,80 @@ describe('resting', () => {
     expect(box.getAttribute('inputmode'), 'Resume brought back a keyboard nobody asked for').toBe('none')
   })
 
-  // **The open space in the message card's row of controls**: a surface
-  // behind everything in that row, which the row lets the pointer through to
-  // wherever nothing answers. Where it is drawn and what reaches it is
-  // `e2e/layout.spec.ts`'s question; this is that it is there, and only there.
-  it('is the open space of the message card’s row of controls, and nowhere else', () => {
+  // **Pause is laid over the phrase table's left edge**, 1rem wide —
+  // and nothing in the message card's row any more, where a gaze passing
+  // between two controls paused the app. Where it is drawn and what reaches it
+  // is `e2e/layout.spec.ts`'s question; this is that it is there, and only there.
+  it('is the left edge of the phrase table, and nowhere else', () => {
     renderApp()
-    expect($$('.rest-surface')).toHaveLength(1)
-    expect($('.message-wrap > .message-tools > .rest-surface')).not.toBeNull()
-    expect($('.rest-btn'), 'the bar it replaced').toBeNull()
+    expect($$('.rest-edge')).toHaveLength(1)
+    expect($('.grid-area > .rest-edge-place:first-child > .rest-edge')).not.toBeNull()
+    expect($('.message-tools .rest-surface, .resume-bar'), 'the row it left').toBeNull()
+    expect(stylesheet()).toMatch(/\n\.rest-edge-place \{[^}]*position: absolute;[^}]*z-index: 7;[^}]*width: 1rem;/)
+    expect(stylesheet(), 'the row still passing the pointer on').not.toMatch(/\.message-tools > :not/)
+  })
+
+  // **Transparent and without a word until it is rested on**, then a fill
+  // rising in the brand's gold.
+  it('draws nothing of its own until it is rested on', () => {
+    renderApp()
+    expect(rest().textContent).toBe('')
     const css = stylesheet()
-    expect(css).toMatch(/\.message-tools > :not\(\.rest-surface\) \* \{ pointer-events: none; \}/)
-    expect(css).toMatch(/\.message-tools :is\([^)]*\[role='button'\][^)]*\) \{ pointer-events: auto; \}/)
-    expect(css, 'the rest of the top row passes the pointer on').not.toMatch(/\.topbar > :not\(\.rest-surface\)/)
+    expect(css.match(/\n\.rest-edge \{([^}]*)\}/)![1]).not.toMatch(/background/)
+    expect(css).toMatch(/\n\.rest-edge::before \{[^}]*background: var\(--brand\);[^}]*transform: scaleY\(0\);/)
+    expect(css).toMatch(/\.rest-edge\.dwelling::before \{ animation: dwellFillV/)
+    fireEvent.pointerEnter(rest())
+    act(() => void vi.advanceTimersByTime(300))
+    expect(rest().classList.contains('dwelling')).toBe(true)
   })
 
-  // No ground of its own until it is rested on or resting: the row looks as
-  // it always did.
-  it('draws nothing of its own at rest', () => {
-    const rule = stylesheet().match(/\n\.rest-surface \{([^}]*)\}/)![1]
-    expect(rule).not.toMatch(/background/)
-  })
-
-  // **Resume, over the row of controls while resting** — opaque, in the
-  // brand's gold a little muted, the word near-black — and the way back.
-  it('covers the row of controls with Resume while resting, which resumes', () => {
+  // **Paused: 2rem wide, the brand's gold at 60%, labelled Paused** in
+  // near-black — and resting on it again is the way back.
+  it('turns gold and says Paused while paused, and resumes from there', () => {
     renderApp()
-    expect($('.resume-bar')).toBeNull()
-
     startResting()
-    const bar = $('.message-tools > .resume-bar')!
-    expect(bar.textContent).toBe('Resume')
-    expect(bar.getAttribute('aria-label')).toMatch(/^Resume\./)
-    const rule = stylesheet().match(/\n\.resume-bar \{([^}]*)\}/)![1]
-    expect(rule).toMatch(/background: color-mix\(in srgb, var\(--brand\) \d+%, #000\);/)
-    expect(rule).toMatch(/color: var\(--bg\);/)
+    expect(rest().textContent).toBe('Paused')
+    expect(rest().classList.contains('is-resting')).toBe(true)
+    const css = stylesheet()
+    expect(css).toMatch(
+      /\.rest-edge\.is-resting \{ background: color-mix\(in srgb, var\(--brand\) 60%, transparent\); \}/,
+    )
+    expect(css).toMatch(/\.rest-edge-place:has\(\.is-resting\) \{ width: 2rem; \}/)
+    expect(css).toMatch(/\.rest-edge span \{[^}]*color: var\(--bg\);/)
 
     resume()
     expect($('.app')?.classList.contains('resting')).toBe(false)
-    expect($('.resume-bar')).toBeNull()
+    expect(rest().textContent).toBe('')
   })
 
-  // Resume comes up where the rest was, under a pointer that has not moved,
-  // and Rest comes back where Resume was: **neither answers until the pointer
-  // has left the row** — or a gaze that stayed put would switch straight back.
-  it('waits for the pointer to leave the row before answering again', () => {
+  // The edge does not move, so **it answers nothing more until the pointer has
+  // left it** — or a gaze that stayed put would switch straight back.
+  it('waits for the pointer to leave the edge before answering again', () => {
     renderApp()
     startResting()
 
-    click($('.resume-bar'))
-    expect($('.app')?.classList.contains('resting'), 'resumed without leaving the row').toBe(true)
+    click(rest())
+    expect($('.app')?.classList.contains('resting'), 'resumed without leaving the edge').toBe(true)
 
     resume()
     expect($('.app')?.classList.contains('resting')).toBe(false)
 
     click(rest())
-    expect($('.app')?.classList.contains('resting'), 'rested again without leaving the row').toBe(false)
-    leaveRow()
+    expect($('.app')?.classList.contains('resting'), 'paused again without leaving the edge').toBe(false)
+    leaveEdge()
     click(rest())
     expect($('.app')?.classList.contains('resting')).toBe(true)
   })
 
-  // **Nothing else on the screen changes while resting** — Resume over the
-  // row says it. A regression guard: it said Paused across the middle and
+  // **Nothing else on the screen changes while resting** — the gold edge
+  // says it. A regression guard: it said Paused across the middle and
   // dimmed everything round the row, and Spero asked for neither.
   it('neither says Paused nor dims anything while resting', () => {
     renderApp()
     startResting()
     expect($('.app')?.classList.contains('resting')).toBe(true)
     expect($('.paused-note'), 'a word over the screen').toBeNull()
-    expect(document.body.textContent).not.toMatch(/Paused/)
+    expect(document.body.textContent?.match(/Paused/g), 'Paused anywhere but the edge').toEqual(['Paused'])
     expect(stylesheet(), 'something dimmed while resting').not.toMatch(/\.app\.resting[^{]*\{[^}]*opacity/)
   })
 
@@ -207,17 +211,17 @@ describe('resting', () => {
     expect(message()).toBe('')
   })
 
-  // It shows no icon and no word, so the label is the only thing that names it
-  // — for a screen reader, and for anyone reading the accessibility tree.
+  // It shows no word until paused, so the label is what names it — for a
+  // screen reader, and for anyone reading the accessibility tree.
   it('names itself and its state where nothing is drawn', () => {
     renderApp()
     expect(rest().getAttribute('aria-pressed')).toBe('false')
-    expect(rest().getAttribute('aria-label')).toMatch(/^Rest\./)
+    expect(rest().getAttribute('aria-label')).toMatch(/^Pause\./)
 
     startResting()
 
     expect(rest().getAttribute('aria-pressed')).toBe('true')
-    expect(rest().getAttribute('aria-label')).toMatch(/^Resume\./)
+    expect(rest().getAttribute('aria-label')).toMatch(/^Paused\./)
     expect(rest().classList.contains('is-resting')).toBe(true)
   })
 })

@@ -55,19 +55,19 @@ export const HELP_SECTIONS: ProseSection[] = [
   // and the bar for what cannot wait — what somebody new to it needs before
   // anything else.
   {
-    title: 'Resting',
+    title: 'Pausing',
     blocks: [
       text(
-        'Rest on any open space in the row of buttons at the top of the message box — anywhere in that row that is not a button, such as either side of the modes — and dwelling switches off everywhere else. Clicking there does the same. Use it to look at the screen, or away from it, without choosing anything.',
+        'Rest on the left edge of the phrases — a thin strip down the left side of the table — and dwelling switches off everywhere else. It fills with gold as you rest on it. Clicking it does the same. Use it to look at the screen, or away from it, without choosing anything.',
       ),
       text(
-        'While it is on, a gold Resume button covers that row and nothing else answers to a rest — the blue bar included — so nothing can be said by accident. The rest of the screen stays as it was, so it can be read. Rest on Resume to switch dwelling back on.',
+        'While paused, that edge is wider and gold and says Paused, and nothing else answers to a rest — the blue bar included — so nothing can be said by accident. The rest of the screen stays as it was, so it can be read. Rest on the edge again to switch dwelling back on.',
       ),
       text(
-        'After resting or resuming, move the pointer out of that row and back before it answers again, so a gaze that stays put does not switch straight back.',
+        'After pausing or resuming, move the pointer off the edge and back before it answers again, so a gaze that stays put does not switch straight back.',
       ),
       text(
-        'While resting, the keyboard your phone or browser brings up goes away, and does not come back until you resume.',
+        'While paused, the keyboard your phone or browser brings up goes away, and does not come back until you resume.',
       ),
     ],
   },
@@ -339,7 +339,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'While you change it, the phrase stays on the board, at the top if what you type is searching for others, so :delete: is always in reach.',
         ':delete: on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
         ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
-        ':clear: at the left end of the line starts a new phrase — the same button that empties the message the rest of the time. :paste: stays where it is; :copy: is not there in edit mode.',
+        ':clear: at the left end of the line starts a new phrase — the same button that empties the message the rest of the time. :copy: and :paste: stay where they are; :copy: copies the phrase you are writing, and only :save: keeps it.',
         ':save: puts the phrase in the category whose tab is showing, or in Library alone when Library is showing. A phrase already in other categories stays in them too.',
         'If the words are already on the board, :save: puts that phrase in the category showing rather than making a second copy, and the line says so.',
         "The language and the voice in the row become this phrase's own: the voice it is said in, and the language that voice is for.",

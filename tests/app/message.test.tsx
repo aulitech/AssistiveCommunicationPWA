@@ -163,6 +163,34 @@ describe('composing', () => {
     act(() => void vi.advanceTimersByTime(50))
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(message())
   })
+
+  // **Copy is offered whenever the box has words, in either mode** — in edit
+  // mode the phrase being written, copied as the box shows it and kept by
+  // nothing but Save. It went away in edit mode once, and Spero asked for it
+  // back. Quiet while the box is empty, in the same place, so the row holds still.
+  it('offers copy in edit mode too, copying the phrase being written and keeping nothing', async () => {
+    renderApp()
+    click(speakToggle())
+    const copyBtn = () => iconBtn('Copy to clipboard')!
+    expect(copyBtn(), 'no copy in edit mode').toBeDefined()
+    expect(copyBtn().hasAttribute('disabled'), 'live with nothing to copy').toBe(true)
+    expect($$('.tools-clipboard [aria-label]').map(b => b.getAttribute('aria-label'))).toEqual([
+      'Copy to clipboard',
+      'Paste from clipboard',
+    ])
+
+    writePhrase('Being written, not saved')
+    expect(copyBtn().hasAttribute('disabled')).toBe(false)
+    const before = localStorage.getItem('dwellspeak_phrase_store_v2')
+    click(copyBtn())
+    await act(async () => {
+      await Promise.resolve()
+    })
+    settle()
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Being written, not saved')
+    expect($('.toast')?.textContent).toMatch(/Copied to clipboard/)
+    expect(localStorage.getItem('dwellspeak_phrase_store_v2'), 'copying kept the phrase').toBe(before)
+  })
 })
 
 /**
@@ -741,8 +769,7 @@ describe('the card', () => {
   it('puts the clipboard at the far left of the row, the modes in its middle, and the values at its right', () => {
     renderApp()
     const row = () => [...$('.message-tools')!.children].map(el => el.className.split(' ')[0])
-    // And Rest, the open space behind them — see `RestSurface`.
-    expect(row()).toEqual(['tools-left', 'tools-modes', 'tools-values', 'rest-surface'])
+    expect(row()).toEqual(['tools-left', 'tools-modes', 'tools-values'])
     expect(labels('.tools-clipboard')).toEqual(['Copy to clipboard', 'Paste from clipboard'])
     // Undo and Redo for the board after them, quiet with nothing to reach.
     expect(labels('.tools-left')).toEqual([
@@ -775,7 +802,12 @@ describe('the card', () => {
     // Save where it always stood, and Speak after it, which saves as well.
     expect(labels('.message-field > .after-text')).toEqual(['Save phrase', 'Speak and save'])
 
-    expect(labels('.tools-left')).toEqual(['Paste from clipboard', 'Nothing to undo', 'Nothing to redo'])
+    expect(labels('.tools-left')).toEqual([
+      'Copy to clipboard',
+      'Paste from clipboard',
+      'Nothing to undo',
+      'Nothing to redo',
+    ])
     expect(labels('.tools-values')).toEqual([
       expect.stringMatching(/^Language this phrase's voice is for/),
       expect.stringMatching(/^Voice for this phrase/),

@@ -497,90 +497,67 @@
   background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-/* **Rest, the open space in the message card's row of controls** — see
-   `RestSurface` in `topbar.tsx`. Behind everything in the row: the row is its
-   own stacking context, so the surface sits over the card's ground and under
-   all of what is on it. */
+/* **The message card's row of controls** — a stacking context of its own, so
+   nothing in it is painted under the card's ground. */
 .message-tools {
   position: relative;
   isolation: isolate;
 }
-.rest-surface {
+
+/* **Pause, over the phrase table's left edge** — see `RestEdge` in
+   `talk/rest-edge.tsx`. A strip 1rem wide laid over the panel's left side,
+   from its top to its foot, taking no room from the grid; above the cells, a
+   magnified one included, and above the grid's arrows. Rounded with the
+   panel's own corners, since the panel clips it. Nothing of its own at rest; a
+   fill rising from the foot in the brand's gold as it is rested on; and paused,
+   2rem wide and that gold all the way down at 60%, the cells showing through,
+   with *Paused* along it in near-black — white on that gold was under 2:1. */
+.rest-edge-place {
   position: absolute;
-  inset: 0;
-  z-index: -1;
-  cursor: pointer;
-  /* The card's own upper corners, inside its edge, so a wash fills the row and
-     nothing past it. */
-  border-radius: calc(1.25rem - 1px) calc(1.25rem - 1px) 0 0;
-  overflow: hidden;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 7;
+  width: 1rem;
+  display: flex;
 }
-
-/* **The row lets the pointer through to it wherever nothing answers**: its
-   groups pass it on, and the controls keep it. A control's invisible area past
-   its edge is its own, and stays. */
-.message-tools > :not(.rest-surface),
-.message-tools > :not(.rest-surface) * { pointer-events: none; }
-.message-tools :is([role='button'], button, input, a) { pointer-events: auto; }
-
-/* A rest filling, along the foot of the row, in the rest colour, over a wash of
-   it in the open space. */
-.rest-surface .dwell-bar { background: var(--rest); border-radius: 0; }
-.rest-surface.dwelling { background: color-mix(in srgb, var(--rest) 8%, transparent); }
-.rest-surface.dwelling .dwell-bar { animation: dwellFillH var(--dwell-duration, 800ms) linear forwards; }
-
-/* Resting: the open space washed in the rest colour, pulsing, under a row
-   dimmed because none of it will answer — the way back is wherever the wash
-   shows. */
-.rest-surface.is-resting {
-  background: color-mix(in srgb, var(--rest) 16%, transparent);
-  animation: restPulse 1.6s ease-in-out infinite;
-}
-
-/* **Resume, over the row of controls while resting** — see `ResumeBar` in
-   `topbar.tsx`. Opaque, the brand's gold a little muted, the word near-black;
-   the card's upper corners, and a fill rising as it is rested on. */
-.resume-bar {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
+.rest-edge-place:has(.is-resting) { width: 2rem; }
+.rest-edge {
+  position: relative;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border: none;
-  border-radius: calc(1.25rem - 1px) calc(1.25rem - 1px) 0 0;
-  background: color-mix(in srgb, var(--brand) 85%, #000);
-  /* Near-black, the app's own darkest, which the gold carries at about 10:1 —
-     white on it was under 2:1. */
-  color: var(--bg);
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
   cursor: pointer;
 }
-
-.resume-bar span { position: relative; }
-
-.resume-bar::before {
+.rest-edge::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: #000;
-  opacity: 0.2;
+  background: var(--brand);
+  opacity: 0.55;
   transform: scaleY(0);
   transform-origin: bottom;
 }
-
-.resume-bar.dwelling::before { animation: dwellFillV var(--dwell-duration, 800ms) linear forwards; }
-
-@keyframes restPulse {
-  50% { opacity: 0.5; }
+.rest-edge.dwelling::before { animation: dwellFillV var(--dwell-duration, 800ms) linear forwards; }
+.rest-edge.is-resting { background: color-mix(in srgb, var(--brand) 60%, transparent); }
+.rest-edge.is-resting::before { background: #000; opacity: 0.2; }
+.rest-edge span {
+  position: relative;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  color: var(--bg);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* **Nothing else changes while resting**: no word over the screen and nothing
-   dimmed. Resume over the row of controls says it; the board is left exactly
-   as it is, since reading it is most of why somebody rests. */
+   dimmed. The gold edge says it; the board is left exactly as it is, since
+   reading it is most of why somebody rests. */
 
 /* **Speak right after the last word**, and Ask after the question's — see
    `ui/after-text.tsx`. The copy of the box it measures with is laid out
