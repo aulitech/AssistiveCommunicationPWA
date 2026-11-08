@@ -66,7 +66,10 @@
      is on whenever the caret is, which is most of the time. */
   --card-ground: #232323;
   --card-edge: #3a3a3a;
-  --card-focus: color-mix(in srgb, var(--accent) 55%, var(--card-edge));
+  /* **The rule between the card's rows** — the controls, the lines the words
+     are written on, a link's fields — fainter than the card's own edge, so it
+     divides without boxing anything in. */
+  --card-rule: color-mix(in srgb, var(--card-edge) 60%, var(--card-ground));
   /* **The panel**: the phrase table and the tab showing, one surface with one
      edge, a step up from the page the top row and the tabs sit on — so the tab
      showing reads as the top of the page of phrases under it. The phrases are a
@@ -74,10 +77,12 @@
   --panel: var(--surface);
   --panel-edge: var(--card-edge);
   /* **The panel's rim** — the table's border and the tab showing's sides and
-     top — in the colour the auto-speak toggle's icon is: the accent while
-     auto-speak is on, and the muted grey in edit mode (`.app.edit-mode`, in
-     `editing.css`). It changes as the toggle does, so the board says which
-     mode it is in from across the screen. */
+     top, and the message card's accents: its edge, the line along a focused
+     box's foot and edit mode's dashed edge on the box — in the colour the
+     auto-speak toggle's icon is: the accent while auto-speak is on, and the
+     muted grey in edit mode (`.app.edit-mode`, in `editing.css`). It changes
+     as the toggle does, so the board says which mode it is in from across the
+     screen, the top section and the table alike. */
   --panel-rim: var(--accent);
   /* **Paused**: the ground of the edge that pauses, and the panel's rim while
      it is — see `.rest-edge` in `modes-and-listening.css`. One colour, named
