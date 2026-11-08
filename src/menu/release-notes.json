@@ -1,5 +1,22 @@
 [
   {
+    "version": "11.11.13",
+    "date": "2026-11-08",
+    "commits": [
+      {
+        "subject": "The top section is one card, its accents the phrase table's rim",
+        "body": [
+          {
+            "text": "The row of controls, the lines the words are written on and a link's fields share one ground inside an edge, with a faint rule between each row and the next; the message box no longer has a ground of its own."
+          },
+          {
+            "text": "The card's accents follow the phrase table's rim (--panel-rim): its edge, the line along a focused box's foot and edit mode's dashed edge on the box are green in auto-speak, grey in edit mode and gold while paused, as the table is. --card-focus is gone."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.12",
     "date": "2026-11-08",
     "commits": [
