@@ -512,8 +512,8 @@ describe('the shape of the source tree', () => {
     // The two boxes have no edge to say it on, so theirs is a line along the
     // foot of the box, drawn inside it; every other field says it on its border.
     for (const [field, says, sign] of [
-      ['.text-display', '.text-display:focus', /box-shadow: *inset 0 -2px 0 var\(--card-focus\)/],
-      ['.heard-text', '.heard-text:focus', /box-shadow: *inset 0 -2px 0 var\(--card-focus\)/],
+      ['.text-display', '.text-display:focus', /box-shadow: *inset 0 -2px 0 var\(--panel-rim\)/],
+      ['.heard-text', '.heard-text:focus', /box-shadow: *inset 0 -2px 0 var\(--panel-rim\)/],
       ['.caret-field', '.caret-field:focus', /border-color: *var\(--accent\)/],
     ] as const) {
       expect(rule(`${field}:focus-visible`), `${field} still wears the ring outside its border`).toMatch(

@@ -34,14 +34,26 @@
   position: relative;
   flex: 1;
   min-width: 0;
-  /* **The row of controls and the box under it**, with no ground or edge of
-     their own: the box carries the ground, so what reads as the place to write
-     is the place the words go. */
+  /* **The whole top section is one card**: the row of controls, the lines the
+     words are written on and a link's fields on one ground, inside an edge in
+     the phrase table's rim, with a faint rule between each row and the next. The box went
+     back to no ground of its own — it was the only grounded thing up here,
+     and Spero asked for the section to read as one surface. */
   display: flex;
   flex-direction: column;
   /* The row of controls stacks by the card's width, not the screen's. */
   container: message / inline-size;
+  background: var(--card-ground);
+  /* In the phrase table's rim, so the two say the mode alike. */
+  border: 1px solid var(--panel-rim);
   border-radius: 1.25rem;
+}
+
+/* **A faint rule between the card's rows**, drawn on the top of every row but
+   the first. */
+.message-wrap > .message-lines,
+.message-wrap > .link-fields {
+  border-top: 1px solid var(--card-rule);
 }
 
 /* The words and the arrows that scroll them, so the arrows are placed against
@@ -69,9 +81,8 @@
      that ate it would be a box with nothing to put in it. */
   max-height: var(--box-max-height);
   padding: var(--box-pad-y) var(--box-pad-x);
-  /* **The box has the ground**, which the card round it used to: the one
-     surface in the top row that is somewhere to write. */
-  background: var(--card-ground);
+  /* **The card has the ground**, the box none of its own — see `.message-wrap`. */
+  background: transparent;
   border: none;
   border-radius: 0.9rem;
   font-size: 1.35rem;

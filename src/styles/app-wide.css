@@ -375,11 +375,12 @@
    that showed no focus at all. */
 .caret-field:focus { border-color: var(--accent); }
 
-/* **The two boxes have no edge to say it on**, being grounded without one, so
-   theirs is a line along the foot of the box with the caret in it — drawn
-   inside, so the box keeps its size and the words do not rewrap. */
+/* **The two boxes have no edge to say it on**, so theirs is a line along the
+   foot of the box with the caret in it — drawn inside, so the box keeps its
+   size and the words do not rewrap — in the phrase table's rim, as the card's
+   edge is. */
 .text-display:focus,
-.heard-text:focus { box-shadow: inset 0 -2px 0 var(--card-focus); }
+.heard-text:focus { box-shadow: inset 0 -2px 0 var(--panel-rim); }
 
 .phrase-cell:focus-visible,
 .slot-option:focus-visible,

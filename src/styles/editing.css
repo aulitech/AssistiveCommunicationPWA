@@ -21,17 +21,16 @@
 
 /* The box is the phrase editor in edit mode, so it keeps the text cursor it has
    everywhere else and says which mode it is in with a dashed edge of its own,
-   in the phrase cells' colour — the surfaces edit mode has changed the meaning
-   of. An outline drawn inside its edge rather than a border, so the box keeps
+   in the phrase table's rim, as every accent on the card is. An outline drawn inside its edge rather than a border, so the box keeps
    its size and the words do not rewrap as the mode changes. */
 .app.edit-mode .text-display {
-  outline: 1px dashed color-mix(in srgb, var(--accent) 30%, transparent);
+  outline: 1px dashed color-mix(in srgb, var(--panel-rim) 55%, transparent);
   outline-offset: -1px;
 }
 
 /* Focus brightens it. The style says which mode the board is in, the colour
    says where the typing will go. */
-.app.edit-mode .text-display:focus { outline-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.app.edit-mode .text-display:focus { outline-color: var(--panel-rim); }
 
 /* The dwell progress everywhere else is a child element; a textarea cannot hold
    one, so it is painted as a background layer instead. Same bar, no wrapper —

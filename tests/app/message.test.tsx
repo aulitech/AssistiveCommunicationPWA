@@ -844,10 +844,11 @@ describe('the card', () => {
   /**
    * Its look, asserted against the text of the stylesheet, which is all jsdom
    * allows — whether it looks right is `e2e/layout.spec.ts`'s question and an
-   * eye's. **No ground or edge round the row and the box**: the box has the
-   * ground, and says focus with a line along its foot.
+   * eye's. **The whole card has one ground and an edge**, a faint rule
+   * between its rows, and the box no ground of its own — it says focus with a
+   * line along its foot. Spero asked for the top section to be one surface.
    */
-  it('grounds the box, and nothing round it', () => {
+  it("grounds the whole card, edged in the table's rim, with a faint rule between its rows", () => {
     const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
     const block = (selector: string) => {
       const rule = css.slice(css.indexOf(`${selector} {`))
@@ -856,11 +857,23 @@ describe('the card', () => {
     const value = (selector: string, prop: string) =>
       block(selector).match(new RegExp(`\\b${prop}: *([^;]+);`))?.[1]
 
-    expect(value('.message-wrap', 'background'), 'a ground round the message').toBeUndefined()
-    expect(value('.message-wrap', 'border'), 'an edge round the message').toBeUndefined()
+    expect(value('.message-wrap', 'background')).toBe('var(--card-ground)')
+    // **Its accents are the phrase table's rim**: the edge, the line along a
+    // focused box's foot and edit mode's dashed edge on the box, following the
+    // auto-speak toggle as the table does. Spero asked for the two to match.
+    expect(value('.message-wrap', 'border')).toBe('1px solid var(--panel-rim)')
+    expect(block('.app.edit-mode .text-display')).toMatch(
+      /outline: 1px dashed color-mix\(in srgb, var\(--panel-rim\)/,
+    )
+    expect(css).toMatch(/\.app\.edit-mode \.text-display:focus \{ outline-color: var\(--panel-rim\); \}/)
+    expect(css, 'an accent of its own left on the card').not.toMatch(/--card-focus/)
+    expect(css).toMatch(
+      /\.message-wrap > \.message-lines,\s*\.message-wrap > \.link-fields \{\s*border-top: 1px solid var\(--card-rule\);/,
+    )
+    expect(css).toMatch(/--card-rule: color-mix\(in srgb, var\(--card-edge\) \d+%, var\(--card-ground\)\);/)
     expect(value('.heard-wrap', 'background'), 'a ground round the question').toBeUndefined()
     expect(value('.heard-wrap', 'border'), 'an edge round the question').toBeUndefined()
-    expect(value('.text-display', 'background')).toBe('var(--card-ground)')
+    expect(value('.text-display', 'background'), 'a ground of its own inside the card').toBe('transparent')
     expect(value('.text-display', 'border')).toBe('none')
     expect(css).not.toMatch(/\.message-wrap:focus-within/)
 
