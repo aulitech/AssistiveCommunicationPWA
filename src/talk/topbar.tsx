@@ -830,12 +830,9 @@ export function Topbar({
                   // No system keyboard unless asked for, and none while resting —
                   // see `wantSystemKeyboard` and the effects beside `focusBox`.
                   inputMode={noKeyboard ? 'none' : undefined}
-                  className={cx(
-                    'text-display',
-                    caret.active && 'dwelling',
-                    (messageEdges.canUp || messageEdges.canDown) && 'has-scroll',
-                  )}
-                  style={dwellVar(settings.actionDwellMs)}
+                  // No dwell fill while a rest places the caret: the box is
+                  // plain, and the caret landing says it worked.
+                  className={cx('text-display', (messageEdges.canUp || messageEdges.canDown) && 'has-scroll')}
                   aria-label={editMode ? 'Phrase text' : 'Composed message'}
                   value={value}
                   onChange={e => {

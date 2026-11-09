@@ -126,14 +126,7 @@ export function HeardBox({
           <textarea
             ref={fieldRef}
             inputMode={noKeyboard ? 'none' : undefined}
-            className={cx(
-              'heard-text',
-              caret.active && 'dwelling',
-              heard.listening && 'is-listening',
-              notice && 'is-notice',
-              (edges.canUp || edges.canDown) && 'has-scroll',
-            )}
-            style={dwellVar(settings.actionDwellMs)}
+            className={cx('heard-text', notice && 'is-notice', (edges.canUp || edges.canDown) && 'has-scroll')}
             aria-label="Question heard"
             // **Without a key it can use, the box says so and takes nothing.** As
             // its words rather than as a placeholder, so it is measured like a

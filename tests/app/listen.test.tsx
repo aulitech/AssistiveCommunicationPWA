@@ -181,18 +181,15 @@ describe('the control', () => {
   // **No microphone glyph on the question's line**, while sound comes in or at
   // any other time: the question line inside the message box is enough to say
   // listen mode is on.
-  // **The line along the foot of the question box pulses while listening**,
-  // and holds still, lit, where the device asks for less motion.
-  it('pulses the foot of the question box while listening', () => {
+  // **Nothing on the question box moves while listening.** The line along its
+  // foot pulsed; Spero asked for the box plain, and the listen toggle is lit.
+  it('animates nothing on the question box while listening', () => {
     renderApp()
     toggleMic()
-    expect(heardBox()!.classList.contains('is-listening')).toBe(true)
+    expect(FakeRecognition.last!.stopped).toBe(false)
+    expect(heardBox()!.className.split(' ').sort()).toEqual(['heard-text'])
     const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
-    expect(css).toMatch(/\.heard-text\.is-listening \{ animation: heardListening [\d.]+s [\w-]+ infinite; \}/)
-    const frames = css.slice(css.indexOf('@keyframes heardListening'))
-    expect(frames.slice(0, frames.indexOf('}\n}'))).toMatch(/box-shadow: inset 0 -2px 0/)
-    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
-    expect(reduced.slice(0, reduced.indexOf('\n}\n'))).toMatch(/\.heard-text\.is-listening \{\s*animation: none/)
+    expect(css).not.toMatch(/is-listening|heardListening/)
   })
 
   it('shows no microphone glyph, even while sound comes in', () => {
@@ -599,7 +596,6 @@ describe('the question', () => {
     settle()
     expect(FakeRecognition.last!.stopped, 'still listening after a letter was typed').toBe(true)
     expect($('.heard-live'), 'still showing the microphone live').toBeNull()
-    expect(heardBox()!.classList.contains('is-listening')).toBe(false)
     expect(heardBox()!.placeholder).toBe('Nothing heard yet')
 
     // Anything it hears on its way out lands nowhere.

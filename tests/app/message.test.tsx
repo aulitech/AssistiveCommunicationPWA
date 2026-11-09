@@ -67,11 +67,15 @@ describe('placing the caret in the message box by dwell', () => {
     expect(composer().selectionEnd).toBe(4)
   })
 
-  it('shows the hold progressing', () => {
+  // **No fill while a rest places the caret.** It filled along the box's foot;
+  // Spero asked for no animation on the box, and the caret landing says the
+  // rest worked. The rest still places it — the tests either side hold that.
+  it('draws no fill while a rest places the caret', () => {
     renderApp()
     fireEvent.pointerEnter(composer())
     act(() => void vi.advanceTimersByTime(400))
-    expect(composer().classList.contains('dwelling')).toBe(true)
+    expect(composer().classList.contains('dwelling')).toBe(false)
+    expect(composer().style.getPropertyValue('--dwell-duration'), 'a pace for a fill that is not drawn').toBe('')
   })
 
   // The box used to stop arming altogether once it held focus, which made the
@@ -102,14 +106,6 @@ describe('placing the caret in the message box by dwell', () => {
     act(() => void vi.advanceTimersByTime(3000))
     settle()
     expect(composer().selectionStart).toBe(4)
-  })
-
-  // The bar is a CSS animation timed off this variable. Without it the
-  // animation falls back to a fixed 800ms and drifts away from the real hold
-  // for anyone who has changed their dwell time.
-  it('paces the bar to the configured dwell time', () => {
-    renderApp({ actionDwellMs: 2000 })
-    expect(composer().style.getPropertyValue('--dwell-duration')).toBe('2000ms')
   })
 
   // The caret decides which word the grid narrows itself to, and it is tracked
@@ -845,8 +841,8 @@ describe('the card', () => {
    * Its look, asserted against the text of the stylesheet, which is all jsdom
    * allows — whether it looks right is `e2e/layout.spec.ts`'s question and an
    * eye's. **The whole card has one ground and an edge**, a faint rule
-   * between its rows, and the box no ground of its own — it says focus with a
-   * line along its foot. Spero asked for the top section to be one surface.
+   * between its rows, and the box no ground, edge or focus line of its own.
+   * Spero asked for the top section to be one surface.
    */
   it("grounds the whole card, edged in the table's rim, with a faint rule between its rows", () => {
     const css = stylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
@@ -858,14 +854,15 @@ describe('the card', () => {
       block(selector).match(new RegExp(`\\b${prop}: *([^;]+);`))?.[1]
 
     expect(value('.message-wrap', 'background')).toBe('var(--card-ground)')
-    // **Its accents are the phrase table's rim**: the edge, the line along a
-    // focused box's foot and edit mode's dashed edge on the box, following the
-    // auto-speak toggle as the table does. Spero asked for the two to match.
+    // **Its edge is the phrase table's rim**, following the auto-speak toggle
+    // as the table does. Spero asked for the two to match.
     expect(value('.message-wrap', 'border')).toBe('1px solid var(--panel-rim)')
-    expect(block('.app.edit-mode .text-display')).toMatch(
-      /outline: 1px dashed color-mix\(in srgb, var\(--panel-rim\)/,
-    )
-    expect(css).toMatch(/\.app\.edit-mode \.text-display:focus \{ outline-color: var\(--panel-rim\); \}/)
+    // **And the boxes inside it are plain**: no edge in edit mode, no line along
+    // a focused box's foot. Spero asked for both to go.
+    expect(css, 'an edge on the box in edit mode').not.toMatch(/\.app\.edit-mode \.text-display[^{]*\{/)
+    expect(css, 'a line along a focused box').not.toMatch(/\.(text-display|heard-text):focus \{/)
+    // **Nor a fill while a rest places the caret** — no animation on either box.
+    expect(css, 'a dwell fill on a box').not.toMatch(/\.(text-display|heard-text)\.dwelling/)
     expect(css, 'an accent of its own left on the card').not.toMatch(/--card-focus/)
     expect(css).toMatch(
       /\.message-wrap > \.message-lines,\s*\.message-wrap > \.link-fields \{\s*border-top: 1px solid var\(--card-rule\);/,

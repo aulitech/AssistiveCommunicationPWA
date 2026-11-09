@@ -509,17 +509,18 @@ describe('the shape of the source tree', () => {
       )
       return found?.[2] ?? ''
     }
-    // The two boxes have no edge to say it on, so theirs is a line along the
-    // foot of the box, drawn inside it; every other field says it on its border.
-    for (const [field, says, sign] of [
-      ['.text-display', '.text-display:focus', /box-shadow: *inset 0 -2px 0 var\(--panel-rim\)/],
-      ['.heard-text', '.heard-text:focus', /box-shadow: *inset 0 -2px 0 var\(--panel-rim\)/],
-      ['.caret-field', '.caret-field:focus', /border-color: *var\(--accent\)/],
-    ] as const) {
-      expect(rule(`${field}:focus-visible`), `${field} still wears the ring outside its border`).toMatch(
-        /outline: *none/,
-      )
-      expect(rule(says), `${field} shows no focus of its own once the ring is gone`).toMatch(sign)
+    // Every field but the two boxes says it on its border.
+    expect(rule('.caret-field:focus-visible'), 'a field still wears the ring outside its border').toMatch(
+      /outline: *none/,
+    )
+    expect(rule('.caret-field:focus'), 'a field shows no focus once the ring is gone').toMatch(
+      /border-color: *var\(--accent\)/,
+    )
+    // **The two boxes say nothing about focus at all** — no ring, no line along
+    // the foot. Focus is always in one of them, and Spero asked for them plain.
+    for (const box of ['.text-display', '.heard-text']) {
+      expect(rule(`${box}:focus-visible`), `${box} still wears the ring`).toMatch(/outline: *none/)
+      expect(rule(`${box}:focus`), `${box} still says focus`).toBe('')
     }
   })
 

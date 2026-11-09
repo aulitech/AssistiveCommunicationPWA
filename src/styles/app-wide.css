@@ -375,12 +375,10 @@
    that showed no focus at all. */
 .caret-field:focus { border-color: var(--accent); }
 
-/* **The two boxes have no edge to say it on**, so theirs is a line along the
-   foot of the box with the caret in it — drawn inside, so the box keeps its
-   size and the words do not rewrap — in the phrase table's rim, as the card's
-   edge is. */
-.text-display:focus,
-.heard-text:focus { box-shadow: inset 0 -2px 0 var(--panel-rim); }
+/* **The two boxes say nothing about focus**: no edge, no line along the foot,
+   no ring. Focus is always in one of them — see `focusBox` — and the caret
+   blinking in it is the sign; a line that was lit nearly all the time said
+   nothing, and Spero asked for it to go. */
 
 .phrase-cell:focus-visible,
 .slot-option:focus-visible,
@@ -409,12 +407,6 @@
 
   /* A magnified cell is simply there at its size, without growing into it. */
   .phrase-place.is-magnified > .phrase-cell { animation: none !important; }
-
-  /* The listening line on the question box stands lit rather than pulsing. */
-  .heard-text.is-listening {
-    animation: none !important;
-    box-shadow: inset 0 -2px 0 var(--accent);
-  }
 
   .signin-spinner,
   .busy-spinner { animation-duration: 2s !important; }

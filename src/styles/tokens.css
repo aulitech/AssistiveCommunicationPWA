@@ -77,8 +77,7 @@
   --panel: var(--surface);
   --panel-edge: var(--card-edge);
   /* **The panel's rim** — the table's border and the tab showing's sides and
-     top, and the message card's accents: its edge, the line along a focused
-     box's foot and edit mode's dashed edge on the box — in the colour the
+     top, and the message card's edge — in the colour the
      auto-speak toggle's icon is: the accent while auto-speak is on, and the
      muted grey in edit mode (`.app.edit-mode`, in `editing.css`). It changes
      as the toggle does, so the board says which mode it is in from across the
