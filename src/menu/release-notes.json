@@ -1,7 +1,27 @@
 [
   {
-    "version": "11.11.14",
+    "version": "11.11.15",
     "date": "2026-11-09",
+    "commits": [
+      {
+        "subject": "Paste buttons on the keys and the passphrase, a quieter card edge",
+        "body": [
+          {
+            "text": "Each field in Settings still to be filled in — the Synchronize passphrase, the ElevenLabs key and the Anthropic key — has a Paste button after Show and Copy, putting the clipboard in at the caret through the writer Peri's keyboard uses, without showing it, and saying when the clipboard is empty or refused. The guide says so in each part."
+          },
+          {
+            "text": "The top card's edge is the phrase table's rim at a quarter strength."
+          },
+          {
+            "text": "Edit mode's prompt reads \"Write or choose phrase\", a step smaller on the narrowest card so it stays one line at 320px in Linux's wider font; the browser test measures the prompt in its own font."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "11.11.14",
+    "date": "2026-11-08",
     "commits": [
       {
         "subject": "The message and question boxes are plain",
