@@ -96,3 +96,40 @@
   overflow-wrap: anywhere;
 }
 
+
+/* **On a short screen, the bar is a strip 1.5rem tall**, its words on one
+   line at 0.6rem and cut with an ellipsis — the board above it needs the
+   height more than the bar needs its words, which a rest shows whole in the
+   phrase table where they are cut (`.emergency-peek`, above). The plus after
+   the last button shrinks to fit; `.emergency-bar` before it, since
+   `arranging.css` comes later and sizes it. Only the height changes: the gap
+   between buttons, which keeps two from sharing a rest, is the bar's
+   everywhere. Short is 700px, where Peri's keyboard takes more of the screen
+   (`app-wide.css`). */
+@media (max-height: 700px) {
+  .emergency-bar {
+    height: 1.5rem;
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+  }
+
+  .emergency-btn {
+    padding-top: 0;
+    padding-bottom: 0;
+    border-radius: 4px;
+  }
+
+  .emergency-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.6rem;
+    line-height: 1;
+  }
+
+  .emergency-dwell-bar { height: 2px; }
+
+  .emergency-bar .emergency-add { height: 1.1rem; }
+  .emergency-bar .emergency-add svg { width: 0.8rem; height: 0.8rem; }
+}

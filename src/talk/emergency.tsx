@@ -267,7 +267,9 @@ export function EmergencyBar({
     if (!bar) return
     const measure = () =>
       setClipped(
-        [...bar.querySelectorAll<HTMLElement>('.emergency-btn')].some(
+        // The label as well as the button: on a phone the label clips its own
+        // words to one line, so the button round it never overflows.
+        [...bar.querySelectorAll<HTMLElement>('.emergency-btn, .emergency-label')].some(
           b => b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 1,
         ),
       )
