@@ -1,6 +1,6 @@
 // Menu → Settings. Dwell times, volume, speed and voice.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { linkAccount } from '../voice/elevenlabs'
 import { checkReplyKey } from '../listen/suggest'
@@ -36,7 +36,8 @@ import {
 import { seconds } from '../ui/units'
 import { usePendingChoice } from '../ui/pending-choice'
 import { useDwellControl } from '../ui/dwell'
-import { CopyIcon, EyeIcon, EyeOffIcon } from '../ui/icons'
+import { CopyIcon, EyeIcon, EyeOffIcon, PasteIcon } from '../ui/icons'
+import { pasteInto } from '../ui/link-input'
 import { cx, dwellVar } from '../ui/style'
 import { downloadBackup } from './backup-file'
 import { shrinkPicture } from './picture'
@@ -443,6 +444,11 @@ function SecretButton({
  * It does not hide itself again after a moment. Somebody reading a passphrase
  * out to whoever is holding the second device needs it to stay there, and a
  * field that blanks mid-sentence is a field they have to start again with.
+ *
+ * **And pasted into by a dwell** while it is still to be filled in: a key is
+ * copied from the account that issued it and a passphrase from the device that
+ * has it, and the topbar's paste is a panel away with this open. At the caret,
+ * through the writer Peri's own keyboard types with, so React hears it.
  */
 function SecretField({
   value,
@@ -464,6 +470,21 @@ function SecretField({
 }) {
   const [shown, setShown] = useState(false)
   const [said, setSaid] = useState<string | null>(null)
+  const fieldRef = useRef<HTMLInputElement>(null)
+
+  const paste = useCallback(() => {
+    const field = fieldRef.current
+    if (!field) return
+    void pasteInto(field).then(result =>
+      setSaid(
+        result === 'pasted'
+          ? `Pasted ${name}`
+          : result === 'empty'
+            ? 'Nothing on the clipboard'
+            : 'Blocked. Allow clipboard access for Peri to paste',
+      ),
+    )
+  }, [name])
 
   const copy = useCallback(() => {
     navigator.clipboard
@@ -484,6 +505,7 @@ function SecretField({
           sets up the account a voice is paid from, the one that answers a
           question, and the lock on the board were all a carer's job. */}
       <DwellInput
+        ref={fieldRef}
         className="profile-input secret-input"
         type={shown ? 'text' : 'password'}
         value={value}
@@ -511,6 +533,11 @@ function SecretField({
       <SecretButton label={`Copy ${name}`} onActivate={copy} disabled={value === ''}>
         <CopyIcon />
       </SecretButton>
+      {onChange && (
+        <SecretButton label={`Paste ${name}`} onActivate={paste}>
+          <PasteIcon />
+        </SecretButton>
+      )}
       {said && (
         <p className="eleven-note secret-said" role="status">
           {said}

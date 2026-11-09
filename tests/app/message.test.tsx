@@ -855,8 +855,11 @@ describe('the card', () => {
 
     expect(value('.message-wrap', 'background')).toBe('var(--card-ground)')
     // **Its edge is the phrase table's rim**, following the auto-speak toggle
-    // as the table does. Spero asked for the two to match.
-    expect(value('.message-wrap', 'border')).toBe('1px solid var(--panel-rim)')
+    // as the table does — Spero asked for the two to match — at a quarter strength,
+    // which Spero asked for after.
+    expect(value('.message-wrap', 'border')).toBe(
+      '1px solid color-mix(in srgb, var(--panel-rim) 25%, transparent)',
+    )
     // **And the boxes inside it are plain**: no edge in edit mode, no line along
     // a focused box's foot. Spero asked for both to go.
     expect(css, 'an edge on the box in edit mode').not.toMatch(/\.app\.edit-mode \.text-display[^{]*\{/)

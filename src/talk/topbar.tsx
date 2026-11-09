@@ -875,7 +875,7 @@ export function Topbar({
                   onKeyUp={track}
                   // **One line on any screen** — `e2e/layout.spec.ts` measures each
                   // against the box on the narrowest phone.
-                  placeholder={editMode ? 'Write or choose one' : 'Choose a phrase'}
+                  placeholder={editMode ? 'Write or choose phrase' : 'Choose a phrase'}
                   rows={1}
                   spellCheck
                   autoCapitalize="sentences"

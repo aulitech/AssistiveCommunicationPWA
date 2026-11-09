@@ -121,6 +121,33 @@ describe('fields that take the caret by dwell', () => {
   })
 })
 
+/**
+ * **A key or a passphrase pasted by a rest.** Each is copied from somewhere else
+ * — the account that issued it, the device that has it — and the topbar's paste
+ * is a panel away while Settings is open, so each field has its own.
+ */
+describe('pasting into the fields that set up an account', () => {
+  it.each([
+    ['ElevenLabs API key', 'Link'],
+    ['Suggested answers API key', 'Save'],
+  ])('puts a copied key in the %s, and %s can be chosen', async (label, action) => {
+    renderApp()
+    openPanel('Settings')
+    const field = $$<HTMLInputElement>('input').find(i => i.getAttribute('aria-label') === label)!
+    const control = field.closest('.setting-control')!
+    const button = (name: string) =>
+      [...control.querySelectorAll('[aria-label]')].find(b => b.getAttribute('aria-label') === name)
+    expect(button(action)!.getAttribute('aria-disabled')).toBe('true')
+
+    vi.mocked(navigator.clipboard.readText).mockResolvedValueOnce('sk-pasted-key')
+    rest(button('Paste the API key'))
+    await act(async () => {})
+    settle()
+    expect(field.value).toBe('sk-pasted-key')
+    expect(button(action)!.getAttribute('aria-disabled'), 'React never heard the paste').not.toBe('true')
+  })
+})
+
 describe('links a dwell can follow', () => {
   /**
    * Every one of these was a plain anchor, which answers to a press. The guide's

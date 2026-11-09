@@ -501,7 +501,7 @@ describe('auto-speak', () => {
     expect(box().placeholder).toBe('Choose a phrase')
 
     click(speakToggle())
-    expect(box().placeholder, 'editing still promised to speak').toBe('Write or choose one')
+    expect(box().placeholder, 'editing still promised to speak').toBe('Write or choose phrase')
   })
 
   // The board talks the moment it is opened. Somebody who wants to build a

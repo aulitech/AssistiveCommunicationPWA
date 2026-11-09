@@ -783,7 +783,8 @@ test('pauses on the left edge of the phrase table, and no longer in the row of c
 })
 
 // **Every prompt in the two boxes is one line on any screen** — measured in
-// the box's own font against the room inside it, on the narrowest phone. The
+// the prompt's own font against the room inside it, on the narrowest phone,
+// where the message box's prompt is set a step smaller to fit. The
 // question box's two are measured both, since which shows depends on whether
 // the microphone is listening, and here it never starts.
 test('fits every prompt in the boxes on one line at 320px', async ({ page }) => {
@@ -794,8 +795,9 @@ test('fits every prompt in the boxes on one line at 320px', async ({ page }) => 
       const field = el as HTMLTextAreaElement
       const s = getComputedStyle(field)
       const room = field.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight)
+      const p = getComputedStyle(field, '::placeholder')
       const pen = document.createElement('canvas').getContext('2d')!
-      pen.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`
+      pen.font = `${p.fontStyle} ${p.fontWeight} ${p.fontSize} ${p.fontFamily}`
       const text = prompt ?? field.placeholder
       return { prompt: text, width: pen.measureText(text).width, room }
     }, prompt)
@@ -807,7 +809,7 @@ test('fits every prompt in the boxes on one line at 320px', async ({ page }) => 
   prompts.push(await fits('.heard-text', 'Say or type a question'), await fits('.heard-text', 'Nothing heard yet'))
   for (const { prompt, width, room } of prompts)
     expect(width, `"${prompt}" is more than a line`).toBeLessThanOrEqual(room)
-  expect(prompts.slice(0, 2).map(p => p.prompt)).toEqual(['Choose a phrase', 'Write or choose one'])
+  expect(prompts.slice(0, 2).map(p => p.prompt)).toEqual(['Choose a phrase', 'Write or choose phrase'])
 })
 
 // **The question's line is inside the message box**, left of the message's on
