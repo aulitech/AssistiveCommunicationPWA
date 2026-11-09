@@ -1,5 +1,30 @@
 [
   {
+    "version": "11.11.16",
+    "date": "2026-11-09",
+    "commits": [
+      {
+        "subject": "A 1.5rem emergency bar on a short screen",
+        "body": [
+          {
+            "text": "On a screen 700px high or less the emergency bar is a strip 1.5rem tall, its words on one line at 0.6rem and cut with an ellipsis; the gaps between buttons stay, since they keep two from sharing a rest. The label now clips its own words, so the cut-off measure asks the labels as well as the buttons, and a rest still shows the words whole in the phrase table."
+          }
+        ]
+      },
+      {
+        "subject": "Cast: how to show Peri's screen on a TV",
+        "body": [
+          {
+            "text": "A Cast item in the menu, after Backup & sharing, opens a full-screen panel of steps for mirroring the whole screen to a TV. A page cannot start mirroring, so it says how: Screen Mirroring on an iPad, iPhone or Mac (via AssistiveTouch with a head mouse), the Cast menu in Chrome or Edge, and Quick Settings on Windows, Android and a Chromebook."
+          },
+          {
+            "text": "This device's steps come first and open, told by the user agent; an iPad's Safari says Macintosh and is told from a Mac by maxTouchPoints. A computer with Chrome or Edge gets the browser's Cast menu next, and every other device is folded below. The guide has a matching part."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.15",
     "date": "2026-11-09",
     "commits": [
