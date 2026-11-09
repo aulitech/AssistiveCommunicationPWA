@@ -206,9 +206,7 @@
   min-height: 3.5rem;
   max-height: var(--box-max-height);
   padding: var(--box-pad-y) var(--box-pad-x);
-  /* The card around it is the box now — its ground, and its edge, dashed as
-     edit mode marks the box it has taken over: this is a box that is not the
-     message, and the difference has to read without being looked at. */
+  /* The card has the ground; the box has none, and no edge. */
   background: transparent;
   border: none;
   border-radius: 0;
@@ -249,35 +247,9 @@
   max-height: min(var(--box-max-height), 20dvh);
 }
 
-/* The fill is painted as a background layer for the reason the message box
-   paints its own that way: an input can hold no children, so there is nowhere
-   to put a `.dwell-bar`.
- *
- * **It has to be `boxDwellFill` and not `dwellFillH`.** That one animates the
- * element's own `width` from nought, which is right for a `.dwell-bar` inside a
- * control and is the box itself collapsing and growing back when it is put on
- * one — a box flickering under the pointer resting in it, with the text
- * rewrapping and both boxes re-measuring all the way. The bar never even showed:
- * `background-size` was left at nought the whole time. */
-.heard-text.dwelling {
-  background-image: linear-gradient(var(--dwell-color), var(--dwell-color));
-  background-repeat: no-repeat;
-  background-position: bottom left;
-  background-size: 0 3px;
-  animation: boxDwellFill var(--dwell-duration, 1500ms) linear forwards;
-}
-
-/* **The line along the foot of the question box pulses while the microphone
-   is listening** — the one thing that says so on the question's line. The
-   line's colour alone moves, so nothing changes size; it holds still, lit,
-   where the device asks for less motion. */
-.heard-text.is-listening { animation: heardListening 8s ease-in-out infinite; }
-
-@keyframes heardListening {
-  0%,
-  100% { box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent) 25%, transparent); }
-  50% { box-shadow: inset 0 -2px 0 var(--accent); }
-}
+/* **Nothing on the question box moves while the microphone listens.** The
+   line along its foot pulsed; Spero asked for the box to be plain, and the
+   listen toggle is lit while the box is open. */
 
 /* No scrollbar, the same as the message box and for the same reason: the two are
    one box in two places, and a gutter that comes and goes on one of them changes

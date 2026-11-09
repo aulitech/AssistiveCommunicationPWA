@@ -557,7 +557,6 @@ export const HELP_SECTIONS: ProseSection[] = [
       list(
         'Rest on :listen: to start, and again to stop and close the box.',
         'Starting empties the message box, so your answer starts fresh — once you stop, :undo: brings back what was there. It also turns off :please:.',
-        'While the microphone is listening, the line under the question pulses.',
         'Typing in the box stops the microphone, so nothing it hears is written over what you type.',
         'The box needs your own Anthropic API key — see Getting suggested answers. Without one, or with one Anthropic does not accept, the box says so and takes nothing, typed or heard.',
         'Starting it turns :auto-speak: off, so you build your answer in the box from phrases and suggested answers. :speak: says it, and keeps it as a phrase.',
