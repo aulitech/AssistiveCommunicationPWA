@@ -712,6 +712,21 @@ export const HELP_SECTIONS: ProseSection[] = [
     ],
   },
   {
+    title: 'Showing Peri on a TV',
+    blocks: [
+      text(
+        ':cast:, in the menu, says how to show the whole of Peri’s screen on a TV from the device you are using, with that device’s steps first.',
+      ),
+      list(
+        'An iPad, iPhone or Mac uses Screen Mirroring, to an Apple TV or a TV that takes AirPlay.',
+        'Chrome and Edge can cast the tab or the screen to a Chromecast or a Google TV, from any computer.',
+        'Windows, Android and a Chromebook cast from Quick Settings.',
+        'Peri cannot start it for you: a web page is not allowed to. The TV shows everything on the screen, the words you write before you say them too.',
+        'To show only what is said, use :present: instead — see Presenting to a call or a room.',
+      ),
+    ],
+  },
+  {
     title: 'Keeping two devices the same',
     blocks: [
       text(

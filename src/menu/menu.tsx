@@ -16,8 +16,18 @@ import type { SyncControl } from '../sync/use-sync'
 import type { ElevenLabsAccount } from '../core/store'
 import { BackupPanel } from './backup-panel'
 import { HelpPanel } from './help-panel'
+import { CastPanel } from './cast-panel'
 import { ReleaseNotesPanel } from './release-notes-panel'
-import { AliasesIcon, BackIcon, BackupIcon, HelpIcon, NotesIcon, SettingsIcon, SignOutIcon } from '../ui/icons'
+import {
+  AliasesIcon,
+  BackIcon,
+  BackupIcon,
+  CastIcon,
+  HelpIcon,
+  NotesIcon,
+  SettingsIcon,
+  SignOutIcon,
+} from '../ui/icons'
 
 /**
  * The way out of a panel, in the top right corner of every one of them.
@@ -107,10 +117,10 @@ function ConfirmSignOut({
   )
 }
 
-type PanelView = 'menu' | 'settings' | 'aliases' | 'backup' | 'help' | 'notes'
+type PanelView = 'menu' | 'settings' | 'aliases' | 'backup' | 'cast' | 'help' | 'notes'
 
 /** The panels that fill the screen rather than hanging from the top of it. */
-const TALL_VIEWS: PanelView[] = ['settings', 'backup', 'help', 'notes']
+const TALL_VIEWS: PanelView[] = ['settings', 'backup', 'cast', 'help', 'notes']
 
 /**
  * How long the menu is deaf to a dwell after one of its items closes.
@@ -284,6 +294,7 @@ export function TopPanel({
                 onRestore={onRestore}
               />
             )}
+            {view === 'cast' && <CastPanel />}
             {view === 'help' && <HelpPanel />}
             {view === 'notes' && <ReleaseNotesPanel />}
           </>
@@ -309,6 +320,13 @@ export function TopPanel({
               sublabel="Save your phrases, or bring some in"
               disabled={guarded}
               onSelect={() => setView('backup')}
+            />
+            <NavItem
+              icon={<CastIcon />}
+              label="Cast"
+              sublabel="Show this screen on a TV"
+              disabled={guarded}
+              onSelect={() => setView('cast')}
             />
             <NavItem
               icon={<HelpIcon />}
