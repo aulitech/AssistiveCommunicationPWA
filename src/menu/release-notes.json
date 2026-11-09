@@ -1,5 +1,19 @@
 [
   {
+    "version": "11.11.14",
+    "date": "2026-11-09",
+    "commits": [
+      {
+        "subject": "The message and question boxes are plain",
+        "body": [
+          {
+            "text": "No dashed edge on the message box in edit mode, no line along a focused box's foot, no pulse on the question box while the microphone listens, and no fill while a rest places the caret. Focus is always in one of the boxes, so its sign was lit nearly all the time; the caret is the sign now, and its landing is what says a rest worked. The card's edge and the phrase table's rim still say the mode, and the listen toggle is lit while the question is open. The single-line fields keep their fill."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.13",
     "date": "2026-11-08",
     "commits": [
