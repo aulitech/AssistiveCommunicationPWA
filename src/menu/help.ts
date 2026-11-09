@@ -499,7 +499,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'A voice chosen in one browser that another does not offer is said in the default voice there, never in silence.',
       ),
       text(
-        'If you would rather not sound like a browser, you can link an ElevenLabs account under Settings. Paste the API key from your ElevenLabs account and its voices join the same list — the same voices in every browser and on every device.',
+        'If you would rather not sound like a browser, you can link an ElevenLabs account under Settings. Paste the API key from your ElevenLabs account — :paste: beside the field puts it in — and its voices join the same list — the same voices in every browser and on every device.',
       ),
       list(
         'These voices need an internet connection, and take a moment to arrive the first time — including when you try one in the voice list.',
@@ -588,7 +588,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'With an Anthropic account set up under Settings, Peri can offer answers to the question that was heard — up to twenty of them, on the board, under a tab called Answers.',
       ),
       text(
-        'Saving the key sends it to Anthropic once, on its own, to check that it works, so a key with a typo in it is caught there rather than when somebody is waiting for an answer.',
+        'Put the key in with :paste: beside the field, then Save. Saving the key sends it to Anthropic once, on its own, to check that it works, so a key with a typo in it is caught there rather than when somebody is waiting for an answer.',
       ),
       text(
         'If an answer takes more than about three seconds, Peri says a short apology out loud — the sort of thing you would say yourself while you thought — so that whoever asked is not left in silence.',
@@ -721,7 +721,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'Signing in opens that account’s own board, not the guest’s. If you have been using Peri as a guest, save a backup under Backup and sharing first, and bring it in once you have signed in.',
       ),
       text(
-        'It asks for a passphrase, and this is not a password to an account. It is the key your board is locked with before it leaves the device, and it is what the other device needs to unlock it. Choose the same one on every device, and write it down somewhere safe.',
+        'It asks for a passphrase, and this is not a password to an account. It is the key your board is locked with before it leaves the device, and it is what the other device needs to unlock it. Choose the same one on every device, and write it down somewhere safe. :paste: beside the field puts in one you have copied.',
       ),
       text(
         'The passphrase stays in that row, hidden, with :show: and :copy: beside it — so the device you set up first can give it to the next one. Copying does not put it on the screen, which matters in a room with other people in it.',

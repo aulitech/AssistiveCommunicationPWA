@@ -44,8 +44,9 @@
   /* The row of controls stacks by the card's width, not the screen's. */
   container: message / inline-size;
   background: var(--card-ground);
-  /* In the phrase table's rim, so the two say the mode alike. */
-  border: 1px solid var(--panel-rim);
+  /* In the phrase table's rim, so the two say the mode alike — at a quarter
+     strength, so the card sits quieter than the table it is written for. */
+  border: 1px solid color-mix(in srgb, var(--panel-rim) 25%, transparent);
   border-radius: 1.25rem;
 }
 
@@ -147,6 +148,13 @@
 
 .text-display::-webkit-scrollbar { display: none; }
 .text-display::placeholder { color: var(--text-muted); font-weight: 400; }
+
+/* **The prompt a step smaller on the narrowest card**, so "Write or choose
+   phrase" stays one line on a 320px phone in Linux's wider font as well as
+   macOS's. The prompt alone: what is typed keeps its size. */
+@container message (max-width: 22rem) {
+  .text-display::placeholder { font-size: 1.15rem; }
+}
 
 /* ── Icon Buttons ── */
 .icon-btn {

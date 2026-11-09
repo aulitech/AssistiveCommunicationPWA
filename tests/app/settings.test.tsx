@@ -218,6 +218,43 @@ describe('the synchronize setting', () => {
       expect(row().textContent).toContain('could not reach the clipboard')
     })
 
+    // **Pasted, as it is wanted on the second device**: copied off the first and
+    // put in here by a rest. Through the field's own writer, so the board is
+    // started with what was pasted rather than with what React last saw.
+    it('pastes one copied from another device', async () => {
+      renderSignedIn()
+      openSettings()
+      vi.mocked(navigator.clipboard.readText).mockResolvedValueOnce('the cat sat down')
+
+      click(btn('Paste the passphrase'))
+      await act(async () => {})
+      expect(row().textContent).toContain('Pasted the passphrase')
+      expect(field().type, 'pasting revealed it').toBe('password')
+      click(btn('Start'))
+      expect(stored().passphrase).toBe('the cat sat down')
+    })
+
+    it('says when there is nothing to paste, or the clipboard is refused', async () => {
+      renderSignedIn()
+      openSettings()
+      vi.mocked(navigator.clipboard.readText).mockResolvedValueOnce('')
+      click(btn('Paste the passphrase'))
+      await act(async () => {})
+      expect(row().textContent).toContain('Nothing on the clipboard')
+
+      vi.mocked(navigator.clipboard.readText).mockRejectedValueOnce(new Error('denied'))
+      click(btn('Paste the passphrase'))
+      await act(async () => {})
+      expect(row().textContent).toContain('Allow clipboard access')
+      expect(field().value).toBe('')
+    })
+
+    // Once it is stored the field is read rather than written.
+    it('offers no paste once synchronizing has started', () => {
+      turnedOn()
+      expect(btn('Paste the passphrase')).toBeUndefined()
+    })
+
     // Nothing to show and nothing to copy before one is typed.
     it('offers neither until there is something there', () => {
       renderSignedIn()
