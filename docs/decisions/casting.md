@@ -1,0 +1,9 @@
+# Casting
+
+**Cast**, in the menu after Backup & sharing, says how to show the whole of Peri's screen on a TV (`menu/cast.ts`, drawn by `menu/cast-panel.tsx`). The guide has a part for it, *Showing Peri on a TV*.
+
+- **Steps, not a button.** Mirroring a screen belongs to the device — Control Centre on an iPad, iPhone or Mac, Quick Settings on Windows, Android and a Chromebook — and Chrome's and Edge's Cast menu belongs to the browser. No page can open any of them. The Presentation API can cast a page of Peri's own choosing to a Chromecast, but only from Chrome or Edge, never from Safari, and never the board itself; asked whether Cast should send the presentation or the whole screen, Spero chose the whole screen.
+- **This device first, open on arrival.** `deviceOf` reads the user agent. **An iPad's Safari says Macintosh**, asking for desktop pages, so a Mac that can be touched at more than one point (`maxTouchPoints`) is an iPad. A computer whose browser has a Cast menu gets that next, as the other way it can do it; a phone's browser casts no tabs, so Quick Settings are its answer. Every other device follows, folded, for whoever is setting up somebody else's.
+- **With a head mouse on an iPad, Control Centre is in the AssistiveTouch menu** — the swipe the steps describe is one a head mouse cannot make. No step anywhere asks for a key to be pressed: the people this is for have no keyboard.
+- **The TV shows everything**, the words written before they are said among them; the panel says so first, and points at presentation mode for showing only what is said — see [Presentation mode](presentation-mode.md).
+- **Sound.** AirPlay mirroring takes the device's sound, the device voice included. Casting a tab from Chrome takes what plays in the tab — an ElevenLabs voice — and a device voice, being the computer's own, may stay on its speakers. The panel says both.

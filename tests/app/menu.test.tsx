@@ -69,6 +69,50 @@ describe('the menu items', () => {
   })
 })
 
+/**
+ * **Cast: how to show the whole screen on a TV.** A page cannot start mirroring,
+ * so the panel says how, for the device it is open on first — open on arrival —
+ * and the others folded below for whoever sets up somebody else's.
+ */
+describe('cast', () => {
+  const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
+  const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
+  const iPad =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'
+
+  it('is offered in the menu, after Backup & sharing', () => {
+    renderApp()
+    openMenu()
+    const labels = $$('.nav-item').map(n => n.getAttribute('aria-label'))
+    expect(labels.indexOf('Cast')).toBe(labels.indexOf('Backup & sharing') + 1)
+    expect(nav('Cast')?.textContent).toMatch(/on a TV/)
+  })
+
+  it("opens on this device's steps, the rest folded below", () => {
+    const agent = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(iPad)
+    // jsdom has no `maxTouchPoints`, which is what tells an iPad from a Mac.
+    Object.defineProperty(navigator, 'maxTouchPoints', { value: 5, configurable: true })
+    try {
+      renderApp()
+      openMenu()
+      click(nav('Cast'))
+
+      const sections = $$('.cast-panel .help-section')
+      expect(sections[0]!.querySelector('.help-section-title')!.textContent).toBe('On this iPad')
+      expect(sections[0]!.classList.contains('is-open')).toBe(true)
+      expect(sections[0]!.textContent).toContain('Screen Mirroring')
+      expect(
+        sections.slice(1).some(s => s.classList.contains('is-open')),
+        'more than one open',
+      ).toBe(false)
+      expect(sections.length).toBe(7)
+    } finally {
+      agent.mockRestore()
+      delete (navigator as { maxTouchPoints?: number }).maxTouchPoints
+    }
+  })
+})
+
 describe('help', () => {
   const openMenu = () => click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').includes('menu')))
   const nav = (label: string) => $$('.nav-item').find(n => n.getAttribute('aria-label') === label)
@@ -212,6 +256,7 @@ describe('help', () => {
     ['Settings', true],
     ['Help', true],
     ['Backup & sharing', true],
+    ['Cast', true],
     ['Aliases', false],
   ])('gives %s the full viewport: %s', (panel, tall) => {
     renderApp()
@@ -558,6 +603,7 @@ describe('the menu panels on a wide screen', () => {
     ['Aliases', '.settings-body'],
     ['Backup & sharing', '.backup-body'],
     ['Help', '.help-measure'],
+    ['Cast', '.help-measure'],
   ])('keeps %s in a reading column', (panel, selector) => {
     renderApp()
     openMenu()
