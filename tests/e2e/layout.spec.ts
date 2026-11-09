@@ -842,17 +842,61 @@ for (const [width, beside] of [
   })
 }
 
-// **Emergency words the bar cuts off are shown whole in the middle of the
-// phrase table** while their button is rested on: on a phone held upright the
-// bar cuts them, and on a wide screen it does not and nothing is shown.
-for (const [width, cut] of [
-  [390, true],
-  [1280, false],
+// **On a short screen the emergency bar is a strip 1.5rem tall**, its words
+// on one line at 0.6rem; a tall one keeps the bar as it was, however narrow.
+for (const [width, height, short] of [
+  [1280, 700, true],
+  [844, 390, true],
+  [390, 844, false],
+  [1280, 900, false],
 ] as const) {
-  test(`shows a rested-on emergency phrase whole in the table ${cut ? 'where the bar cuts it off' : 'only where the bar cuts it off'}, at ${width}px`, async ({
+  test(`keeps the emergency bar ${short ? 'to 1.5rem, its words on one line,' : 'at its full height'} at ${width}×${height}`, async ({
     page,
   }) => {
-    await page.setViewportSize({ width, height: 800 })
+    await page.setViewportSize({ width, height })
+    await openBoard(page)
+    const m = await page.evaluate(() => {
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+      const bar = document.querySelector('.emergency-bar')!.getBoundingClientRect()
+      const labels = [...document.querySelectorAll<HTMLElement>('.emergency-label')]
+      return {
+        bar: bar.height / rem,
+        font: parseFloat(getComputedStyle(labels[0]!).fontSize) / rem,
+        lines: labels.map(l =>
+          Math.round(l.getBoundingClientRect().height / parseFloat(getComputedStyle(l).lineHeight)),
+        ),
+        inside: [...document.querySelectorAll('.emergency-btn')].every(b => {
+          const r = b.getBoundingClientRect()
+          return r.top >= bar.top - 0.5 && r.bottom <= bar.bottom + 0.5
+        }),
+      }
+    })
+    if (short) {
+      expect(m.bar, 'not 1.5rem tall').toBeCloseTo(1.5, 1)
+      expect(m.font, 'not 0.6rem').toBeCloseTo(0.6, 2)
+      expect(new Set(m.lines), 'a label on more than one line').toEqual(new Set([1]))
+    } else {
+      expect(m.bar, 'shrunk on a tall screen').toBeGreaterThan(3)
+      expect(m.font).toBeCloseTo(1, 2)
+    }
+    expect(m.inside, 'a button outside the bar').toBe(true)
+  })
+}
+
+// **Emergency words the bar cuts off are shown whole in the middle of the
+// phrase table** while their button is rested on: on a phone held upright the
+// bar cuts them, and on a wide screen it does not and nothing is shown. On a
+// short screen the label clips its own words to one line, so the button round
+// it never overflows and it is the label that says they are cut.
+for (const [width, height, cut] of [
+  [390, 800, true],
+  [390, 600, true],
+  [1280, 800, false],
+] as const) {
+  test(`shows a rested-on emergency phrase whole in the table ${cut ? 'where the bar cuts it off' : 'only where the bar cuts it off'}, at ${width}×${height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
     await openBoard(page)
     const button = page.locator('.emergency-btn:not(.emergency-tool)').first()
     const words = (await button.getAttribute('aria-label'))!
