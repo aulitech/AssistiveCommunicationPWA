@@ -1,5 +1,19 @@
 [
   {
+    "version": "11.11.17",
+    "date": "2026-11-11",
+    "commits": [
+      {
+        "subject": "Stop rolls down over the card's row of controls",
+        "body": [
+          {
+            "text": "Stop covered the whole top row, the message box and the question included. It now covers only the card's row of controls, from the card's top edge down to the rule under it, rolling down from the top as it opens (none with reduced motion), so the words stay in sight while they are said. Rounded at the top with the card. The browser tests measure the extent and the animation, and rest a pointer in the row's open space so Stop still arrives under one."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.16",
     "date": "2026-11-09",
     "commits": [
