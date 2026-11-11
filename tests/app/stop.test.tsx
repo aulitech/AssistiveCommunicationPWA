@@ -1,6 +1,6 @@
-// **Stop, over the whole top row, while anything is being said** — the question,
-// the message and the menu all under it, and one dwell ending the words. See
-// `StopBar` in `talk/topbar.tsx`. Whether it covers the row in a real browser,
+// **Stop, over the card's row of controls, while anything is being said** —
+// the menu under it, and one dwell ending the words. See `StopBar` in
+// `talk/topbar.tsx`. Whether it covers the row and no more in a real browser,
 // and refuses the pointer that rested on Speak, is `e2e/stop.spec.ts`'s.
 
 import { describe, it, expect, vi } from 'vitest'
@@ -9,11 +9,11 @@ import { DEFAULT_SETTINGS } from '../../src/core/store'
 import { finishSpeech, holdSpeech, quietSpeech, spoken } from '../setup'
 import { $, $$, box, click, message, plainCell, renderApp, writeIn } from './harness'
 
-const stop = () => $('.topbar > .stop-bar')
+const stop = () => $('.message-tools > .stop-bar')
 const speakButton = () => $$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak')!
 
 describe('Stop, while anything is being said', () => {
-  it('covers the top row while a phrase is said, and goes when it ends', () => {
+  it('covers the row of controls while a phrase is said, and goes when it ends', () => {
     holdSpeech()
     renderApp({ autoSpeak: true })
     expect(stop(), 'Stop with nothing being said').toBeNull()

@@ -1,8 +1,9 @@
-// **Stop, over the whole top row, while anything is being said.** jsdom can say
-// it is there; only a browser can say it covers the question, the message and
-// the menu, and that it refuses the pointer that rested on Speak — it arrives
-// under that pointer, and a gaze that never moved must not stop the words it
-// has just asked for.
+// **Stop, over the card's row of controls, while anything is being said.** jsdom
+// can say it is there; only a browser can say it covers that row from the
+// card's top edge to the rule under it and no further — the words left in
+// sight — that it rolls down from the top as it opens, and that it refuses a
+// pointer it arrives under: a gaze resting on the row when the words start has
+// not aimed at Stop, and must not stop the words just asked for.
 
 import { expect, test, type Page } from '@playwright/test'
 import { messageBox, openBoard } from './board'
@@ -33,30 +34,41 @@ async function talkingUntilStopped(page: Page) {
 }
 
 const cancelled = (page: Page) => page.evaluate(() => (window as unknown as { cancelled: number }).cancelled)
-const stop = (page: Page) => page.locator('.topbar > .stop-bar')
+const stop = (page: Page) => page.locator('.message-tools > .stop-bar')
 
-test('covers the whole top row while a phrase is said, and stops it', async ({ page }) => {
+test('covers the row of controls down to the rule while a phrase is said, and stops it', async ({ page }) => {
   await talkingUntilStopped(page)
   const { errors } = await openBoard(page)
   const cell = page.locator('.phrase-cell').first()
   await cell.click()
   await expect(stop(page)).toBeVisible()
 
-  // The row's own box, edge to edge.
-  const bar = (await stop(page).boundingBox())!
-  const row = (await page.locator('.topbar').boundingBox())!
-  for (const side of ['x', 'y', 'width', 'height'] as const)
-    expect(Math.abs(bar[side] - row[side]), `${side}: ${JSON.stringify([bar, row])}`).toBeLessThan(1)
+  // **Rolling down from the top**: clipped from the foot as it arrives, and
+  // whole once it has.
+  const opening = await stop(page).evaluate(b => getComputedStyle(b).animationName)
+  expect(opening).toBe('stopOpen')
+  await expect.poll(() => stop(page).evaluate(b => b.getAnimations().length)).toBe(0)
 
-  // Nothing of the row answers a pointer: the message and the menu are under it.
-  for (const under of ['.text-display', '.menu-btn']) {
-    const box = (await page.locator(under).boundingBox())!
-    const hit = await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.stop-bar'), {
+  // Inside the card's edge, from its top to the rule under the row.
+  const m = await page.evaluate(() => {
+    const r = (s: string) => document.querySelector(s)!.getBoundingClientRect().toJSON()
+    return { bar: r('.message-tools > .stop-bar'), card: r('.message-wrap'), lines: r('.message-lines') }
+  })
+  expect(Math.abs(m.bar.top - (m.card.top + 1)), "not at the card's top edge").toBeLessThan(1)
+  expect(Math.abs(m.bar.left - (m.card.left + 1)), "not at the card's left edge").toBeLessThan(1)
+  expect(Math.abs(m.bar.right - (m.card.right - 1)), "not at the card's right edge").toBeLessThan(1)
+  expect(Math.abs(m.bar.bottom - m.lines.top), 'not down to the rule').toBeLessThan(1)
+
+  // The menu is under it; the words are not.
+  const under = async (sel: string) => {
+    const box = (await page.locator(sel).boundingBox())!
+    return page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.stop-bar'), {
       x: box.x + box.width / 2,
       y: box.y + box.height / 2,
     })
-    expect(hit, `${under} answers a pointer under Stop`).toBe(true)
   }
+  expect(await under('.menu-btn'), 'the menu answers a pointer under Stop').toBe(true)
+  expect(await under('.text-display'), 'Stop covers the words').toBe(false)
 
   const before = await cancelled(page)
   await stop(page).click()
@@ -67,20 +79,24 @@ test('covers the whole top row while a phrase is said, and stops it', async ({ p
   expect(errors).toEqual([])
 })
 
-test('refuses the pointer that rested on Speak, until it is aimed', async ({ page }) => {
+test('refuses a pointer it arrives under, until it is aimed', async ({ page }) => {
   await talkingUntilStopped(page)
   const { errors } = await openBoard(page)
   await messageBox(page).fill('Hello there')
-  const speak = page.locator('.icon-btn[aria-label="Speak"]')
-  const box = (await speak.boundingBox())!
-  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  // Resting in the row's open space, between the clipboard and the modes, where
+  // Stop is about to come down — and the message said by Enter, the box's own
+  // way of doing what Speak does.
+  const at = await page.evaluate(() => {
+    const left = document.querySelector('.tools-left')!.getBoundingClientRect()
+    const modes = document.querySelector('.tools-modes')!.getBoundingClientRect()
+    return { x: (left.right + modes.left) / 2, y: (modes.top + modes.bottom) / 2 }
+  })
   await page.mouse.move(at.x - 40, at.y, { steps: 4 })
   await page.mouse.move(at.x, at.y, { steps: 4 })
-  await page.mouse.down()
-  await page.mouse.up()
+  await messageBox(page).press('Enter')
   await expect(stop(page)).toBeVisible()
 
-  // Still resting where Speak was, past any dwell, and pressed again there.
+  // Still resting where it was, past any dwell, and pressed again there.
   const before = await cancelled(page)
   await page.mouse.move(at.x + 1, at.y)
   await page.waitForTimeout(2_000)
@@ -91,7 +107,7 @@ test('refuses the pointer that rested on Speak, until it is aimed', async ({ pag
   expect(await cancelled(page)).toBe(before)
 
   // Aimed at it, it stops.
-  await page.mouse.move(at.x - 120, at.y + 10, { steps: 6 })
+  await page.mouse.move(at.x + 120, at.y + 5, { steps: 6 })
   await page.mouse.down()
   await page.mouse.up()
   await expect(stop(page)).toHaveCount(0)

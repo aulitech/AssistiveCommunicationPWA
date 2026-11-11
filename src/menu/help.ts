@@ -96,7 +96,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
 
       text(
-        'While Peri is speaking, a wide red :stop: bar covers the whole top row, over the message box and the menu. Rest on it to stop. Until the words end, nothing else answers and the phrases are dimmed. The blue emergency bar still works: an emergency phrase stops what is playing and is said straight away.',
+        'While Peri is speaking, a red :stop: bar comes down over the top row of buttons and leaves the words in sight. Rest on it to stop. Until the words end, nothing else answers and the phrases are dimmed. The blue emergency bar still works: an emergency phrase stops what is playing and is said straight away.',
       ),
     ],
   },

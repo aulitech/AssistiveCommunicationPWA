@@ -62,13 +62,14 @@ import { HeardBox } from './heard'
 import { LinkFields } from './link-fields'
 
 /**
- * **Stop, over the whole of the top row, while anything is being said** — the
- * question, the message and the menu all under it. A sentence going on after
- * somebody has realised it was the wrong one is the moment they need a target
- * they cannot miss, so it is the widest thing on the screen, in the muted red
- * Clear is drawn in, and it says what it does. It covers the row rather than
- * taking it away: the box keeps its words, its caret and its selection under
- * it, so the row comes back exactly as it was. It arrives under a pointer
+ * **Stop, over the card's row of controls while anything is being said** —
+ * from the card's top edge down to the rule under the row, rolling down from
+ * the top as it opens, the menu under it and the words left in sight. A
+ * sentence going on after somebody has realised it was the wrong one is the
+ * moment they need a target they cannot miss, so it is the widest thing on the
+ * screen, in the muted red Clear is drawn in, and it says what it does. It
+ * covers the row rather than taking it away, so the row comes back exactly as
+ * it was. It arrives under a pointer
  * resting on Speak, and like every control it answers nothing until the
  * pointer moves (`cameToPointer` in `ui/dwell.ts`).
  */
@@ -781,6 +782,8 @@ export function Topbar({
                 <MenuIcon />
               </ActionButton>
             </div>
+            {/* Stop, over this row and no further, while anything is said. */}
+            {speaking && <StopBar />}
           </div>
 
           {/* **The lines the words are written on** — the question's, while
@@ -935,8 +938,6 @@ export function Topbar({
           <LinkFields text={value} onChange={editMode ? editor.rewrite : composer.rewrite} />
         </div>
       </div>
-
-      {speaking && <StopBar />}
     </header>
   )
 }

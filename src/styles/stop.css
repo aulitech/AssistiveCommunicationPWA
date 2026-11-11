@@ -1,11 +1,16 @@
-/* Stop, over the whole top row while anything is being said — see `StopBar` in
-   `talk/topbar.tsx`. Laid over the row rather than in place of it, so the box
-   under it keeps its words, caret and selection, and the row comes back as it
-   was. Clear's muted red, darkened so the word on it reads. */
+/* Stop, over the card's row of controls while anything is being said — see
+   `StopBar` in `talk/topbar.tsx`. Laid over the row rather than in place of
+   it, from the card's top edge to the rule under the row, so the row comes back
+   as it was and the words stay in sight. Rounded at the top with the card,
+   inside its edge. **It rolls down from the top as it opens**, and is simply
+   there with reduced motion. Clear's muted red, darkened so the word on it
+   reads. */
 .stop-bar {
   position: absolute;
   inset: 0;
   z-index: 20;
+  border-radius: calc(1.25rem - 1px) calc(1.25rem - 1px) 0 0;
+  animation: stopOpen 0.2s ease-out;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -39,6 +44,19 @@
 }
 .stop-bar.dwelling::before {
   animation: stopFill var(--dwell-ms) linear forwards;
+}
+@keyframes stopOpen {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stop-bar {
+    animation: none;
+  }
 }
 @keyframes stopFill {
   to {
