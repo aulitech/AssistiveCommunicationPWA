@@ -355,7 +355,8 @@ test('puts a phrase in two categories, and takes it out of one', async ({ page }
   await cell(page, 'Tea and toast').click()
   await page.locator('.cell-tools .delete-tool').click()
   await expect(page.locator('.edit-modal[role="alertdialog"]')).toContainText('Take it out of Drinks?')
-  await page.locator('.edit-action-btn.danger').click()
+  // Take out, by name: Delete everywhere is red as well, on the line under it.
+  await page.locator('.edit-action-btn[aria-label="Take out"]').click()
   await expect(cell(page, 'Tea and toast')).toHaveCount(0)
   await tab(page, 'Food').click()
   await expect(cell(page, 'Tea and toast')).toHaveCount(1)
