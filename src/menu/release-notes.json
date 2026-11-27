@@ -1,5 +1,27 @@
 [
   {
+    "version": "11.11.18",
+    "date": "2026-11-27",
+    "commits": [
+      {
+        "subject": "Speak in edit mode leaves the words in the box",
+        "body": [
+          {
+            "text": "Speak beside Save saves as Save does, and Save puts the box back to a blank phrase, so a sentence said was gone the moment it was said. The words now go back in once saved, as a new phrase rather than the saved one opened, so the board stays live to go on from them; said again, they are on the board already and are only said. Save on its own still starts a new phrase. With the box in use, the emergency bar says what is chosen on it, over whatever is playing."
+          }
+        ]
+      },
+      {
+        "subject": "Delete everywhere, from a category's bin",
+        "body": [
+          {
+            "text": "The bin on a phrase in one of your categories takes it out of that category and no further. Its question now also offers Delete everywhere, on a line of its own under Take out, which deletes the phrase from Library and every category it is in, as the bin on Library does. Take out keeps the far end and Enter; one Undo puts the phrase back in Library and in every category it was in. Nothing changes on Library."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.17",
     "date": "2026-11-11",
     "commits": [
