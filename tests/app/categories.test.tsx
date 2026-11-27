@@ -1581,3 +1581,78 @@ describe('undoing a deleted category', () => {
     expect(hidden()).toEqual([])
   })
 })
+
+/**
+ * **Delete everywhere, from a category.** The bin on a category takes the
+ * phrase out of that category and no further; its question also offers to
+ * take it off the board altogether, as the bin on Library does — on a line of
+ * its own under Take out, which stays the answer Enter gives.
+ */
+describe('deleting everywhere from a category', () => {
+  const TEA = 'custom-seed-0'
+  const answers = () => inDoc('[role="alertdialog"] .edit-action-btn').map(b => b.getAttribute('aria-label'))
+  const answer = (label: string) =>
+    click(inDoc('.edit-action-btn').find(b => b.getAttribute('aria-label') === label))
+
+  /** Tea filed under Drinks and Food, open in the box on Food's tab, its bin chosen. */
+  const teaInTwo = () => {
+    localStorage.setItem(STORE_KEY, JSON.stringify(SEEDED))
+    renderApp()
+    enterEditMode()
+    click(tabNamed('Drinks'))
+    click(cells().find(c => c.textContent === 'Tea please'))
+    click(tabNamed('Food'))
+    savePhrase()
+    expect(storedStore().members.Food).toContain(TEA)
+    if (!$('.cell-tools .delete-tool')) click(cells().find(c => c.textContent === 'Tea please'))
+    click($('.cell-tools .delete-tool'))
+  }
+
+  it('is offered after Take out, on a line of its own', () => {
+    teaInTwo()
+    expect(answers()).toEqual(['Keep it', 'Take out', 'Delete everywhere'])
+    expect(document.body.querySelector('.edit-modal-actions.is-further')?.textContent).toBe('Delete everywhere')
+    expect(document.body.querySelector('[role="alertdialog"]')!.textContent).toMatch(
+      /Delete everywhere takes it off the board/,
+    )
+  })
+
+  it('takes the phrase off the board, out of every category it was in', () => {
+    teaInTwo()
+    answer('Delete everywhere')
+    expect(storedStore().custom.map((c: { id: string }) => c.id)).not.toContain(TEA)
+    expect(storedStore().members.Drinks).not.toContain(TEA)
+    expect(storedStore().members.Food ?? []).not.toContain(TEA)
+    expect(document.body.textContent).toContain('Deleted everywhere')
+  })
+
+  it('is undone whole: back in Library and in both categories', () => {
+    teaInTwo()
+    answer('Delete everywhere')
+    click($$('.icon-btn').find(b => (b.getAttribute('aria-label') ?? '').startsWith('Undo:')))
+    expect(storedStore().custom.map((c: { id: string }) => c.id)).toContain(TEA)
+    expect(storedStore().members.Drinks).toContain(TEA)
+    expect(storedStore().members.Food).toContain(TEA)
+  })
+
+  it('leaves Take out as it was: out of this category, still in the other', () => {
+    teaInTwo()
+    answer('Take out')
+    expect(storedStore().members.Food ?? []).not.toContain(TEA)
+    expect(storedStore().members.Drinks).toContain(TEA)
+  })
+
+  // On Library the bin already deletes everywhere, so there is nothing further.
+  it('is not offered on Library, where the bin deletes anyway', () => {
+    localStorage.setItem(STORE_KEY, JSON.stringify(SEEDED))
+    renderApp()
+    enterEditMode()
+    click(tabNamed('Drinks'))
+    click(cells().find(c => c.textContent === 'Tea please'))
+    click(tabNamed('Library'))
+    // Library is thousands of phrases; changing its words brings it to the top.
+    writePhrase('Tea please, as ever')
+    click($('.cell-tools .delete-tool'))
+    expect(answers()).toEqual(['Keep it', 'Delete'])
+  })
+})

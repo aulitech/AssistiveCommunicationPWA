@@ -110,6 +110,11 @@
    was, and the way back at Delete's end — see `CategoryModal`. */
 .edit-modal-actions.is-confirming { justify-content: space-between; }
 .edit-modal-actions.is-confirming .edit-action-btn.danger { margin-right: 0; }
+/* **The answer that goes further**, Delete everywhere, on a line of its own
+   under the far answer and well clear of it: the two are never close enough to
+   share a rest, and the answer the question asks about keeps its place. */
+.edit-modal-actions.is-further { margin-top: 0.75rem; }
+.edit-modal-actions.is-further .edit-action-btn.danger { margin-right: 0; }
 
 .edit-action-btn.dwelling { filter: brightness(1.2); }
 .edit-action-btn .dwell-bar { background: rgba(255,255,255,0.3); }

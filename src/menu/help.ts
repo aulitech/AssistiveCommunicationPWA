@@ -338,7 +338,7 @@ export const HELP_SECTIONS: ProseSection[] = [
         'While it asks, nothing else answers. Move the pointer well away before choosing Keep it or Delete: neither takes a rest or a click until you do. Enter deletes and Escape keeps it.',
         'While you change it, the phrase stays on the board, at the top if what you type is searching for others, so :delete: is always in reach.',
         ':delete: on Library deletes the phrase, from Library and from every category it is in. A phrase you added goes; one that came with the app is hidden.',
-        ':delete: on one of your categories only takes the phrase out of that category. It is still in Library.',
+        ':delete: on one of your categories only takes the phrase out of that category. It is still in Library. Its question also offers Delete everywhere, under Take out, which deletes it as :delete: on Library would.',
         ':clear: at the left end of the line starts a new phrase — the same button that empties the message the rest of the time. :copy: and :paste: stay where they are; :copy: copies the phrase you are writing, and only :save: keeps it.',
         ':save: puts the phrase in the category whose tab is showing, or in Library alone when Library is showing. A phrase already in other categories stays in them too.',
         'If the words are already on the board, :save: puts that phrase in the category showing rather than making a second copy, and the line says so.',

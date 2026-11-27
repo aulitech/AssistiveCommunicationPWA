@@ -73,6 +73,7 @@ export function AskFirst({
   confirm = 'Delete',
   onConfirm,
   onClose,
+  further,
 }: {
   title: string
   note: string
@@ -80,6 +81,13 @@ export function AskFirst({
   confirm?: string
   onConfirm: () => void
   onClose: () => void
+  /**
+   * **A second way of going ahead that goes further** — Delete everywhere, on
+   * a phrase the bin would only take out of a category. On a line of its own
+   * under the far answer, so the answer the question is about keeps its place
+   * and Enter still means it.
+   */
+  further?: { label: string; onConfirm: () => void }
 }) {
   // **Neither answer arms until the pointer has gone a long way** from where it
   // chose the bin — in the commit that shows the question, so not even the
@@ -128,6 +136,11 @@ export function AskFirst({
           <EditAction kind="cancel" label="Keep it" onActivate={onClose} armsOnceMoved />
           <EditAction kind="danger" label={confirm} onActivate={onConfirm} armsOnceMoved />
         </div>
+        {further && (
+          <div className="edit-modal-actions is-further">
+            <EditAction kind="danger" label={further.label} onActivate={further.onConfirm} armsOnceMoved />
+          </div>
+        )}
       </div>
     </div>,
     document.body,
