@@ -864,58 +864,67 @@ export function TalkScreen({
   // The question holds the dwells itself — see `AskFirst`.
   const askToDelete = useCallback(() => setAskingDelete(true), [])
 
-  const handleDelete = useCallback(() => {
-    const { phrase, keeping } = draft
-    if (!phrase) return
-    // Forgetting is the only way to take something off either record, and
-    // somebody who has just said something private needs one. Which record is
-    // read off the phrase itself, since the two tabs share every other part of
-    // this path.
-    if (keeping) {
-      if (phrase.category === TRANSLATED_CATEGORY) forgetTranslated(phrase.id)
-      else forgetSuggestion(phrase.id)
-    } else if (removingFrom) {
-      // On a category, the bin takes the phrase out of it and no further: it is
-      // still in Library, with its count.
-      board.removePhrase(phrase.id, removingFrom)
-      recordChange({
-        what: `Took ${quoted(phrase.text)} out of ${removingFrom}`,
-        phrase: phrase.id,
-        tab: effectiveFilter,
-      })
-    } else {
-      board.removePhrase(phrase.id)
-      // Its count goes with it, so the record stays the size of the board —
-      // kept in the history instead, for an Undo to put back.
-      const use = forgetUsed(phrase.id)
-      recordChange({
-        what: `Deleted ${quoted(phrase.text)}`,
-        phrase: phrase.id,
-        tab: effectiveFilter,
-        ...(use && { use: { id: phrase.id, use } }),
-      })
-    }
-    startNew()
-    flashToast(
-      keeping
-        ? 'Forgotten'
-        : removingFrom
-          ? `Taken out of ${removingFrom}${phone ? '' : ' — Undo is beside Paste'}`
-          : `Deleted${phone ? '' : ' — Undo is beside Paste'}`,
-    )
-  }, [
-    draft,
-    board,
-    forgetTranslated,
-    forgetSuggestion,
-    forgetUsed,
-    startNew,
-    flashToast,
-    removingFrom,
-    recordChange,
-    effectiveFilter,
-    phone,
-  ])
+  /**
+   * `everywhere` is the question's other answer on a category — **Delete
+   * everywhere**, which goes past taking it out of the one category to taking
+   * it off the board, as the bin on Library does.
+   */
+  const handleDelete = useCallback(
+    (everywhere = false) => {
+      const { phrase, keeping } = draft
+      if (!phrase) return
+      const takingOut = removingFrom && !everywhere
+      // Forgetting is the only way to take something off either record, and
+      // somebody who has just said something private needs one. Which record is
+      // read off the phrase itself, since the two tabs share every other part of
+      // this path.
+      if (keeping) {
+        if (phrase.category === TRANSLATED_CATEGORY) forgetTranslated(phrase.id)
+        else forgetSuggestion(phrase.id)
+      } else if (takingOut) {
+        // On a category, the bin takes the phrase out of it and no further: it is
+        // still in Library, with its count.
+        board.removePhrase(phrase.id, removingFrom)
+        recordChange({
+          what: `Took ${quoted(phrase.text)} out of ${removingFrom}`,
+          phrase: phrase.id,
+          tab: effectiveFilter,
+        })
+      } else {
+        board.removePhrase(phrase.id)
+        // Its count goes with it, so the record stays the size of the board —
+        // kept in the history instead, for an Undo to put back.
+        const use = forgetUsed(phrase.id)
+        recordChange({
+          what: `Deleted ${quoted(phrase.text)}`,
+          phrase: phrase.id,
+          tab: effectiveFilter,
+          ...(use && { use: { id: phrase.id, use } }),
+        })
+      }
+      startNew()
+      flashToast(
+        keeping
+          ? 'Forgotten'
+          : takingOut
+            ? `Taken out of ${removingFrom}${phone ? '' : ' — Undo is beside Paste'}`
+            : `Deleted${everywhere ? ' everywhere' : ''}${phone ? '' : ' — Undo is beside Paste'}`,
+      )
+    },
+    [
+      draft,
+      board,
+      forgetTranslated,
+      forgetSuggestion,
+      forgetUsed,
+      startNew,
+      flashToast,
+      removingFrom,
+      recordChange,
+      effectiveFilter,
+      phone,
+    ],
+  )
 
   // ── Editing the categories ─────────────────────────────────────────────────
 
@@ -1750,7 +1759,7 @@ export function TalkScreen({
                 draft.keeping
                   ? 'It comes off the record, and cannot be put back.'
                   : removingFrom
-                    ? 'It stays in Library, and in any other category it is in. Undo puts it back.'
+                    ? 'It stays in Library, and in any other category it is in. Delete everywhere takes it off the board instead. Undo puts either back.'
                     : draft.isEmergency
                       ? 'It comes off the blue bar. Undo puts it back.'
                       : 'It goes from Library and from every category it is in. Undo puts it back.'
@@ -1761,6 +1770,17 @@ export function TalkScreen({
                 handleDelete()
               }}
               onClose={() => setAskingDelete(false)}
+              further={
+                removingFrom
+                  ? {
+                      label: 'Delete everywhere',
+                      onConfirm: () => {
+                        setAskingDelete(false)
+                        handleDelete(true)
+                      },
+                    }
+                  : undefined
+              }
             />
           )}
 
