@@ -1,5 +1,19 @@
 [
   {
+    "version": "11.11.19",
+    "date": "2026-11-27",
+    "commits": [
+      {
+        "subject": "Choose Take out by name in the browser test",
+        "body": [
+          {
+            "text": "The bin's question on a category has two red answers now — Take out, and Delete everywhere on the line under it — so the test that took a phrase out of one category clicked a locator matching both, and the browser check failed on preview after 11.11.18."
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "11.11.18",
     "date": "2026-11-27",
     "commits": [
