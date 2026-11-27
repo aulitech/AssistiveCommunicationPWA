@@ -349,7 +349,29 @@ describe('building in edit mode', () => {
     click(speakAndSave())
     expect(spoken).toEqual(['Nobody has written this before'])
     expect(store().custom.map((c: { text: string }) => c.text)).toEqual(['Nobody has written this before'])
-    expect(box().value, 'saved, the draft starts again').toBe('')
+    // **Said, the words stay in the box**, to say again or go on from.
+    expect(box().value, 'the words went from the box once said').toBe('Nobody has written this before')
+  })
+
+  // Saying them again only says them: they are on the board already.
+  it('says the same words again without saving them twice', () => {
+    renderApp()
+    click(speakToggle())
+    writeIn(box(), 'Nobody has written this before')
+    click(speakAndSave())
+    click(speakAndSave())
+    expect(spoken).toEqual(['Nobody has written this before', 'Nobody has written this before'])
+    expect(store().custom.map((c: { text: string }) => c.text)).toEqual(['Nobody has written this before'])
+    expect(box().value).toBe('Nobody has written this before')
+  })
+
+  // Save on its own is not saying anything: the box starts a new phrase.
+  it('still starts a new phrase after Save on its own', () => {
+    renderApp()
+    click(speakToggle())
+    writeIn(box(), 'Nobody has written this before')
+    click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Save phrase'))
+    expect(box().value).toBe('')
   })
 
   // Library has it already: said, and nothing saved twice.

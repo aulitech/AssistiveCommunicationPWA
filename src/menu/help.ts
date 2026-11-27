@@ -153,7 +153,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       ),
       list(
         'In edit mode, rest on a phrase to put it in the box where the caret is, as it was written: the same words, marks and full stop you see when you edit it. Into an empty box, it opens to be reworded instead.',
-        ':speak: after :save: says what is in the box and saves it as a phrase, in one rest. If Library has those words already, it only says them.',
+        ':speak: after :save: says what is in the box and saves it as a phrase, in one rest. If Library has those words already, it only says them. The words stay in the box afterwards, to say again or go on from; :clear: starts something new.',
         'Type in the box to find phrases in Library. After you choose a phrase, what you type next starts a new search.',
         'In edit mode, a phrase you find by typing into an otherwise empty box opens to be changed when it is on the tab showing, and the board scrolls to its button.',
         'Phrases that begin with what you typed come first, then phrases with a word that begins with it. Last are phrases whose first letters it spells, so "ttyl" finds "Talk to you later".',
@@ -333,7 +333,7 @@ export const HELP_SECTIONS: ProseSection[] = [
       text('The controls on the box mean something else while it is on, in the same places:'),
       list(
         ':save:, right after the last word, saves what is in the box — where :speak: is the rest of the time, because it is what this mode is for. Like Speak, it is there once there is something to save.',
-        ':speak: after :save: says what is in the box and saves it too, so a message you build is kept as a phrase.',
+        ':speak: after :save: says what is in the box and saves it too, so a message you build is kept as a phrase. The words stay in the box once said; :save: on its own starts a new phrase.',
         'The phrase in the box has :delete: at the left edge of its button on the board, and :grip: at the right edge where it can be moved. :delete: asks first.',
         'While it asks, nothing else answers. Move the pointer well away before choosing Keep it or Delete: neither takes a rest or a click until you do. Enter deletes and Escape keeps it.',
         'While you change it, the phrase stays on the board, at the top if what you type is searching for others, so :delete: is always in reach.',
