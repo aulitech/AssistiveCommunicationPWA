@@ -1334,7 +1334,16 @@ export function TalkScreen({
       } else speak(plain, settings, { voiceURI, onTranslated: recordTranslated, please: settings.please })
       // Save refuses words Library holds already, so those are only said —
       // and it is that phrase that was said.
-      const said = handleSave() ?? phraseSaying(words.trim())?.id
+      const saved = handleSave()
+      const said = saved ?? phraseSaying(words.trim())?.id
+      // **The words stay in the box once said.** Save puts the box back to a
+      // blank phrase, ready for the next; somebody who has just said something
+      // may want it again, or to go on from it. Back as a new phrase rather
+      // than the one saved opened — an opened phrase leaves the board inert
+      // until its words change — and as a whole phrase, so nothing in it is
+      // being typed. Said again, the words are on the board already, so it is
+      // only said.
+      if (saved) startNew(words, words)
       // **Counted as used, and pointed at once it has been said**, as a message
       // said in auto-speak is — see `keepSaid`. Not counted, a phrase said here
       // sat behind every phrase with any use under Recently used and Most used:
@@ -1369,6 +1378,7 @@ export function TalkScreen({
     phraseSaying,
     draft.isEmergency,
     recordUsed,
+    startNew,
   ])
 
   // Copying is the other way a message leaves — into a text, an email, someone

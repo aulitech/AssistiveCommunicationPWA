@@ -100,8 +100,13 @@ describe('Stop, while anything is being said', () => {
     expect(stop()).not.toBeNull()
   })
 
-  // Being edited, the bar is a thing to change, and waits like everything else.
-  it('keeps the emergency bar still in edit mode', () => {
+  // **In edit mode, the words just said stay in the box**, so the box is in use
+  // and the bar says what is chosen on it rather than opening it — and saying
+  // never waits, so it is said over what was playing, and the box keeps its
+  // words. (An empty box in edit mode, where the bar opens a phrase to be
+  // changed and so waits like everything else, can no longer be reached while
+  // anything is being said: Speak leaves the words where they were.)
+  it('says the bar over words just said in edit mode, and keeps them in the box', () => {
     holdSpeech()
     renderApp()
     click($('.autospeak-toggle'))
@@ -109,7 +114,8 @@ describe('Stop, while anything is being said', () => {
     click($$('.icon-btn').find(b => b.getAttribute('aria-label') === 'Speak and save'))
     expect(stop()).not.toBeNull()
     click($('.emergency-btn'))
-    expect(box().value, 'an emergency phrase was opened while something was being said').toBe('')
+    expect(spoken).toHaveLength(2)
+    expect(box().value, 'an emergency phrase was put in the box').toBe('Something being said')
   })
 
   // A synthesiser that goes quiet without saying so does not leave Stop up.
